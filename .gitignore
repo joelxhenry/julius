@@ -90,3 +90,12 @@ typings/
 
 # Electron-Forge
 out/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+dev.db
+
+# Temporary files
+nul
