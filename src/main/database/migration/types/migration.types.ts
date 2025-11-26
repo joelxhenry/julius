@@ -8,13 +8,15 @@ export interface MigrationOptions {
 }
 
 export interface MigrationResult {
-  migrator: string;
-  success: boolean;
-  recordsProcessed: number;
-  recordsInserted: number;
+  tableName?: string;
+  totalRecords: number;
+  successCount: number;
   errorCount: number;
-  duration: number;
-  errors: MigrationError[];
+  skippedCount: number;
+  warningCount: number;
+  elapsedTime: number;
+  dryRun: boolean;
+  error?: string;
 }
 
 export interface MigrationError {

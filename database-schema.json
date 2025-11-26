@@ -491,6 +491,13 @@
           "nullable": false
         },
         {
+          "name": "legacy_id",
+          "type": "integer",
+          "nullable": true,
+          "unique": true,
+          "description": "Legacy invoice number from DBF system"
+        },
+        {
           "name": "client_id",
           "type": "integer",
           "nullable": true,
@@ -572,6 +579,13 @@
           "primaryKey": true,
           "autoIncrement": true,
           "nullable": false
+        },
+        {
+          "name": "legacy_id",
+          "type": "integer",
+          "nullable": true,
+          "unique": true,
+          "description": "Legacy line number from DBF system"
         },
         {
           "name": "invoice_id",

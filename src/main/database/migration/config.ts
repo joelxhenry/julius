@@ -40,10 +40,17 @@ export const MigrationConfig = {
     'quotations',
     'quotationItems',
     'invoices',
-    'invoiceItems',
+    'invoice-items',
+    'historical-invoices', // Historical invoices after current invoices
+    'historical-invoice-items', // Historical invoice items after current items
     'payments',
+    'historical-payments', // Historical payments after current payments
     'creditNotes',
+    'historical-credit-notes', // Historical credit notes after current
     'creditNoteAllocations',
+    'historical-credit-note-allocations', // Historical allocations after current
+    'historical-quotations', // Historical quotations
+    'historical-quotation-items', // Historical quotation items
     'auditLogs',
   ],
 };

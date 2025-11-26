@@ -321,4 +321,11 @@ export abstract class BaseMigrator {
       console.warn(`⚠ ${message}`);
     }
   }
+
+  /**
+   * Check if running in dry-run mode
+   */
+  protected isDryRunMode(): boolean {
+    return !!this.dryRun;
+  }
 }

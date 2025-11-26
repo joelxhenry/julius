@@ -20,11 +20,25 @@ export class ForeignKeyLookup {
   private invoicesByNumber: Map<string, number> = new Map();
   private quotationsByNumber: Map<string, number> = new Map();
   private creditNotesByNumber: Map<string, number> = new Map();
+  private isDryRun: boolean = false;
+  private nextMockId: number = 1;
+
+  /**
+   * Set dry-run mode
+   */
+  setDryRun(isDryRun: boolean): void {
+    this.isDryRun = isDryRun;
+  }
 
   /**
    * Load all clients into cache
    */
   async loadClients(): Promise<void> {
+    if (this.isDryRun) {
+      console.log('✓ Skipping client FK lookup (dry-run mode)');
+      return;
+    }
+    
     console.log('Loading clients for FK lookup...');
     const allClients = await db.select().from(clients);
 
@@ -39,6 +53,11 @@ export class ForeignKeyLookup {
    * Load all employees into cache
    */
   async loadEmployees(): Promise<void> {
+    if (this.isDryRun) {
+      console.log('✓ Skipping employee FK lookup (dry-run mode)');
+      return;
+    }
+    
     console.log('Loading employees for FK lookup...');
     const allEmployees = await db.select().from(employees);
 
@@ -59,6 +78,11 @@ export class ForeignKeyLookup {
    * Load all parts (by SKU) into cache
    */
   async loadParts(): Promise<void> {
+    if (this.isDryRun) {
+      console.log('✓ Skipping parts FK lookup (dry-run mode)');
+      return;
+    }
+    
     console.log('Loading parts for FK lookup...');
     const allParts = await db.select().from(parts);
 
@@ -75,6 +99,11 @@ export class ForeignKeyLookup {
    * Load all part variants (by SKU) into cache
    */
   async loadPartVariants(): Promise<void> {
+    if (this.isDryRun) {
+      console.log('✓ Skipping part variants FK lookup (dry-run mode)');
+      return;
+    }
+    
     console.log('Loading part variants for FK lookup...');
     const allVariants = await db
       .select({
@@ -113,6 +142,15 @@ export class ForeignKeyLookup {
   getClientId(clientName: string | null): number | null {
     if (!clientName) return null;
     const normalized = clientName.trim().toUpperCase();
+    
+    // In dry-run mode, return mock ID
+    if (this.isDryRun) {
+      if (!this.clientsByName.has(normalized)) {
+        this.clientsByName.set(normalized, this.nextMockId++);
+      }
+      return this.clientsByName.get(normalized) || null;
+    }
+    
     return this.clientsByName.get(normalized) || null;
   }
 
@@ -122,6 +160,15 @@ export class ForeignKeyLookup {
   getEmployeeIdByCode(employeeCode: string | null): number | null {
     if (!employeeCode) return null;
     const normalized = employeeCode.trim().toUpperCase();
+    
+    // In dry-run mode, return mock ID
+    if (this.isDryRun) {
+      if (!this.employeesByCode.has(normalized)) {
+        this.employeesByCode.set(normalized, this.nextMockId++);
+      }
+      return this.employeesByCode.get(normalized) || null;
+    }
+    
     return this.employeesByCode.get(normalized) || null;
   }
 
@@ -140,6 +187,15 @@ export class ForeignKeyLookup {
   getPartId(sku: string | null): number | null {
     if (!sku) return null;
     const normalized = sku.trim().toUpperCase();
+    
+    // In dry-run mode, return mock ID
+    if (this.isDryRun) {
+      if (!this.partsBySku.has(normalized)) {
+        this.partsBySku.set(normalized, this.nextMockId++);
+      }
+      return this.partsBySku.get(normalized) || null;
+    }
+    
     return this.partsBySku.get(normalized) || null;
   }
 

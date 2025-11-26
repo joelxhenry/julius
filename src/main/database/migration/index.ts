@@ -9,6 +9,14 @@ import { ClientsMigrator } from './migrators/clients-migrator';
 import { EmployeesMigrator } from './migrators/employees-migrator';
 import { PartsMigrator } from './migrators/parts-migrator';
 import { PartVariantsMigrator } from './migrators/part-variants-migrator';
+import { PaymentMethodsMigrator } from './migrators/payment-methods-migrator';
+import { SettingsMigrator } from './migrators/settings-migrator';
+import { InvoicesMigrator } from './migrators/invoices-migrator';
+import { HistoricalInvoicesMigrator } from './migrators/historical-invoices-migrator';
+import { InvoiceItemsMigrator } from './migrators/invoice-items-migrator';
+import { HistoricalInvoiceItemsMigrator } from './migrators/historical-invoice-items-migrator';
+import { PaymentsMigrator } from './migrators/payments-migrator';
+import { HistoricalPaymentsMigrator } from './migrators/historical-payments-migrator';
 
 export class MigrationOrchestrator {
   private options: MigrationOptions;
@@ -24,6 +32,7 @@ export class MigrationOrchestrator {
 
     if (options.dryRun) {
       this.dryRun = new DryRun(`migration-${Date.now()}`);
+      this.fkLookup.setDryRun(true);
     }
 
     // Register all migrators
@@ -31,11 +40,16 @@ export class MigrationOrchestrator {
     this.migrators = new Map([
       ['clients', { class: ClientsMigrator, needsFkLookup: false }],
       ['employees', { class: EmployeesMigrator, needsFkLookup: false }],
+      ['payment-methods', { class: PaymentMethodsMigrator, needsFkLookup: false }],
+      ['settings', { class: SettingsMigrator, needsFkLookup: false }],
       ['parts', { class: PartsMigrator, needsFkLookup: false }],
       ['part-variants', { class: PartVariantsMigrator, needsFkLookup: true }],
-      // TODO: Add more migrators as they are implemented
-      // ['quotations', { class: QuotationsMigrator, needsFkLookup: true }],
-      // ['creditNotes', { class: CreditNotesMigrator, needsFkLookup: true }],
+      ['invoices', { class: InvoicesMigrator, needsFkLookup: true }],
+      ['historical-invoices', { class: HistoricalInvoicesMigrator, needsFkLookup: true }],
+      ['invoice-items', { class: InvoiceItemsMigrator, needsFkLookup: true }],
+      ['historical-invoice-items', { class: HistoricalInvoiceItemsMigrator, needsFkLookup: true }],
+      ['payments', { class: PaymentsMigrator, needsFkLookup: true }],
+      ['historical-payments', { class: HistoricalPaymentsMigrator, needsFkLookup: true }]
     ]);
   }
 

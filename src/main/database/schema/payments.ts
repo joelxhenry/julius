@@ -13,6 +13,7 @@ export const paymentMethods = sqliteTable('payment_methods', {
 // PAYMENT table
 export const payments = sqliteTable('payments', {
   id: integer('id').primaryKey({ autoIncrement: true }),
+  legacyId: integer('legacy_id').unique(),
   invoiceId: integer('invoice_id')
     .notNull()
     .references(() => invoices.id, { onDelete: 'cascade' }),

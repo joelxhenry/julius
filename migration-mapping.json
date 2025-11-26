@@ -380,6 +380,14 @@
           "required": true
         },
         {
+          "source": "INV_NUMBER",
+          "target": "legacy_id",
+          "type": "string->integer",
+          "transform": "parseInt(trim(value)) or null",
+          "nullable": true,
+          "notes": "Store legacy invoice number for reference"
+        },
+        {
           "source": "CL_NAME",
           "target": "client_id",
           "type": "string->integer",
@@ -449,6 +457,15 @@
           "notes": "Calculate balance from total and amount_paid"
         },
         {
+          "source": null,
+          "target": "is_historical",
+          "type": "integer",
+          "transform": "0 for INVOICE.DBF, 1 for H_INVOIC.DBF",
+          "required": true,
+          "default": 0,
+          "notes": "Flag to distinguish between current and historical invoices"
+        },
+        {
           "source": "INV_DATE",
           "target": "created_at",
           "type": "date->string",
@@ -457,7 +474,6 @@
         }
       ],
       "additionalFields": {
-        "INV_NUMBER": "Store as reference or in separate legacy_invoices table",
         "INV_TIME": "Not mapped - time of invoice",
         "CL_ADDR1": "Not mapped - redundant with client table",
         "CL_ADDR2": "Not mapped - redundant with client table",
@@ -486,6 +502,14 @@
           "type": "integer",
           "transform": "auto-increment",
           "required": true
+        },
+        {
+          "source": "LIN_NUMBER",
+          "target": "legacy_id",
+          "type": "string->integer",
+          "transform": "parseInt(trim(value)) or null",
+          "nullable": true,
+          "notes": "Store legacy line number for reference"
         },
         {
           "source": "INV_NUMBER",
@@ -780,6 +804,14 @@
           "type": "integer",
           "transform": "auto-increment",
           "required": true
+        },
+        {
+          "source": "INV_NUMBER",
+          "target": "legacy_id",
+          "type": "string->integer",
+          "transform": "parseInt(INV_NUMBER) - use as legacy payment identifier",
+          "nullable": true,
+          "notes": "Store original INV_NUMBER as legacy_id for reference"
         },
         {
           "source": "INV_NUMBER",
