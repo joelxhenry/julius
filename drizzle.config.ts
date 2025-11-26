@@ -2,7 +2,7 @@ import type { Config } from 'drizzle-kit';
 import path from 'node:path';
 
 export default {
-  schema: './src/main/database/schema.ts',
+  schema: './src/main/database/schema/index.ts',
   out: './src/main/database/migrations',
   dialect: 'sqlite',
   dbCredentials: {

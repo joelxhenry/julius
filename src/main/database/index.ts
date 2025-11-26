@@ -4,7 +4,7 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import * as schema from './schema';
+import * as schema from './schema/index';
 
 let db: ReturnType<typeof drizzle> | null = null;
 
