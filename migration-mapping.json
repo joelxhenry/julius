@@ -1,0 +1,1273 @@
+{
+  "version": "1.0.0",
+  "description": "Migration mapping from legacy DBF database to new SQLite schema",
+  "migrationDate": "2025-11-26",
+  "mappings": [
+    {
+      "source": {
+        "table": "CLIENT.DBF",
+        "recordCount": 809,
+        "description": "Legacy client/customer data"
+      },
+      "target": {
+        "table": "clients",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": "CL_NUMBER",
+          "target": "legacy_id",
+          "type": "string->integer",
+          "transform": "parseInt(trim(value)) or null",
+          "nullable": true,
+          "notes": "Store as legacy_id for reference"
+        },
+        {
+          "source": "CLIENT",
+          "target": "name",
+          "type": "string",
+          "transform": "trim(value)",
+          "required": true
+        },
+        {
+          "source": "CL_PHONE",
+          "target": "phone",
+          "type": "string",
+          "transform": "trim(value)",
+          "nullable": true
+        },
+        {
+          "source": null,
+          "target": "email",
+          "type": "string",
+          "transform": "null",
+          "nullable": true,
+          "notes": "Not available in legacy system"
+        },
+        {
+          "source": "CL_ADDR1",
+          "target": "address1",
+          "type": "string",
+          "transform": "trim(value)",
+          "nullable": true
+        },
+        {
+          "source": "CL_ADDR2",
+          "target": "address2",
+          "type": "string",
+          "transform": "trim(value)",
+          "nullable": true
+        },
+        {
+          "source": "CRED_LIMIT",
+          "target": "credit_limit",
+          "type": "integer->real",
+          "transform": "parseFloat(value) || 0.0",
+          "required": true,
+          "default": 0.0
+        },
+        {
+          "source": "CL_DISC",
+          "target": "discount_rate",
+          "type": "real",
+          "transform": "parseFloat(value) || 0.0",
+          "required": true,
+          "default": 0.0,
+          "notes": "Discount rate as percentage"
+        },
+        {
+          "source": null,
+          "target": "created_at",
+          "type": "timestamp",
+          "transform": "new Date().toISOString()",
+          "required": true,
+          "notes": "Set to migration timestamp"
+        }
+      ],
+      "additionalFields": {
+        "CONTACT": "Not mapped - legacy contact field",
+        "CL_NOTE": "Not mapped - consider storing in notes table",
+        "CREDIT": "Not mapped - unclear purpose",
+        "CRED_DESC": "Not mapped - credit description",
+        "CL_TAX": "Not mapped - tax flag",
+        "CRED_TERMS": "Not mapped - credit terms",
+        "CL_CUSTOM1": "Not mapped - custom field",
+        "CL_CUSTOM2": "Not mapped - custom field",
+        "LB_DISC": "Not mapped - labor discount"
+      }
+    },
+    {
+      "source": {
+        "table": "INVENTRY.DBF",
+        "recordCount": 15425,
+        "description": "Legacy parts inventory"
+      },
+      "target": {
+        "table": "parts",
+        "type": "split",
+        "additionalTargets": ["part_variants"]
+      },
+      "fieldMappings": [
+        {
+          "targetTable": "parts",
+          "fields": [
+            {
+              "source": null,
+              "target": "id",
+              "type": "integer",
+              "transform": "auto-increment",
+              "required": true
+            },
+            {
+              "source": "DESCR1",
+              "target": "name",
+              "type": "string",
+              "transform": "trim(value)",
+              "required": true
+            },
+            {
+              "source": "CATEGORY",
+              "target": "category",
+              "type": "string",
+              "transform": "trim(value)",
+              "nullable": true
+            },
+            {
+              "source": "DESCR2",
+              "target": "description",
+              "type": "string",
+              "transform": "trim(value)",
+              "nullable": true
+            },
+            {
+              "source": "SKU",
+              "target": "sku",
+              "type": "string",
+              "transform": "trim(value)",
+              "required": true,
+              "unique": true
+            },
+            {
+              "source": "PRICE",
+              "target": "price",
+              "type": "real",
+              "transform": "parseFloat(value)",
+              "required": true
+            },
+            {
+              "source": "TAXCODE",
+              "target": "taxable",
+              "type": "string->boolean",
+              "transform": "value === 'Y' ? 1 : 0",
+              "required": true,
+              "default": 1
+            },
+            {
+              "source": null,
+              "target": "created_at",
+              "type": "timestamp",
+              "transform": "new Date().toISOString()",
+              "required": true
+            }
+          ]
+        },
+        {
+          "targetTable": "part_variants",
+          "fields": [
+            {
+              "source": null,
+              "target": "id",
+              "type": "integer",
+              "transform": "auto-increment",
+              "required": true
+            },
+            {
+              "source": null,
+              "target": "part_id",
+              "type": "integer",
+              "transform": "FK to parts.id (created from SKU)",
+              "required": true,
+              "notes": "Foreign key relationship"
+            },
+            {
+              "source": "LOCATION",
+              "target": "location",
+              "type": "string",
+              "transform": "trim(value).toUpperCase() or null",
+              "nullable": true,
+              "notes": "Store location code directly in part_variants.location"
+            },
+            {
+              "source": null,
+              "target": "name",
+              "type": "string",
+              "transform": "'Standard' or generate from SKU",
+              "nullable": true,
+              "notes": "Default variant name"
+            },
+            {
+              "source": "MODEL",
+              "target": "description",
+              "type": "string",
+              "transform": "trim(value)",
+              "nullable": true
+            },
+            {
+              "source": null,
+              "target": "is_generic",
+              "type": "boolean",
+              "transform": "0",
+              "required": true,
+              "default": 0
+            },
+            {
+              "source": "PRICE",
+              "target": "price",
+              "type": "real",
+              "transform": "parseFloat(value)",
+              "required": true
+            },
+            {
+              "source": "QUANTITY",
+              "target": "stock_qty",
+              "type": "integer",
+              "transform": "parseInt(value) || 0",
+              "required": true,
+              "default": 0
+            },
+            {
+              "source": "MIN_LEV",
+              "target": "reorder_level",
+              "type": "integer",
+              "transform": "parseInt(value) || 0",
+              "required": true,
+              "default": 0
+            },
+            {
+              "source": null,
+              "target": "active",
+              "type": "boolean",
+              "transform": "1",
+              "required": true,
+              "default": 1
+            },
+            {
+              "source": null,
+              "target": "barcode",
+              "type": "string",
+              "transform": "null",
+              "nullable": true,
+              "notes": "Not available in legacy system"
+            }
+          ]
+        }
+      ],
+      "additionalFields": {
+        "COST": "Not directly mapped - consider tracking separately",
+        "COSTCURR": "Not mapped - currency code",
+        "PRICECURR": "Not mapped - currency code",
+        "MARGIN": "Not mapped - calculated field",
+        "UNIT": "Not mapped - unit of measure",
+        "WHOLEPRICE": "Not mapped - wholesale price",
+        "ICHECK": "Not mapped - inventory check flag"
+      },
+      "notes": "Each INVENTRY record creates one part and one variant. Location stored directly in part_variants.location field."
+    },
+    {
+      "source": {
+        "table": "EMPNAME.DBF",
+        "recordCount": 11,
+        "description": "Legacy employee data (HR records)"
+      },
+      "target": {
+        "table": "employees",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": "FIRST",
+          "target": "first_name",
+          "type": "string",
+          "transform": "trim(value)",
+          "required": true
+        },
+        {
+          "source": "LAST",
+          "target": "last_name",
+          "type": "string",
+          "transform": "trim(value)",
+          "required": true
+        },
+        {
+          "source": "CODE",
+          "target": "username",
+          "type": "string",
+          "transform": "trim(value).toLowerCase()",
+          "required": true,
+          "unique": true
+        },
+        {
+          "source": "TITLE",
+          "target": "title",
+          "type": "string",
+          "transform": "trim(value)",
+          "nullable": true
+        },
+        {
+          "source": null,
+          "target": "using_default_pin",
+          "type": "boolean",
+          "transform": "1",
+          "required": true,
+          "default": 1,
+          "notes": "Set to 1 for all employees, they can change it later"
+        },
+        {
+          "source": null,
+          "target": "pin_hash",
+          "type": "string",
+          "transform": "hash default PIN '0000'",
+          "required": true,
+          "notes": "Set default hashed PIN for all employees"
+        },
+        {
+          "source": "START",
+          "target": "start_date",
+          "type": "date->string",
+          "transform": "parseDate(value) to ISO 8601",
+          "required": true
+        },
+        {
+          "source": "END",
+          "target": "end_date",
+          "type": "date->string",
+          "transform": "parseDate(value) to ISO 8601 or null",
+          "nullable": true
+        },
+        {
+          "source": null,
+          "target": "role_id",
+          "type": "integer",
+          "transform": "null",
+          "nullable": true,
+          "notes": "Assign roles after migration based on TITLE field"
+        }
+      ],
+      "additionalFields": {
+        "DEPT": "Not mapped - department field",
+        "ADDRESS": "Not mapped - employee address",
+        "PHONE": "Not mapped - employee phone",
+        "CONTACT": "Not mapped - emergency contact",
+        "STATUS": "Not mapped - marital status"
+      }
+    },
+    {
+      "source": {
+        "table": "INVOICE.DBF",
+        "recordCount": 43523,
+        "description": "Legacy invoices"
+      },
+      "target": {
+        "table": "invoices",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": null,
+          "target": "id",
+          "type": "integer",
+          "transform": "auto-increment",
+          "required": true
+        },
+        {
+          "source": "CL_NAME",
+          "target": "client_id",
+          "type": "string->integer",
+          "transform": "lookup client by name, return id or null",
+          "nullable": true,
+          "notes": "Must lookup client_id from clients table by name"
+        },
+        {
+          "source": "SALESPERSN",
+          "target": "employee_id",
+          "type": "string->integer",
+          "transform": "lookup employee by code/username, return id or null",
+          "nullable": true,
+          "notes": "Must lookup employee_id from employees table"
+        },
+        {
+          "source": "STATUS",
+          "target": "status",
+          "type": "string",
+          "transform": "mapStatus(value): 'A'->>'active', 'C'->'completed', default->'completed'",
+          "required": true
+        },
+        {
+          "source": "SUB_TOTAL",
+          "target": "subtotal",
+          "type": "real",
+          "transform": "parseFloat(value) || 0.0",
+          "required": true
+        },
+        {
+          "source": "TAX",
+          "target": "tax_total",
+          "type": "real",
+          "transform": "parseFloat(value) || 0.0",
+          "required": true
+        },
+        {
+          "source": null,
+          "target": "discount_total",
+          "type": "real",
+          "transform": "0.0",
+          "required": true,
+          "default": 0.0,
+          "notes": "Discount not tracked separately in legacy"
+        },
+        {
+          "source": "TOTAL",
+          "target": "total",
+          "type": "real",
+          "transform": "parseFloat(value) || 0.0",
+          "required": true
+        },
+        {
+          "source": "TOTAL_PAID",
+          "target": "amount_paid",
+          "type": "real",
+          "transform": "parseFloat(value) || 0.0",
+          "required": true,
+          "default": 0.0
+        },
+        {
+          "source": "TOTAL",
+          "target": "balance",
+          "type": "real",
+          "transform": "parseFloat(TOTAL - TOTAL_PAID)",
+          "required": true,
+          "notes": "Calculate balance from total and amount_paid"
+        },
+        {
+          "source": "INV_DATE",
+          "target": "created_at",
+          "type": "date->string",
+          "transform": "parseDate(value) to ISO 8601",
+          "required": true
+        }
+      ],
+      "additionalFields": {
+        "INV_NUMBER": "Store as reference or in separate legacy_invoices table",
+        "INV_TIME": "Not mapped - time of invoice",
+        "CL_ADDR1": "Not mapped - redundant with client table",
+        "CL_ADDR2": "Not mapped - redundant with client table",
+        "CL_PHONE": "Not mapped - redundant with client table",
+        "REFERENCE": "Not mapped - invoice reference",
+        "TAXABLE": "Not mapped - taxable flag",
+        "PRICING": "Not mapped - pricing type flag",
+        "CRED_TERMS": "Not mapped - credit terms"
+      },
+      "preProcess": "Must migrate CLIENT and EMPNAME first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "INVDETAI.DBF",
+        "recordCount": 83249,
+        "description": "Legacy invoice line items"
+      },
+      "target": {
+        "table": "invoice_items",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": null,
+          "target": "id",
+          "type": "integer",
+          "transform": "auto-increment",
+          "required": true
+        },
+        {
+          "source": "INV_NUMBER",
+          "target": "invoice_id",
+          "type": "string->integer",
+          "transform": "lookup invoice by legacy INV_NUMBER, return id",
+          "required": true,
+          "notes": "Must lookup invoice_id from invoices table"
+        },
+        {
+          "source": "SKU",
+          "target": "variant_id",
+          "type": "string->integer",
+          "transform": "lookup part_variant by SKU, return id or null",
+          "nullable": true,
+          "notes": "Must lookup variant_id from part_variants via parts.sku"
+        },
+        {
+          "source": "QUANTITY",
+          "target": "quantity",
+          "type": "integer",
+          "transform": "parseInt(value)",
+          "required": true
+        },
+        {
+          "source": "UNIT",
+          "target": "price",
+          "type": "real",
+          "transform": "parseFloat(value)",
+          "required": true,
+          "notes": "UNIT field contains unit price"
+        },
+        {
+          "source": "DISC",
+          "target": "discount",
+          "type": "real",
+          "transform": "Math.abs(parseFloat(value)) || 0.0",
+          "required": true,
+          "default": 0.0,
+          "notes": "Discount may be negative, convert to positive"
+        },
+        {
+          "source": "AMOUNT",
+          "target": "tax",
+          "type": "real",
+          "transform": "calculateTax(AMOUNT, QUANTITY, UNIT, TAX_FLAG)",
+          "required": true,
+          "default": 0.0,
+          "notes": "Calculate tax from amount and other fields"
+        }
+      ],
+      "additionalFields": {
+        "LIN_NUMBER": "Not mapped - line number",
+        "DESC": "Not mapped - description redundant with part"
+      },
+      "preProcess": "Must migrate INVOICE and INVENTRY first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "QUOTE.DBF",
+        "recordCount": 3041,
+        "description": "Legacy quotations"
+      },
+      "target": {
+        "table": "quotations",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": null,
+          "target": "id",
+          "type": "integer",
+          "transform": "auto-increment",
+          "required": true
+        },
+        {
+          "source": "CL_NAME",
+          "target": "client_id",
+          "type": "string->integer",
+          "transform": "lookup client by name, return id or null",
+          "nullable": true,
+          "notes": "Must lookup client_id from clients table"
+        },
+        {
+          "source": "SALESPERSN",
+          "target": "employee_id",
+          "type": "string->integer",
+          "transform": "lookup employee by code/username, return id or null",
+          "nullable": true,
+          "notes": "Must lookup employee_id from employees table"
+        },
+        {
+          "source": "TOTAL",
+          "target": "total",
+          "type": "real",
+          "transform": "parseFloat(value)",
+          "required": true
+        },
+        {
+          "source": null,
+          "target": "status",
+          "type": "string",
+          "transform": "'pending'",
+          "required": true,
+          "default": "pending",
+          "notes": "All legacy quotes set to pending status"
+        },
+        {
+          "source": "QUOTE_DATE",
+          "target": "created_at",
+          "type": "date->string",
+          "transform": "parseDate(value) to ISO 8601",
+          "required": true
+        }
+      ],
+      "additionalFields": {
+        "QUOTE_NUM": "Store as reference or in separate legacy_quotations table",
+        "CL_ADDR1": "Not mapped - redundant with client table",
+        "CL_ADDR2": "Not mapped - redundant with client table",
+        "CL_PHONE": "Not mapped - redundant with client table",
+        "REFERENCE": "Not mapped - quotation reference",
+        "SUB_TOTAL": "Not mapped - can recalculate",
+        "TAX": "Not mapped - can recalculate",
+        "TAXABLE": "Not mapped - taxable flag",
+        "PRICING": "Not mapped - pricing type flag"
+      },
+      "preProcess": "Must migrate CLIENT and EMPNAME first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "QTEDETAI.DBF",
+        "recordCount": 12372,
+        "description": "Legacy quotation line items"
+      },
+      "target": {
+        "table": "quotation_items",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": null,
+          "target": "id",
+          "type": "integer",
+          "transform": "auto-increment",
+          "required": true
+        },
+        {
+          "source": "QUOTE_NUM",
+          "target": "quotation_id",
+          "type": "string->integer",
+          "transform": "lookup quotation by legacy QUOTE_NUM, return id",
+          "required": true,
+          "notes": "Must lookup quotation_id from quotations table"
+        },
+        {
+          "source": "SKU",
+          "target": "variant_id",
+          "type": "string->integer",
+          "transform": "lookup part_variant by SKU, return id or null",
+          "nullable": true,
+          "notes": "Must lookup variant_id from part_variants via parts.sku"
+        },
+        {
+          "source": "QUANTITY",
+          "target": "quantity",
+          "type": "integer",
+          "transform": "parseInt(value)",
+          "required": true
+        },
+        {
+          "source": "UNIT",
+          "target": "price",
+          "type": "real",
+          "transform": "parseFloat(value)",
+          "required": true,
+          "notes": "UNIT field contains unit price"
+        }
+      ],
+      "additionalFields": {
+        "LIN_NUMBER": "Not mapped - line number",
+        "DESC": "Not mapped - description redundant with part",
+        "DISC": "Not mapped - discount",
+        "TAX": "Not mapped - tax flag",
+        "AMOUNT": "Not mapped - can recalculate"
+      },
+      "preProcess": "Must migrate QUOTE and INVENTRY first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "CRNOTE.DBF",
+        "recordCount": 4386,
+        "description": "Legacy credit notes"
+      },
+      "target": {
+        "table": "credit_notes",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": null,
+          "target": "id",
+          "type": "integer",
+          "transform": "auto-increment",
+          "required": true
+        },
+        {
+          "source": "CL_NAME",
+          "target": "client_id",
+          "type": "string->integer",
+          "transform": "lookup client by name, return id (required)",
+          "required": true,
+          "notes": "Must lookup client_id from clients table"
+        },
+        {
+          "source": "INV_NUMBER",
+          "target": "invoice_id",
+          "type": "string->integer",
+          "transform": "lookup invoice by legacy INV_NUMBER, return id or null",
+          "nullable": true,
+          "notes": "Must lookup invoice_id from invoices table"
+        },
+        {
+          "source": "SALESPERSN",
+          "target": "employee_id",
+          "type": "string->integer",
+          "transform": "lookup employee by code/username, return id or null",
+          "nullable": true,
+          "notes": "Must lookup employee_id from employees table"
+        },
+        {
+          "source": "TOTAL",
+          "target": "amount",
+          "type": "real",
+          "transform": "parseFloat(value)",
+          "required": true
+        },
+        {
+          "source": "TOTAL_USED",
+          "target": "remaining_amount",
+          "type": "real",
+          "transform": "parseFloat(TOTAL - TOTAL_USED)",
+          "required": true,
+          "notes": "Calculate remaining from total and used"
+        },
+        {
+          "source": "STATUS",
+          "target": "status",
+          "type": "string",
+          "transform": "mapStatus(value): 'A'->'active', default->'active'",
+          "required": true
+        },
+        {
+          "source": "REFERENCE",
+          "target": "reason",
+          "type": "string",
+          "transform": "trim(value) || 'Migrated from legacy system'",
+          "required": true,
+          "notes": "Use reference as reason or default message"
+        },
+        {
+          "source": "CR_DATE",
+          "target": "created_at",
+          "type": "date->string",
+          "transform": "parseDate(value) to ISO 8601",
+          "required": true
+        }
+      ],
+      "additionalFields": {
+        "CR_NUMBER": "Store as reference or in separate legacy_credit_notes table",
+        "CL_ADDR1": "Not mapped - redundant with client table",
+        "CL_ADDR2": "Not mapped - redundant with client table",
+        "CL_PHONE": "Not mapped - redundant with client table",
+        "SUB_TOTAL": "Not mapped - can recalculate",
+        "TAX": "Not mapped - can recalculate"
+      },
+      "preProcess": "Must migrate CLIENT, EMPNAME, and INVOICE first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "INVPAY.DBF",
+        "recordCount": 50363,
+        "description": "Legacy invoice payments"
+      },
+      "target": {
+        "table": "payments",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": null,
+          "target": "id",
+          "type": "integer",
+          "transform": "auto-increment",
+          "required": true
+        },
+        {
+          "source": "INV_NUMBER",
+          "target": "invoice_id",
+          "type": "string->integer",
+          "transform": "lookup invoice by legacy INV_NUMBER, return id",
+          "required": true,
+          "notes": "Must lookup invoice_id from invoices table"
+        },
+        {
+          "source": null,
+          "target": "employee_id",
+          "type": "integer",
+          "transform": "null",
+          "nullable": true,
+          "notes": "Employee not tracked in legacy payment system"
+        },
+        {
+          "source": "PAY_DESC",
+          "target": "payment_method_id",
+          "type": "string->integer",
+          "transform": "mapPaymentMethod(value) to payment_methods.id",
+          "required": true,
+          "notes": "Must map PAY_DESC to payment_methods table (CASH, CREDIT CARD, etc.)"
+        },
+        {
+          "source": "AMOUNT",
+          "target": "amount",
+          "type": "real",
+          "transform": "parseFloat(value)",
+          "required": true
+        },
+        {
+          "source": "PAY_DATE",
+          "target": "paid_at",
+          "type": "date->string",
+          "transform": "parseDate(value) to ISO 8601",
+          "required": true
+        }
+      ],
+      "additionalFields": {
+        "CL_NAME": "Not mapped - redundant with invoice",
+        "PAY_DESC2": "Not mapped - additional payment description"
+      },
+      "preProcess": "Must migrate INVOICE first and seed payment_methods table"
+    },
+    {
+      "source": {
+        "table": "CRNPAY.DBF",
+        "recordCount": 4141,
+        "description": "Legacy credit note allocations/payments"
+      },
+      "target": {
+        "table": "credit_note_allocations",
+        "type": "direct"
+      },
+      "fieldMappings": [
+        {
+          "source": null,
+          "target": "id",
+          "type": "integer",
+          "transform": "auto-increment",
+          "required": true
+        },
+        {
+          "source": "CRN_NUMBER",
+          "target": "credit_note_id",
+          "type": "string->integer",
+          "transform": "lookup credit_note by legacy CR_NUMBER, return id",
+          "required": true,
+          "notes": "Must lookup credit_note_id from credit_notes table"
+        },
+        {
+          "source": "INV_NUMBER",
+          "target": "invoice_id",
+          "type": "string->integer",
+          "transform": "lookup invoice by legacy INV_NUMBER, return id",
+          "required": true,
+          "notes": "Must lookup invoice_id from invoices table"
+        },
+        {
+          "source": "AMOUNT",
+          "target": "amount_applied",
+          "type": "real",
+          "transform": "parseFloat(value)",
+          "required": true
+        },
+        {
+          "source": "PAY_DATE",
+          "target": "applied_at",
+          "type": "date->string",
+          "transform": "parseDate(value) to ISO 8601",
+          "required": true
+        },
+        {
+          "source": null,
+          "target": "employee_id",
+          "type": "integer",
+          "transform": "null",
+          "nullable": true,
+          "notes": "Employee not tracked in legacy system"
+        }
+      ],
+      "additionalFields": {
+        "CL_NAME": "Not mapped - redundant with credit note"
+      },
+      "preProcess": "Must migrate CRNOTE and INVOICE first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_INVOIC.DBF",
+        "recordCount": 107293,
+        "description": "Historical/archived invoices"
+      },
+      "target": {
+        "table": "invoices",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as INVOICE.DBF - see INVOICE mapping above",
+      "notes": "Historical invoices use identical structure to current INVOICE.DBF. Merge into same invoices table. Ensure INV_NUMBER uniqueness across both tables or use legacy_invoice_number field to preserve originals.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate CLIENT and EMPNAME first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_INVDET.DBF",
+        "recordCount": 155239,
+        "description": "Historical/archived invoice line items"
+      },
+      "target": {
+        "table": "invoice_items",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as INVDETAI.DBF - see INVDETAI mapping above",
+      "notes": "Historical invoice items use identical structure to current INVDETAI.DBF. Merge into same invoice_items table.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate H_INVOIC and INVENTRY first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_QUOTE.DBF",
+        "recordCount": 3189,
+        "description": "Historical/archived quotations"
+      },
+      "target": {
+        "table": "quotations",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as QUOTE.DBF - see QUOTE mapping above",
+      "notes": "Historical quotations use identical structure to current QUOTE.DBF. Merge into same quotations table. Ensure QUOTE_NUM uniqueness across both tables.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate CLIENT and EMPNAME first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_QTEDET.DBF",
+        "recordCount": 12372,
+        "description": "Historical/archived quotation line items"
+      },
+      "target": {
+        "table": "quotation_items",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as QTEDETAI.DBF - see QTEDETAI mapping above",
+      "notes": "Historical quotation items use identical structure to current QTEDETAI.DBF. Merge into same quotation_items table.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate H_QUOTE and INVENTRY first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_CRNOTE.DBF",
+        "recordCount": 10693,
+        "description": "Historical/archived credit notes"
+      },
+      "target": {
+        "table": "credit_notes",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as CRNOTE.DBF - see CRNOTE mapping above",
+      "notes": "Historical credit notes use identical structure to current CRNOTE.DBF. Merge into same credit_notes table. Ensure CR_NUMBER uniqueness across both tables.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate CLIENT, EMPNAME, and H_INVOIC first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_CRNDET.DBF",
+        "recordCount": 8307,
+        "description": "Historical/archived credit note line items"
+      },
+      "target": {
+        "table": "credit_note_items",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as CRNDETAI.DBF if exists - credit note detail items",
+      "notes": "Historical credit note items. If credit_note_items table exists in new schema, merge here. Otherwise may be part of credit note structure.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate H_CRNOTE first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_CRNPAY.DBF",
+        "recordCount": 10642,
+        "description": "Historical/archived credit note payments/allocations"
+      },
+      "target": {
+        "table": "credit_note_allocations",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as CRNPAY.DBF - see CRNPAY mapping above",
+      "notes": "Historical credit note allocations use identical structure to current CRNPAY.DBF. Merge into same credit_note_allocations table.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate H_CRNOTE and H_INVOIC first to establish FK relationships"
+    },
+    {
+      "source": {
+        "table": "H_INVPAY.DBF",
+        "recordCount": 113895,
+        "description": "Historical/archived invoice payments"
+      },
+      "target": {
+        "table": "payments",
+        "type": "direct"
+      },
+      "fieldMappings": "Same as INVPAY.DBF - see INVPAY mapping above",
+      "notes": "Historical invoice payments use identical structure to current INVPAY.DBF. Merge into same payments table.",
+      "migrationStrategy": "archive",
+      "preProcess": "Must migrate H_INVOIC first and seed payment_methods table"
+    },
+    {
+      "source": {
+        "table": "H_INVENT.DBF",
+        "recordCount": 1951,
+        "description": "Historical/archived inventory/parts data"
+      },
+      "target": {
+        "table": "parts",
+        "type": "supplemental"
+      },
+      "fieldMappings": "Same as INVENTRY.DBF - see INVENTRY mapping above",
+      "notes": "Historical inventory records. May contain discontinued parts. Merge with INVENTRY, marking historical parts as inactive if not in current INVENTRY.",
+      "migrationStrategy": "archive",
+      "preProcess": "Migrate after INVENTRY to avoid duplicates - only add parts not already migrated"
+    },
+    {
+      "source": {
+        "table": "H_INVREC.DBF",
+        "recordCount": 15695,
+        "description": "Historical/archived inventory receipts"
+      },
+      "target": {
+        "table": "audit_logs",
+        "type": "transform"
+      },
+      "fieldMappings": {
+        "source": "SKU, SUPPLIER, REC_DATE, QTY, costs",
+        "target": "audit_logs with action='inventory_receipt'",
+        "notes": "Transform historical receipts into audit log entries for inventory tracking"
+      },
+      "notes": "Historical inventory receipt records. Consider creating audit trail or inventory_history table. May be used for reporting but not operational data.",
+      "migrationStrategy": "optional-archive"
+    },
+    {
+      "source": {
+        "table": "H_INVORD.DBF",
+        "recordCount": 0,
+        "description": "Historical/archived inventory orders (empty)"
+      },
+      "target": null,
+      "fieldMappings": null,
+      "notes": "Empty historical table - skip migration",
+      "migrationStrategy": "skip"
+    }
+  ],
+  "migrationOrder": [
+    {
+      "sequence": 1,
+      "tables": ["CLIENT.DBF", "EMPNAME.DBF"],
+      "reason": "No dependencies, must be migrated first"
+    },
+    {
+      "sequence": 2,
+      "table": "INVENTRY.DBF",
+      "target": ["parts", "part_variants"],
+      "reason": "Required for invoice items and quotation items"
+    },
+    {
+      "sequence": 3,
+      "table": "INVOICE.DBF",
+      "reason": "Required for invoice items and payments"
+    },
+    {
+      "sequence": 4,
+      "table": "INVDETAI.DBF",
+      "reason": "Depends on INVOICE and INVENTRY"
+    },
+    {
+      "sequence": 5,
+      "table": "QUOTE.DBF",
+      "reason": "Required for quotation items"
+    },
+    {
+      "sequence": 6,
+      "table": "QTEDETAI.DBF",
+      "reason": "Depends on QUOTE and INVENTRY"
+    },
+    {
+      "sequence": 7,
+      "table": "CRNOTE.DBF",
+      "reason": "Required for credit note allocations"
+    },
+    {
+      "sequence": 8,
+      "tables": ["INVPAY.DBF", "CRNPAY.DBF"],
+      "reason": "Depends on INVOICE and CRNOTE"
+    },
+    {
+      "sequence": 9,
+      "table": "H_INVENT.DBF",
+      "target": ["parts", "part_variants"],
+      "reason": "Historical parts - migrate after current inventory to avoid duplicates",
+      "notes": "Only migrate parts not already in system, mark as inactive"
+    },
+    {
+      "sequence": 10,
+      "table": "H_INVOIC.DBF",
+      "reason": "Historical invoices - migrate after current invoices",
+      "notes": "Archived invoices, same structure as INVOICE.DBF"
+    },
+    {
+      "sequence": 11,
+      "table": "H_INVDET.DBF",
+      "reason": "Historical invoice items - depends on H_INVOIC",
+      "notes": "Archived invoice line items"
+    },
+    {
+      "sequence": 12,
+      "table": "H_QUOTE.DBF",
+      "reason": "Historical quotations - migrate after current quotes",
+      "notes": "Archived quotations"
+    },
+    {
+      "sequence": 13,
+      "table": "H_QTEDET.DBF",
+      "reason": "Historical quotation items - depends on H_QUOTE",
+      "notes": "Archived quotation line items"
+    },
+    {
+      "sequence": 14,
+      "table": "H_CRNOTE.DBF",
+      "reason": "Historical credit notes - migrate after current credit notes",
+      "notes": "Archived credit notes"
+    },
+    {
+      "sequence": 15,
+      "table": "H_CRNDET.DBF",
+      "reason": "Historical credit note items - depends on H_CRNOTE",
+      "notes": "Archived credit note line items (if applicable)"
+    },
+    {
+      "sequence": 16,
+      "tables": ["H_INVPAY.DBF", "H_CRNPAY.DBF"],
+      "reason": "Historical payments - depends on H_INVOIC and H_CRNOTE",
+      "notes": "Archived payment and allocation records"
+    },
+    {
+      "sequence": 17,
+      "table": "H_INVREC.DBF",
+      "reason": "Historical inventory receipts - optional archive to audit_logs",
+      "notes": "Optional - can be skipped if historical receipt tracking not needed"
+    }
+  ],
+  "preMigrationTasks": [
+    {
+      "task": "Create default roles and permissions",
+      "description": "Seed roles and permissions tables with default values"
+    },
+    {
+      "task": "Create payment methods",
+      "description": "Seed payment_methods table with common methods (CASH, CREDIT CARD, DEBIT CARD, CHECK, etc.)"
+    },
+    {
+      "task": "Create legacy reference tables",
+      "description": "Create tables to store legacy IDs: legacy_invoice_refs, legacy_quote_refs, legacy_credit_note_refs"
+    }
+  ],
+  "postMigrationTasks": [
+    {
+      "task": "Verify data integrity",
+      "description": "Run queries to verify record counts, FK relationships, and data consistency"
+    },
+    {
+      "task": "Assign employee roles",
+      "description": "Review employee titles and assign appropriate role_id values"
+    },
+    {
+      "task": "Update system settings",
+      "description": "Populate system_settings table with business configuration"
+    }
+  ],
+  "dataTransformationRules": {
+    "dateFormats": {
+      "legacy": "YYYYMMDD (8-character string)",
+      "target": "ISO 8601 (YYYY-MM-DDTHH:mm:ss.sssZ)"
+    },
+    "statusMapping": {
+      "invoice": {
+        "A": "active",
+        "C": "completed",
+        "default": "completed"
+      },
+      "creditNote": {
+        "A": "active",
+        "default": "active"
+      }
+    },
+    "paymentMethodMapping": {
+      "CASH": "cash",
+      "CREDIT CARD": "credit-card",
+      "DEBIT CARD": "debit-card",
+      "CHECK": "check",
+      "CHEQUE": "check",
+      "ISSUE CR NOTE": "credit-note",
+      "default": "other"
+    },
+    "booleanMapping": {
+      "Y": true,
+      "N": false,
+      "1": true,
+      "0": false
+    }
+  },
+  "validationRules": [
+    {
+      "rule": "All client names in INVOICE must exist in CLIENT or be 'CASH'",
+      "action": "Create CASH client if not exists"
+    },
+    {
+      "rule": "All SKUs in INVDETAI must exist in INVENTRY",
+      "action": "Log missing SKUs and create placeholder parts"
+    },
+    {
+      "rule": "Invoice totals must match sum of invoice items",
+      "action": "Flag discrepancies for review"
+    },
+    {
+      "rule": "Payment amounts cannot exceed invoice totals",
+      "action": "Flag for manual review"
+    },
+    {
+      "rule": "Historical tables (H_*) must not duplicate current data",
+      "action": "Check for duplicate INV_NUMBER, QUOTE_NUM, CR_NUMBER across current and historical tables"
+    },
+    {
+      "rule": "Historical SKUs in H_INVENT not in INVENTRY should be marked inactive",
+      "action": "Set active=0 for parts only found in historical inventory"
+    },
+    {
+      "rule": "Historical data dates should be older than current data",
+      "action": "Flag for review if historical records have recent dates"
+    }
+  ],
+  "historicalDataStrategy": {
+    "approach": "merge",
+    "description": "Historical tables (H_*) contain archived/older records with identical structure to current tables. Merge into same target tables to maintain complete history.",
+    "considerations": [
+      "Historical tables contain 107K+ invoices vs 43K current - significant volume",
+      "Ensure unique constraints handled across current + historical data",
+      "Consider date-based partitioning or archival strategy for performance",
+      "Historical data may reference discontinued parts or inactive clients",
+      "All H_* tables should be migrated after corresponding current tables"
+    ],
+    "options": {
+      "fullMigration": "Migrate all historical data into production tables (complete history)",
+      "separateArchive": "Create separate archive schema/tables for historical data (faster queries)",
+      "selectiveMigration": "Only migrate recent historical data (e.g., last 2-5 years)",
+      "recommended": "fullMigration - maintains complete audit trail and reporting capability"
+    }
+  },
+  "notes": [
+    "Legacy system stores client names directly in invoices/quotes - need to match these to client records",
+    "Employee codes in SALESPERSN field must be matched to EMPNAME records",
+    "Historical tables (H_*) contain archived data - approximately 107K historical invoices vs 43K current",
+    "Historical data includes: H_INVOIC, H_INVDET, H_QUOTE, H_QTEDET, H_CRNOTE, H_CRNDET, H_CRNPAY, H_INVPAY, H_INVENT, H_INVREC",
+    "H_INVORD is empty and can be skipped",
+    "SKUs are unique identifiers across both systems",
+    "Legacy invoice numbers (INV_NUMBER) should be preserved for audit trail",
+    "Discount percentages in legacy may be negative values",
+    "Currency codes (COSTCURR, PRICECURR) not migrated - assume single currency",
+    "Many auxiliary fields in legacy system are not mapped - consider archiving full DBF files"
+  ]
+}

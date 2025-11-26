@@ -1,0 +1,1320 @@
+{
+  "database": "turbo-julius",
+  "type": "SQLite",
+  "version": "1.0.0",
+  "description": "Auto parts inventory and sales management system schema",
+  "tables": [
+    {
+      "name": "parts",
+      "description": "Main parts catalog table",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": "Part name"
+        },
+        {
+          "name": "category",
+          "type": "text",
+          "nullable": true,
+          "description": "Part category"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true,
+          "description": "Part description"
+        },
+        {
+          "name": "sku",
+          "type": "text",
+          "nullable": false,
+          "unique": true,
+          "description": "Stock keeping unit identifier"
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "nullable": false,
+          "description": "Base price"
+        },
+        {
+          "name": "taxable",
+          "type": "integer",
+          "dataMode": "boolean",
+          "nullable": false,
+          "default": true,
+          "description": "Whether the part is taxable"
+        },
+        {
+          "name": "created_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Creation timestamp (ISO 8601)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sku_unique",
+          "columns": ["sku"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "part_variants",
+      "description": "Part variants with specific attributes and stock levels",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "part_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "parts",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": true,
+          "description": "Variant name"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true,
+          "description": "Variant description"
+        },
+        {
+          "name": "is_generic",
+          "type": "integer",
+          "dataMode": "boolean",
+          "nullable": false,
+          "default": false,
+          "description": "Whether this is a generic variant"
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "nullable": false,
+          "description": "Variant price"
+        },
+        {
+          "name": "stock_qty",
+          "type": "integer",
+          "nullable": false,
+          "default": 0,
+          "description": "Current stock quantity"
+        },
+        {
+          "name": "reorder_level",
+          "type": "integer",
+          "nullable": false,
+          "default": 0,
+          "description": "Reorder threshold quantity"
+        },
+        {
+          "name": "active",
+          "type": "integer",
+          "dataMode": "boolean",
+          "nullable": false,
+          "default": true,
+          "description": "Whether the variant is active"
+        },
+        {
+          "name": "barcode",
+          "type": "text",
+          "nullable": true,
+          "unique": true,
+          "description": "Barcode identifier"
+        },
+        {
+          "name": "location",
+          "type": "text",
+          "nullable": true,
+          "description": "Storage location code"
+        },
+        {
+          "name": "created_at",
+          "type": "text",
+          "nullable": false,
+          "description": "Creation timestamp (ISO 8601)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "barcode_unique",
+          "columns": ["barcode"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "vehicle_models",
+      "description": "Vehicle makes and models",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "make",
+          "type": "text",
+          "nullable": false,
+          "description": "Vehicle make"
+        },
+        {
+          "name": "model",
+          "type": "text",
+          "nullable": false,
+          "description": "Vehicle model"
+        }
+      ]
+    },
+    {
+      "name": "part_models",
+      "description": "Junction table linking parts to compatible vehicle models",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "part_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "parts",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "vehicle_model_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "vehicle_models",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "year_start",
+          "type": "text",
+          "nullable": true,
+          "description": "Starting year of compatibility"
+        },
+        {
+          "name": "year_end",
+          "type": "text",
+          "nullable": true,
+          "description": "Ending year of compatibility"
+        }
+      ]
+    },
+    {
+      "name": "clients",
+      "description": "Customer/client information",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "legacy_id",
+          "type": "integer",
+          "nullable": true,
+          "unique": true,
+          "description": "Legacy system client ID"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": "Client name"
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "nullable": true,
+          "description": "Phone number"
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "nullable": true,
+          "unique": true,
+          "description": "Email address"
+        },
+        {
+          "name": "address1",
+          "type": "text",
+          "nullable": true,
+          "description": "Address line 1"
+        },
+        {
+          "name": "address2",
+          "type": "text",
+          "nullable": true,
+          "description": "Address line 2"
+        },
+        {
+          "name": "credit_limit",
+          "type": "real",
+          "nullable": false,
+          "default": 0.0,
+          "description": "Credit limit amount"
+        },
+        {
+          "name": "discount_rate",
+          "type": "real",
+          "nullable": false,
+          "default": 0.0,
+          "description": "Discount rate percentage"
+        },
+        {
+          "name": "created_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Creation timestamp (ISO 8601)"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "legacy_id_unique",
+          "columns": ["legacy_id"],
+          "unique": true
+        },
+        {
+          "name": "email_unique",
+          "columns": ["email"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "roles",
+      "description": "Employee roles",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": "Role name"
+        }
+      ]
+    },
+    {
+      "name": "permissions",
+      "description": "System permissions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "nullable": false,
+          "description": "Permission code"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": false,
+          "description": "Permission description"
+        }
+      ]
+    },
+    {
+      "name": "role_permissions",
+      "description": "Junction table linking roles to permissions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "role_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "roles",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "permission_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "permissions",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        }
+      ]
+    },
+    {
+      "name": "employees",
+      "description": "Employee information",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "first_name",
+          "type": "text",
+          "nullable": false,
+          "description": "First name"
+        },
+        {
+          "name": "last_name",
+          "type": "text",
+          "nullable": false,
+          "description": "Last name"
+        },
+        {
+          "name": "username",
+          "type": "text",
+          "nullable": false,
+          "unique": true,
+          "description": "Login username"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "nullable": true,
+          "description": "Job title"
+        },
+        {
+          "name": "using_default_pin",
+          "type": "integer",
+          "dataMode": "boolean",
+          "nullable": false,
+          "default": true,
+          "description": "Whether employee is using default PIN"
+        },
+        {
+          "name": "pin_hash",
+          "type": "text",
+          "nullable": false,
+          "description": "Hashed PIN for authentication"
+        },
+        {
+          "name": "start_date",
+          "type": "text",
+          "nullable": false,
+          "description": "Employment start date"
+        },
+        {
+          "name": "end_date",
+          "type": "text",
+          "nullable": true,
+          "description": "Employment end date"
+        },
+        {
+          "name": "role_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "roles",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        }
+      ],
+      "indexes": [
+        {
+          "name": "username_unique",
+          "columns": ["username"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "invoices",
+      "description": "Sales invoices",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "client_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "clients",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "employee_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "employees",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "description": "Invoice status"
+        },
+        {
+          "name": "subtotal",
+          "type": "real",
+          "nullable": false,
+          "description": "Subtotal before tax and discount"
+        },
+        {
+          "name": "tax_total",
+          "type": "real",
+          "nullable": false,
+          "description": "Total tax amount"
+        },
+        {
+          "name": "discount_total",
+          "type": "real",
+          "nullable": false,
+          "description": "Total discount amount"
+        },
+        {
+          "name": "total",
+          "type": "real",
+          "nullable": false,
+          "description": "Final total amount"
+        },
+        {
+          "name": "amount_paid",
+          "type": "real",
+          "nullable": false,
+          "default": 0.0,
+          "description": "Amount paid so far"
+        },
+        {
+          "name": "balance",
+          "type": "real",
+          "nullable": false,
+          "description": "Remaining balance"
+        },
+        {
+          "name": "created_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Creation timestamp (ISO 8601)"
+        }
+      ]
+    },
+    {
+      "name": "invoice_items",
+      "description": "Line items on invoices",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "invoice_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "invoices",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "variant_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "part_variants",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "nullable": false,
+          "description": "Item quantity"
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "nullable": false,
+          "description": "Unit price"
+        },
+        {
+          "name": "discount",
+          "type": "real",
+          "nullable": false,
+          "default": 0.0,
+          "description": "Discount amount"
+        },
+        {
+          "name": "tax",
+          "type": "real",
+          "nullable": false,
+          "default": 0.0,
+          "description": "Tax amount"
+        }
+      ]
+    },
+    {
+      "name": "quotations",
+      "description": "Sales quotations",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "client_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "clients",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "employee_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "employees",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "total",
+          "type": "real",
+          "nullable": false,
+          "description": "Total amount"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "description": "Quotation status"
+        },
+        {
+          "name": "created_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Creation timestamp (ISO 8601)"
+        }
+      ]
+    },
+    {
+      "name": "quotation_items",
+      "description": "Line items on quotations",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "quotation_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "quotations",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "variant_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "part_variants",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "nullable": false,
+          "description": "Item quantity"
+        },
+        {
+          "name": "price",
+          "type": "real",
+          "nullable": false,
+          "description": "Unit price"
+        }
+      ]
+    },
+    {
+      "name": "payment_methods",
+      "description": "Payment method types",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "nullable": false,
+          "unique": true,
+          "description": "Payment method code"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "description": "Payment method name"
+        },
+        {
+          "name": "active",
+          "type": "integer",
+          "dataMode": "boolean",
+          "nullable": false,
+          "default": true,
+          "description": "Whether the method is active"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "code_unique",
+          "columns": ["code"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "payments",
+      "description": "Payment transactions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "invoice_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "invoices",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "employee_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "employees",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "payment_method_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "payment_methods",
+            "column": "id",
+            "onDelete": "restrict"
+          }
+        },
+        {
+          "name": "amount",
+          "type": "real",
+          "nullable": false,
+          "description": "Payment amount"
+        },
+        {
+          "name": "paid_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Payment timestamp (ISO 8601)"
+        }
+      ]
+    },
+    {
+      "name": "credit_notes",
+      "description": "Credit notes issued to clients",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "client_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "clients",
+            "column": "id",
+            "onDelete": "restrict"
+          }
+        },
+        {
+          "name": "invoice_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "invoices",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "employee_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "employees",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "amount",
+          "type": "real",
+          "nullable": false,
+          "description": "Total credit note amount"
+        },
+        {
+          "name": "remaining_amount",
+          "type": "real",
+          "nullable": false,
+          "description": "Unused credit amount"
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "description": "Credit note status"
+        },
+        {
+          "name": "reason",
+          "type": "text",
+          "nullable": false,
+          "description": "Reason for credit note"
+        },
+        {
+          "name": "created_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Creation timestamp (ISO 8601)"
+        }
+      ]
+    },
+    {
+      "name": "credit_note_allocations",
+      "description": "Tracking of credit note usage against invoices",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "credit_note_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "credit_notes",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "invoice_id",
+          "type": "integer",
+          "nullable": false,
+          "foreignKey": {
+            "table": "invoices",
+            "column": "id",
+            "onDelete": "cascade"
+          }
+        },
+        {
+          "name": "amount_applied",
+          "type": "real",
+          "nullable": false,
+          "description": "Amount of credit applied"
+        },
+        {
+          "name": "applied_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Application timestamp (ISO 8601)"
+        },
+        {
+          "name": "employee_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "employees",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        }
+      ]
+    },
+    {
+      "name": "audit_logs",
+      "description": "System audit trail",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "employee_id",
+          "type": "integer",
+          "nullable": true,
+          "foreignKey": {
+            "table": "employees",
+            "column": "id",
+            "onDelete": "set null"
+          }
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "nullable": false,
+          "description": "Action performed"
+        },
+        {
+          "name": "reference_type",
+          "type": "text",
+          "nullable": false,
+          "description": "Type of entity affected"
+        },
+        {
+          "name": "reference_id",
+          "type": "integer",
+          "nullable": false,
+          "description": "ID of entity affected"
+        },
+        {
+          "name": "created_at",
+          "type": "text",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "description": "Action timestamp (ISO 8601)"
+        }
+      ]
+    },
+    {
+      "name": "system_settings",
+      "description": "System configuration settings",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "autoIncrement": true,
+          "nullable": false
+        },
+        {
+          "name": "key",
+          "type": "text",
+          "nullable": false,
+          "unique": true,
+          "description": "Setting key"
+        },
+        {
+          "name": "value",
+          "type": "text",
+          "nullable": false,
+          "description": "Setting value"
+        },
+        {
+          "name": "group",
+          "type": "text",
+          "nullable": false,
+          "description": "Setting group/category"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": true,
+          "description": "Setting description"
+        },
+        {
+          "name": "readonly",
+          "type": "integer",
+          "dataMode": "boolean",
+          "nullable": false,
+          "default": false,
+          "description": "Whether setting is read-only"
+        },
+        {
+          "name": "visible",
+          "type": "integer",
+          "dataMode": "boolean",
+          "nullable": false,
+          "default": true,
+          "description": "Whether setting is visible in UI"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "key_unique",
+          "columns": ["key"],
+          "unique": true
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "name": "parts_to_variants",
+      "type": "one-to-many",
+      "from": {
+        "table": "parts",
+        "column": "id"
+      },
+      "to": {
+        "table": "part_variants",
+        "column": "part_id"
+      },
+      "onDelete": "cascade"
+    },
+    {
+      "name": "parts_to_vehicle_models",
+      "type": "many-to-many",
+      "through": "part_models",
+      "from": {
+        "table": "parts",
+        "column": "id"
+      },
+      "to": {
+        "table": "vehicle_models",
+        "column": "id"
+      }
+    },
+    {
+      "name": "clients_to_invoices",
+      "type": "one-to-many",
+      "from": {
+        "table": "clients",
+        "column": "id"
+      },
+      "to": {
+        "table": "invoices",
+        "column": "client_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "clients_to_quotations",
+      "type": "one-to-many",
+      "from": {
+        "table": "clients",
+        "column": "id"
+      },
+      "to": {
+        "table": "quotations",
+        "column": "client_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "clients_to_credit_notes",
+      "type": "one-to-many",
+      "from": {
+        "table": "clients",
+        "column": "id"
+      },
+      "to": {
+        "table": "credit_notes",
+        "column": "client_id"
+      },
+      "onDelete": "restrict"
+    },
+    {
+      "name": "employees_to_invoices",
+      "type": "one-to-many",
+      "from": {
+        "table": "employees",
+        "column": "id"
+      },
+      "to": {
+        "table": "invoices",
+        "column": "employee_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "employees_to_quotations",
+      "type": "one-to-many",
+      "from": {
+        "table": "employees",
+        "column": "id"
+      },
+      "to": {
+        "table": "quotations",
+        "column": "employee_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "employees_to_payments",
+      "type": "one-to-many",
+      "from": {
+        "table": "employees",
+        "column": "id"
+      },
+      "to": {
+        "table": "payments",
+        "column": "employee_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "employees_to_credit_notes",
+      "type": "one-to-many",
+      "from": {
+        "table": "employees",
+        "column": "id"
+      },
+      "to": {
+        "table": "credit_notes",
+        "column": "employee_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "employees_to_audit_logs",
+      "type": "one-to-many",
+      "from": {
+        "table": "employees",
+        "column": "id"
+      },
+      "to": {
+        "table": "audit_logs",
+        "column": "employee_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "roles_to_employees",
+      "type": "one-to-many",
+      "from": {
+        "table": "roles",
+        "column": "id"
+      },
+      "to": {
+        "table": "employees",
+        "column": "role_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "roles_to_permissions",
+      "type": "many-to-many",
+      "through": "role_permissions",
+      "from": {
+        "table": "roles",
+        "column": "id"
+      },
+      "to": {
+        "table": "permissions",
+        "column": "id"
+      }
+    },
+    {
+      "name": "invoices_to_invoice_items",
+      "type": "one-to-many",
+      "from": {
+        "table": "invoices",
+        "column": "id"
+      },
+      "to": {
+        "table": "invoice_items",
+        "column": "invoice_id"
+      },
+      "onDelete": "cascade"
+    },
+    {
+      "name": "invoices_to_payments",
+      "type": "one-to-many",
+      "from": {
+        "table": "invoices",
+        "column": "id"
+      },
+      "to": {
+        "table": "payments",
+        "column": "invoice_id"
+      },
+      "onDelete": "cascade"
+    },
+    {
+      "name": "invoices_to_credit_notes",
+      "type": "one-to-many",
+      "from": {
+        "table": "invoices",
+        "column": "id"
+      },
+      "to": {
+        "table": "credit_notes",
+        "column": "invoice_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "quotations_to_quotation_items",
+      "type": "one-to-many",
+      "from": {
+        "table": "quotations",
+        "column": "id"
+      },
+      "to": {
+        "table": "quotation_items",
+        "column": "quotation_id"
+      },
+      "onDelete": "cascade"
+    },
+    {
+      "name": "variants_to_invoice_items",
+      "type": "one-to-many",
+      "from": {
+        "table": "part_variants",
+        "column": "id"
+      },
+      "to": {
+        "table": "invoice_items",
+        "column": "variant_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "variants_to_quotation_items",
+      "type": "one-to-many",
+      "from": {
+        "table": "part_variants",
+        "column": "id"
+      },
+      "to": {
+        "table": "quotation_items",
+        "column": "variant_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "payment_methods_to_payments",
+      "type": "one-to-many",
+      "from": {
+        "table": "payment_methods",
+        "column": "id"
+      },
+      "to": {
+        "table": "payments",
+        "column": "payment_method_id"
+      },
+      "onDelete": "restrict"
+    },
+    {
+      "name": "credit_notes_to_allocations",
+      "type": "one-to-many",
+      "from": {
+        "table": "credit_notes",
+        "column": "id"
+      },
+      "to": {
+        "table": "credit_note_allocations",
+        "column": "credit_note_id"
+      },
+      "onDelete": "cascade"
+    }
+  ]
+}

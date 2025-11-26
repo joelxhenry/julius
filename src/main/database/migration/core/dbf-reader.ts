@@ -1,4 +1,4 @@
-import * as DBF from 'node-dbf';
+import DBF from 'node-dbf';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DBFField, DBFHeader, DBFRecord } from '../types/dbf.types';
@@ -21,25 +21,27 @@ export class DBFReader {
     }
 
     return new Promise((resolve, reject) => {
-      const dbf = new DBF(filePath);
-
-      dbf.on('start', (reader: any) => {
-        console.log(`Reading ${fileName}: ${reader.recordCount} records`);
-      });
-
+      const parser = new DBF(filePath);
       const records: DBFRecord[] = [];
 
-      dbf.on('record', (record: any) => {
+      parser.on('header', (header: any) => {
+        console.log(`Reading ${fileName}: ${header.numberOfRecords} records`);
+      });
+
+      parser.on('record', (record: any) => {
         records.push(this.cleanRecord(record));
       });
 
-      dbf.on('end', () => {
+      parser.on('end', () => {
         resolve(records);
       });
 
-      dbf.on('error', (error: Error) => {
+      parser.on('error', (error: Error) => {
         reject(error);
       });
+
+      // Start parsing
+      parser.parse();
     });
   }
 
@@ -54,28 +56,31 @@ export class DBFReader {
     }
 
     return new Promise((resolve, reject) => {
-      const dbf = new DBF(filePath);
+      const parser = new DBF(filePath);
 
-      dbf.on('start', (reader: any) => {
-        const fields: DBFField[] = reader.fields.map((field: any) => ({
+      parser.on('header', (header: any) => {
+        const fields: DBFField[] = header.fields.map((field: any) => ({
           name: field.name,
           type: field.type,
           length: field.length,
-          decimals: field.decimals || 0,
+          decimals: field.decimalPlaces || 0,
         }));
 
         resolve({
           fileName,
-          version: reader.version,
-          recordCount: reader.recordCount,
+          version: header.version,
+          recordCount: header.numberOfRecords,
           fields,
-          lastUpdate: reader.lastUpdate,
+          lastUpdate: header.dateOfLastUpdate,
         });
       });
 
-      dbf.on('error', (error: Error) => {
+      parser.on('error', (error: Error) => {
         reject(error);
       });
+
+      // Start parsing (will emit header event)
+      parser.parse();
     });
   }
 

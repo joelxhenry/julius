@@ -30,8 +30,11 @@ export const employees = sqliteTable('employees', {
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   username: text('username').notNull().unique(),
+  title: text('title'),
   usingDefaultPin: integer('using_default_pin', { mode: 'boolean' }).notNull().default(true),
   pinHash: text('pin_hash').notNull(),
+  startDate: text('start_date').notNull(),
+  endDate: text('end_date'),
   roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
 });
 

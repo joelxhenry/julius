@@ -1,70 +1,79 @@
-import * as bcrypt from 'bcrypt';
 import { BaseMigrator } from './base-migrator';
 import { FieldMapping } from '../types/migration.types';
-import { DBFRecord } from '../types/dbf.types';
-import { db } from '../../index';
+import { getDatabase } from '../../index';
 import { employees } from '../../schema/employees';
+import bcrypt from 'bcrypt';
 
+/**
+ * EMPNAME.DBF Migrator
+ * Migrates 11 employee records from legacy system
+ */
 export class EmployeesMigrator extends BaseMigrator {
   constructor() {
     const fieldMappings: FieldMapping[] = [
       {
-        source: 'EMP_ID',
-        target: 'id',
-        type: 'integer',
-        required: true,
-        transform: (val) => (val ? parseInt(val) : null),
-      },
-      {
-        source: 'NAME',
-        target: 'name',
+        source: 'FIRST',
+        target: 'firstName',
         type: 'string',
         required: true,
-        transform: (val) => (val ? val.trim() : null),
+        transform: (val) => (val ? val.toString().trim() : null),
+        validate: (val) => !!val && val.length > 0,
       },
       {
-        source: 'USERNAME',
+        source: 'LAST',
+        target: 'lastName',
+        type: 'string',
+        required: true,
+        transform: (val) => (val ? val.toString().trim() : null),
+        validate: (val) => !!val && val.length > 0,
+      },
+      {
+        source: 'FIRST',
         target: 'username',
         type: 'string',
         required: true,
-        transform: (val) => (val ? val.toLowerCase().trim() : null),
+        transform: (val) => (val ? val.toString().trim().toLowerCase() : null),
+        validate: (val) => !!val && val.length > 0,
       },
       {
-        source: 'PIN',
-        target: 'pinHash',
+        source: 'TITLE',
+        target: 'title',
         type: 'string',
-        required: true,
-        // Note: PIN will be hashed in postprocessRecord
-        transform: (val) => (val ? val.trim() : null),
-      },
-      {
-        source: 'ROLE_ID',
-        target: 'roleId',
-        type: 'integer',
         required: false,
-        transform: (val) => (val ? parseInt(val) : null),
+        transform: (val) => (val ? val.toString().trim() : null),
       },
       {
-        source: 'ACTIVE',
-        target: 'active',
-        type: 'boolean',
-        required: false,
-        transform: (val) =>
-          val === 'T' || val === 'Y' || val === '1' || val === 1 || val === true,
-      },
-      {
-        source: 'CREATED_DT',
-        target: 'createdAt',
+        source: 'START',
+        target: 'startDate',
         type: 'date',
         required: false,
         transform: (val) => {
-          if (!val) return new Date().toISOString();
+          if (!val) return new Date('2024-01-01').toISOString();
           // Handle DBF date format (YYYYMMDD)
-          if (typeof val === 'string' && /^\d{8}$/.test(val)) {
-            const year = val.substring(0, 4);
-            const month = val.substring(4, 6);
-            const day = val.substring(6, 8);
-            return new Date(`${year}-${month}-${day}T00:00:00Z`).toISOString();
+          const dateStr = val.toString();
+          if (/^\d{8}$/.test(dateStr)) {
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            return new Date(`${year}-${month}-${day}`).toISOString();
+          }
+          return new Date(val).toISOString();
+        },
+      },
+      {
+        source: 'END',
+        target: 'endDate',
+        type: 'date',
+        required: false,
+        transform: (val) => {
+          if (!val) return null;
+          // Handle DBF date format (YYYYMMDD)
+          const dateStr = val.toString();
+          if (/^\d{8}$/.test(dateStr)) {
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            return new Date(`${year}-${month}-${day}`).toISOString();
           }
           return new Date(val).toISOString();
         },
@@ -75,28 +84,25 @@ export class EmployeesMigrator extends BaseMigrator {
   }
 
   /**
-   * Post-process: Hash the PIN
+   * Post-process record to add default PIN and role
    */
   protected async postprocessRecord(record: any, recordIndex: number): Promise<any> {
-    if (record.pinHash) {
-      try {
-        // Hash the PIN with bcrypt (salt rounds: 10)
-        record.pinHash = await bcrypt.hash(record.pinHash, 10);
-      } catch (error) {
-        this.logError(
-          `Failed to hash PIN for record ${recordIndex}: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-        throw error;
-      }
-    }
+    // Hash default PIN '0000'
+    const defaultPinHash = await bcrypt.hash('0000', 10);
 
-    return record;
+    return {
+      ...record,
+      pinHash: defaultPinHash,
+      usingDefaultPin: true,
+      roleId: null, // Will be assigned after migration based on title
+    };
   }
 
   /**
    * Insert batch of employee records
    */
   protected async insertBatch(records: any[]): Promise<void> {
+    const db = getDatabase();
     await db.insert(employees).values(records);
   }
 }

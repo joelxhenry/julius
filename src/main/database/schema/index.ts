@@ -2,7 +2,6 @@
 export * from './clients';
 export * from './employees';
 export * from './parts';
-export * from './locations';
 export * from './vehicles';
 export * from './quotations';
 export * from './invoices';

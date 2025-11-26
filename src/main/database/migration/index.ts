@@ -4,36 +4,65 @@ import { MigrationConfig } from './config';
 import { MigrationOptions, MigrationResult } from './types/migration.types';
 import { ProgressTracker } from './core/progress-tracker';
 import { DryRun } from './core/dry-run';
+import { ForeignKeyLookup } from './core/foreign-key-lookup';
 import { ClientsMigrator } from './migrators/clients-migrator';
 import { EmployeesMigrator } from './migrators/employees-migrator';
-import { LocationsMigrator } from './migrators/locations-migrator';
 import { PartsMigrator } from './migrators/parts-migrator';
+import { PartVariantsMigrator } from './migrators/part-variants-migrator';
 
 export class MigrationOrchestrator {
   private options: MigrationOptions;
   private progressTracker: ProgressTracker;
   private dryRun?: DryRun;
+  private fkLookup: ForeignKeyLookup;
   private migrators: Map<string, any>;
 
   constructor(options: MigrationOptions = {}) {
     this.options = options;
     this.progressTracker = new ProgressTracker(!options.dryRun);
+    this.fkLookup = new ForeignKeyLookup();
 
     if (options.dryRun) {
       this.dryRun = new DryRun(`migration-${Date.now()}`);
     }
 
     // Register all migrators
+    // Note: Migrators that need FK lookup will receive it as constructor parameter
     this.migrators = new Map([
-      ['clients', ClientsMigrator],
-      ['employees', EmployeesMigrator],
-      ['locations', LocationsMigrator],
-      ['parts', PartsMigrator],
+      ['clients', { class: ClientsMigrator, needsFkLookup: false }],
+      ['employees', { class: EmployeesMigrator, needsFkLookup: false }],
+      ['parts', { class: PartsMigrator, needsFkLookup: false }],
+      ['part-variants', { class: PartVariantsMigrator, needsFkLookup: true }],
       // TODO: Add more migrators as they are implemented
-      // ['invoices', InvoicesMigrator],
-      // ['quotations', QuotationsMigrator],
-      // etc.
+      // ['quotations', { class: QuotationsMigrator, needsFkLookup: true }],
+      // ['creditNotes', { class: CreditNotesMigrator, needsFkLookup: true }],
     ]);
+  }
+
+  /**
+   * Initialize foreign key lookup cache
+   */
+  private async initializeForeignKeyLookup(): Promise<void> {
+    this.progressTracker.printStep(1, 3, 'Initializing foreign key lookup cache...');
+
+    try {
+      // Load master data for FK resolution
+      await this.fkLookup.loadClients();
+      await this.fkLookup.loadEmployees();
+      await this.fkLookup.loadParts();
+      await this.fkLookup.loadPartVariants();
+
+      // Display cache statistics
+      const stats = this.fkLookup.getStats();
+      this.progressTracker.logSuccess(
+        `FK cache loaded: ${stats.clients} clients, ${stats.employees} employees, ${stats.parts} parts, ${stats.partVariants} part variants`
+      );
+    } catch (error) {
+      this.progressTracker.logError(
+        `Failed to initialize FK lookup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+      throw error;
+    }
   }
 
   /**
@@ -67,14 +96,24 @@ export class MigrationOrchestrator {
       );
 
       // Run each migrator in order
-      for (const [index, migratorName] of migratorsToRun.entries()) {
-        const MigratorClass = this.migrators.get(migratorName);
+      // FK lookup cache is initialized after master tables are migrated
+      let fkLookupInitialized = false;
 
-        if (!MigratorClass) {
+      for (const [index, migratorName] of migratorsToRun.entries()) {
+        const migratorConfig = this.migrators.get(migratorName);
+
+        if (!migratorConfig) {
           this.progressTracker.logWarning(
             `Migrator not found: ${migratorName} - skipping`
           );
           continue;
+        }
+
+        // Initialize FK lookup before first migrator that needs it
+        // This ensures master data (clients, employees, parts, locations) is already migrated
+        if (migratorConfig.needsFkLookup && !fkLookupInitialized) {
+          await this.initializeForeignKeyLookup();
+          fkLookupInitialized = true;
         }
 
         try {
@@ -82,7 +121,11 @@ export class MigrationOrchestrator {
             `\n[${index + 1}/${migratorsToRun.length}] Running ${migratorName} migrator...`
           );
 
-          const migrator = new MigratorClass();
+          // Instantiate migrator with or without FK lookup
+          const migrator = migratorConfig.needsFkLookup
+            ? new migratorConfig.class(this.fkLookup)
+            : new migratorConfig.class();
+
           migrator.setProgressTracker(this.progressTracker);
 
           if (this.dryRun) {
@@ -172,6 +215,8 @@ export class MigrationOrchestrator {
     }
 
     // Otherwise, run all migrators in configured order
+    // This ensures master tables (clients, employees, parts, locations) are migrated
+    // before dependent tables (invoices, quotations, credit notes)
     return MigrationConfig.migrationOrder.filter((name) => this.migrators.has(name));
   }
 

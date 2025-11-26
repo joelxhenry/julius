@@ -22,10 +22,13 @@ export class Validator {
         continue;
       }
 
-      // Type validation
-      const typeError = this.validateType(value, mapping.type, mapping.source);
-      if (typeError) {
-        errors.push(typeError);
+      // Type validation - skip if field has transform function and is not required
+      // The transform will handle type conversion
+      if (mapping.required || !mapping.transform) {
+        const typeError = this.validateType(value, mapping.type, mapping.source);
+        if (typeError) {
+          errors.push(typeError);
+        }
       }
 
       // Custom validation

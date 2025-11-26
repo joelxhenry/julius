@@ -12,8 +12,16 @@ export function initDatabase() {
   if (db) return db;
 
   // Get user data path for production database
-  const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'database.db');
+  // When running from CLI (migration scripts), use local database path
+  let dbPath: string;
+  
+  if (app && app.isReady()) {
+    const userDataPath = app.getPath('userData');
+    dbPath = path.join(userDataPath, 'database.db');
+  } else {
+    // CLI mode - use local development database
+    dbPath = path.join(process.cwd(), 'database.db');
+  }
 
   // Ensure directory exists
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
