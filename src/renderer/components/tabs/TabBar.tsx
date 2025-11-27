@@ -1,5 +1,5 @@
-import { Group, Button, ActionIcon, ScrollArea, Tooltip, Menu, Text } from '@mantine/core';
-import { IconX, IconDots } from '@tabler/icons-react';
+import { Group, Button, ActionIcon, ScrollArea, Tooltip, Menu, Text, Box } from '@mantine/core';
+import { IconX, IconDots, IconPinned } from '@tabler/icons-react';
 import { useTabManager } from '../../contexts/TabManagerContext';
 import { Tab, TAB_COLORS } from '../../types/tabs';
 
@@ -24,15 +24,16 @@ export function TabBar() {
   };
 
   return (
-    <div
+    <Box
       style={{
-        borderBottom: '1px solid var(--mantine-color-gray-3)',
-        backgroundColor: 'var(--mantine-color-gray-0)',
-        minHeight: 36,
+        minHeight: 40,
+        position: 'relative',
+        background: 'var(--mantine-color-body)',
+        transition: 'background-color 200ms ease',
       }}
     >
-      <ScrollArea type="never" offsetScrollbars={false}>
-        <Group gap={0} wrap="nowrap" p={4} pr={40}>
+      <ScrollArea type="hover" offsetScrollbars={false} scrollbarSize={6}>
+        <Group gap={2} wrap="nowrap" px={8} py={6} pr={44}>
           {tabs.map((tab) => (
             <TabButton
               key={tab.id}
@@ -48,19 +49,26 @@ export function TabBar() {
       </ScrollArea>
 
       {/* Tab actions menu */}
-      <div style={{ position: 'absolute', right: 4, top: 4 }}>
-        <Menu shadow="md" width={200}>
+      <Box
+        style={{
+          position: 'absolute',
+          right: 8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+      >
+        <Menu shadow="lg" width={200}>
           <Menu.Target>
-            <ActionIcon variant="subtle" size="sm">
-              <IconDots size={14} />
+            <ActionIcon variant="subtle" size="sm" radius="md">
+              <IconDots size={14} stroke={1.5} />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item onClick={() => closeAllTabs()}>Close All Tabs</Menu.Item>
           </Menu.Dropdown>
         </Menu>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
@@ -84,51 +92,75 @@ function TabButton({
   const color = TAB_COLORS[tab.type] || 'gray';
 
   return (
-    <Menu shadow="md" width={180} trigger="contextMenu">
+    <Menu shadow="lg" width={200} trigger="contextMenu">
       <Menu.Target>
-        <Tooltip label={tab.path} openDelay={500}>
+        <Tooltip label={tab.path} openDelay={500} position="bottom">
           <Button
-            variant={isActive ? 'filled' : 'subtle'}
-            color={color}
+            variant={isActive ? 'light' : 'subtle'}
+            color={isActive ? color : 'gray'}
             size="xs"
             onClick={onClick}
             onMouseDown={onMiddleClick}
             styles={{
               root: {
-                borderRadius: '4px 4px 0 0',
+                borderRadius: 'var(--mantine-radius-md)',
                 height: 28,
-                paddingRight: 24,
+                paddingRight: 26,
+                paddingLeft: 12,
                 position: 'relative',
-                fontWeight: isActive ? 600 : 400,
-                maxWidth: 180,
+                fontWeight: isActive ? 600 : 500,
+                maxWidth: 200,
                 minWidth: 80,
+                transition: 'all 150ms ease',
+                border: isActive
+                  ? `1px solid var(--mantine-color-${color}-light)`
+                  : '1px solid transparent',
+                '&:hover': {
+                  backgroundColor: isActive
+                    ? undefined
+                    : 'var(--mantine-color-gray-light-hover)',
+                },
               },
               label: {
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                fontSize: '0.8125rem',
               },
             }}
           >
             {tab.isDirty && (
-              <Text component="span" c="red" fw={700} mr={4}>
-                •
-              </Text>
+              <Box
+                component="span"
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--mantine-color-orange-6)',
+                  marginRight: 6,
+                  flexShrink: 0,
+                }}
+              />
             )}
             {tab.title}
             <ActionIcon
-              size={16}
+              size={18}
               variant="subtle"
-              color={isActive ? 'white' : color}
+              color="gray"
+              radius="sm"
               onClick={onClose}
               style={{
                 position: 'absolute',
                 right: 4,
                 top: '50%',
                 transform: 'translateY(-50%)',
+                opacity: 0.6,
+                transition: 'opacity 150ms ease',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
             >
-              <IconX size={12} />
+              <IconX size={12} stroke={2} />
             </ActionIcon>
           </Button>
         </Tooltip>
@@ -139,7 +171,7 @@ function TabButton({
         <Menu.Item onClick={onCloseOthers}>Close Other Tabs</Menu.Item>
         <Menu.Divider />
         <Menu.Item disabled>
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="dimmed" truncate>
             {tab.path}
           </Text>
         </Menu.Item>

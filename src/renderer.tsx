@@ -11,12 +11,15 @@ import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { AuthProvider } from './renderer/contexts/AuthContext';
 import { TabManagerProvider } from './renderer/contexts/TabManagerContext';
+import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
+import { theme } from './renderer/theme';
 import { router } from './renderer/router';
 
-const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(
-  <React.StrictMode>
-    <MantineProvider>
+function AppWithTheme() {
+  const { colorScheme } = useTheme();
+
+  return (
+    <MantineProvider theme={theme} forceColorScheme={colorScheme}>
       <Notifications position="top-right" />
       <AuthProvider>
         <TabManagerProvider>
@@ -24,5 +27,14 @@ root.render(
         </TabManagerProvider>
       </AuthProvider>
     </MantineProvider>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+root.render(
+  <React.StrictMode>
+    <ThemeProvider>
+      <AppWithTheme />
+    </ThemeProvider>
   </React.StrictMode>
 );

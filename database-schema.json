@@ -1,7 +1,7 @@
 {
   "database": "turbo-julius",
-  "type": "SQLite",
-  "version": "1.0.0",
+  "type": "PostgreSQL",
+  "version": "2.0.0",
   "description": "Auto parts inventory and sales management system schema",
   "tables": [
     {
@@ -10,20 +10,19 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
           "name": "name",
-          "type": "text",
+          "type": "varchar(255)",
           "nullable": false,
           "description": "Part name"
         },
         {
           "name": "category",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": true,
           "description": "Part category"
         },
@@ -35,36 +34,72 @@
         },
         {
           "name": "sku",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "unique": true,
           "description": "Stock keeping unit identifier"
         },
         {
           "name": "price",
-          "type": "real",
-          "nullable": false,
+          "type": "numeric(10,2)",
+          "nullable": true,
           "description": "Base price"
         },
         {
+          "name": "cost",
+          "type": "numeric(10,2)",
+          "nullable": true,
+          "description": "Cost price"
+        },
+        {
+          "name": "wholesale_price",
+          "type": "numeric(10,2)",
+          "nullable": true,
+          "description": "Wholesale price"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(10)",
+          "nullable": false,
+          "default": "JMD",
+          "description": "Currency code"
+        },
+        {
+          "name": "margin",
+          "type": "numeric(5,2)",
+          "nullable": true,
+          "description": "Profit margin percentage"
+        },
+        {
+          "name": "unit",
+          "type": "varchar(50)",
+          "nullable": true,
+          "description": "Unit of measure"
+        },
+        {
+          "name": "model",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "Part model"
+        },
+        {
           "name": "taxable",
-          "type": "integer",
-          "dataMode": "boolean",
+          "type": "boolean",
           "nullable": false,
           "default": true,
           "description": "Whether the part is taxable"
         },
         {
           "name": "created_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Creation timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Creation timestamp"
         }
       ],
       "indexes": [
         {
-          "name": "sku_unique",
+          "name": "parts_sku_unique",
           "columns": ["sku"],
           "unique": true
         }
@@ -76,9 +111,8 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
@@ -92,8 +126,14 @@
           }
         },
         {
+          "name": "sku",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "Variant SKU"
+        },
+        {
           "name": "name",
-          "type": "text",
+          "type": "varchar(255)",
           "nullable": true,
           "description": "Variant name"
         },
@@ -105,17 +145,41 @@
         },
         {
           "name": "is_generic",
-          "type": "integer",
-          "dataMode": "boolean",
+          "type": "boolean",
           "nullable": false,
           "default": false,
           "description": "Whether this is a generic variant"
         },
         {
+          "name": "cost",
+          "type": "numeric(10,2)",
+          "nullable": true,
+          "description": "Cost price"
+        },
+        {
           "name": "price",
-          "type": "real",
-          "nullable": false,
+          "type": "numeric(10,2)",
+          "nullable": true,
           "description": "Variant price"
+        },
+        {
+          "name": "wholesale_price",
+          "type": "numeric(10,2)",
+          "nullable": true,
+          "description": "Wholesale price"
+        },
+        {
+          "name": "currency",
+          "type": "varchar(10)",
+          "nullable": false,
+          "default": "JMD",
+          "description": "Currency code"
+        },
+        {
+          "name": "margin",
+          "type": "numeric(5,2)",
+          "nullable": true,
+          "description": "Profit margin percentage"
         },
         {
           "name": "stock_qty",
@@ -132,108 +196,31 @@
           "description": "Reorder threshold quantity"
         },
         {
-          "name": "active",
-          "type": "integer",
-          "dataMode": "boolean",
-          "nullable": false,
-          "default": true,
-          "description": "Whether the variant is active"
-        },
-        {
           "name": "barcode",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": true,
           "unique": true,
           "description": "Barcode identifier"
         },
         {
           "name": "location",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": true,
           "description": "Storage location code"
         },
         {
           "name": "created_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "description": "Creation timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Creation timestamp"
         }
       ],
       "indexes": [
         {
-          "name": "barcode_unique",
+          "name": "part_variants_barcode_unique",
           "columns": ["barcode"],
           "unique": true
-        }
-      ]
-    },
-    {
-      "name": "vehicle_models",
-      "description": "Vehicle makes and models",
-      "columns": [
-        {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "autoIncrement": true,
-          "nullable": false
-        },
-        {
-          "name": "make",
-          "type": "text",
-          "nullable": false,
-          "description": "Vehicle make"
-        },
-        {
-          "name": "model",
-          "type": "text",
-          "nullable": false,
-          "description": "Vehicle model"
-        }
-      ]
-    },
-    {
-      "name": "part_models",
-      "description": "Junction table linking parts to compatible vehicle models",
-      "columns": [
-        {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "autoIncrement": true,
-          "nullable": false
-        },
-        {
-          "name": "part_id",
-          "type": "integer",
-          "nullable": false,
-          "foreignKey": {
-            "table": "parts",
-            "column": "id",
-            "onDelete": "cascade"
-          }
-        },
-        {
-          "name": "vehicle_model_id",
-          "type": "integer",
-          "nullable": false,
-          "foreignKey": {
-            "table": "vehicle_models",
-            "column": "id",
-            "onDelete": "cascade"
-          }
-        },
-        {
-          "name": "year_start",
-          "type": "text",
-          "nullable": true,
-          "description": "Starting year of compatibility"
-        },
-        {
-          "name": "year_end",
-          "type": "text",
-          "nullable": true,
-          "description": "Ending year of compatibility"
         }
       ]
     },
@@ -243,9 +230,8 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
@@ -257,19 +243,19 @@
         },
         {
           "name": "name",
-          "type": "text",
+          "type": "varchar(255)",
           "nullable": false,
           "description": "Client name"
         },
         {
           "name": "phone",
-          "type": "text",
+          "type": "varchar(50)",
           "nullable": true,
           "description": "Phone number"
         },
         {
           "name": "email",
-          "type": "text",
+          "type": "varchar(255)",
           "nullable": true,
           "unique": true,
           "description": "Email address"
@@ -287,35 +273,61 @@
           "description": "Address line 2"
         },
         {
-          "name": "credit_limit",
-          "type": "real",
+          "name": "description",
+          "type": "text",
+          "nullable": true,
+          "description": "Client description/notes"
+        },
+        {
+          "name": "contact",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "Contact person name"
+        },
+        {
+          "name": "credit_terms",
+          "type": "integer",
           "nullable": false,
-          "default": 0.0,
+          "default": 0,
+          "description": "Credit terms in days"
+        },
+        {
+          "name": "credit_limit",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "default": "0.00",
           "description": "Credit limit amount"
         },
         {
           "name": "discount_rate",
-          "type": "real",
+          "type": "numeric(5,2)",
           "nullable": false,
-          "default": 0.0,
+          "default": "0.00",
           "description": "Discount rate percentage"
         },
         {
           "name": "created_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Creation timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Creation timestamp"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "default": "now()",
+          "description": "Last update timestamp"
         }
       ],
       "indexes": [
         {
-          "name": "legacy_id_unique",
+          "name": "clients_legacy_id_unique",
           "columns": ["legacy_id"],
           "unique": true
         },
         {
-          "name": "email_unique",
+          "name": "clients_email_unique",
           "columns": ["email"],
           "unique": true
         }
@@ -323,18 +335,17 @@
     },
     {
       "name": "roles",
-      "description": "Employee roles",
+      "description": "User roles",
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
           "name": "name",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "Role name"
         }
@@ -346,14 +357,13 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
           "name": "code",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "Permission code"
         },
@@ -371,9 +381,8 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
@@ -399,66 +408,53 @@
       ]
     },
     {
-      "name": "employees",
-      "description": "Employee information",
+      "name": "users",
+      "description": "User information",
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
           "name": "first_name",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "First name"
         },
         {
           "name": "last_name",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "Last name"
         },
         {
+          "name": "email",
+          "type": "varchar(255)",
+          "nullable": true,
+          "unique": true,
+          "description": "Email address"
+        },
+        {
           "name": "username",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "unique": true,
           "description": "Login username"
         },
         {
-          "name": "title",
-          "type": "text",
-          "nullable": true,
-          "description": "Job title"
-        },
-        {
           "name": "using_default_pin",
-          "type": "integer",
-          "dataMode": "boolean",
+          "type": "boolean",
           "nullable": false,
           "default": true,
-          "description": "Whether employee is using default PIN"
+          "description": "Whether user is using default PIN"
         },
         {
           "name": "pin_hash",
           "type": "text",
           "nullable": false,
           "description": "Hashed PIN for authentication"
-        },
-        {
-          "name": "start_date",
-          "type": "text",
-          "nullable": false,
-          "description": "Employment start date"
-        },
-        {
-          "name": "end_date",
-          "type": "text",
-          "nullable": true,
-          "description": "Employment end date"
         },
         {
           "name": "role_id",
@@ -469,12 +465,92 @@
             "column": "id",
             "onDelete": "set null"
           }
+        },
+        {
+          "name": "title",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "Job title"
+        },
+        {
+          "name": "department",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "Department"
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "nullable": true,
+          "description": "Employment start date"
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "nullable": true,
+          "description": "Employment end date"
+        },
+        {
+          "name": "contact",
+          "type": "varchar(50)",
+          "nullable": true,
+          "description": "Contact number"
+        },
+        {
+          "name": "address",
+          "type": "text",
+          "nullable": true,
+          "description": "Address"
+        },
+        {
+          "name": "phone",
+          "type": "varchar(20)",
+          "nullable": true,
+          "description": "Phone number"
+        },
+        {
+          "name": "code",
+          "type": "varchar(50)",
+          "nullable": true,
+          "unique": true,
+          "description": "Employee code"
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "nullable": false,
+          "default": true,
+          "description": "Whether the user is active"
+        },
+        {
+          "name": "created_at",
+          "type": "date",
+          "nullable": false,
+          "default": "now()",
+          "description": "Creation timestamp"
+        },
+        {
+          "name": "updated_at",
+          "type": "date",
+          "nullable": false,
+          "default": "now()",
+          "description": "Last update timestamp"
         }
       ],
       "indexes": [
         {
-          "name": "username_unique",
+          "name": "users_email_unique",
+          "columns": ["email"],
+          "unique": true
+        },
+        {
+          "name": "users_username_unique",
           "columns": ["username"],
+          "unique": true
+        },
+        {
+          "name": "users_code_unique",
+          "columns": ["code"],
           "unique": true
         }
       ]
@@ -485,17 +561,16 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
-          "name": "legacy_id",
-          "type": "integer",
-          "nullable": true,
+          "name": "invoice_number",
+          "type": "varchar(100)",
+          "nullable": false,
           "unique": true,
-          "description": "Legacy invoice number from DBF system"
+          "description": "Invoice number"
         },
         {
           "name": "client_id",
@@ -508,64 +583,99 @@
           }
         },
         {
-          "name": "employee_id",
+          "name": "user_id",
           "type": "integer",
           "nullable": true,
           "foreignKey": {
-            "table": "employees",
+            "table": "users",
             "column": "id",
             "onDelete": "set null"
           }
         },
         {
           "name": "status",
-          "type": "text",
+          "type": "varchar(50)",
           "nullable": false,
           "description": "Invoice status"
         },
         {
+          "name": "reference",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "External reference"
+        },
+        {
+          "name": "is_taxable",
+          "type": "integer",
+          "nullable": false,
+          "default": 1,
+          "description": "Whether invoice is taxable"
+        },
+        {
           "name": "subtotal",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Subtotal before tax and discount"
         },
         {
           "name": "tax_total",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Total tax amount"
         },
         {
           "name": "discount_total",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Total discount amount"
         },
         {
           "name": "total",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Final total amount"
         },
         {
           "name": "amount_paid",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
-          "default": 0.0,
+          "default": "0.00",
           "description": "Amount paid so far"
         },
         {
-          "name": "balance",
-          "type": "real",
+          "name": "credit_terms",
+          "type": "integer",
           "nullable": false,
-          "description": "Remaining balance"
+          "default": 0,
+          "description": "Credit terms in days"
+        },
+        {
+          "name": "is_wholesale",
+          "type": "integer",
+          "nullable": false,
+          "default": 0,
+          "description": "Whether this is a wholesale invoice"
+        },
+        {
+          "name": "is_historical",
+          "type": "integer",
+          "nullable": false,
+          "default": 0,
+          "description": "Whether this is migrated historical data"
         },
         {
           "name": "created_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Creation timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Creation timestamp"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "invoices_invoice_number_unique",
+          "columns": ["invoice_number"],
+          "unique": true
         }
       ]
     },
@@ -575,17 +685,9 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
-        },
-        {
-          "name": "legacy_id",
-          "type": "integer",
-          "nullable": true,
-          "unique": true,
-          "description": "Legacy line number from DBF system"
         },
         {
           "name": "invoice_id",
@@ -614,23 +716,23 @@
           "description": "Item quantity"
         },
         {
-          "name": "price",
-          "type": "real",
+          "name": "unit_price",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Unit price"
         },
         {
           "name": "discount",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
-          "default": 0.0,
+          "default": "0.00",
           "description": "Discount amount"
         },
         {
           "name": "tax",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
-          "default": 0.0,
+          "default": "0.00",
           "description": "Tax amount"
         }
       ]
@@ -641,10 +743,16 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
+        },
+        {
+          "name": "quotation_number",
+          "type": "varchar(100)",
+          "nullable": false,
+          "unique": true,
+          "description": "Quotation number"
         },
         {
           "name": "client_id",
@@ -657,33 +765,85 @@
           }
         },
         {
-          "name": "employee_id",
+          "name": "user_id",
           "type": "integer",
           "nullable": true,
           "foreignKey": {
-            "table": "employees",
+            "table": "users",
             "column": "id",
             "onDelete": "set null"
           }
         },
         {
-          "name": "total",
-          "type": "real",
-          "nullable": false,
-          "description": "Total amount"
-        },
-        {
           "name": "status",
-          "type": "text",
+          "type": "varchar(50)",
           "nullable": false,
           "description": "Quotation status"
         },
         {
-          "name": "created_at",
-          "type": "text",
+          "name": "reference",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "External reference"
+        },
+        {
+          "name": "is_taxable",
+          "type": "integer",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Creation timestamp (ISO 8601)"
+          "default": 1,
+          "description": "Whether quotation is taxable"
+        },
+        {
+          "name": "subtotal",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "description": "Subtotal before tax and discount"
+        },
+        {
+          "name": "tax_total",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "description": "Total tax amount"
+        },
+        {
+          "name": "discount_total",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "description": "Total discount amount"
+        },
+        {
+          "name": "total",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "description": "Final total amount"
+        },
+        {
+          "name": "amount_paid",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "default": "0.00",
+          "description": "Amount paid so far"
+        },
+        {
+          "name": "is_wholesale",
+          "type": "integer",
+          "nullable": false,
+          "default": 0,
+          "description": "Whether this is a wholesale quotation"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "default": "now()",
+          "description": "Creation timestamp"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "quotations_quotation_number_unique",
+          "columns": ["quotation_number"],
+          "unique": true
         }
       ]
     },
@@ -693,9 +853,8 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
@@ -725,10 +884,24 @@
           "description": "Item quantity"
         },
         {
-          "name": "price",
-          "type": "real",
+          "name": "unit_price",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Unit price"
+        },
+        {
+          "name": "discount",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "default": "0.00",
+          "description": "Discount amount"
+        },
+        {
+          "name": "tax",
+          "type": "numeric(10,2)",
+          "nullable": false,
+          "default": "0.00",
+          "description": "Tax amount"
         }
       ]
     },
@@ -738,28 +911,26 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
           "name": "code",
-          "type": "text",
+          "type": "varchar(50)",
           "nullable": false,
           "unique": true,
           "description": "Payment method code"
         },
         {
           "name": "name",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "Payment method name"
         },
         {
           "name": "active",
-          "type": "integer",
-          "dataMode": "boolean",
+          "type": "boolean",
           "nullable": false,
           "default": true,
           "description": "Whether the method is active"
@@ -767,7 +938,7 @@
       ],
       "indexes": [
         {
-          "name": "code_unique",
+          "name": "payment_methods_code_unique",
           "columns": ["code"],
           "unique": true
         }
@@ -779,9 +950,8 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
@@ -795,14 +965,20 @@
           }
         },
         {
-          "name": "employee_id",
+          "name": "user_id",
           "type": "integer",
-          "nullable": true,
+          "nullable": false,
           "foreignKey": {
-            "table": "employees",
+            "table": "users",
             "column": "id",
             "onDelete": "set null"
           }
+        },
+        {
+          "name": "notes",
+          "type": "varchar(255)",
+          "nullable": true,
+          "description": "Payment notes"
         },
         {
           "name": "payment_method_id",
@@ -816,16 +992,16 @@
         },
         {
           "name": "amount",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Payment amount"
         },
         {
           "name": "paid_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Payment timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Payment timestamp"
         }
       ]
     },
@@ -835,9 +1011,8 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
@@ -861,30 +1036,30 @@
           }
         },
         {
-          "name": "employee_id",
+          "name": "user_id",
           "type": "integer",
           "nullable": true,
           "foreignKey": {
-            "table": "employees",
+            "table": "users",
             "column": "id",
             "onDelete": "set null"
           }
         },
         {
           "name": "amount",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Total credit note amount"
         },
         {
           "name": "remaining_amount",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Unused credit amount"
         },
         {
           "name": "status",
-          "type": "text",
+          "type": "varchar(50)",
           "nullable": false,
           "description": "Credit note status"
         },
@@ -896,10 +1071,10 @@
         },
         {
           "name": "created_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Creation timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Creation timestamp"
         }
       ]
     },
@@ -909,9 +1084,8 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
@@ -936,23 +1110,23 @@
         },
         {
           "name": "amount_applied",
-          "type": "real",
+          "type": "numeric(10,2)",
           "nullable": false,
           "description": "Amount of credit applied"
         },
         {
           "name": "applied_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Application timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Application timestamp"
         },
         {
-          "name": "employee_id",
+          "name": "user_id",
           "type": "integer",
           "nullable": true,
           "foreignKey": {
-            "table": "employees",
+            "table": "users",
             "column": "id",
             "onDelete": "set null"
           }
@@ -965,30 +1139,29 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
-          "name": "employee_id",
+          "name": "user_id",
           "type": "integer",
           "nullable": true,
           "foreignKey": {
-            "table": "employees",
+            "table": "users",
             "column": "id",
             "onDelete": "set null"
           }
         },
         {
           "name": "action",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "Action performed"
         },
         {
           "name": "reference_type",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "Type of entity affected"
         },
@@ -1000,10 +1173,10 @@
         },
         {
           "name": "created_at",
-          "type": "text",
+          "type": "timestamp",
           "nullable": false,
-          "default": "CURRENT_TIMESTAMP",
-          "description": "Action timestamp (ISO 8601)"
+          "default": "now()",
+          "description": "Action timestamp"
         }
       ]
     },
@@ -1013,14 +1186,13 @@
       "columns": [
         {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "autoIncrement": true,
           "nullable": false
         },
         {
           "name": "key",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "unique": true,
           "description": "Setting key"
@@ -1033,7 +1205,7 @@
         },
         {
           "name": "group",
-          "type": "text",
+          "type": "varchar(100)",
           "nullable": false,
           "description": "Setting group/category"
         },
@@ -1045,16 +1217,14 @@
         },
         {
           "name": "readonly",
-          "type": "integer",
-          "dataMode": "boolean",
+          "type": "boolean",
           "nullable": false,
           "default": false,
           "description": "Whether setting is read-only"
         },
         {
           "name": "visible",
-          "type": "integer",
-          "dataMode": "boolean",
+          "type": "boolean",
           "nullable": false,
           "default": true,
           "description": "Whether setting is visible in UI"
@@ -1062,7 +1232,7 @@
       ],
       "indexes": [
         {
-          "name": "key_unique",
+          "name": "system_settings_key_unique",
           "columns": ["key"],
           "unique": true
         }
@@ -1082,19 +1252,6 @@
         "column": "part_id"
       },
       "onDelete": "cascade"
-    },
-    {
-      "name": "parts_to_vehicle_models",
-      "type": "many-to-many",
-      "through": "part_models",
-      "from": {
-        "table": "parts",
-        "column": "id"
-      },
-      "to": {
-        "table": "vehicle_models",
-        "column": "id"
-      }
     },
     {
       "name": "clients_to_invoices",
@@ -1136,79 +1293,92 @@
       "onDelete": "restrict"
     },
     {
-      "name": "employees_to_invoices",
+      "name": "users_to_invoices",
       "type": "one-to-many",
       "from": {
-        "table": "employees",
+        "table": "users",
         "column": "id"
       },
       "to": {
         "table": "invoices",
-        "column": "employee_id"
+        "column": "user_id"
       },
       "onDelete": "set null"
     },
     {
-      "name": "employees_to_quotations",
+      "name": "users_to_quotations",
       "type": "one-to-many",
       "from": {
-        "table": "employees",
+        "table": "users",
         "column": "id"
       },
       "to": {
         "table": "quotations",
-        "column": "employee_id"
+        "column": "user_id"
       },
       "onDelete": "set null"
     },
     {
-      "name": "employees_to_payments",
+      "name": "users_to_payments",
       "type": "one-to-many",
       "from": {
-        "table": "employees",
+        "table": "users",
         "column": "id"
       },
       "to": {
         "table": "payments",
-        "column": "employee_id"
+        "column": "user_id"
       },
       "onDelete": "set null"
     },
     {
-      "name": "employees_to_credit_notes",
+      "name": "users_to_credit_notes",
       "type": "one-to-many",
       "from": {
-        "table": "employees",
+        "table": "users",
         "column": "id"
       },
       "to": {
         "table": "credit_notes",
-        "column": "employee_id"
+        "column": "user_id"
       },
       "onDelete": "set null"
     },
     {
-      "name": "employees_to_audit_logs",
+      "name": "users_to_credit_note_allocations",
       "type": "one-to-many",
       "from": {
-        "table": "employees",
+        "table": "users",
+        "column": "id"
+      },
+      "to": {
+        "table": "credit_note_allocations",
+        "column": "user_id"
+      },
+      "onDelete": "set null"
+    },
+    {
+      "name": "users_to_audit_logs",
+      "type": "one-to-many",
+      "from": {
+        "table": "users",
         "column": "id"
       },
       "to": {
         "table": "audit_logs",
-        "column": "employee_id"
+        "column": "user_id"
       },
       "onDelete": "set null"
     },
     {
-      "name": "roles_to_employees",
+      "name": "roles_to_users",
       "type": "one-to-many",
       "from": {
         "table": "roles",
         "column": "id"
       },
       "to": {
-        "table": "employees",
+        "table": "users",
         "column": "role_id"
       },
       "onDelete": "set null"

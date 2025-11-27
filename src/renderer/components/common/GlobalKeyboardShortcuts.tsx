@@ -1,6 +1,7 @@
 import { useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useTabManager } from '../../contexts/TabManagerContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface GlobalKeyboardShortcutsProps {
   onOpenSpotlight?: () => void;
@@ -10,6 +11,7 @@ export function GlobalKeyboardShortcuts({
   onOpenSpotlight,
 }: GlobalKeyboardShortcutsProps) {
   const { openTab, closeTab, nextTab, prevTab, activeTabId, getActiveTab } = useTabManager();
+  const { colorScheme, toggleColorScheme } = useTheme();
 
   // F2 - Open Command Palette/Spotlight
   useHotkeys([
@@ -175,6 +177,23 @@ export function GlobalKeyboardShortcuts({
           // Trigger custom print event that pages can listen to
           window.dispatchEvent(new CustomEvent('global-print'));
         }
+      },
+    ],
+  ]);
+
+  // Ctrl+Shift+L - Toggle theme
+  useHotkeys([
+    [
+      'mod+shift+L',
+      (e) => {
+        e.preventDefault();
+        toggleColorScheme();
+        notifications.show({
+          title: 'Theme Changed',
+          message: `Switched to ${colorScheme === 'light' ? 'dark' : 'light'} mode`,
+          color: colorScheme === 'light' ? 'dark' : 'yellow',
+          autoClose: 1500,
+        });
       },
     ],
   ]);
