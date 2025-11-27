@@ -27,6 +27,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { InvoiceLineItemsGrid, type InvoiceLineItem } from '../../components/transactions/InvoiceLineItemsGrid';
+import { IpcChannel } from '../../../shared/types/ipc';
 import { InvoiceTotalsPanel } from '../../components/transactions/InvoiceTotalsPanel';
 import { PaymentModal } from '../../components/transactions/PaymentModal';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -159,12 +160,12 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
         setNotes(data.notes || '');
 
         // Update tab title with actual invoice number
-        if (data.legacyId) {
-          setTabTitle(tabId, `Invoice #${data.legacyId}`);
+        if (data.invoiceNumber) {
+          setTabTitle(tabId, `Invoice #${data.invoiceNumber}`);
         }
 
         // Load line items from IPC
-        const itemsResult = await window.electron.invoke('invoice-items:getByInvoice', {
+        const itemsResult = await window.electron.invoke(IpcChannel.GET_INVOICE_ITEMS, {
           invoiceId: data.id,
         });
         const loadedItems = itemsResult.data || itemsResult || [];
@@ -268,12 +269,12 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
         };
 
         if (item.id) {
-          await window.electron.invoke('invoice-items:update', {
+          await window.electron.invoke(IpcChannel.UPDATE_INVOICE_ITEM, {
             id: item.id,
-            updates: itemData,
+            data: itemData,
           });
         } else {
-          await window.electron.invoke('invoice-items:create', itemData);
+          await window.electron.invoke(IpcChannel.CREATE_INVOICE_ITEM, itemData);
         }
       }
 
@@ -351,7 +352,7 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
             Back
           </Button>
           <Title order={2}>
-            {isNew ? 'New Invoice' : `Invoice #${invoice?.legacyId}`}
+            {isNew ? 'New Invoice' : `Invoice #${invoice?.invoiceNumber}`}
           </Title>
           {!isNew && <StatusBadge status={status} />}
         </Group>

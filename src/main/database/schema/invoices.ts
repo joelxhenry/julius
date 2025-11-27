@@ -1,4 +1,4 @@
-import { pgTable, varchar, integer, serial, numeric, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, integer, serial, numeric, timestamp, index } from 'drizzle-orm/pg-core';
 import { clients } from './clients';
 import { partVariants } from './parts';
 import { users } from './users';
@@ -40,7 +40,12 @@ export const invoices = pgTable('invoices', {
 
   isHistorical: integer('is_historical').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow()
-});
+}, (table) => [
+  index('invoices_client_id_idx').on(table.clientId),
+  index('invoices_user_id_idx').on(table.userId),
+  index('invoices_status_idx').on(table.status),
+  index('invoices_created_at_idx').on(table.createdAt),
+]);
 
 // INVOICE_ITEM table
 export const invoiceItems = pgTable('invoice_items', {
@@ -54,7 +59,10 @@ export const invoiceItems = pgTable('invoice_items', {
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
   discount: numeric('discount', { precision: 10, scale: 2 }).notNull().default('0.00'),
   tax: numeric('tax', { precision: 10, scale: 2 }).notNull().default('0.00'),
-});
+}, (table) => [
+  index('invoice_items_invoice_id_idx').on(table.invoiceId),
+  index('invoice_items_variant_id_idx').on(table.variantId),
+]);
 
 // Export types
 export type Invoice = typeof invoices.$inferSelect;

@@ -23,6 +23,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { InvoiceLineItemsGrid, type InvoiceLineItem } from '../../components/transactions/InvoiceLineItemsGrid';
+import { IpcChannel } from '../../../shared/types/ipc';
 import { InvoiceTotalsPanel } from '../../components/transactions/InvoiceTotalsPanel';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useQuotations, useClients } from '../../hooks';
@@ -275,7 +276,7 @@ export function QuotationEditorPage({ id }: QuotationEditorPageProps) {
       const quotationItems = itemsResult.data || itemsResult || [];
 
       for (const item of quotationItems) {
-        await window.electron.invoke('invoice-items:create', {
+        await window.electron.invoke(IpcChannel.CREATE_INVOICE_ITEM, {
           invoiceId: invoice.id,
           partVariantId: item.partVariantId,
           description: item.description,
