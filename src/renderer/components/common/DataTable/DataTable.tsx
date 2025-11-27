@@ -1,0 +1,180 @@
+import { Table, ScrollArea, TextInput, Skeleton, Stack, Pagination, Center, Text } from '@mantine/core';
+import { IconSearch } from '@tabler/icons-react';
+import { useState, useMemo } from 'react';
+
+export interface ColumnDef<T> {
+  key: keyof T | string;
+  title: string;
+  sortable?: boolean;
+  width?: string | number;
+  render?: (value: any, row: T) => React.ReactNode;
+}
+
+interface DataTableProps<T> {
+  data: T[];
+  columns: ColumnDef<T>[];
+  loading?: boolean;
+  loadingRows?: number;
+  onRowClick?: (row: T) => void;
+  selectable?: boolean;
+  pagination?: boolean;
+  pageSize?: number;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  keyboardNav?: boolean;
+  emptyMessage?: string;
+}
+
+export function DataTable<T extends Record<string, any>>({
+  data,
+  columns,
+  loading = false,
+  loadingRows = 5,
+  onRowClick,
+  pagination = false,
+  pageSize = 20,
+  searchable = false,
+  searchPlaceholder = 'Search...',
+  emptyMessage = 'No data found',
+}: DataTableProps<T>) {
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Filter data based on search
+  const filteredData = useMemo(() => {
+    if (!search) return data;
+
+    return data.filter((row) =>
+      Object.values(row).some((value) =>
+        String(value).toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }, [data, search]);
+
+  // Sort data
+  const sortedData = useMemo(() => {
+    if (!sortKey) return filteredData;
+
+    return [...filteredData].sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+
+      if (aVal === bVal) return 0;
+
+      const comparison = aVal > bVal ? 1 : -1;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredData, sortKey, sortDirection]);
+
+  // Paginate data
+  const paginatedData = useMemo(() => {
+    if (!pagination) return sortedData;
+
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return sortedData.slice(start, end);
+  }, [sortedData, pagination, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(sortedData.length / pageSize);
+
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleRowClick = (row: T) => {
+    if (onRowClick) {
+      onRowClick(row);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Stack>
+        {searchable && <Skeleton height={36} />}
+        {Array.from({ length: loadingRows }).map((_, i) => (
+          <Skeleton key={i} height={50} />
+        ))}
+      </Stack>
+    );
+  }
+
+  if (!loading && data.length === 0) {
+    return (
+      <Center p="xl">
+        <Text c="dimmed">{emptyMessage}</Text>
+      </Center>
+    );
+  }
+
+  return (
+    <Stack>
+      {searchable && (
+        <TextInput
+          placeholder={searchPlaceholder}
+          leftSection={<IconSearch size={16} />}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      )}
+
+      <ScrollArea>
+        <Table highlightOnHover={!!onRowClick} striped>
+          <Table.Thead>
+            <Table.Tr>
+              {columns.map((column) => (
+                <Table.Th
+                  key={String(column.key)}
+                  style={{
+                    width: column.width,
+                    cursor: column.sortable ? 'pointer' : 'default',
+                  }}
+                  onClick={() => column.sortable && handleSort(String(column.key))}
+                >
+                  {column.title}
+                  {column.sortable && sortKey === column.key && (
+                    <span> {sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </Table.Th>
+              ))}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {paginatedData.map((row, index) => (
+              <Table.Tr
+                key={index}
+                onClick={() => handleRowClick(row)}
+                style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+              >
+                {columns.map((column) => {
+                  const value = row[column.key as keyof T];
+                  return (
+                    <Table.Td key={String(column.key)}>
+                      {column.render ? column.render(value, row) : String(value || '')}
+                    </Table.Td>
+                  );
+                })}
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </ScrollArea>
+
+      {pagination && totalPages > 1 && (
+        <Center>
+          <Pagination
+            total={totalPages}
+            value={currentPage}
+            onChange={setCurrentPage}
+          />
+        </Center>
+      )}
+    </Stack>
+  );
+}
