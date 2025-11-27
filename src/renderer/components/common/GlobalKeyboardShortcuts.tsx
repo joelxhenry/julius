@@ -135,7 +135,7 @@ export function GlobalKeyboardShortcuts({
         if (path.includes('/invoices/') ||
             path.includes('/quotations/') ||
             path.includes('/clients/') ||
-            path.includes('/employees/') ||
+            path.includes('/users/') ||
             path.includes('/inventory/parts/')) {
 
           notifications.show({

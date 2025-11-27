@@ -1,5 +1,4 @@
 import { pgTable, varchar, text, integer, serial, boolean, date } from 'drizzle-orm/pg-core';
-import { email } from 'zod';
 
 // ROLE table
 export const roles = pgTable('roles', {
@@ -25,7 +24,7 @@ export const rolePermissions = pgTable('role_permissions', {
     .references(() => permissions.id, { onDelete: 'cascade' }),
 });
 
-// EMPLOYEE table
+// USER table
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   firstName: varchar('first_name', { length: 100 }).notNull(),

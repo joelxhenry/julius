@@ -2,14 +2,14 @@ import { Title, Group, Button, Stack, Badge } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { IconPlus, IconUsers } from '@tabler/icons-react';
 import { DataTable, ColumnDef } from '../../components/common/DataTable/DataTable';
-import { useEmployees } from '../../hooks';
-import type { Employee } from '../../../main/database/schema';
+import { useUsers } from '../../hooks';
+import type { User } from '../../../main/database/schema';
 
-export function EmployeesListPage() {
+export function UsersListPage() {
   const navigate = useNavigate();
-  const { employees, loading } = useEmployees();
+  const { users, loading } = useUsers();
 
-  const columns: ColumnDef<Employee>[] = [
+  const columns: ColumnDef<User>[] = [
     {
       key: 'id',
       title: 'ID',
@@ -40,7 +40,6 @@ export function EmployeesListPage() {
       key: 'roleId',
       title: 'Role',
       render: (value) => {
-        // Map role IDs to names (you'd fetch this from roles table)
         const roleNames: Record<number, string> = {
           1: 'Admin',
           2: 'Manager',
@@ -59,11 +58,11 @@ export function EmployeesListPage() {
       ),
     },
     {
-      key: 'endDate',
+      key: 'active',
       title: 'Status',
       render: (value) => (
-        <Badge color={value ? 'gray' : 'green'} size="sm">
-          {value ? 'Inactive' : 'Active'}
+        <Badge color={value ? 'green' : 'gray'} size="sm">
+          {value ? 'Active' : 'Inactive'}
         </Badge>
       ),
     },
@@ -74,21 +73,21 @@ export function EmployeesListPage() {
       <Group justify="space-between">
         <Group>
           <IconUsers size={32} />
-          <Title order={2}>Employees</Title>
+          <Title order={2}>Users</Title>
         </Group>
         <Button
           leftSection={<IconPlus size={16} />}
-          onClick={() => navigate('/employees/new')}
+          onClick={() => navigate('/users/new')}
         >
-          New Employee
+          New User
         </Button>
       </Group>
 
       <DataTable
-        data={employees}
+        data={users}
         columns={columns}
         loading={loading}
-        onRowClick={(employee) => navigate(`/employees/${employee.id}`)}
+        onRowClick={(user) => navigate(`/users/${user.id}`)}
         searchable
         pagination
         keyboardNav

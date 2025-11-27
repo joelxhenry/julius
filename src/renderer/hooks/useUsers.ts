@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
-import type { Employee, InsertEmployee } from '../../main/database/schema';
+import type { User, InsertUser } from '../../main/database/schema';
 
-export function useEmployees() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+export function useUsers() {
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -11,8 +11,8 @@ export function useEmployees() {
     setLoading(true);
     setError(null);
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_EMPLOYEES, undefined);
-      setEmployees(result.data || result);
+      const result = await window.electron.invoke(IpcChannel.GET_USERS, undefined);
+      setUsers(result.data || result);
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -24,8 +24,8 @@ export function useEmployees() {
     setLoading(true);
     setError(null);
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_ACTIVE_EMPLOYEES, undefined);
-      setEmployees(result.data || result);
+      const result = await window.electron.invoke(IpcChannel.GET_ACTIVE_USERS, undefined);
+      setUsers(result.data || result);
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -35,7 +35,7 @@ export function useEmployees() {
 
   const getById = useCallback(async (id: number) => {
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id });
+      const result = await window.electron.invoke(IpcChannel.GET_USER, { id });
       return result.data || result;
     } catch (err) {
       setError(err as Error);
@@ -45,7 +45,7 @@ export function useEmployees() {
 
   const findByUsername = useCallback(async (username: string) => {
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_EMPLOYEE_BY_USERNAME, { username });
+      const result = await window.electron.invoke(IpcChannel.GET_USER_BY_USERNAME, { username });
       return result.data || result;
     } catch (err) {
       setError(err as Error);
@@ -57,8 +57,8 @@ export function useEmployees() {
     setLoading(true);
     setError(null);
     try {
-      const result = await window.electron.invoke(IpcChannel.SEARCH_EMPLOYEES, { query });
-      setEmployees(result.data || result);
+      const result = await window.electron.invoke(IpcChannel.SEARCH_USERS, { query });
+      setUsers(result.data || result);
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -66,23 +66,23 @@ export function useEmployees() {
     }
   }, []);
 
-  const create = useCallback(async (data: InsertEmployee) => {
+  const create = useCallback(async (data: InsertUser) => {
     try {
-      const result = await window.electron.invoke(IpcChannel.CREATE_EMPLOYEE, data);
-      const newEmployee = result.data || result;
-      setEmployees((prev) => [...prev, newEmployee]);
-      return newEmployee;
+      const result = await window.electron.invoke(IpcChannel.CREATE_USER, data);
+      const newUser = result.data || result;
+      setUsers((prev) => [...prev, newUser]);
+      return newUser;
     } catch (err) {
       setError(err as Error);
       throw err;
     }
   }, []);
 
-  const update = useCallback(async (id: number, data: Partial<InsertEmployee>) => {
+  const update = useCallback(async (id: number, data: Partial<InsertUser>) => {
     try {
-      const result = await window.electron.invoke(IpcChannel.UPDATE_EMPLOYEE, { id, data });
+      const result = await window.electron.invoke(IpcChannel.UPDATE_USER, { id, data });
       const updated = result.data || result;
-      setEmployees((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
       return updated;
     } catch (err) {
       setError(err as Error);
@@ -92,8 +92,8 @@ export function useEmployees() {
 
   const remove = useCallback(async (id: number) => {
     try {
-      await window.electron.invoke(IpcChannel.DELETE_EMPLOYEE, { id });
-      setEmployees((prev) => prev.filter((e) => e.id !== id));
+      await window.electron.invoke(IpcChannel.DELETE_USER, { id });
+      setUsers((prev) => prev.filter((u) => u.id !== id));
     } catch (err) {
       setError(err as Error);
       throw err;
@@ -105,7 +105,7 @@ export function useEmployees() {
   }, [fetchAll]);
 
   return {
-    employees,
+    users,
     loading,
     error,
     fetchAll,

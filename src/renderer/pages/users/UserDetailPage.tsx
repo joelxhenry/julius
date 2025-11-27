@@ -13,36 +13,36 @@ import {
 } from '@mantine/core';
 import { IconArrowLeft, IconEdit, IconKey } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { useEmployees } from '../../hooks';
-import { EmployeeForm } from '../../components/forms/EmployeeForm';
-import type { Employee } from '../../../main/database/schema';
-import type { EmployeeFormData } from '../../utils/schemas';
+import { useUsers } from '../../hooks';
+import { UserForm } from '../../components/forms/UserForm';
+import type { User } from '../../../main/database/schema';
+import type { UserFormData } from '../../utils/schemas';
 import { notifications } from '@mantine/notifications';
 
-export function EmployeeDetailPage() {
+export function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isNew = id === 'new';
 
-  const { getById, create, update } = useEmployees();
-  const [employee, setEmployee] = useState<Employee | null>(null);
+  const { getById, create, update } = useUsers();
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [editModalOpened, setEditModalOpened] = useState(isNew);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const loadEmployee = async () => {
+    const loadUser = async () => {
       if (isNew) return;
 
       try {
         setLoading(true);
         const data = await getById(parseInt(id!));
-        setEmployee(data);
+        setUser(data);
       } catch (error) {
-        console.error('Failed to load employee:', error);
+        console.error('Failed to load user:', error);
         notifications.show({
           title: 'Error',
-          message: 'Failed to load employee',
+          message: 'Failed to load user',
           color: 'red',
         });
       } finally {
@@ -50,19 +50,19 @@ export function EmployeeDetailPage() {
       }
     };
 
-    loadEmployee();
+    loadUser();
   }, [id, isNew, getById]);
 
-  const handleSave = async (data: EmployeeFormData) => {
+  const handleSave = async (data: UserFormData) => {
     setSaving(true);
     try {
       if (isNew) {
         const result = await create(data);
-        navigate(`/employees/${result.id}`);
+        navigate(`/users/${result.id}`);
       } else {
         await update(parseInt(id!), data);
         const updated = await getById(parseInt(id!));
-        setEmployee(updated);
+        setUser(updated);
         setEditModalOpened(false);
       }
     } finally {
@@ -74,12 +74,12 @@ export function EmployeeDetailPage() {
     return <LoadingOverlay visible />;
   }
 
-  if (!employee && !isNew) {
+  if (!user && !isNew) {
     return (
       <Paper p="xl">
-        <Text>Employee not found</Text>
-        <Button onClick={() => navigate('/employees')} mt="md">
-          Back to Employees
+        <Text>User not found</Text>
+        <Button onClick={() => navigate('/users')} mt="md">
+          Back to Users
         </Button>
       </Paper>
     );
@@ -92,21 +92,21 @@ export function EmployeeDetailPage() {
           <Button
             variant="subtle"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/employees')}
+            onClick={() => navigate('/users')}
           >
             Back
           </Button>
           <Title order={2}>
-            {isNew ? 'New Employee' : `${employee?.firstName} ${employee?.lastName}`}
+            {isNew ? 'New User' : `${user?.firstName} ${user?.lastName}`}
           </Title>
-          {!isNew && employee && (
+          {!isNew && user && (
             <>
-              {employee.usingDefaultPin && (
+              {user.usingDefaultPin && (
                 <Badge color="orange" size="lg">
                   Using Default PIN
                 </Badge>
               )}
-              {employee.endDate && (
+              {!user.active && (
                 <Badge color="gray" size="lg">
                   Inactive
                 </Badge>
@@ -120,7 +120,6 @@ export function EmployeeDetailPage() {
               variant="light"
               leftSection={<IconKey size={16} />}
               onClick={() => {
-                // Reset PIN functionality
                 notifications.show({
                   title: 'Feature Coming Soon',
                   message: 'PIN reset functionality will be implemented',
@@ -137,30 +136,51 @@ export function EmployeeDetailPage() {
         )}
       </Group>
 
-      {!isNew && employee && (
+      {!isNew && user && (
         <>
           <SimpleGrid cols={{ base: 1, md: 3 }}>
             <Paper withBorder p="md">
               <Text size="sm" c="dimmed" mb="xs">
                 Username
               </Text>
-              <Text fw={500}>{employee.username}</Text>
+              <Text fw={500}>{user.username}</Text>
+            </Paper>
+            <Paper withBorder p="md">
+              <Text size="sm" c="dimmed" mb="xs">
+                Email
+              </Text>
+              <Text fw={500}>{user.email || 'N/A'}</Text>
             </Paper>
             <Paper withBorder p="md">
               <Text size="sm" c="dimmed" mb="xs">
                 Job Title
               </Text>
-              <Text fw={500}>{employee.title || 'N/A'}</Text>
+              <Text fw={500}>{user.title || 'N/A'}</Text>
             </Paper>
+          </SimpleGrid>
+
+          <SimpleGrid cols={{ base: 1, md: 3 }}>
             <Paper withBorder p="md">
               <Text size="sm" c="dimmed" mb="xs">
                 Role
               </Text>
               <Text fw={500}>
                 {
-                  { 1: 'Admin', 2: 'Manager', 3: 'Cashier', 4: 'User' }[employee.roleId || 4]
+                  { 1: 'Admin', 2: 'Manager', 3: 'Cashier', 4: 'User' }[user.roleId || 4]
                 }
               </Text>
+            </Paper>
+            <Paper withBorder p="md">
+              <Text size="sm" c="dimmed" mb="xs">
+                Department
+              </Text>
+              <Text fw={500}>{user.department || 'N/A'}</Text>
+            </Paper>
+            <Paper withBorder p="md">
+              <Text size="sm" c="dimmed" mb="xs">
+                Phone
+              </Text>
+              <Text fw={500}>{user.phone || 'N/A'}</Text>
             </Paper>
           </SimpleGrid>
 
@@ -170,7 +190,7 @@ export function EmployeeDetailPage() {
                 Start Date
               </Text>
               <Text fw={500}>
-                {employee.startDate ? new Date(employee.startDate).toLocaleDateString() : 'N/A'}
+                {user.startDate ? new Date(user.startDate).toLocaleDateString() : 'N/A'}
               </Text>
             </Paper>
             <Paper withBorder p="md">
@@ -178,7 +198,7 @@ export function EmployeeDetailPage() {
                 End Date
               </Text>
               <Text fw={500}>
-                {employee.endDate ? new Date(employee.endDate).toLocaleDateString() : 'Active'}
+                {user.endDate ? new Date(user.endDate).toLocaleDateString() : 'Active'}
               </Text>
             </Paper>
           </SimpleGrid>
@@ -189,20 +209,20 @@ export function EmployeeDetailPage() {
         opened={editModalOpened}
         onClose={() => {
           if (isNew) {
-            navigate('/employees');
+            navigate('/users');
           } else {
             setEditModalOpened(false);
           }
         }}
-        title={isNew ? 'Create Employee' : 'Edit Employee'}
+        title={isNew ? 'Create User' : 'Edit User'}
         size="lg"
       >
-        <EmployeeForm
-          employee={employee}
+        <UserForm
+          user={user}
           onSubmit={handleSave}
           onCancel={() => {
             if (isNew) {
-              navigate('/employees');
+              navigate('/users');
             } else {
               setEditModalOpened(false);
             }

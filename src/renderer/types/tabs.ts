@@ -14,8 +14,8 @@ export type TabType =
   | 'part-detail'
   | 'payments-list'
   | 'credit-notes-list'
-  | 'employees-list'
-  | 'employee-detail'
+  | 'users-list'
+  | 'user-detail'
   | 'settings';
 
 export interface Tab {
@@ -78,8 +78,8 @@ export const TAB_COLORS: Record<TabType, string> = {
   'part-detail': 'orange',
   'payments-list': 'teal',
   'credit-notes-list': 'red',
-  'employees-list': 'cyan',
-  'employee-detail': 'cyan',
+  'users-list': 'cyan',
+  'user-detail': 'cyan',
   'settings': 'gray',
 };
 
@@ -92,7 +92,7 @@ export const LIST_TAB_TYPES: TabType[] = [
   'parts-list',
   'payments-list',
   'credit-notes-list',
-  'employees-list',
+  'users-list',
   'settings',
 ];
 
@@ -117,8 +117,8 @@ export function getTabTypeFromPath(path: string): TabType {
   if (path.startsWith('/inventory/parts/')) return 'part-detail';
   if (path === '/payments') return 'payments-list';
   if (path === '/credit-notes') return 'credit-notes-list';
-  if (path === '/employees') return 'employees-list';
-  if (path.startsWith('/employees/')) return 'employee-detail';
+  if (path === '/users') return 'users-list';
+  if (path.startsWith('/users/')) return 'user-detail';
   if (path === '/settings') return 'settings';
   return 'dashboard'; // fallback
 }
@@ -133,7 +133,7 @@ export function getDefaultTabTitle(path: string, type: TabType): string {
     'parts-list': 'Parts',
     'payments-list': 'Payments',
     'credit-notes-list': 'Credit Notes',
-    'employees-list': 'Employees',
+    'users-list': 'Users',
     'settings': 'Settings',
   };
 
@@ -148,14 +148,14 @@ export function getDefaultTabTitle(path: string, type: TabType): string {
     if (type === 'quotation-editor') return 'New Quotation';
     if (type === 'client-detail') return 'New Client';
     if (type === 'part-detail') return 'New Part';
-    if (type === 'employee-detail') return 'New Employee';
+    if (type === 'user-detail') return 'New User';
   }
 
   if (type === 'invoice-editor') return `Invoice #${id}`;
   if (type === 'quotation-editor') return `Quotation #${id}`;
   if (type === 'client-detail') return `Client #${id}`;
   if (type === 'part-detail') return `Part #${id}`;
-  if (type === 'employee-detail') return `Employee #${id}`;
+  if (type === 'user-detail') return `User #${id}`;
 
   return 'Tab';
 }

@@ -41,30 +41,39 @@ export const partVariantSchema = z.object({
 
 export type PartVariantFormData = z.infer<typeof partVariantSchema>;
 
-// Employee validation schema
-export const employeeSchema = z.object({
+// User validation schema
+export const userSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
   username: z.string().min(3, 'Username must be at least 3 characters'),
   title: z.string().optional(),
+  department: z.string().optional(),
   roleId: z.number().optional(),
-  startDate: z.string().min(1, 'Start date is required'),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  code: z.string().optional(),
+  startDate: z.string().optional(),
   endDate: z.string().optional(),
+  active: z.boolean().default(true),
 });
 
-export type EmployeeFormData = z.infer<typeof employeeSchema>;
+export type UserFormData = z.infer<typeof userSchema>;
 
 // Invoice validation schema
 export const invoiceSchema = z.object({
   clientId: z.number().min(1, 'Client is required').optional(),
-  employeeId: z.number().optional(),
+  userId: z.number().optional(),
   status: z.enum(['DRAFT', 'ISSUED', 'PARTIAL', 'PAID', 'CANCELLED']).default('DRAFT'),
+  reference: z.string().optional(),
+  isTaxable: z.number().default(1),
   subtotal: z.number().min(0).default(0),
   taxTotal: z.number().min(0).default(0),
   discountTotal: z.number().min(0).default(0),
   total: z.number().min(0).default(0),
   amountPaid: z.number().min(0).default(0),
-  balance: z.number().min(0).default(0),
+  credit_terms: z.number().default(0),
+  is_wholesale: z.number().default(0),
 });
 
 export type InvoiceFormData = z.infer<typeof invoiceSchema>;
@@ -84,7 +93,7 @@ export type InvoiceItemFormData = z.infer<typeof invoiceItemSchema>;
 // Payment validation schema
 export const paymentSchema = z.object({
   invoiceId: z.number().min(1, 'Invoice is required'),
-  employeeId: z.number().optional(),
+  userId: z.number().optional(),
   paymentMethodId: z.number().min(1, 'Payment method is required'),
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
 });
@@ -94,7 +103,7 @@ export type PaymentFormData = z.infer<typeof paymentSchema>;
 // Quotation validation schema
 export const quotationSchema = z.object({
   clientId: z.number().min(1, 'Client is required').optional(),
-  employeeId: z.number().optional(),
+  userId: z.number().optional(),
   total: z.number().min(0).default(0),
   status: z.enum(['DRAFT', 'SENT', 'APPROVED', 'EXPIRED', 'CONVERTED']).default('DRAFT'),
 });
@@ -105,7 +114,7 @@ export type QuotationFormData = z.infer<typeof quotationSchema>;
 export const creditNoteSchema = z.object({
   clientId: z.number().min(1, 'Client is required'),
   invoiceId: z.number().optional(),
-  employeeId: z.number().optional(),
+  userId: z.number().optional(),
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
   remainingAmount: z.number().min(0).default(0),
   status: z.enum(['OPEN', 'PARTIAL', 'CLOSED']).default('OPEN'),

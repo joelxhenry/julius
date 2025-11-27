@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
   { label: 'Quotations', icon: <IconFileText size={20} />, path: '/quotations' },
   { label: 'Payments', icon: <IconCash size={20} />, path: '/payments' },
   { label: 'Credit Notes', icon: <IconReceipt size={20} />, path: '/credit-notes' },
-  { label: 'Employees', icon: <IconUserCog size={20} />, path: '/employees' },
+  { label: 'Users', icon: <IconUserCog size={20} />, path: '/users' },
   { label: 'Settings', icon: <IconSettings size={20} />, path: '/settings' },
 ];
 

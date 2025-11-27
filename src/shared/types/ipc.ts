@@ -8,15 +8,15 @@ export enum IpcChannel {
   UPDATE_CLIENT = 'db:update-client',
   DELETE_CLIENT = 'db:delete-client',
 
-  // Employee operations
-  GET_EMPLOYEES = 'db:get-employees',
-  GET_EMPLOYEE = 'db:get-employee',
-  GET_EMPLOYEE_BY_USERNAME = 'db:get-employee-by-username',
-  GET_ACTIVE_EMPLOYEES = 'db:get-active-employees',
-  SEARCH_EMPLOYEES = 'db:search-employees',
-  CREATE_EMPLOYEE = 'db:create-employee',
-  UPDATE_EMPLOYEE = 'db:update-employee',
-  DELETE_EMPLOYEE = 'db:delete-employee',
+  // User operations
+  GET_USERS = 'db:get-users',
+  GET_USER = 'db:get-user',
+  GET_USER_BY_USERNAME = 'db:get-user-by-username',
+  GET_ACTIVE_USERS = 'db:get-active-users',
+  SEARCH_USERS = 'db:search-users',
+  CREATE_USER = 'db:create-user',
+  UPDATE_USER = 'db:update-user',
+  DELETE_USER = 'db:delete-user',
 
   // Part operations
   GET_PARTS = 'db:get-parts',
@@ -100,22 +100,6 @@ export enum IpcChannel {
   CREATE_CREDIT_NOTE_ALLOCATION = 'db:create-credit-note-allocation',
   UPDATE_CREDIT_NOTE_ALLOCATION = 'db:update-credit-note-allocation',
   DELETE_CREDIT_NOTE_ALLOCATION = 'db:delete-credit-note-allocation',
-
-  // Vehicle model operations
-  GET_VEHICLE_MODELS = 'db:get-vehicle-models',
-  GET_VEHICLE_MODEL = 'db:get-vehicle-model',
-  SEARCH_VEHICLE_MODELS = 'db:search-vehicle-models',
-  CREATE_VEHICLE_MODEL = 'db:create-vehicle-model',
-  UPDATE_VEHICLE_MODEL = 'db:update-vehicle-model',
-  DELETE_VEHICLE_MODEL = 'db:delete-vehicle-model',
-
-  // Part model operations
-  GET_PART_MODELS_BY_PART = 'db:get-part-models-by-part',
-  GET_PART_MODELS_BY_VEHICLE = 'db:get-part-models-by-vehicle',
-  CREATE_PART_MODEL = 'db:create-part-model',
-  CREATE_PART_MODELS_BULK = 'db:create-part-models-bulk',
-  UPDATE_PART_MODEL = 'db:update-part-model',
-  DELETE_PART_MODEL = 'db:delete-part-model',
 
   // Database configuration operations
   GET_DATABASE_CONFIG = 'db:get-config',

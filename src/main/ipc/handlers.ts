@@ -5,7 +5,7 @@ import { IpcChannel } from '../../shared/types/ipc';
 // Import services
 import {
   ClientService,
-  EmployeeService,
+  UserService,
   PartService,
   PartVariantService,
   InvoiceService,
@@ -16,14 +16,12 @@ import {
   QuotationItemService,
   CreditNoteService,
   CreditNoteAllocationService,
-  VehicleModelService,
-  PartModelService,
 } from '../services';
 
 // Import controllers
 import {
   ClientController,
-  EmployeeController,
+  UserController,
   PartController,
   PartVariantController,
   InvoiceController,
@@ -34,8 +32,6 @@ import {
   QuotationItemController,
   CreditNoteController,
   CreditNoteAllocationController,
-  VehicleModelController,
-  PartModelController,
 } from '../controllers';
 
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
@@ -87,7 +83,7 @@ export function registerIpcHandlers() {
 
   // Initialize services
   const clientService = new ClientService(db);
-  const employeeService = new EmployeeService(db);
+  const userService = new UserService(db);
   const partService = new PartService(db);
   const partVariantService = new PartVariantService(db);
   const invoiceService = new InvoiceService(db);
@@ -98,12 +94,10 @@ export function registerIpcHandlers() {
   const quotationItemService = new QuotationItemService(db);
   const creditNoteService = new CreditNoteService(db);
   const creditNoteAllocationService = new CreditNoteAllocationService(db);
-  const vehicleModelService = new VehicleModelService(db);
-  const partModelService = new PartModelService(db);
 
   // Initialize controllers
   const clientController = new ClientController(clientService);
-  const employeeController = new EmployeeController(employeeService);
+  const userController = new UserController(userService);
   const partController = new PartController(partService);
   const partVariantController = new PartVariantController(partVariantService);
   const invoiceController = new InvoiceController(invoiceService);
@@ -114,8 +108,6 @@ export function registerIpcHandlers() {
   const quotationItemController = new QuotationItemController(quotationItemService);
   const creditNoteController = new CreditNoteController(creditNoteService);
   const creditNoteAllocationController = new CreditNoteAllocationController(creditNoteAllocationService);
-  const vehicleModelController = new VehicleModelController(vehicleModelService);
-  const partModelController = new PartModelController(partModelService);
 
   // ===== CLIENT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_CLIENTS, () => clientController.getAll());
@@ -126,15 +118,15 @@ export function registerIpcHandlers() {
   ipcMain.handle(IpcChannel.UPDATE_CLIENT, (_, { id, data }: any) => clientController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_CLIENT, (_, { id }: { id: number }) => clientController.delete(id));
 
-  // ===== EMPLOYEE HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_EMPLOYEES, () => employeeController.getAll());
-  ipcMain.handle(IpcChannel.GET_EMPLOYEE, (_, { id }: { id: number }) => employeeController.getById(id));
-  ipcMain.handle(IpcChannel.GET_EMPLOYEE_BY_USERNAME, (_, { username }: { username: string }) => employeeController.getByUsername(username));
-  ipcMain.handle(IpcChannel.GET_ACTIVE_EMPLOYEES, () => employeeController.getActive());
-  ipcMain.handle(IpcChannel.SEARCH_EMPLOYEES, (_, { query }: { query: string }) => employeeController.search(query));
-  ipcMain.handle(IpcChannel.CREATE_EMPLOYEE, (_, data: any) => employeeController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE, (_, { id, data }: any) => employeeController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_EMPLOYEE, (_, { id }: { id: number }) => employeeController.delete(id));
+  // ===== USER HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_USERS, () => userController.getAll());
+  ipcMain.handle(IpcChannel.GET_USER, (_, { id }: { id: number }) => userController.getById(id));
+  ipcMain.handle(IpcChannel.GET_USER_BY_USERNAME, (_, { username }: { username: string }) => userController.getByUsername(username));
+  ipcMain.handle(IpcChannel.GET_ACTIVE_USERS, () => userController.getActive());
+  ipcMain.handle(IpcChannel.SEARCH_USERS, (_, { query }: { query: string }) => userController.search(query));
+  ipcMain.handle(IpcChannel.CREATE_USER, (_, data: any) => userController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_USER, (_, { id, data }: any) => userController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_USER, (_, { id }: { id: number }) => userController.delete(id));
 
   // ===== PART HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PARTS, () => partController.getAll());
@@ -218,20 +210,4 @@ export function registerIpcHandlers() {
   ipcMain.handle(IpcChannel.CREATE_CREDIT_NOTE_ALLOCATION, (_, data: any) => creditNoteAllocationController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_CREDIT_NOTE_ALLOCATION, (_, { id, data }: any) => creditNoteAllocationController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_CREDIT_NOTE_ALLOCATION, (_, { id }: { id: number }) => creditNoteAllocationController.delete(id));
-
-  // ===== VEHICLE MODEL HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_VEHICLE_MODELS, () => vehicleModelController.getAll());
-  ipcMain.handle(IpcChannel.GET_VEHICLE_MODEL, (_, { id }: { id: number }) => vehicleModelController.getById(id));
-  ipcMain.handle(IpcChannel.SEARCH_VEHICLE_MODELS, (_, { query }: { query: string }) => vehicleModelController.search(query));
-  ipcMain.handle(IpcChannel.CREATE_VEHICLE_MODEL, (_, data: any) => vehicleModelController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_VEHICLE_MODEL, (_, { id, data }: any) => vehicleModelController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_VEHICLE_MODEL, (_, { id }: { id: number }) => vehicleModelController.delete(id));
-
-  // ===== PART MODEL HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_PART_MODELS_BY_PART, (_, { partId }: { partId: number }) => partModelController.getByPart(partId));
-  ipcMain.handle(IpcChannel.GET_PART_MODELS_BY_VEHICLE, (_, { vehicleModelId }: { vehicleModelId: number }) => partModelController.getByVehicleModel(vehicleModelId));
-  ipcMain.handle(IpcChannel.CREATE_PART_MODEL, (_, data: any) => partModelController.create(data));
-  ipcMain.handle(IpcChannel.CREATE_PART_MODELS_BULK, (_, { items }: { items: any[] }) => partModelController.bulkCreate(items));
-  ipcMain.handle(IpcChannel.UPDATE_PART_MODEL, (_, { id, data }: any) => partModelController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_PART_MODEL, (_, { id }: { id: number }) => partModelController.delete(id));
 }

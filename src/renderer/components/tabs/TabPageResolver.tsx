@@ -13,8 +13,8 @@ import { QuotationsListPage } from '../../pages/quotations/QuotationsListPage';
 import { QuotationEditorPage } from '../../pages/quotations/QuotationEditorPage';
 import { PaymentsListPage } from '../../pages/payments/PaymentsListPage';
 import { CreditNotesPage } from '../../pages/credit-notes/CreditNotesPage';
-import { EmployeesListPage } from '../../pages/employees/EmployeesListPage';
-import { EmployeeDetailPage } from '../../pages/employees/EmployeeDetailPage';
+import { UsersListPage } from '../../pages/users/UsersListPage';
+import { UserDetailPage } from '../../pages/users/UserDetailPage';
 import { SettingsPage } from '../../pages/settings/SettingsPage';
 
 interface TabPageResolverProps {
@@ -87,13 +87,13 @@ export function TabPageResolver({ path, tabId }: TabPageResolverProps) {
       return { Component: CreditNotesPage, props: {} };
     }
 
-    // Employees
-    if (path === '/employees') {
-      return { Component: EmployeesListPage, props: {} };
+    // Users
+    if (path === '/users') {
+      return { Component: UsersListPage, props: {} };
     }
-    if (path.startsWith('/employees/')) {
+    if (path.startsWith('/users/')) {
       const id = extractIdFromPath(path);
-      return { Component: EmployeeDetailPage, props: { id } };
+      return { Component: UserDetailPage, props: { id } };
     }
 
     // Settings

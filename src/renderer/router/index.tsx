@@ -12,8 +12,8 @@ import { QuotationsListPage } from '../pages/quotations/QuotationsListPage';
 import { QuotationEditorPage } from '../pages/quotations/QuotationEditorPage';
 import { PaymentsListPage } from '../pages/payments/PaymentsListPage';
 import { CreditNotesPage } from '../pages/credit-notes/CreditNotesPage';
-import { EmployeesListPage } from '../pages/employees/EmployeesListPage';
-import { EmployeeDetailPage } from '../pages/employees/EmployeeDetailPage';
+import { UsersListPage } from '../pages/users/UsersListPage';
+import { UserDetailPage } from '../pages/users/UserDetailPage';
 import { SettingsPage } from '../pages/settings/SettingsPage';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -94,14 +94,14 @@ export const router = createBrowserRouter([
             path: 'credit-notes',
             element: <CreditNotesPage />,
           },
-          // Employees routes
+          // Users routes
           {
-            path: 'employees',
-            element: <EmployeesListPage />,
+            path: 'users',
+            element: <UsersListPage />,
           },
           {
-            path: 'employees/:id',
-            element: <EmployeeDetailPage />,
+            path: 'users/:id',
+            element: <UserDetailPage />,
           },
           // Settings route
           {

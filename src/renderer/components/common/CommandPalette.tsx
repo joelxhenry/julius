@@ -129,13 +129,13 @@ export function CommandPalette({ opened, onClose }: CommandPaletteProps) {
       leftSection: <IconReceipt size={20} />,
     },
 
-    // Employees
+    // Users
     {
-      id: 'employees',
-      label: 'Employees',
-      description: 'Manage employees',
+      id: 'users',
+      label: 'Users',
+      description: 'Manage users',
       onClick: () => {
-        navigate('/employees');
+        navigate('/users');
         onClose();
       },
       leftSection: <IconUserCircle size={20} />,
