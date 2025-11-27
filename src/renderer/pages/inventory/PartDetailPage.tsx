@@ -30,8 +30,13 @@ import type { PartVariantFormData } from '../../utils/schemas';
 import { notifications } from '@mantine/notifications';
 import numeral from 'numeral';
 
-export function PartDetailPage() {
-  const { id } = useParams<{ id: string }>();
+interface PartDetailPageProps {
+  id?: string;
+}
+
+export function PartDetailPage({ id: propId }: PartDetailPageProps) {
+  const { id: paramId } = useParams<{ id: string }>();
+  const id = propId || paramId;
   const navigate = useNavigate();
   const { getById } = useParts();
   const { variants: allVariants, create: createVariant, update: updateVariant } = usePartVariants();

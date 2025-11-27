@@ -1,4 +1,4 @@
-import { TextInput, Textarea, Stack, Group, Button } from '@mantine/core';
+import { TextInput, NumberInput, Stack, Group, Button } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { clientSchema, ClientFormData } from '../../utils/schemas';
@@ -13,6 +13,7 @@ interface ClientFormProps {
 }
 
 export function ClientForm({ client, onSubmit, onCancel, loading = false }: ClientFormProps) {
+
   const form = useForm<ClientFormData>({
     validate: zodResolver(clientSchema),
     initialValues: {
@@ -21,8 +22,8 @@ export function ClientForm({ client, onSubmit, onCancel, loading = false }: Clie
       email: client?.email || '',
       address1: client?.address1 || '',
       address2: client?.address2 || '',
-      creditLimit: client?.creditLimit || 0,
-      discountRate: client?.discountRate || 0,
+      creditLimit: parseFloat(client?.creditLimit ?? '0'),
+      discountRate: parseFloat(client?.discountRate ?? '0'),
     },
   });
 
@@ -45,7 +46,7 @@ export function ClientForm({ client, onSubmit, onCancel, loading = false }: Clie
 
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
-      <Stack>
+     <Stack>
         <TextInput
           label="Name"
           placeholder="Client name"
@@ -85,12 +86,13 @@ export function ClientForm({ client, onSubmit, onCancel, loading = false }: Clie
             placeholder="0.00"
             {...form.getInputProps('creditLimit')}
           />
-          <TextInput
+          <NumberInput
             label="Discount Rate (%)"
             placeholder="0"
-            type="number"
             min={0}
             max={100}
+            decimalScale={2}
+            hideControls
             {...form.getInputProps('discountRate')}
           />
         </Group>
@@ -99,7 +101,7 @@ export function ClientForm({ client, onSubmit, onCancel, loading = false }: Clie
           <Button variant="subtle" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button type="submit" loading={loading} disabled={client && !form.isDirty()}>
             {client ? 'Update' : 'Create'} Client
           </Button>
         </Group>

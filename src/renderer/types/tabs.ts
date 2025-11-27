@@ -57,6 +57,7 @@ export interface TabManagerContextType {
   // Tab state updates
   setTabDirty: (tabId: string, isDirty: boolean) => void;
   setTabTitle: (tabId: string, title: string) => void;
+  updateTab: (tabId: string, path: string, title: string, entityId: string | null) => void;
 
   // Utilities
   findTabByPath: (path: string) => Tab | undefined;

@@ -19,8 +19,13 @@ import type { User } from '../../../main/database/schema';
 import type { UserFormData } from '../../utils/schemas';
 import { notifications } from '@mantine/notifications';
 
-export function UserDetailPage() {
-  const { id } = useParams<{ id: string }>();
+interface UserDetailPageProps {
+  id?: string;
+}
+
+export function UserDetailPage({ id: propId }: UserDetailPageProps) {
+  const { id: paramId } = useParams<{ id: string }>();
+  const id = propId || paramId;
   const navigate = useNavigate();
   const isNew = id === 'new';
 

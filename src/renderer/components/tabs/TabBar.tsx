@@ -1,5 +1,5 @@
-import { Group, Button, ActionIcon, ScrollArea, Tooltip, Menu, Text, Box } from '@mantine/core';
-import { IconX, IconDots, IconPinned } from '@tabler/icons-react';
+import { Group, Button, ActionIcon, ScrollArea, Tooltip, Menu, Text, Box, UnstyledButton } from '@mantine/core';
+import { IconX, IconDots } from '@tabler/icons-react';
 import { useTabManager } from '../../contexts/TabManagerContext';
 import { Tab, TAB_COLORS } from '../../types/tabs';
 
@@ -143,25 +143,35 @@ function TabButton({
               />
             )}
             {tab.title}
-            <ActionIcon
-              size={18}
-              variant="subtle"
-              color="gray"
-              radius="sm"
+            <Box
+              component="span"
               onClick={onClose}
               style={{
                 position: 'absolute',
                 right: 4,
                 top: '50%',
                 transform: 'translateY(-50%)',
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--mantine-radius-sm)',
                 opacity: 0.6,
-                transition: 'opacity 150ms ease',
+                transition: 'opacity 150ms ease, background-color 150ms ease',
+                cursor: 'pointer',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-light-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '0.6';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
               <IconX size={12} stroke={2} />
-            </ActionIcon>
+            </Box>
           </Button>
         </Tooltip>
       </Menu.Target>

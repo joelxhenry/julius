@@ -63,6 +63,7 @@ type TabAction =
   | { type: 'ACTIVATE_TAB'; payload: string }
   | { type: 'SET_DIRTY'; payload: { tabId: string; isDirty: boolean } }
   | { type: 'SET_TITLE'; payload: { tabId: string; title: string } }
+  | { type: 'UPDATE_TAB'; payload: { tabId: string; path: string; title: string; entityId: string | null } }
   | { type: 'RESTORE_TABS'; payload: TabManagerState };
 
 function tabReducer(state: TabManagerState, action: TabAction): TabManagerState {
@@ -110,6 +111,16 @@ function tabReducer(state: TabManagerState, action: TabAction): TabManagerState 
         ...state,
         tabs: state.tabs.map((t) =>
           t.id === action.payload.tabId ? { ...t, title: action.payload.title } : t
+        ),
+      };
+
+    case 'UPDATE_TAB':
+      return {
+        ...state,
+        tabs: state.tabs.map((t) =>
+          t.id === action.payload.tabId
+            ? { ...t, path: action.payload.path, title: action.payload.title, entityId: action.payload.entityId }
+            : t
         ),
       };
 
@@ -275,6 +286,11 @@ export function TabManagerProvider({ children }: { children: React.ReactNode }) 
     dispatch({ type: 'SET_TITLE', payload: { tabId, title } });
   }, []);
 
+  // Update tab (path, title, entityId) - useful for in-tab navigation
+  const updateTab = useCallback((tabId: string, path: string, title: string, entityId: string | null): void => {
+    dispatch({ type: 'UPDATE_TAB', payload: { tabId, path, title, entityId } });
+  }, []);
+
   // Find tab by path
   const findTabByPath = useCallback(
     (path: string): Tab | undefined => {
@@ -313,6 +329,7 @@ export function TabManagerProvider({ children }: { children: React.ReactNode }) 
     prevTab,
     setTabDirty,
     setTabTitle,
+    updateTab,
     findTabByPath,
     findTabsByType,
     getActiveTab,
