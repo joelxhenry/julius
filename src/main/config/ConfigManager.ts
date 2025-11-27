@@ -61,9 +61,16 @@ export class ConfigManager {
       // Decrypt password
       if (config.database.password) {
         try {
-          config.database.password = this.decrypt(config.database.password);
+          const decrypted = this.decrypt(config.database.password);
+          if (decrypted && decrypted.length > 0) {
+            config.database.password = decrypted;
+          } else {
+            console.warn('Decrypted password is empty, using original value');
+            // Password might already be in plain text
+          }
         } catch (error) {
           console.warn('Failed to decrypt password, using as-is');
+          // Keep the original password (might be plain text)
         }
       }
 
@@ -137,9 +144,9 @@ export class ConfigManager {
       database: {
         host: 'localhost',
         port: 5432,
-        database: 'turbo_julius',
+        database: 'julius',
         user: 'postgres',
-        password: 'postgres',
+        password: 'password123',
         ssl: false,
         maxConnections: 20,
       },

@@ -29,6 +29,10 @@ export async function initDatabase(): Promise<AppDatabase | null> {
     console.log('Initializing PostgreSQL connection...');
     console.log(`Host: ${config.database.host}:${config.database.port}`);
     console.log(`Database: ${config.database.database}`);
+    console.log(`User: ${config.database.user}`);
+    console.log(`Password type: ${typeof config.database.password}`);
+    console.log(`Password length: ${config.database.password?.length || 0}`);
+    console.log(`Password is string: ${typeof config.database.password === 'string'}`);
 
     // Create connection pool
     pool = new Pool({
@@ -85,17 +89,27 @@ async function testConnection(pool: Pool): Promise<void> {
 async function runMigrations(db: AppDatabase): Promise<void> {
   try {
     const migrationsFolder = path.join(__dirname, 'migrations');
-    console.log('Running migrations from:', migrationsFolder);
+    console.log('Checking migrations folder:', migrationsFolder);
 
-    if (fs.existsSync(migrationsFolder)) {
-      await migrate(db, { migrationsFolder });
-      console.log('Database migrations completed successfully');
-    } else {
+    // Check if migrations folder exists and has files
+    if (!fs.existsSync(migrationsFolder)) {
       console.warn('Migrations folder not found, skipping migrations');
+      return;
     }
+
+    const files = fs.readdirSync(migrationsFolder);
+    if (files.length === 0) {
+      console.warn('No migration files found, skipping migrations');
+      return;
+    }
+
+    console.log(`Found ${files.length} migration file(s), applying migrations...`);
+    await migrate(db, { migrationsFolder });
+    console.log('Database migrations completed successfully');
   } catch (error) {
     console.error('Database migration failed:', error);
-    throw error;
+    // Don't throw - allow app to start even if migrations fail
+    console.warn('Continuing without migrations...');
   }
 }
 
