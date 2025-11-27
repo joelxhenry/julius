@@ -10,6 +10,7 @@ import '@mantine/spotlight/styles.css';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { AuthProvider } from './renderer/contexts/AuthContext';
+import { TabManagerProvider } from './renderer/contexts/TabManagerContext';
 import { router } from './renderer/router';
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
@@ -18,7 +19,9 @@ root.render(
     <MantineProvider>
       <Notifications position="top-right" />
       <AuthProvider>
-        <RouterProvider router={router} />
+        <TabManagerProvider>
+          <RouterProvider router={router} />
+        </TabManagerProvider>
       </AuthProvider>
     </MantineProvider>
   </React.StrictMode>

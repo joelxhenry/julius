@@ -1,15 +1,15 @@
 import { Title, Group, Button, Modal, Stack, Badge } from '@mantine/core';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { IconPlus } from '@tabler/icons-react';
-import { DataTable, ColumnDef } from '../../components/common/DataTable/DataTable';
+import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
 import { PartForm } from '../../components/forms/PartForm';
 import { useParts } from '../../hooks';
+import { useTabManager } from '../../contexts/TabManagerContext';
 import type { Part } from '../../../main/database/schema';
 import { PartFormData } from '../../utils/schemas';
 
 export function PartsListPage() {
-  const navigate = useNavigate();
+  const { openTab } = useTabManager();
   const { parts, loading, create } = useParts();
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -62,7 +62,14 @@ export function PartsListPage() {
         data={parts}
         columns={columns}
         loading={loading}
-        onRowClick={(part) => navigate(`/inventory/parts/${part.id}`)}
+        onRowClick={(part: Part, options?: RowClickOptions) => {
+          openTab({
+            type: 'part-detail',
+            path: `/inventory/parts/${part.id}`,
+            title: part.name || `Part #${part.id}`,
+            entityId: part.id.toString(),
+          }, options?.newTab);
+        }}
         searchable
         pagination
         keyboardNav

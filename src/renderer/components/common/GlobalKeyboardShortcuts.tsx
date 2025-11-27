@@ -1,7 +1,6 @@
 import { useHotkeys } from '@mantine/hooks';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
-import { useEffect } from 'react';
+import { useTabManager } from '../../contexts/TabManagerContext';
 
 interface GlobalKeyboardShortcutsProps {
   onOpenSpotlight?: () => void;
@@ -10,8 +9,7 @@ interface GlobalKeyboardShortcutsProps {
 export function GlobalKeyboardShortcuts({
   onOpenSpotlight,
 }: GlobalKeyboardShortcutsProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { openTab, closeTab, nextTab, prevTab, activeTabId, getActiveTab } = useTabManager();
 
   // F2 - Open Command Palette/Spotlight
   useHotkeys([
@@ -30,7 +28,12 @@ export function GlobalKeyboardShortcuts({
     [
       'F3',
       () => {
-        navigate('/invoices/new');
+        openTab({
+          type: 'invoice-editor',
+          path: '/invoices/new',
+          title: 'New Invoice',
+          entityId: 'new',
+        });
         notifications.show({
           title: 'New Invoice',
           message: 'Creating new invoice...',
@@ -46,11 +49,15 @@ export function GlobalKeyboardShortcuts({
     [
       'F4',
       () => {
-        navigate('/clients');
-        // Would open create modal if on clients page
+        openTab({
+          type: 'clients-list',
+          path: '/clients',
+          title: 'Clients',
+          entityId: null,
+        });
         notifications.show({
-          title: 'New Client',
-          message: 'Navigate to clients to create...',
+          title: 'Clients',
+          message: 'Opening clients list...',
           color: 'blue',
           autoClose: 2000,
         });
@@ -58,19 +65,59 @@ export function GlobalKeyboardShortcuts({
     ],
   ]);
 
-  // F5 - New Part (override browser refresh)
+  // F5 - Parts Inventory (override browser refresh)
   useHotkeys([
     [
       'F5',
       (e) => {
         e.preventDefault();
-        navigate('/inventory/parts');
+        openTab({
+          type: 'parts-list',
+          path: '/inventory/parts',
+          title: 'Parts',
+          entityId: null,
+        });
         notifications.show({
           title: 'Parts Inventory',
-          message: 'Navigate to parts inventory...',
+          message: 'Opening parts inventory...',
           color: 'blue',
           autoClose: 2000,
         });
+      },
+    ],
+  ]);
+
+  // Ctrl+W - Close current tab
+  useHotkeys([
+    [
+      'mod+W',
+      (e) => {
+        e.preventDefault();
+        if (activeTabId) {
+          closeTab(activeTabId);
+        }
+      },
+    ],
+  ]);
+
+  // Ctrl+Tab - Next tab
+  useHotkeys([
+    [
+      'mod+Tab',
+      (e) => {
+        e.preventDefault();
+        nextTab();
+      },
+    ],
+  ]);
+
+  // Ctrl+Shift+Tab - Previous tab
+  useHotkeys([
+    [
+      'mod+shift+Tab',
+      (e) => {
+        e.preventDefault();
+        prevTab();
       },
     ],
   ]);
@@ -81,13 +128,15 @@ export function GlobalKeyboardShortcuts({
       'mod+S',
       (e) => {
         e.preventDefault();
+        const activeTab = getActiveTab();
+        const path = activeTab?.path || '';
 
         // Check if we're on an editor page
-        if (location.pathname.includes('/invoices/') ||
-            location.pathname.includes('/quotations/') ||
-            location.pathname.includes('/clients/') ||
-            location.pathname.includes('/employees/') ||
-            location.pathname.includes('/inventory/parts/')) {
+        if (path.includes('/invoices/') ||
+            path.includes('/quotations/') ||
+            path.includes('/clients/') ||
+            path.includes('/employees/') ||
+            path.includes('/inventory/parts/')) {
 
           notifications.show({
             title: 'Save',
@@ -109,10 +158,12 @@ export function GlobalKeyboardShortcuts({
       'mod+P',
       (e) => {
         e.preventDefault();
+        const activeTab = getActiveTab();
+        const path = activeTab?.path || '';
 
         // Check if we're on a printable page
-        if (location.pathname.includes('/invoices/') ||
-            location.pathname.includes('/quotations/')) {
+        if (path.includes('/invoices/') ||
+            path.includes('/quotations/')) {
 
           notifications.show({
             title: 'Print',

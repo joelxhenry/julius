@@ -1,4 +1,3 @@
-import { NavLink } from 'react-router-dom';
 import { Stack, NavLink as MantineNavLink, Text, Divider } from '@mantine/core';
 import {
   IconDashboard,
@@ -11,6 +10,8 @@ import {
   IconUserCog,
   IconSettings,
 } from '@tabler/icons-react';
+import { useTabManager } from '../../contexts/TabManagerContext';
+import { getTabTypeFromPath, getDefaultTabTitle } from '../../types/tabs';
 
 interface NavItem {
   label: string;
@@ -31,24 +32,33 @@ const navItems: NavItem[] = [
 ];
 
 export function Sidebar() {
+  const { openTab, getActiveTab } = useTabManager();
+  const activeTab = getActiveTab();
+
+  const handleNavClick = (path: string) => {
+    const type = getTabTypeFromPath(path);
+    const title = getDefaultTabTitle(path, type);
+    openTab({ type, path, title, entityId: null });
+  };
+
   return (
     <Stack gap="xs" p="md">
-      {navItems.map((item) => (
-        <NavLink
-          key={item.path}
-          to={item.path}
-          style={{ textDecoration: 'none' }}
-        >
-          {({ isActive }) => (
-            <MantineNavLink
-              label={item.label}
-              leftSection={item.icon}
-              active={isActive}
-              variant="filled"
-            />
-          )}
-        </NavLink>
-      ))}
+      {navItems.map((item) => {
+        // Check if this nav item's path matches the active tab
+        const isActive = activeTab?.path === item.path;
+
+        return (
+          <MantineNavLink
+            key={item.path}
+            label={item.label}
+            leftSection={item.icon}
+            active={isActive}
+            variant="filled"
+            onClick={() => handleNavClick(item.path)}
+            style={{ cursor: 'pointer' }}
+          />
+        );
+      })}
 
       <Divider my="sm" />
 
@@ -58,8 +68,8 @@ export function Sidebar() {
       <Stack gap={4} px="sm">
         <Text size="xs" c="dimmed">F2 - Search</Text>
         <Text size="xs" c="dimmed">F3 - New Invoice</Text>
-        <Text size="xs" c="dimmed">F4 - New Client</Text>
-        <Text size="xs" c="dimmed">F5 - New Part</Text>
+        <Text size="xs" c="dimmed">Ctrl+W - Close Tab</Text>
+        <Text size="xs" c="dimmed">Ctrl+Tab - Next Tab</Text>
       </Stack>
     </Stack>
   );

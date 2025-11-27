@@ -1,10 +1,10 @@
 import { pgTable, varchar, integer, serial, timestamp } from 'drizzle-orm/pg-core';
-import { employees } from './employees';
+import { users } from './users';
 
 // AUDIT_LOG table
 export const auditLogs = pgTable('audit_logs', {
   id: serial('id').primaryKey(),
-  employeeId: integer('employee_id').references(() => employees.id, { onDelete: 'set null' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
   action: varchar('action', { length: 100 }).notNull(),
   referenceType: varchar('reference_type', { length: 100 }).notNull(),
   referenceId: integer('reference_id').notNull(),

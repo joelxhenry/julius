@@ -9,9 +9,16 @@ export const clients = pgTable('clients', {
   email: varchar('email', { length: 255 }).unique(),
   address1: text('address1'),
   address2: text('address2'),
+
+  description: text('description'),
+  contact: varchar('contact', { length: 100 }),
+
+  credit_terms: integer('credit_terms').notNull().default(0),
+
   creditLimit: numeric('credit_limit', { precision: 10, scale: 2 }).notNull().default('0.00'),
   discountRate: numeric('discount_rate', { precision: 5, scale: 2 }).notNull().default('0.00'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 // Export types

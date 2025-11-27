@@ -1,4 +1,3 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import {
   Title,
   Paper,
@@ -20,20 +19,26 @@ import {
   IconTrash,
   IconPrinter,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { InvoiceLineItemsGrid, type InvoiceLineItem } from '../../components/transactions/InvoiceLineItemsGrid';
 import { InvoiceTotalsPanel } from '../../components/transactions/InvoiceTotalsPanel';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useQuotations, useClients } from '../../hooks';
+import { useTabContext } from '../../contexts/TabContext';
+import { useTabManager } from '../../contexts/TabManagerContext';
 import { calculateInvoiceTotals } from '../../utils/calculations';
 import type { Quotation } from '../../../main/database/schema';
 
-export function QuotationEditorPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const isNew = id === 'new';
+interface QuotationEditorPageProps {
+  id?: string;
+}
+
+export function QuotationEditorPage({ id }: QuotationEditorPageProps) {
+  const { tabId } = useTabContext();
+  const { openTab, closeTab, setTabDirty, setTabTitle } = useTabManager();
+  const isNew = id === 'new' || !id;
 
   const { getById: getQuotation, create, update } = useQuotations();
   const { clients } = useClients();
@@ -59,10 +64,33 @@ export function QuotationEditorPage() {
     },
   ]);
 
+  // Track initial load state for dirty tracking
+  const initialLoadRef = useRef(true);
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Update tab dirty state when form changes
+  useEffect(() => {
+    if (initialLoadRef.current) return;
+    setIsDirty(true);
+    setTabDirty(tabId, true);
+  }, [clientId, issueDate, validUntil, notes, items, tabId, setTabDirty]);
+
+  // Mark dirty state as clean after save
+  const markClean = useCallback(() => {
+    setIsDirty(false);
+    setTabDirty(tabId, false);
+  }, [tabId, setTabDirty]);
+
   // Load existing quotation
   useEffect(() => {
     const loadQuotation = async () => {
-      if (isNew) return;
+      if (isNew) {
+        // Mark initial load complete after a short delay for new quotations
+        setTimeout(() => {
+          initialLoadRef.current = false;
+        }, 100);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -72,6 +100,9 @@ export function QuotationEditorPage() {
         setIssueDate(data.issueDate ? new Date(data.issueDate) : null);
         setValidUntil(data.validUntil ? new Date(data.validUntil) : null);
         setNotes(data.notes || '');
+
+        // Update tab title with actual quotation number
+        setTabTitle(tabId, `Quotation #${data.id}`);
 
         // Load line items from IPC
         const itemsResult = await window.electron.invoke('quotation-items:getByQuotation', {
@@ -101,11 +132,15 @@ export function QuotationEditorPage() {
         });
       } finally {
         setLoading(false);
+        // Mark initial load complete after data is loaded
+        setTimeout(() => {
+          initialLoadRef.current = false;
+        }, 100);
       }
     };
 
     loadQuotation();
-  }, [id, isNew, getQuotation]);
+  }, [id, isNew, getQuotation, tabId, setTabTitle]);
 
   // Calculate totals
   const totals = calculateInvoiceTotals(items);
@@ -183,8 +218,18 @@ export function QuotationEditorPage() {
         color: 'green',
       });
 
+      // Mark form as clean after successful save
+      markClean();
+
       if (isNew) {
-        navigate(`/quotations/${quotationId}`);
+        // Close this tab and open the new quotation tab
+        closeTab(tabId, true);
+        openTab({
+          type: 'quotation-editor',
+          path: `/quotations/${quotationId}`,
+          title: `Quotation #${quotationId}`,
+          entityId: quotationId.toString(),
+        });
       } else {
         // Reload quotation
         const updated = await getQuotation(quotationId);
@@ -248,7 +293,13 @@ export function QuotationEditorPage() {
         color: 'green',
       });
 
-      navigate(`/invoices/${invoice.id}`);
+      // Open the new invoice in a tab
+      openTab({
+        type: 'invoice-editor',
+        path: `/invoices/${invoice.id}`,
+        title: `Invoice #${invoice.id}`,
+        entityId: invoice.id.toString(),
+      });
     } catch (error) {
       console.error('Failed to convert quotation:', error);
       notifications.show({
@@ -273,7 +324,12 @@ export function QuotationEditorPage() {
           <Button
             variant="subtle"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/quotations')}
+            onClick={() => openTab({
+              type: 'quotations-list',
+              path: '/quotations',
+              title: 'Quotations',
+              entityId: null,
+            })}
           >
             Back
           </Button>

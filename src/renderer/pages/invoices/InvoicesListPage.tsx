@@ -1,14 +1,14 @@
 import { Title, Group, Button, Stack } from '@mantine/core';
-import { useNavigate } from 'react-router-dom';
 import { IconPlus, IconFileInvoice } from '@tabler/icons-react';
-import { DataTable, ColumnDef } from '../../components/common/DataTable/DataTable';
+import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useInvoices } from '../../hooks';
+import { useTabManager } from '../../contexts/TabManagerContext';
 import type { Invoice } from '../../../main/database/schema';
 import numeral from 'numeral';
 
 export function InvoicesListPage() {
-  const navigate = useNavigate();
+  const { openTab } = useTabManager();
   const { invoices, loading } = useInvoices();
 
   const columns: ColumnDef<Invoice>[] = [
@@ -66,7 +66,12 @@ export function InvoicesListPage() {
         </Group>
         <Button
           leftSection={<IconPlus size={16} />}
-          onClick={() => navigate('/invoices/new')}
+          onClick={() => openTab({
+            type: 'invoice-editor',
+            path: '/invoices/new',
+            title: 'New Invoice',
+            entityId: 'new',
+          })}
         >
           New Invoice
         </Button>
@@ -76,7 +81,14 @@ export function InvoicesListPage() {
         data={invoices}
         columns={columns}
         loading={loading}
-        onRowClick={(invoice) => navigate(`/invoices/${invoice.id}`)}
+        onRowClick={(invoice: Invoice, options?: RowClickOptions) => {
+          openTab({
+            type: 'invoice-editor',
+            path: `/invoices/${invoice.id}`,
+            title: `Invoice #${invoice.legacyId}`,
+            entityId: invoice.id.toString(),
+          }, options?.newTab);
+        }}
         searchable
         pagination
         keyboardNav

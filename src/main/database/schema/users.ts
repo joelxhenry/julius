@@ -1,4 +1,5 @@
 import { pgTable, varchar, text, integer, serial, boolean, date } from 'drizzle-orm/pg-core';
+import { email } from 'zod';
 
 // ROLE table
 export const roles = pgTable('roles', {
@@ -25,17 +26,40 @@ export const rolePermissions = pgTable('role_permissions', {
 });
 
 // EMPLOYEE table
-export const employees = pgTable('employees', {
+export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
+  email: varchar('email', { length: 255 }).unique(),
   username: varchar('username', { length: 100 }).notNull().unique(),
-  title: varchar('title', { length: 100 }),
   usingDefaultPin: boolean('using_default_pin').notNull().default(true),
+  
+  
   pinHash: text('pin_hash').notNull(),
-  startDate: date('start_date').notNull(),
-  endDate: date('end_date'),
   roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
+  title: varchar('title', { length: 100 }),
+
+
+  department: varchar('department', { length: 100 }),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+
+
+
+  contact: varchar('contact', { length: 50 }),
+  address: text('address'),
+  phone: varchar('phone', { length: 20 }),
+
+
+  code: varchar('code', { length: 50 }).unique(),
+  active: boolean('active').notNull().default(true),
+
+
+  createdAt: date('created_at').notNull().defaultNow(),
+  updatedAt: date('updated_at').notNull().defaultNow(),
+
+
+
 });
 
 // Export types
@@ -48,5 +72,5 @@ export type InsertPermission = typeof permissions.$inferInsert;
 export type RolePermission = typeof rolePermissions.$inferSelect;
 export type InsertRolePermission = typeof rolePermissions.$inferInsert;
 
-export type Employee = typeof employees.$inferSelect;
-export type InsertEmployee = typeof employees.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;

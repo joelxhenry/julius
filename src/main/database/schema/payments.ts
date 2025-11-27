@@ -1,6 +1,6 @@
 import { pgTable, varchar, integer, serial, numeric, boolean, timestamp } from 'drizzle-orm/pg-core';
 import { invoices } from './invoices';
-import { employees } from './employees';
+import { users } from './users';
 
 // PAYMENT_METHOD table
 export const paymentMethods = pgTable('payment_methods', {
@@ -13,14 +13,22 @@ export const paymentMethods = pgTable('payment_methods', {
 // PAYMENT table
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
-  legacyId: integer('legacy_id').unique(),
   invoiceId: integer('invoice_id')
     .notNull()
     .references(() => invoices.id, { onDelete: 'cascade' }),
-  employeeId: integer('employee_id').references(() => employees.id, { onDelete: 'set null' }),
+
+
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'set null' }),
+
+
+  notes: varchar('notes', { length: 255 }),
+
+
   paymentMethodId: integer('payment_method_id')
     .notNull()
     .references(() => paymentMethods.id, { onDelete: 'restrict' }),
+
+
   amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
   paidAt: timestamp('paid_at').notNull().defaultNow(),
 });

@@ -1,19 +1,19 @@
 import { Title, Group, Button, Stack } from '@mantine/core';
-import { useNavigate } from 'react-router-dom';
 import { IconPlus, IconFileDescription } from '@tabler/icons-react';
-import { DataTable, ColumnDef } from '../../components/common/DataTable/DataTable';
+import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useQuotations } from '../../hooks';
+import { useTabManager } from '../../contexts/TabManagerContext';
 import type { Quotation } from '../../../main/database/schema';
 import numeral from 'numeral';
 
 export function QuotationsListPage() {
-  const navigate = useNavigate();
+  const { openTab } = useTabManager();
   const { quotations, loading } = useQuotations();
 
   const columns: ColumnDef<Quotation>[] = [
     {
-      key: 'legacyId',
+      key: 'id',
       title: 'Quotation #',
       sortable: true,
       width: 120,
@@ -30,12 +30,6 @@ export function QuotationsListPage() {
       title: 'Date',
       sortable: true,
       render: (value) => new Date(value).toLocaleDateString(),
-    },
-    {
-      key: 'validUntil',
-      title: 'Valid Until',
-      sortable: true,
-      render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A',
     },
     {
       key: 'total',
@@ -60,7 +54,12 @@ export function QuotationsListPage() {
         </Group>
         <Button
           leftSection={<IconPlus size={16} />}
-          onClick={() => navigate('/quotations/new')}
+          onClick={() => openTab({
+            type: 'quotation-editor',
+            path: '/quotations/new',
+            title: 'New Quotation',
+            entityId: 'new',
+          })}
         >
           New Quotation
         </Button>
@@ -70,7 +69,14 @@ export function QuotationsListPage() {
         data={quotations}
         columns={columns}
         loading={loading}
-        onRowClick={(quotation) => navigate(`/quotations/${quotation.id}`)}
+        onRowClick={(quotation: Quotation, options?: RowClickOptions) => {
+          openTab({
+            type: 'quotation-editor',
+            path: `/quotations/${quotation.id}`,
+            title: `Quotation #${quotation.id}`,
+            entityId: quotation.id.toString(),
+          }, options?.newTab);
+        }}
         searchable
         pagination
         keyboardNav

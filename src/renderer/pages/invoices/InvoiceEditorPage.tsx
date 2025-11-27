@@ -1,4 +1,3 @@
-import { useParams, useNavigate } from 'react-router-dom';
 import {
   Title,
   Paper,
@@ -22,7 +21,7 @@ import {
   IconTrash,
   IconPrinter,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { InvoiceLineItemsGrid, type InvoiceLineItem } from '../../components/transactions/InvoiceLineItemsGrid';
@@ -30,14 +29,20 @@ import { InvoiceTotalsPanel } from '../../components/transactions/InvoiceTotalsP
 import { PaymentModal } from '../../components/transactions/PaymentModal';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useInvoices, useClients, usePayments } from '../../hooks';
+import { useTabContext } from '../../contexts/TabContext';
+import { useTabManager } from '../../contexts/TabManagerContext';
 import { calculateInvoiceTotals, determineInvoiceStatus } from '../../utils/calculations';
 import type { Invoice } from '../../../main/database/schema';
 import type { PaymentFormData } from '../../utils/schemas';
 
-export function InvoiceEditorPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const isNew = id === 'new';
+interface InvoiceEditorPageProps {
+  id?: string;
+}
+
+export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
+  const { tabId } = useTabContext();
+  const { openTab, closeTab, setTabDirty, setTabTitle } = useTabManager();
+  const isNew = id === 'new' || !id;
 
   const { getById: getInvoice, create, update } = useInvoices();
   const { clients } = useClients();
@@ -65,10 +70,33 @@ export function InvoiceEditorPage() {
     },
   ]);
 
+  // Track initial load state for dirty tracking
+  const initialLoadRef = useRef(true);
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Update tab dirty state when form changes
+  useEffect(() => {
+    if (initialLoadRef.current) return;
+    setIsDirty(true);
+    setTabDirty(tabId, true);
+  }, [clientId, issueDate, dueDate, notes, items, tabId, setTabDirty]);
+
+  // Mark dirty state as clean after save
+  const markClean = useCallback(() => {
+    setIsDirty(false);
+    setTabDirty(tabId, false);
+  }, [tabId, setTabDirty]);
+
   // Load existing invoice
   useEffect(() => {
     const loadInvoice = async () => {
-      if (isNew) return;
+      if (isNew) {
+        // Mark initial load complete after a short delay for new invoices
+        setTimeout(() => {
+          initialLoadRef.current = false;
+        }, 100);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -78,6 +106,11 @@ export function InvoiceEditorPage() {
         setIssueDate(data.issueDate ? new Date(data.issueDate) : null);
         setDueDate(data.dueDate ? new Date(data.dueDate) : null);
         setNotes(data.notes || '');
+
+        // Update tab title with actual invoice number
+        if (data.legacyId) {
+          setTabTitle(tabId, `Invoice #${data.legacyId}`);
+        }
 
         // Load line items from IPC
         const itemsResult = await window.electron.invoke('invoice-items:getByInvoice', {
@@ -107,11 +140,15 @@ export function InvoiceEditorPage() {
         });
       } finally {
         setLoading(false);
+        // Mark initial load complete after data is loaded
+        setTimeout(() => {
+          initialLoadRef.current = false;
+        }, 100);
       }
     };
 
     loadInvoice();
-  }, [id, isNew, getInvoice]);
+  }, [id, isNew, getInvoice, tabId, setTabTitle]);
 
   // Calculate totals
   const totals = calculateInvoiceTotals(items);
@@ -190,8 +227,18 @@ export function InvoiceEditorPage() {
         color: 'green',
       });
 
+      // Mark form as clean after successful save
+      markClean();
+
       if (isNew) {
-        navigate(`/invoices/${invoiceId}`);
+        // Close this tab and open the new invoice tab
+        closeTab(tabId, true);
+        openTab({
+          type: 'invoice-editor',
+          path: `/invoices/${invoiceId}`,
+          title: `Invoice #${invoiceId}`,
+          entityId: invoiceId.toString(),
+        });
       } else {
         // Reload invoice
         const updated = await getInvoice(invoiceId);
@@ -238,7 +285,12 @@ export function InvoiceEditorPage() {
           <Button
             variant="subtle"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/invoices')}
+            onClick={() => openTab({
+              type: 'invoices-list',
+              path: '/invoices',
+              title: 'Invoices',
+              entityId: null,
+            })}
           >
             Back
           </Button>

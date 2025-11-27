@@ -10,12 +10,16 @@ export interface ColumnDef<T> {
   render?: (value: any, row: T) => React.ReactNode;
 }
 
+export interface RowClickOptions {
+  newTab?: boolean; // Whether to open in new tab (Ctrl+click or middle-click)
+}
+
 interface DataTableProps<T> {
   data: T[];
   columns: ColumnDef<T>[];
   loading?: boolean;
   loadingRows?: number;
-  onRowClick?: (row: T) => void;
+  onRowClick?: (row: T, options?: RowClickOptions) => void;
   selectable?: boolean;
   pagination?: boolean;
   pageSize?: number;
@@ -88,9 +92,19 @@ export function DataTable<T extends Record<string, any>>({
     }
   };
 
-  const handleRowClick = (row: T) => {
+  const handleRowClick = (row: T, event: React.MouseEvent) => {
     if (onRowClick) {
-      onRowClick(row);
+      // Detect Ctrl+click, Cmd+click (Mac), or middle-click
+      const newTab = event.ctrlKey || event.metaKey || event.button === 1;
+      onRowClick(row, { newTab });
+    }
+  };
+
+  const handleRowMouseDown = (row: T, event: React.MouseEvent) => {
+    // Handle middle-click (button === 1)
+    if (event.button === 1 && onRowClick) {
+      event.preventDefault();
+      onRowClick(row, { newTab: true });
     }
   };
 
@@ -149,7 +163,8 @@ export function DataTable<T extends Record<string, any>>({
             {paginatedData.map((row, index) => (
               <Table.Tr
                 key={index}
-                onClick={() => handleRowClick(row)}
+                onClick={(e) => handleRowClick(row, e)}
+                onMouseDown={(e) => handleRowMouseDown(row, e)}
                 style={{ cursor: onRowClick ? 'pointer' : 'default' }}
               >
                 {columns.map((column) => {

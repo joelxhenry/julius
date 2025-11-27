@@ -1,15 +1,15 @@
 import { Title, Group, Button, Modal, Stack } from '@mantine/core';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { IconPlus } from '@tabler/icons-react';
-import { DataTable, ColumnDef } from '../../components/common/DataTable/DataTable';
+import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
 import { ClientForm } from '../../components/forms/ClientForm';
 import { useClients } from '../../hooks';
+import { useTabManager } from '../../contexts/TabManagerContext';
 import type { Client } from '../../../main/database/schema';
 import { ClientFormData } from '../../utils/schemas';
 
 export function ClientsListPage() {
-  const navigate = useNavigate();
+  const { openTab } = useTabManager();
   const { clients, loading, create } = useClients();
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -59,7 +59,14 @@ export function ClientsListPage() {
         data={clients}
         columns={columns}
         loading={loading}
-        onRowClick={(client) => navigate(`/clients/${client.id}`)}
+        onRowClick={(client: Client, options?: RowClickOptions) => {
+          openTab({
+            type: 'client-detail',
+            path: `/clients/${client.id}`,
+            title: client.name || `Client #${client.id}`,
+            entityId: client.id.toString(),
+          }, options?.newTab);
+        }}
         searchable
         pagination
         keyboardNav
