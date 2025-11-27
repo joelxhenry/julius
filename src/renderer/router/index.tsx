@@ -5,6 +5,16 @@ import { DashboardPage } from '../pages/dashboard/DashboardPage';
 import { ClientsListPage } from '../pages/clients/ClientsListPage';
 import { ClientDetailPage } from '../pages/clients/ClientDetailPage';
 import { PartsListPage } from '../pages/inventory/PartsListPage';
+import { PartDetailPage } from '../pages/inventory/PartDetailPage';
+import { InvoicesListPage } from '../pages/invoices/InvoicesListPage';
+import { InvoiceEditorPage } from '../pages/invoices/InvoiceEditorPage';
+import { QuotationsListPage } from '../pages/quotations/QuotationsListPage';
+import { QuotationEditorPage } from '../pages/quotations/QuotationEditorPage';
+import { PaymentsListPage } from '../pages/payments/PaymentsListPage';
+import { CreditNotesPage } from '../pages/credit-notes/CreditNotesPage';
+import { EmployeesListPage } from '../pages/employees/EmployeesListPage';
+import { EmployeeDetailPage } from '../pages/employees/EmployeeDetailPage';
+import { SettingsPage } from '../pages/settings/SettingsPage';
 import { useAuth } from '../contexts/AuthContext';
 
 // Protected Route wrapper
@@ -20,16 +30,6 @@ function ProtectedRoute() {
   }
 
   return <Outlet />;
-}
-
-// Placeholder pages for routes not yet implemented
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div>
-      <h1>{title}</h1>
-      <p>This page will be implemented in Phase 3</p>
-    </div>
-  );
 }
 
 export const router = createBrowserRouter([
@@ -62,30 +62,51 @@ export const router = createBrowserRouter([
             path: 'inventory/parts',
             element: <PartsListPage />,
           },
-          // Placeholder routes for Phase 3
+          {
+            path: 'inventory/parts/:id',
+            element: <PartDetailPage />,
+          },
+          // Invoices routes
           {
             path: 'invoices',
-            element: <PlaceholderPage title="Invoices" />,
+            element: <InvoicesListPage />,
           },
+          {
+            path: 'invoices/:id',
+            element: <InvoiceEditorPage />,
+          },
+          // Quotations routes
           {
             path: 'quotations',
-            element: <PlaceholderPage title="Quotations" />,
+            element: <QuotationsListPage />,
           },
+          {
+            path: 'quotations/:id',
+            element: <QuotationEditorPage />,
+          },
+          // Payments routes
           {
             path: 'payments',
-            element: <PlaceholderPage title="Payments" />,
+            element: <PaymentsListPage />,
           },
+          // Credit Notes routes
           {
             path: 'credit-notes',
-            element: <PlaceholderPage title="Credit Notes" />,
+            element: <CreditNotesPage />,
           },
+          // Employees routes
           {
             path: 'employees',
-            element: <PlaceholderPage title="Employees" />,
+            element: <EmployeesListPage />,
           },
           {
+            path: 'employees/:id',
+            element: <EmployeeDetailPage />,
+          },
+          // Settings route
+          {
             path: 'settings',
-            element: <PlaceholderPage title="Settings" />,
+            element: <SettingsPage />,
           },
         ],
       },
