@@ -28,13 +28,16 @@ export type PartFormData = z.infer<typeof partSchema>;
 // Part Variant validation schema
 export const partVariantSchema = z.object({
   partId: z.number().min(1, 'Part is required'),
-  name: z.string().min(1, 'Variant name is required'),
+  sku: z.string().optional(),
+  name: z.string().optional(),
   description: z.string().optional(),
   isGeneric: z.boolean().default(false),
-  price: z.number().min(0, 'Price must be positive').default(0),
-  stockQty: z.number().int().min(0, 'Stock quantity must be positive').default(0),
+  cost: z.number().min(0, 'Cost must be positive').optional(),
+  price: z.number().min(0, 'Price must be positive').optional(),
+  wholesalePrice: z.number().min(0, 'Wholesale price must be positive').optional(),
+  currency: z.string().default('JMD'),
+  margin: z.number().min(0).max(100, 'Margin cannot exceed 100%').optional(),
   reorderLevel: z.number().int().min(0, 'Reorder level must be positive').default(0),
-  active: z.boolean().default(true),
   barcode: z.string().optional(),
   location: z.string().optional(),
 });

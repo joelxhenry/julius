@@ -35,6 +35,8 @@ const navItems: NavItem[] = [
 const shortcuts = [
   { keys: ['F2'], description: 'Search' },
   { keys: ['F3'], description: 'New Invoice' },
+  { keys: ['Ctrl', 'F'], description: 'Find Parts' },
+  { keys: ['F6'], description: 'Adjust Stock' },
   { keys: ['Ctrl', 'W'], description: 'Close Tab' },
   { keys: ['Ctrl', 'Tab'], description: 'Next Tab' },
   { keys: ['Ctrl', 'Shift', 'L'], description: 'Toggle Theme' },

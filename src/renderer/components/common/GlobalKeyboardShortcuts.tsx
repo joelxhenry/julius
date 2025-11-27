@@ -5,10 +5,14 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 interface GlobalKeyboardShortcutsProps {
   onOpenSpotlight?: () => void;
+  onOpenStockAdjustment?: () => void;
+  onOpenPartsSearch?: () => void;
 }
 
 export function GlobalKeyboardShortcuts({
   onOpenSpotlight,
+  onOpenStockAdjustment,
+  onOpenPartsSearch,
 }: GlobalKeyboardShortcutsProps) {
   const { openTab, closeTab, nextTab, prevTab, activeTabId, getActiveTab } = useTabManager();
   const { colorScheme, toggleColorScheme } = useTheme();
@@ -85,6 +89,31 @@ export function GlobalKeyboardShortcuts({
           color: 'blue',
           autoClose: 2000,
         });
+      },
+    ],
+  ]);
+
+  // F6 - Stock Adjustment
+  useHotkeys([
+    [
+      'F6',
+      () => {
+        if (onOpenStockAdjustment) {
+          onOpenStockAdjustment();
+        }
+      },
+    ],
+  ]);
+
+  // Ctrl+F - Parts Search
+  useHotkeys([
+    [
+      'mod+F',
+      (e) => {
+        e.preventDefault();
+        if (onOpenPartsSearch) {
+          onOpenPartsSearch();
+        }
       },
     ],
   ]);

@@ -1,7 +1,8 @@
-import { Stack, Group, Button, TextInput, NumberInput, Checkbox, Textarea } from '@mantine/core';
+import { Stack, Group, Button, TextInput, NumberInput, Checkbox, Textarea, Select } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { partVariantSchema, type PartVariantFormData } from '../../utils/schemas';
+import { CurrencyInput } from '../common/CurrencyInput';
 import type { PartVariant } from '../../../main/database/schema';
 
 interface PartVariantFormProps {
@@ -23,13 +24,16 @@ export function PartVariantForm({
     validate: zodResolver(partVariantSchema),
     initialValues: {
       partId,
-      name: variant?.variantName || '',
+      sku: variant?.sku || '',
+      name: variant?.name || '',
       description: variant?.description || '',
       isGeneric: variant?.isGeneric || false,
-      price: variant ? parseFloat(variant.price) : 0,
-      stockQty: variant?.stockQty || 0,
+      cost: variant?.cost ? parseFloat(variant.cost) : undefined,
+      price: variant?.price ? parseFloat(variant.price) : undefined,
+      wholesalePrice: variant?.wholesalePrice ? parseFloat(variant.wholesalePrice) : undefined,
+      currency: variant?.currency || 'JMD',
+      margin: variant?.margin ? parseFloat(variant.margin) : undefined,
       reorderLevel: variant?.reorderLevel || 0,
-      active: variant?.active ?? true,
       barcode: variant?.barcode || '',
       location: variant?.location || '',
     },
@@ -56,12 +60,18 @@ export function PartVariantForm({
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack>
-        <TextInput
-          label="Variant Name"
-          placeholder="e.g., LEFT, RIGHT, Standard, Premium"
-          required
-          {...form.getInputProps('name')}
-        />
+        <Group grow>
+          <TextInput
+            label="SKU"
+            placeholder="Variant SKU"
+            {...form.getInputProps('sku')}
+          />
+          <TextInput
+            label="Variant Name"
+            placeholder="e.g., LEFT, RIGHT, Standard, Premium"
+            {...form.getInputProps('name')}
+          />
+        </Group>
 
         <Textarea
           label="Description"
@@ -70,63 +80,76 @@ export function PartVariantForm({
         />
 
         <Group grow>
-          <NumberInput
+          <CurrencyInput
+            label="Cost"
+            placeholder="0.00"
+            {...form.getInputProps('cost')}
+          />
+          <CurrencyInput
             label="Price"
             placeholder="0.00"
-            prefix="$"
-            decimalScale={2}
-            fixedDecimalScale
-            thousandSeparator=","
-            min={0}
-            required
             {...form.getInputProps('price')}
           />
+        </Group>
 
+        <Group grow>
+          <CurrencyInput
+            label="Wholesale Price"
+            placeholder="0.00"
+            {...form.getInputProps('wholesalePrice')}
+          />
+          <NumberInput
+            label="Margin (%)"
+            placeholder="0"
+            min={0}
+            max={100}
+            decimalScale={2}
+            hideControls
+            {...form.getInputProps('margin')}
+          />
+        </Group>
+
+        <Group grow>
+          <Select
+            label="Currency"
+            data={[
+              { value: 'JMD', label: 'JMD - Jamaican Dollar' },
+              { value: 'USD', label: 'USD - US Dollar' },
+            ]}
+            {...form.getInputProps('currency')}
+          />
+          <NumberInput
+            label="Reorder Level"
+            placeholder="0"
+            min={0}
+            hideControls
+            {...form.getInputProps('reorderLevel')}
+          />
+        </Group>
+
+        <Group grow>
           <TextInput
             label="Barcode"
             placeholder="Scan or enter barcode"
             {...form.getInputProps('barcode')}
           />
-        </Group>
-
-        <Group grow>
-          <NumberInput
-            label="Stock Quantity"
-            placeholder="0"
-            min={0}
-            required
-            {...form.getInputProps('stockQty')}
-          />
-
-          <NumberInput
-            label="Reorder Level"
-            placeholder="0"
-            min={0}
-            required
-            {...form.getInputProps('reorderLevel')}
+          <TextInput
+            label="Storage Location"
+            placeholder="e.g., A1-B3, Shelf 5"
+            {...form.getInputProps('location')}
           />
         </Group>
 
-        <TextInput
-          label="Storage Location"
-          placeholder="e.g., A1-B3, Shelf 5"
-          {...form.getInputProps('location')}
+        <Checkbox
+          label="Generic Part (Aftermarket)"
+          {...form.getInputProps('isGeneric', { type: 'checkbox' })}
         />
-
-        <Group>
-          <Checkbox
-            label="Generic Part"
-            {...form.getInputProps('isGeneric', { type: 'checkbox' })}
-          />
-
-          <Checkbox label="Active" {...form.getInputProps('active', { type: 'checkbox' })} />
-        </Group>
 
         <Group justify="flex-end" mt="md">
           <Button variant="subtle" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button type="submit" loading={loading} disabled={variant && !form.isDirty()}>
             {variant ? 'Update' : 'Create'} Variant
           </Button>
         </Group>
