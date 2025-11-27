@@ -1,19 +1,17 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, text, integer, serial, numeric, timestamp } from 'drizzle-orm/pg-core';
 
 // CLIENT table
-export const clients = sqliteTable('clients', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const clients = pgTable('clients', {
+  id: serial('id').primaryKey(),
   legacyId: integer('legacy_id').unique(),
-  name: text('name').notNull(),
-  phone: text('phone'),
-  email: text('email').unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 50 }),
+  email: varchar('email', { length: 255 }).unique(),
   address1: text('address1'),
   address2: text('address2'),
-  creditLimit: real('credit_limit').notNull().default(0.0),
-  discountRate: real('discount_rate').notNull().default(0.0),
-  createdAt: text('created_at')
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  creditLimit: numeric('credit_limit', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  discountRate: numeric('discount_rate', { precision: 5, scale: 2 }).notNull().default('0.00'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // Export types

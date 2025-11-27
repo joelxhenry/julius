@@ -1,29 +1,27 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, integer, serial, numeric, timestamp } from 'drizzle-orm/pg-core';
 import { clients } from './clients';
 import { employees } from './employees';
 import { partVariants } from './parts';
 
 // QUOTATION table
-export const quotations = sqliteTable('quotations', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const quotations = pgTable('quotations', {
+  id: serial('id').primaryKey(),
   clientId: integer('client_id').references(() => clients.id, { onDelete: 'set null' }),
   employeeId: integer('employee_id').references(() => employees.id, { onDelete: 'set null' }),
-  total: real('total').notNull(),
-  status: text('status').notNull(),
-  createdAt: text('created_at')
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  total: numeric('total', { precision: 10, scale: 2 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // QUOTATION_ITEM table
-export const quotationItems = sqliteTable('quotation_items', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const quotationItems = pgTable('quotation_items', {
+  id: serial('id').primaryKey(),
   quotationId: integer('quotation_id')
     .notNull()
     .references(() => quotations.id, { onDelete: 'cascade' }),
   variantId: integer('variant_id').references(() => partVariants.id, { onDelete: 'set null' }),
   quantity: integer('quantity').notNull(),
-  price: real('price').notNull(),
+  price: numeric('price', { precision: 10, scale: 2 }).notNull(),
 });
 
 // Export types

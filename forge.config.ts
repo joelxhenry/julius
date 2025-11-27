@@ -10,7 +10,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: '**/node_modules/better-sqlite3/**/*',
+      unpack: '**/node_modules/pg/**/*',
     },
   },
   rebuildConfig: {

@@ -1,0 +1,12 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "turbo_julius",
+    "user": "postgres",
+    "password": "U2FsdGVkX1/PsB8VBLhz2f47MZdu6Tb3FV9KGAV7oRI=",
+    "ssl": false,
+    "maxConnections": 20
+  },
+  "version": "1.0.0"
+}

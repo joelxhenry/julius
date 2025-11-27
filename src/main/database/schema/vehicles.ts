@@ -1,24 +1,24 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, integer, serial } from 'drizzle-orm/pg-core';
 import { parts } from './parts';
 
 // VEHICLE_MODEL table
-export const vehicleModels = sqliteTable('vehicle_models', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  make: text('make').notNull(),
-  model: text('model').notNull()
+export const vehicleModels = pgTable('vehicle_models', {
+  id: serial('id').primaryKey(),
+  make: varchar('make', { length: 100 }).notNull(),
+  model: varchar('model', { length: 100 }).notNull()
 });
 
 // PART_MODEL junction table
-export const partModels = sqliteTable('part_models', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const partModels = pgTable('part_models', {
+  id: serial('id').primaryKey(),
   partId: integer('part_id')
     .notNull()
     .references(() => parts.id, { onDelete: 'cascade' }),
   vehicleModelId: integer('vehicle_model_id')
     .notNull()
     .references(() => vehicleModels.id, { onDelete: 'cascade' }),
-  yearStart: text('year_start'),
-  yearEnd: text('year_end'),
+  yearStart: varchar('year_start', { length: 4 }),
+  yearEnd: varchar('year_end', { length: 4 }),
 });
 
 // Export types

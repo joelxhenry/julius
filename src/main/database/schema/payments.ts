@@ -1,18 +1,18 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, integer, serial, numeric, boolean, timestamp } from 'drizzle-orm/pg-core';
 import { invoices } from './invoices';
 import { employees } from './employees';
 
 // PAYMENT_METHOD table
-export const paymentMethods = sqliteTable('payment_methods', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  code: text('code').notNull().unique(),
-  name: text('name').notNull(),
-  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+export const paymentMethods = pgTable('payment_methods', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  name: varchar('name', { length: 100 }).notNull(),
+  active: boolean('active').notNull().default(true),
 });
 
 // PAYMENT table
-export const payments = sqliteTable('payments', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const payments = pgTable('payments', {
+  id: serial('id').primaryKey(),
   legacyId: integer('legacy_id').unique(),
   invoiceId: integer('invoice_id')
     .notNull()
@@ -21,10 +21,8 @@ export const payments = sqliteTable('payments', {
   paymentMethodId: integer('payment_method_id')
     .notNull()
     .references(() => paymentMethods.id, { onDelete: 'restrict' }),
-  amount: real('amount').notNull(),
-  paidAt: text('paid_at')
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  paidAt: timestamp('paid_at').notNull().defaultNow(),
 });
 
 // Export types

@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { initDatabase } from './main/database';
+import { initDatabase, getConnectionError } from './main/database';
 import { registerIpcHandlers } from './main/ipc/handlers';
 
 // Declare Vite global variables
@@ -13,9 +13,11 @@ if (started) {
   app.quit();
 }
 
-const createWindow = () => {
+let mainWindow: BrowserWindow | null = null;
+
+const createWindow = async () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
@@ -27,29 +29,46 @@ const createWindow = () => {
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
     // Open the DevTools in development only
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(
+    await mainWindow.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
+  }
+
+  // Send connection status to renderer after window loads
+  const error = getConnectionError();
+  if (error) {
+    mainWindow.webContents.send('database:connection-error', {
+      message: 'Database connection failed',
+      error: error.message,
+    });
   }
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', () => {
+app.on('ready', async () => {
   try {
-    initDatabase();
+    // Initialize database (won't throw, returns null on failure)
+    const db = await initDatabase();
+
+    // Always register IPC handlers (config handlers always available)
     registerIpcHandlers();
-    console.log('Database and IPC handlers initialized successfully');
+
+    if (db) {
+      console.log('Database initialized successfully');
+    } else {
+      console.warn('Database unavailable, running in degraded mode');
+    }
   } catch (error) {
-    console.error('Failed to initialize database or IPC handlers:', error);
+    console.error('Failed to initialize app:', error);
   }
 
-  createWindow();
+  await createWindow();
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

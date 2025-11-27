@@ -1,37 +1,33 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, text, integer, serial, numeric, boolean, timestamp } from 'drizzle-orm/pg-core';
 
 // PART table
-export const parts = sqliteTable('parts', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
-  category: text('category'),
+export const parts = pgTable('parts', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  category: varchar('category', { length: 100 }),
   description: text('description'),
-  sku: text('sku').notNull().unique(),
-  price: real('price').notNull(),
-  taxable: integer('taxable', { mode: 'boolean' }).notNull().default(true),
-  createdAt: text('created_at')
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  sku: varchar('sku', { length: 100 }).notNull().unique(),
+  price: numeric('price', { precision: 10, scale: 2 }).notNull(),
+  taxable: boolean('taxable').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // PART_VARIANT table
-export const partVariants = sqliteTable('part_variants', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const partVariants = pgTable('part_variants', {
+  id: serial('id').primaryKey(),
   partId: integer('part_id')
     .notNull()
     .references(() => parts.id, { onDelete: 'cascade' }),
-  name: text('name'),
+  name: varchar('name', { length: 255 }),
   description: text('description'),
-  isGeneric: integer('is_generic', { mode: 'boolean' }).notNull().default(false),
-  price: real('price').notNull(),
+  isGeneric: boolean('is_generic').notNull().default(false),
+  price: numeric('price', { precision: 10, scale: 2 }).notNull(),
   stockQty: integer('stock_qty').notNull().default(0),
   reorderLevel: integer('reorder_level').notNull().default(0),
-  active: integer('active', { mode: 'boolean' }).notNull().default(true),
-  barcode: text('barcode').unique(),
-  location: text('location'),
-  createdAt: text('created_at')
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  active: boolean('active').notNull().default(true),
+  barcode: varchar('barcode', { length: 100 }).unique(),
+  location: varchar('location', { length: 100 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // Export types

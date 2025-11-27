@@ -1,14 +1,14 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, text, serial, boolean } from 'drizzle-orm/pg-core';
 
 // SYSTEM_SETTING table
-export const systemSettings = sqliteTable('system_settings', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  key: text('key').notNull().unique(),
+export const systemSettings = pgTable('system_settings', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 100 }).notNull().unique(),
   value: text('value').notNull(),
-  group: text('group').notNull(),
+  group: varchar('group', { length: 100 }).notNull(),
   description: text('description'),
-  readonly: integer('readonly', { mode: 'boolean' }).notNull().default(false),
-  visible: integer('visible', { mode: 'boolean' }).notNull().default(true),
+  readonly: boolean('readonly').notNull().default(false),
+  visible: boolean('visible').notNull().default(true),
 });
 
 // Export types

@@ -1,21 +1,21 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, text, integer, serial, boolean, date } from 'drizzle-orm/pg-core';
 
 // ROLE table
-export const roles = sqliteTable('roles', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
+export const roles = pgTable('roles', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
 });
 
 // PERMISSION table
-export const permissions = sqliteTable('permissions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  code: text('code').notNull(),
+export const permissions = pgTable('permissions', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 100 }).notNull(),
   description: text('description').notNull(),
 });
 
 // ROLE_PERMISSION junction table
-export const rolePermissions = sqliteTable('role_permissions', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const rolePermissions = pgTable('role_permissions', {
+  id: serial('id').primaryKey(),
   roleId: integer('role_id')
     .notNull()
     .references(() => roles.id, { onDelete: 'cascade' }),
@@ -25,16 +25,16 @@ export const rolePermissions = sqliteTable('role_permissions', {
 });
 
 // EMPLOYEE table
-export const employees = sqliteTable('employees', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  firstName: text('first_name').notNull(),
-  lastName: text('last_name').notNull(),
-  username: text('username').notNull().unique(),
-  title: text('title'),
-  usingDefaultPin: integer('using_default_pin', { mode: 'boolean' }).notNull().default(true),
+export const employees = pgTable('employees', {
+  id: serial('id').primaryKey(),
+  firstName: varchar('first_name', { length: 100 }).notNull(),
+  lastName: varchar('last_name', { length: 100 }).notNull(),
+  username: varchar('username', { length: 100 }).notNull().unique(),
+  title: varchar('title', { length: 100 }),
+  usingDefaultPin: boolean('using_default_pin').notNull().default(true),
   pinHash: text('pin_hash').notNull(),
-  startDate: text('start_date').notNull(),
-  endDate: text('end_date'),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date'),
   roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
 });
 

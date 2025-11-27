@@ -1,38 +1,34 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { pgTable, varchar, text, integer, serial, numeric, timestamp } from 'drizzle-orm/pg-core';
 import { clients } from './clients';
 import { invoices } from './invoices';
 import { employees } from './employees';
 
 // CREDIT_NOTE table
-export const creditNotes = sqliteTable('credit_notes', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const creditNotes = pgTable('credit_notes', {
+  id: serial('id').primaryKey(),
   clientId: integer('client_id')
     .notNull()
     .references(() => clients.id, { onDelete: 'restrict' }),
   invoiceId: integer('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
   employeeId: integer('employee_id').references(() => employees.id, { onDelete: 'set null' }),
-  amount: real('amount').notNull(),
-  remainingAmount: real('remaining_amount').notNull(),
-  status: text('status').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  remainingAmount: numeric('remaining_amount', { precision: 10, scale: 2 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull(),
   reason: text('reason').notNull(),
-  createdAt: text('created_at')
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // CREDIT_NOTE_ALLOCATION table
-export const creditNoteAllocations = sqliteTable('credit_note_allocations', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const creditNoteAllocations = pgTable('credit_note_allocations', {
+  id: serial('id').primaryKey(),
   creditNoteId: integer('credit_note_id')
     .notNull()
     .references(() => creditNotes.id, { onDelete: 'cascade' }),
   invoiceId: integer('invoice_id')
     .notNull()
     .references(() => invoices.id, { onDelete: 'cascade' }),
-  amountApplied: real('amount_applied').notNull(),
-  appliedAt: text('applied_at')
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
+  amountApplied: numeric('amount_applied', { precision: 10, scale: 2 }).notNull(),
+  appliedAt: timestamp('applied_at').notNull().defaultNow(),
   employeeId: integer('employee_id').references(() => employees.id, { onDelete: 'set null' }),
 });
 

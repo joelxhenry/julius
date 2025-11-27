@@ -1,64 +1,186 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { app } from 'electron';
+import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { Pool } from 'pg';
 import path from 'node:path';
 import fs from 'node:fs';
 import * as schema from './schema/index';
+import { ConfigManager } from '../config/ConfigManager';
+import { DatabaseConfig } from '../config/types';
 
-let db: ReturnType<typeof drizzle> | null = null;
+export type DatabaseSchema = typeof schema;
+export type AppDatabase = NodePgDatabase<typeof schema>;
 
-export function initDatabase() {
+let db: AppDatabase | null = null;
+let pool: Pool | null = null;
+let connectionError: Error | null = null;
+
+/**
+ * Initialize database connection
+ * Returns null on failure to allow graceful degradation
+ */
+export async function initDatabase(): Promise<AppDatabase | null> {
   if (db) return db;
 
-  // Get user data path for production database
-  // When running from CLI (migration scripts), use local database path
-  let dbPath: string;
-  
-  if (app && app.isReady()) {
-    const userDataPath = app.getPath('userData');
-    dbPath = path.join(userDataPath, 'database.db');
-  } else {
-    // CLI mode - use local development database
-    dbPath = path.join(process.cwd(), 'database.db');
+  try {
+    // Load configuration
+    const configManager = new ConfigManager();
+    const config = configManager.load();
+
+    console.log('Initializing PostgreSQL connection...');
+    console.log(`Host: ${config.database.host}:${config.database.port}`);
+    console.log(`Database: ${config.database.database}`);
+
+    // Create connection pool
+    pool = new Pool({
+      host: config.database.host,
+      port: config.database.port,
+      database: config.database.database,
+      user: config.database.user,
+      password: config.database.password,
+      ssl: config.database.ssl ? { rejectUnauthorized: false } : false,
+      max: config.database.maxConnections || 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+
+    // Test connection
+    await testConnection(pool);
+
+    // Initialize Drizzle
+    db = drizzle(pool, { schema });
+
+    // Run migrations
+    await runMigrations(db);
+
+    connectionError = null;
+    console.log('Database initialized successfully');
+
+    return db;
+  } catch (error) {
+    connectionError = error as Error;
+    console.error('Database initialization failed:', error);
+    console.error('Application will run in degraded mode');
+
+    // Return null to allow app to start
+    return null;
   }
+}
 
-  // Ensure directory exists
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+/**
+ * Test database connection
+ */
+async function testConnection(pool: Pool): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT NOW()');
+    console.log('Database connection test successful');
+  } finally {
+    client.release();
+  }
+}
 
-  console.log('Initializing database at:', dbPath);
-
-  // Initialize SQLite
-  const sqlite = new Database(dbPath);
-  sqlite.pragma('journal_mode = WAL'); // Enable WAL mode for better performance
-
-  // Initialize Drizzle
-  db = drizzle(sqlite, { schema });
-
-  // Run migrations
+/**
+ * Run database migrations
+ */
+async function runMigrations(db: AppDatabase): Promise<void> {
   try {
     const migrationsFolder = path.join(__dirname, 'migrations');
     console.log('Running migrations from:', migrationsFolder);
 
-    // Check if migrations folder exists
     if (fs.existsSync(migrationsFolder)) {
-      migrate(db, { migrationsFolder });
+      await migrate(db, { migrationsFolder });
       console.log('Database migrations completed successfully');
     } else {
       console.warn('Migrations folder not found, skipping migrations');
     }
   } catch (error) {
     console.error('Database migration failed:', error);
+    throw error;
   }
-
-  return db;
 }
 
-export function getDatabase() {
+/**
+ * Get database instance
+ * Throws error if database not initialized
+ */
+export function getDatabase(): AppDatabase {
   if (!db) {
+    if (connectionError) {
+      throw new DatabaseConnectionError(
+        'Database not available. Please check your connection settings.',
+        connectionError
+      );
+    }
     throw new Error('Database not initialized. Call initDatabase() first.');
   }
   return db;
 }
 
-export { schema };
+/**
+ * Get database instance or null (for graceful handling)
+ */
+export function getDatabaseOrNull(): AppDatabase | null {
+  return db;
+}
+
+/**
+ * Get connection error if any
+ */
+export function getConnectionError(): Error | null {
+  return connectionError;
+}
+
+/**
+ * Test database connection with provided config
+ */
+export async function testDatabaseConnection(
+  config: DatabaseConfig
+): Promise<{ success: boolean; error?: string }> {
+  const testPool = new Pool({
+    host: config.host,
+    port: config.port,
+    database: config.database,
+    user: config.user,
+    password: config.password,
+    ssl: config.ssl ? { rejectUnauthorized: false } : false,
+    connectionTimeoutMillis: 5000,
+  });
+
+  try {
+    await testConnection(testPool);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  } finally {
+    await testPool.end();
+  }
+}
+
+/**
+ * Close database connection
+ */
+export async function closeDatabase(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
+    db = null;
+    connectionError = null;
+    console.log('Database connection closed');
+  }
+}
+
+/**
+ * Custom error for database connection failures
+ */
+export class DatabaseConnectionError extends Error {
+  constructor(message: string, public cause: Error) {
+    super(message);
+    this.name = 'DatabaseConnectionError';
+  }
+}
+
+// Alias for convenience
+export { getDatabase as db, schema };
