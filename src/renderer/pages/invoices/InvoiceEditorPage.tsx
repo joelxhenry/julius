@@ -5,12 +5,14 @@ import {
   Button,
   Stack,
   Select,
+  TextInput,
   Textarea,
   LoadingOverlay,
   Text,
   Badge,
   Menu,
   ActionIcon,
+  SimpleGrid,
 } from '@mantine/core';
 import {
   IconArrowLeft,
@@ -21,7 +23,7 @@ import {
   IconTrash,
   IconPrinter,
 } from '@tabler/icons-react';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { InvoiceLineItemsGrid, type InvoiceLineItem } from '../../components/transactions/InvoiceLineItemsGrid';
@@ -55,6 +57,13 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
 
   // Form state
   const [clientId, setClientId] = useState<string | null>(null);
+  const [clientInfo, setClientInfo] = useState({
+    name: '',
+    address1: '',
+    address2: '',
+    phone: '',
+    email: '',
+  });
   const [issueDate, setIssueDate] = useState<Date | null>(new Date());
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [notes, setNotes] = useState('');
@@ -70,6 +79,15 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
     },
   ]);
 
+  // Create a lookup map for clients (O(1) instead of O(n))
+  const clientsMap = useMemo(() => {
+    const map = new Map<string, typeof clients[0]>();
+    for (const client of clients) {
+      map.set(client.id.toString(), client);
+    }
+    return map;
+  }, [clients]);
+
   // Track initial load state for dirty tracking
   const initialLoadRef = useRef(true);
   const [isDirty, setIsDirty] = useState(false);
@@ -79,13 +97,39 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
     if (initialLoadRef.current) return;
     setIsDirty(true);
     setTabDirty(tabId, true);
-  }, [clientId, issueDate, dueDate, notes, items, tabId, setTabDirty]);
+  }, [clientId, clientInfo, issueDate, dueDate, notes, items, tabId, setTabDirty]);
 
   // Mark dirty state as clean after save
   const markClean = useCallback(() => {
     setIsDirty(false);
     setTabDirty(tabId, false);
   }, [tabId, setTabDirty]);
+
+  // Handle client selection - auto-fill client fields
+  const handleClientChange = useCallback((value: string | null) => {
+    setClientId(value);
+    if (value) {
+      const selectedClient = clientsMap.get(value);
+      if (selectedClient) {
+        setClientInfo({
+          name: selectedClient.name || '',
+          address1: selectedClient.address1 || '',
+          address2: selectedClient.address2 || '',
+          phone: selectedClient.phone || '',
+          email: selectedClient.email || '',
+        });
+      }
+    } else {
+      // Clear client fields for walk-in
+      setClientInfo({
+        name: '',
+        address1: '',
+        address2: '',
+        phone: '',
+        email: '',
+      });
+    }
+  }, [clientsMap]);
 
   // Load existing invoice
   useEffect(() => {
@@ -103,6 +147,13 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
         const data = await getInvoice(parseInt(id!));
         setInvoice(data);
         setClientId(data.clientId?.toString() || null);
+        setClientInfo({
+          name: data.clientName || '',
+          address1: data.clientAddress1 || '',
+          address2: data.clientAddress2 || '',
+          phone: data.clientPhone || '',
+          email: data.clientEmail || '',
+        });
         setIssueDate(data.issueDate ? new Date(data.issueDate) : null);
         setDueDate(data.dueDate ? new Date(data.dueDate) : null);
         setNotes(data.notes || '');
@@ -175,6 +226,11 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
 
       const invoiceData = {
         clientId: clientId ? parseInt(clientId) : null,
+        clientName: clientInfo.name || null,
+        clientAddress1: clientInfo.address1 || null,
+        clientAddress2: clientInfo.address2 || null,
+        clientPhone: clientInfo.phone || null,
+        clientEmail: clientInfo.email || null,
         issueDate: issueDate?.toISOString() || new Date().toISOString(),
         dueDate: dueDate?.toISOString() || null,
         subtotal: totals.subtotal.toString(),
@@ -359,7 +415,7 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
               placeholder="Select client or leave blank for walk-in"
               data={clientOptions}
               value={clientId}
-              onChange={setClientId}
+              onChange={handleClientChange}
               searchable
               clearable
               disabled={readonly}
@@ -380,6 +436,45 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
               disabled={readonly}
             />
           </Group>
+
+          {/* Client Details (editable snapshot) */}
+          <SimpleGrid cols={{ base: 1, md: 2 }}>
+            <TextInput
+              label="Client Name"
+              placeholder="Walk-in Customer"
+              value={clientInfo.name}
+              onChange={(e) => setClientInfo((prev) => ({ ...prev, name: e.target.value }))}
+              disabled={readonly}
+            />
+            <TextInput
+              label="Phone"
+              placeholder="Phone number"
+              value={clientInfo.phone}
+              onChange={(e) => setClientInfo((prev) => ({ ...prev, phone: e.target.value }))}
+              disabled={readonly}
+            />
+            <TextInput
+              label="Email"
+              placeholder="Email address"
+              value={clientInfo.email}
+              onChange={(e) => setClientInfo((prev) => ({ ...prev, email: e.target.value }))}
+              disabled={readonly}
+            />
+            <TextInput
+              label="Address Line 1"
+              placeholder="Street address"
+              value={clientInfo.address1}
+              onChange={(e) => setClientInfo((prev) => ({ ...prev, address1: e.target.value }))}
+              disabled={readonly}
+            />
+            <TextInput
+              label="Address Line 2"
+              placeholder="City, Parish"
+              value={clientInfo.address2}
+              onChange={(e) => setClientInfo((prev) => ({ ...prev, address2: e.target.value }))}
+              disabled={readonly}
+            />
+          </SimpleGrid>
 
           <Textarea
             label="Notes"

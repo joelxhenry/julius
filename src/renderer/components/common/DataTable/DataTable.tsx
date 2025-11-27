@@ -1,4 +1,5 @@
 import { Table, ScrollArea, TextInput, Skeleton, Stack, Pagination, Center, Text } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { useState, useMemo } from 'react';
 
@@ -27,6 +28,7 @@ interface DataTableProps<T> {
   searchPlaceholder?: string;
   keyboardNav?: boolean;
   emptyMessage?: string;
+  rowKey?: keyof T; // Unique key for row identification
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -40,22 +42,29 @@ export function DataTable<T extends Record<string, any>>({
   searchable = false,
   searchPlaceholder = 'Search...',
   emptyMessage = 'No data found',
+  rowKey,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, 300);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Filter data based on search
-  const filteredData = useMemo(() => {
-    if (!search) return data;
+  // Get searchable column keys for efficient filtering
+  const searchableKeys = useMemo(() => columns.map((col) => col.key), [columns]);
 
+  // Filter data based on debounced search - only search displayed columns
+  const filteredData = useMemo(() => {
+    if (!debouncedSearch) return data;
+
+    const lowerSearch = debouncedSearch.toLowerCase();
     return data.filter((row) =>
-      Object.values(row).some((value) =>
-        String(value).toLowerCase().includes(search.toLowerCase())
-      )
+      searchableKeys.some((key) => {
+        const value = row[key as keyof T];
+        return value != null && String(value).toLowerCase().includes(lowerSearch);
+      })
     );
-  }, [data, search]);
+  }, [data, debouncedSearch, searchableKeys]);
 
   // Sort data
   const sortedData = useMemo(() => {
@@ -160,23 +169,26 @@ export function DataTable<T extends Record<string, any>>({
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {paginatedData.map((row, index) => (
-              <Table.Tr
-                key={index}
-                onClick={(e) => handleRowClick(row, e)}
-                onMouseDown={(e) => handleRowMouseDown(row, e)}
-                style={{ cursor: onRowClick ? 'pointer' : 'default' }}
-              >
-                {columns.map((column) => {
-                  const value = row[column.key as keyof T];
-                  return (
-                    <Table.Td key={String(column.key)}>
-                      {column.render ? column.render(value, row) : String(value || '')}
-                    </Table.Td>
-                  );
-                })}
-              </Table.Tr>
-            ))}
+            {paginatedData.map((row, index) => {
+              const key = rowKey ? String(row[rowKey]) : index;
+              return (
+                <Table.Tr
+                  key={key}
+                  onClick={(e) => handleRowClick(row, e)}
+                  onMouseDown={(e) => handleRowMouseDown(row, e)}
+                  style={{ cursor: onRowClick ? 'pointer' : 'default' }}
+                >
+                  {columns.map((column) => {
+                    const value = row[column.key as keyof T];
+                    return (
+                      <Table.Td key={String(column.key)}>
+                        {column.render ? column.render(value, row) : String(value ?? '')}
+                      </Table.Td>
+                    );
+                  })}
+                </Table.Tr>
+              );
+            })}
           </Table.Tbody>
         </Table>
       </ScrollArea>

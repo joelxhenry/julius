@@ -7,12 +7,18 @@ export function usePayments() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Helper to safely extract array data from API response
+  const extractArray = (result: any): Payment[] => {
+    const data = result?.data ?? result;
+    return Array.isArray(data) ? data : [];
+  };
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_PAYMENTS, undefined);
-      setPayments(result.data || result);
+      setPayments(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -25,7 +31,7 @@ export function usePayments() {
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_PAYMENTS_BY_INVOICE, { invoiceId });
-      setPayments(result.data || result);
+      setPayments(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {

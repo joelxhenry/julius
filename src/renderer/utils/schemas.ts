@@ -65,7 +65,7 @@ export type UserFormData = z.infer<typeof userSchema>;
 
 // Invoice validation schema
 export const invoiceSchema = z.object({
-  clientId: z.number().min(1, 'Client is required').optional(),
+  clientId: z.number().min(1, 'Client is required').optional().nullable(),
   userId: z.number().optional(),
   status: z.enum(['DRAFT', 'ISSUED', 'PARTIAL', 'PAID', 'CANCELLED']).default('DRAFT'),
   reference: z.string().optional(),
@@ -77,6 +77,12 @@ export const invoiceSchema = z.object({
   amountPaid: z.number().min(0).default(0),
   credit_terms: z.number().default(0),
   is_wholesale: z.number().default(0),
+  // Denormalized client fields (snapshot at time of invoice)
+  clientName: z.string().optional().nullable(),
+  clientAddress1: z.string().optional().nullable(),
+  clientAddress2: z.string().optional().nullable(),
+  clientPhone: z.string().optional().nullable(),
+  clientEmail: z.string().optional().nullable(),
 });
 
 export type InvoiceFormData = z.infer<typeof invoiceSchema>;

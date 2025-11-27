@@ -11,6 +11,13 @@ export const invoices = pgTable('invoices', {
   clientId: integer('client_id').references(() => clients.id, { onDelete: 'set null' }),
 
 
+  clientName: varchar('client_name', { length: 255 }),
+  clientAddress1: varchar('client_address_1', { length: 255 }),
+  clientAddress2: varchar('client_address_2', { length: 255 }),
+  clientPhone: varchar('client_phone', { length: 50 }),
+  clientEmail: varchar('client_email', { length: 100 }),
+
+
   userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
   status: varchar('status', { length: 50 }).notNull(),
 

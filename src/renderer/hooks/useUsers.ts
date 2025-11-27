@@ -2,6 +2,9 @@ import { useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
 import type { User, InsertUser } from '../../main/database/schema';
 
+// Type for creating users without requiring pinHash (backend will set default)
+type CreateUserData = Omit<InsertUser, 'pinHash'> & { pinHash?: string };
+
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,7 +69,7 @@ export function useUsers() {
     }
   }, []);
 
-  const create = useCallback(async (data: InsertUser) => {
+  const create = useCallback(async (data: CreateUserData) => {
     try {
       const result = await window.electron.invoke(IpcChannel.CREATE_USER, data);
       const newUser = result.data || result;
@@ -78,7 +81,7 @@ export function useUsers() {
     }
   }, []);
 
-  const update = useCallback(async (id: number, data: Partial<InsertUser>) => {
+  const update = useCallback(async (id: number, data: Partial<CreateUserData>) => {
     try {
       const result = await window.electron.invoke(IpcChannel.UPDATE_USER, { id, data });
       const updated = result.data || result;

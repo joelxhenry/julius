@@ -583,6 +583,36 @@
           }
         },
         {
+          "name": "client_name",
+          "type": "varchar(255)",
+          "nullable": true,
+          "description": "Snapshot of client name at time of invoice"
+        },
+        {
+          "name": "client_address_1",
+          "type": "varchar(255)",
+          "nullable": true,
+          "description": "Snapshot of client address line 1"
+        },
+        {
+          "name": "client_address_2",
+          "type": "varchar(255)",
+          "nullable": true,
+          "description": "Snapshot of client address line 2"
+        },
+        {
+          "name": "client_phone",
+          "type": "varchar(50)",
+          "nullable": true,
+          "description": "Snapshot of client phone number"
+        },
+        {
+          "name": "client_email",
+          "type": "varchar(100)",
+          "nullable": true,
+          "description": "Snapshot of client email address"
+        },
+        {
           "name": "user_id",
           "type": "integer",
           "nullable": true,

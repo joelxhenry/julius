@@ -22,6 +22,7 @@ import {
   IconHistory,
   IconPlus,
   IconAdjustments,
+  IconPhoto,
 } from '@tabler/icons-react';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParts, usePartVariants } from '../../hooks';
@@ -390,6 +391,9 @@ export function PartDetailPage({ id: propId }: PartDetailPageProps) {
           <Tabs.Tab value="variants" leftSection={<IconPackage size={16} />}>
             Variants ({variants.length})
           </Tabs.Tab>
+          <Tabs.Tab value="gallery" leftSection={<IconPhoto size={16} />}>
+            Gallery
+          </Tabs.Tab>
           <Tabs.Tab value="history" leftSection={<IconHistory size={16} />}>
             History
           </Tabs.Tab>
@@ -434,6 +438,18 @@ export function PartDetailPage({ id: propId }: PartDetailPageProps) {
               keyboardNav
             />
           )}
+        </Tabs.Panel>
+
+        <Tabs.Panel value="gallery" pt="md">
+          <Paper withBorder p="xl">
+            <Stack align="center" gap="md">
+              <IconPhoto size={48} stroke={1.5} color="gray" />
+              <Text c="dimmed">Part images and videos will be displayed here</Text>
+              <Text size="xs" c="dimmed">
+                Coming soon: Upload and manage product photos and videos
+              </Text>
+            </Stack>
+          </Paper>
         </Tabs.Panel>
 
         <Tabs.Panel value="history" pt="md">

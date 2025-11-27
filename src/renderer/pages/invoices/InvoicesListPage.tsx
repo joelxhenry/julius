@@ -1,5 +1,6 @@
 import { Title, Group, Button, Stack } from '@mantine/core';
 import { IconPlus, IconFileInvoice } from '@tabler/icons-react';
+import { useMemo, useCallback } from 'react';
 import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useInvoices } from '../../hooks';
@@ -11,51 +12,70 @@ export function InvoicesListPage() {
   const { openTab } = useTabManager();
   const { invoices, loading } = useInvoices();
 
-  const columns: ColumnDef<Invoice>[] = [
-    {
-      key: 'legacyId',
-      title: 'Invoice #',
-      sortable: true,
-      width: 120,
-      render: (value) => `#${value}`
+  // Memoize columns to prevent recreation on every render
+  const columns: ColumnDef<Invoice>[] = useMemo(
+    () => [
+      {
+        key: 'invoiceNumber',
+        title: 'Invoice #',
+        sortable: true,
+        width: 120,
+      },
+      {
+        key: 'clientName',
+        title: 'Client',
+        sortable: true,
+        render: (value) => value || 'Walk-in',
+      },
+      {
+        key: 'createdAt',
+        title: 'Date',
+        sortable: true,
+        render: (value) => (value ? new Date(value).toLocaleDateString() : 'N/A'),
+      },
+      {
+        key: 'dueDate',
+        title: 'Due Date',
+        sortable: true,
+        render: (value) => (value ? new Date(value).toLocaleDateString() : 'N/A'),
+      },
+      {
+        key: 'total',
+        title: 'Total',
+        sortable: true,
+        render: (value) => numeral(parseFloat(value) || 0).format('$0,0.00'),
+      },
+      {
+        key: 'balance',
+        title: 'Balance',
+        sortable: true,
+        render: (value) => numeral(parseFloat(value) || 0).format('$0,0.00'),
+      },
+      {
+        key: 'status',
+        title: 'Status',
+        sortable: true,
+        render: (value) => <StatusBadge status={value || 'DRAFT'} />,
+      },
+    ],
+    []
+  );
+
+  // Memoize row click handler
+  const handleRowClick = useCallback(
+    (invoice: Invoice, options?: RowClickOptions) => {
+      openTab(
+        {
+          type: 'invoice-editor',
+          path: `/invoices/${invoice.id}`,
+          title: `Invoice ${invoice.invoiceNumber}`,
+          entityId: invoice.id.toString(),
+        },
+        options?.newTab
+      );
     },
-    {
-      key: 'clientId',
-      title: 'Client',
-      sortable: true,
-      render: (value) => value || 'Walk-in'
-    },
-    {
-      key: 'createdAt',
-      title: 'Date',
-      sortable: true,
-      render: (value) => new Date(value).toLocaleDateString(),
-    },
-    {
-      key: 'dueDate',
-      title: 'Due Date',
-      sortable: true,
-      render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A',
-    },
-    {
-      key: 'total',
-      title: 'Total',
-      sortable: true,
-      render: (value) => numeral(parseFloat(value) || 0).format('$0,0.00'),
-    },
-    {
-      key: 'balance',
-      title: 'Balance',
-      sortable: true,
-      render: (value) => numeral(parseFloat(value) || 0).format('$0,0.00'),
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      sortable: true,
-      render: (value) => <StatusBadge status={value || 'DRAFT'} />,
-    },
-  ];
+    [openTab]
+  );
 
   return (
     <Stack>
@@ -81,17 +101,10 @@ export function InvoicesListPage() {
         data={invoices}
         columns={columns}
         loading={loading}
-        onRowClick={(invoice: Invoice, options?: RowClickOptions) => {
-          openTab({
-            type: 'invoice-editor',
-            path: `/invoices/${invoice.id}`,
-            title: `Invoice #${invoice.legacyId}`,
-            entityId: invoice.id.toString(),
-          }, options?.newTab);
-        }}
+        onRowClick={handleRowClick}
         searchable
         pagination
-        keyboardNav
+        rowKey="id"
       />
     </Stack>
   );

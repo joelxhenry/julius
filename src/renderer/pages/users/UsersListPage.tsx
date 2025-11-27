@@ -1,13 +1,13 @@
 import { Title, Group, Button, Stack, Badge } from '@mantine/core';
-import { useNavigate } from 'react-router-dom';
 import { IconPlus, IconUsers } from '@tabler/icons-react';
 import { DataTable, ColumnDef } from '../../components/common/DataTable/DataTable';
 import { useUsers } from '../../hooks';
+import { useTabManager } from '../../contexts/TabManagerContext';
 import type { User } from '../../../main/database/schema';
 
 export function UsersListPage() {
-  const navigate = useNavigate();
   const { users, loading } = useUsers();
+  const { openTab } = useTabManager();
 
   const columns: ColumnDef<User>[] = [
     {
@@ -49,15 +49,6 @@ export function UsersListPage() {
       },
     },
     {
-      key: 'usingDefaultPin',
-      title: 'PIN Status',
-      render: (value) => (
-        <Badge color={value ? 'orange' : 'green'} size="sm">
-          {value ? 'Default PIN' : 'Custom PIN'}
-        </Badge>
-      ),
-    },
-    {
       key: 'active',
       title: 'Status',
       render: (value) => (
@@ -77,7 +68,12 @@ export function UsersListPage() {
         </Group>
         <Button
           leftSection={<IconPlus size={16} />}
-          onClick={() => navigate('/users/new')}
+          onClick={() => openTab({
+            type: 'user-detail',
+            path: '/users/new',
+            title: 'New User',
+            entityId: 'new',
+          })}
         >
           New User
         </Button>
@@ -87,7 +83,12 @@ export function UsersListPage() {
         data={users}
         columns={columns}
         loading={loading}
-        onRowClick={(user) => navigate(`/users/${user.id}`)}
+        onRowClick={(user) => openTab({
+          type: 'user-detail',
+          path: `/users/${user.id}`,
+          title: `${user.firstName} ${user.lastName}`,
+          entityId: user.id.toString(),
+        })}
         searchable
         pagination
         keyboardNav

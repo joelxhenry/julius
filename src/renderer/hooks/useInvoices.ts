@@ -7,12 +7,18 @@ export function useInvoices() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Helper to safely extract array data from API response
+  const extractArray = (result: any): Invoice[] => {
+    const data = result?.data ?? result;
+    return Array.isArray(data) ? data : [];
+  };
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_INVOICES, undefined);
-      setInvoices(result.data || result);
+      setInvoices(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -25,7 +31,7 @@ export function useInvoices() {
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_INVOICES_BY_CLIENT, { clientId });
-      setInvoices(result.data || result);
+      setInvoices(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -38,7 +44,7 @@ export function useInvoices() {
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_UNPAID_INVOICES, undefined);
-      setInvoices(result.data || result);
+      setInvoices(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
