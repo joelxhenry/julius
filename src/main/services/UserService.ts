@@ -93,77 +93,73 @@ export class UserService extends BaseService<
 
   /**
    * Authenticate a user with username and PIN/password
-   * Supports default admin credentials (admin/0609) when no users exist
+   * Supports default admin credentials (admin/0609) as fallback
    */
   async authenticate(username: string, password: string): Promise<AuthResult> {
-    // Check for default admin credentials
-    if (username === DEFAULT_ADMIN_USERNAME && password === DEFAULT_ADMIN_PASSWORD) {
-      // Check if any users exist in the database
-      const allUsers = await this.findAll();
-
-      if (allUsers.length === 0) {
-        // No users exist, allow default admin login
-        // Return a virtual admin user
-        return {
-          success: true,
-          user: {
-            id: 0,
-            firstName: 'System',
-            lastName: 'Administrator',
-            email: null,
-            username: 'admin',
-            usingDefaultPin: true,
-            roleId: null,
-            title: 'Administrator',
-            department: null,
-            startDate: null,
-            endDate: null,
-            contact: null,
-            address: null,
-            phone: null,
-            code: null,
-            active: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          requiresPinChange: true,
-        };
-      }
-    }
-
-    // Find user by username
+    // Find user by username first
     const user = await this.findByUsername(username);
 
-    if (!user) {
+    // If user exists, try to authenticate them
+    if (user) {
+      // Check if user is active
+      if (!user.active) {
+        return {
+          success: false,
+          error: 'This account has been deactivated',
+        };
+      }
+
+      // Verify password/PIN
+      if (!verifyPassword(password, user.pinHash)) {
+        return {
+          success: false,
+          error: 'Invalid username or password',
+        };
+      }
+
+      // Remove pinHash from response
+      const { pinHash, ...userWithoutPin } = user;
+
       return {
-        success: false,
-        error: 'Invalid username or password',
+        success: true,
+        user: userWithoutPin,
+        requiresPinChange: user.usingDefaultPin,
       };
     }
 
-    // Check if user is active
-    if (!user.active) {
+    // No user found - check for default admin credentials as fallback
+    if (username === DEFAULT_ADMIN_USERNAME && password === DEFAULT_ADMIN_PASSWORD) {
+      // Return a virtual admin user
       return {
-        success: false,
-        error: 'This account has been deactivated',
+        success: true,
+        user: {
+          id: 0,
+          firstName: 'System',
+          lastName: 'Administrator',
+          email: null,
+          username: 'admin',
+          usingDefaultPin: true,
+          roleId: null,
+          title: 'Administrator',
+          department: null,
+          startDate: null,
+          endDate: null,
+          contact: null,
+          address: null,
+          phone: null,
+          code: null,
+          active: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        requiresPinChange: true,
       };
     }
 
-    // Verify password/PIN
-    if (!verifyPassword(password, user.pinHash)) {
-      return {
-        success: false,
-        error: 'Invalid username or password',
-      };
-    }
-
-    // Remove pinHash from response
-    const { pinHash, ...userWithoutPin } = user;
-
+    // No user found and not default admin credentials
     return {
-      success: true,
-      user: userWithoutPin,
-      requiresPinChange: user.usingDefaultPin,
+      success: false,
+      error: 'Invalid username or password',
     };
   }
 

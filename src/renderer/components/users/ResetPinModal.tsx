@@ -2,14 +2,12 @@ import { useState } from 'react';
 import {
   Modal,
   Stack,
-  Text,
   Group,
   Button,
   Alert,
-  PinInput,
-  Center,
+  PasswordInput,
 } from '@mantine/core';
-import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
+import { IconAlertTriangle, IconCheck, IconLock } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useUsers } from '../../hooks';
 import type { User } from '../../../main/database/schema';
@@ -22,6 +20,8 @@ interface ResetPinModalProps {
 }
 
 const DEFAULT_PIN = '0000';
+const MIN_PIN_LENGTH = 4;
+const MAX_PIN_LENGTH = 6;
 
 export function ResetPinModal({ opened, onClose, user, onReset }: ResetPinModalProps) {
   const { update } = useUsers();
@@ -30,18 +30,26 @@ export function ResetPinModal({ opened, onClose, user, onReset }: ResetPinModalP
   const [confirmPin, setConfirmPin] = useState('');
   const [useDefaultPin, setUseDefaultPin] = useState(true);
 
+  const handlePinChange = (setter: (value: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, MAX_PIN_LENGTH);
+    setter(value);
+  };
+
+  const isValidPin = newPin.length >= MIN_PIN_LENGTH && newPin.length <= MAX_PIN_LENGTH;
+  const pinsMatch = newPin === confirmPin;
+
   const handleReset = async () => {
     // Validate PINs if not using default
     if (!useDefaultPin) {
-      if (newPin.length !== 4) {
+      if (!isValidPin) {
         notifications.show({
           title: 'Invalid PIN',
-          message: 'PIN must be 4 digits',
+          message: `PIN must be ${MIN_PIN_LENGTH}-${MAX_PIN_LENGTH} digits`,
           color: 'red',
         });
         return;
       }
-      if (newPin !== confirmPin) {
+      if (!pinsMatch) {
         notifications.show({
           title: 'PIN Mismatch',
           message: 'PINs do not match',
@@ -126,42 +134,38 @@ export function ResetPinModal({ opened, onClose, user, onReset }: ResetPinModalP
 
         {!useDefaultPin && (
           <Stack gap="md" mt="md">
-            <div>
-              <Text size="sm" fw={500} mb="xs">
-                New PIN
-              </Text>
-              <Center>
-                <PinInput
-                  length={4}
-                  type="number"
-                  mask
-                  value={newPin}
-                  onChange={setNewPin}
-                  size="lg"
-                />
-              </Center>
-            </div>
-            <div>
-              <Text size="sm" fw={500} mb="xs">
-                Confirm PIN
-              </Text>
-              <Center>
-                <PinInput
-                  length={4}
-                  type="number"
-                  mask
-                  value={confirmPin}
-                  onChange={setConfirmPin}
-                  size="lg"
-                  error={confirmPin.length === 4 && newPin !== confirmPin}
-                />
-              </Center>
-              {confirmPin.length === 4 && newPin !== confirmPin && (
-                <Text size="xs" c="red" ta="center" mt="xs">
-                  PINs do not match
-                </Text>
-              )}
-            </div>
+            <PasswordInput
+              label="New PIN"
+              description={`${MIN_PIN_LENGTH}-${MAX_PIN_LENGTH} digits`}
+              placeholder="Enter new PIN"
+              value={newPin}
+              onChange={handlePinChange(setNewPin)}
+              leftSection={<IconLock size={16} />}
+              inputMode="numeric"
+              maxLength={MAX_PIN_LENGTH}
+              styles={{
+                input: {
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.3em',
+                },
+              }}
+            />
+            <PasswordInput
+              label="Confirm PIN"
+              placeholder="Confirm new PIN"
+              value={confirmPin}
+              onChange={handlePinChange(setConfirmPin)}
+              leftSection={<IconLock size={16} />}
+              inputMode="numeric"
+              maxLength={MAX_PIN_LENGTH}
+              error={confirmPin.length >= MIN_PIN_LENGTH && !pinsMatch ? 'PINs do not match' : undefined}
+              styles={{
+                input: {
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.3em',
+                },
+              }}
+            />
           </Stack>
         )}
 
@@ -173,7 +177,7 @@ export function ResetPinModal({ opened, onClose, user, onReset }: ResetPinModalP
             color="orange"
             onClick={handleReset}
             loading={loading}
-            disabled={!useDefaultPin && (newPin.length !== 4 || newPin !== confirmPin)}
+            disabled={!useDefaultPin && (!isValidPin || !pinsMatch)}
           >
             Reset PIN
           </Button>

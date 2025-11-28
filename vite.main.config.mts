@@ -11,12 +11,39 @@ export default defineConfig({
       '@shared': '/src/shared',
     },
   },
+  // Use ssr.external for Electron Forge's Vite plugin (it treats main as SSR build)
+  ssr: {
+    // Externalize these modules - they will be loaded at runtime from node_modules
+    external: [
+      'pg',
+      'pg-native',
+      'pg-pool',
+      'pg-protocol',
+      'pg-types',
+      'pg-connection-string',
+      'pgpass',
+      'drizzle-orm',
+      'drizzle-orm/node-postgres',
+      'drizzle-orm/node-postgres/migrator',
+    ],
+  },
   build: {
+    // Ensure CommonJS output for Electron
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
       external: [
         'electron',
         'pg',
-        'crypto-js',
+        'pg-native',
+        'pg-pool',
+        'pg-protocol',
+        'pg-types',
+        'pg-connection-string',
+        'pgpass',
+        'drizzle-orm',
+        /^drizzle-orm\/.*/,
         ...builtinModules,
         ...builtinModules.map(m => `node:${m}`),
       ],
