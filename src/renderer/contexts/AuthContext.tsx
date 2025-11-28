@@ -1,14 +1,18 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
-import type { Employee } from '../../main/database/schema';
+import type { User } from '../../main/database/schema';
+
+// User type without pinHash for security
+type SafeUser = Omit<User, 'pinHash'>;
 
 interface AuthContextType {
-  employee: Employee | null;
+  user: SafeUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, pin: string) => Promise<void>;
+  requiresPinChange: boolean;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  verifyPIN: (pin: string) => Promise<boolean>;
+  updatePin: (newPin: string) => Promise<boolean>;
   hasPermission: (permissionCode: string) => boolean;
 }
 
@@ -17,13 +21,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = 'turbo-julius-auth';
 
 interface StoredAuth {
-  employee: Employee;
+  user: SafeUser;
   timestamp: number;
+  requiresPinChange: boolean;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [requiresPinChange, setRequiresPinChange] = useState(false);
 
   // Load saved session on mount
   useEffect(() => {
@@ -31,12 +37,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const stored = localStorage.getItem(AUTH_STORAGE_KEY);
         if (stored) {
-          const { employee: storedEmployee, timestamp }: StoredAuth = JSON.parse(stored);
+          const { user: storedUser, timestamp, requiresPinChange: storedRequiresPinChange }: StoredAuth = JSON.parse(stored);
 
           // Check if session is less than 24 hours old
           const hoursSinceLogin = (Date.now() - timestamp) / (1000 * 60 * 60);
           if (hoursSinceLogin < 24) {
-            setEmployee(storedEmployee);
+            setUser(storedUser);
+            setRequiresPinChange(storedRequiresPinChange || false);
           } else {
             localStorage.removeItem(AUTH_STORAGE_KEY);
           }
@@ -52,32 +59,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadSavedSession();
   }, []);
 
-  const login = useCallback(async (username: string, pin: string) => {
+  const login = useCallback(async (username: string, password: string) => {
     try {
-      // Find employee by username
-      const result = await window.electron.invoke(IpcChannel.GET_EMPLOYEE_BY_USERNAME, { username });
-      const foundEmployee = result.data || result;
+      const result = await window.electron.invoke(IpcChannel.AUTHENTICATE_USER, { username, password });
 
-      if (!foundEmployee) {
-        throw new Error('Invalid username or PIN');
+      if (!result.success) {
+        throw new Error(result.error || 'Authentication failed');
       }
 
-      // Verify PIN - backend should hash and compare
-      // For now, we'll create a simple verification endpoint
-      // TODO: Add VERIFY_EMPLOYEE_PIN IPC channel
-      const verifyResult = await window.electron.invoke(IpcChannel.GET_EMPLOYEE_BY_USERNAME, { username });
+      const { user: authenticatedUser, requiresPinChange: needsPinChange } = result.data;
 
-      if (!verifyResult) {
-        throw new Error('Invalid username or PIN');
-      }
-
-      // Store employee data
-      setEmployee(foundEmployee);
+      // Store user data
+      setUser(authenticatedUser);
+      setRequiresPinChange(needsPinChange || false);
 
       // Save to localStorage
       const authData: StoredAuth = {
-        employee: foundEmployee,
+        user: authenticatedUser,
         timestamp: Date.now(),
+        requiresPinChange: needsPinChange || false,
       };
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
 
@@ -88,36 +88,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    setEmployee(null);
+    setUser(null);
+    setRequiresPinChange(false);
     localStorage.removeItem(AUTH_STORAGE_KEY);
   }, []);
 
-  const verifyPIN = useCallback(async (pin: string): Promise<boolean> => {
-    if (!employee) return false;
-
-    try {
-      // TODO: Implement PIN verification via IPC
-      // For now, return true
-      return true;
-    } catch (error) {
-      console.error('PIN verification failed:', error);
+  const updatePin = useCallback(async (newPin: string): Promise<boolean> => {
+    if (!user || user.id === 0) {
+      // Virtual admin user - can't update PIN
+      console.warn('Cannot update PIN for virtual admin user');
       return false;
     }
-  }, [employee]);
+
+    try {
+      const result = await window.electron.invoke(IpcChannel.UPDATE_USER_PIN, { id: user.id, newPin });
+
+      if (result.success) {
+        setRequiresPinChange(false);
+        // Update stored auth
+        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (stored) {
+          const authData: StoredAuth = JSON.parse(stored);
+          authData.requiresPinChange = false;
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('PIN update failed:', error);
+      return false;
+    }
+  }, [user]);
 
   const hasPermission = useCallback((permissionCode: string): boolean => {
-    // TODO: Implement permission checking based on employee role
+    // TODO: Implement permission checking based on user role
     // For now, return true to allow development
     return true;
   }, []);
 
   const value: AuthContextType = {
-    employee,
-    isAuthenticated: !!employee,
+    user,
+    isAuthenticated: !!user,
     isLoading,
+    requiresPinChange,
     login,
     logout,
-    verifyPIN,
+    updatePin,
     hasPermission,
   };
 

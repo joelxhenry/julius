@@ -1,10 +1,10 @@
-import { Group, Title, Text, Button, Menu, Avatar, ActionIcon, Tooltip, Box } from '@mantine/core';
-import { IconLogout, IconUser, IconChevronDown, IconSun, IconMoon } from '@tabler/icons-react';
+import { Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip } from '@mantine/core';
+import { IconLogout, IconUser, IconSun, IconMoon } from '@tabler/icons-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export function Header() {
-  const { employee: user, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { colorScheme, toggleColorScheme } = useTheme();
 
   return (
@@ -46,17 +46,12 @@ export function Header() {
         {user && (
           <Menu shadow="lg" width={220} position="bottom-end">
             <Menu.Target>
-              <Button
-                variant="subtle"
-                rightSection={<IconChevronDown size={16} />}
-                styles={{
-                  root: {
-                    padding: '4px 12px',
-                    height: 'auto',
-                  },
-                }}
-              >
-                <Group gap="xs">
+              <Tooltip label={`${user.firstName} ${user.lastName}`} position="bottom">
+                <ActionIcon
+                  variant="subtle"
+                  size="lg"
+                  radius="xl"
+                >
                   <Avatar
                     size="sm"
                     radius="xl"
@@ -65,16 +60,8 @@ export function Header() {
                   >
                     {user.firstName?.[0]}{user.lastName?.[0]}
                   </Avatar>
-                  <Box visibleFrom="sm">
-                    <Text size="sm" fw={500} lh={1.2}>
-                      {user.firstName} {user.lastName}
-                    </Text>
-                    <Text size="xs" c="dimmed" lh={1.2}>
-                      {user.title || 'User'}
-                    </Text>
-                  </Box>
-                </Group>
-              </Button>
+                </ActionIcon>
+              </Tooltip>
             </Menu.Target>
 
             <Menu.Dropdown>

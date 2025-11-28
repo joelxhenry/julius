@@ -1,47 +1,36 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Paper, Title, TextInput, Button, Stack, Alert, Center, Box } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Container, Paper, Title, TextInput, PasswordInput, Button, Stack, Alert, Center, Box, Text } from '@mantine/core';
+import { IconAlertCircle, IconUser, IconLock } from '@tabler/icons-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { PINInput } from '../../components/auth/PINInput';
 
 export function LoginPage() {
   const [username, setUsername] = useState('');
-  const [pin, setPin] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'username' | 'pin'>('username');
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleUsernameSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim()) {
-      setStep('pin');
-      setError('');
+    if (!username.trim() || !password.trim()) {
+      setError('Please enter both username and password');
+      return;
     }
-  };
 
-  const handlePINComplete = async (value: string) => {
-    setPin(value);
     setError('');
     setIsLoading(true);
 
     try {
-      await login(username, value);
+      await login(username, password);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
-      setPin('');
+      setPassword('');
       setIsLoading(false);
     }
-  };
-
-  const handleBack = () => {
-    setStep('username');
-    setPin('');
-    setError('');
   };
 
   return (
@@ -62,49 +51,42 @@ export function LoginPage() {
               </Alert>
             )}
 
-            {step === 'username' ? (
-              <form onSubmit={handleUsernameSubmit}>
-                <Stack>
-                  <TextInput
-                    label="Username"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    autoFocus
-                    size="md"
-                  />
-                  <Button type="submit" fullWidth size="md" disabled={!username.trim()}>
-                    Continue
-                  </Button>
-                </Stack>
-              </form>
-            ) : (
+            <form onSubmit={handleSubmit}>
               <Stack>
-                <div>
-                  <Title order={6} mb="xs" c="dimmed">
-                    Welcome, {username}
-                  </Title>
-                  <Title order={5} mb="md">
-                    Enter your PIN
-                  </Title>
-                </div>
-
-                <Center>
-                  <PINInput
-                    value={pin}
-                    onChange={setPin}
-                    onComplete={handlePINComplete}
-                    disabled={isLoading}
-                    autoFocus
-                  />
-                </Center>
-
-                <Button variant="subtle" onClick={handleBack} disabled={isLoading}>
-                  Back
+                <TextInput
+                  label="Username"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  autoFocus
+                  size="md"
+                  leftSection={<IconUser size={16} />}
+                />
+                <PasswordInput
+                  label="Password / PIN"
+                  placeholder="Enter your password or PIN"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  size="md"
+                  leftSection={<IconLock size={16} />}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  size="md"
+                  loading={isLoading}
+                  disabled={!username.trim() || !password.trim()}
+                >
+                  Sign In
                 </Button>
               </Stack>
-            )}
+            </form>
+
+            <Text size="xs" c="dimmed" ta="center" mt="lg">
+              Default: admin / 0609
+            </Text>
           </Paper>
         </Container>
       </Center>

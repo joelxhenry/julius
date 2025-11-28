@@ -1,6 +1,10 @@
 import { ipcMain } from 'electron';
-import { getDatabaseOrNull, initDatabase, closeDatabase } from '../database';
+import { getDatabaseOrNull, initDatabase, closeDatabase, getConnectionError } from '../database';
 import { IpcChannel } from '../../shared/types/ipc';
+
+// Track which handlers have been registered to avoid duplicates
+let configHandlersRegistered = false;
+let dataHandlersRegistered = false;
 
 // Import services
 import {
@@ -37,47 +41,190 @@ import {
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
 import { DatabaseSettingsController } from '../controllers/DatabaseSettingsController';
 
+// Helper to safely remove a handler if it exists
+function removeHandler(channel: IpcChannel) {
+  try {
+    ipcMain.removeHandler(channel);
+  } catch {
+    // Handler didn't exist, ignore
+  }
+}
+
+// Remove all data handlers (called before re-registering)
+function removeDataHandlers() {
+  // Client handlers
+  removeHandler(IpcChannel.GET_CLIENTS);
+  removeHandler(IpcChannel.GET_CLIENT);
+  removeHandler(IpcChannel.GET_CLIENT_BY_EMAIL);
+  removeHandler(IpcChannel.SEARCH_CLIENTS);
+  removeHandler(IpcChannel.CREATE_CLIENT);
+  removeHandler(IpcChannel.UPDATE_CLIENT);
+  removeHandler(IpcChannel.DELETE_CLIENT);
+
+  // User handlers
+  removeHandler(IpcChannel.GET_USERS);
+  removeHandler(IpcChannel.GET_USER);
+  removeHandler(IpcChannel.GET_USER_BY_USERNAME);
+  removeHandler(IpcChannel.GET_ACTIVE_USERS);
+  removeHandler(IpcChannel.SEARCH_USERS);
+  removeHandler(IpcChannel.CREATE_USER);
+  removeHandler(IpcChannel.UPDATE_USER);
+  removeHandler(IpcChannel.DELETE_USER);
+  removeHandler(IpcChannel.AUTHENTICATE_USER);
+  removeHandler(IpcChannel.UPDATE_USER_PIN);
+
+  // Part handlers
+  removeHandler(IpcChannel.GET_PARTS);
+  removeHandler(IpcChannel.GET_PART);
+  removeHandler(IpcChannel.GET_PART_BY_SKU);
+  removeHandler(IpcChannel.SEARCH_PARTS);
+  removeHandler(IpcChannel.CREATE_PART);
+  removeHandler(IpcChannel.UPDATE_PART);
+  removeHandler(IpcChannel.DELETE_PART);
+
+  // Part variant handlers
+  removeHandler(IpcChannel.GET_PART_VARIANTS);
+  removeHandler(IpcChannel.GET_PART_VARIANT);
+  removeHandler(IpcChannel.GET_VARIANTS_BY_PART);
+  removeHandler(IpcChannel.GET_ACTIVE_VARIANTS);
+  removeHandler(IpcChannel.GET_LOW_STOCK_VARIANTS);
+  removeHandler(IpcChannel.CREATE_PART_VARIANT);
+  removeHandler(IpcChannel.UPDATE_PART_VARIANT);
+  removeHandler(IpcChannel.DELETE_PART_VARIANT);
+  removeHandler(IpcChannel.UPDATE_VARIANT_STOCK);
+
+  // Invoice handlers
+  removeHandler(IpcChannel.GET_INVOICES);
+  removeHandler(IpcChannel.GET_INVOICE);
+  removeHandler(IpcChannel.GET_INVOICES_BY_CLIENT);
+  removeHandler(IpcChannel.GET_UNPAID_INVOICES);
+  removeHandler(IpcChannel.CREATE_INVOICE);
+  removeHandler(IpcChannel.UPDATE_INVOICE);
+  removeHandler(IpcChannel.DELETE_INVOICE);
+  removeHandler(IpcChannel.RECORD_PAYMENT);
+
+  // Invoice item handlers
+  removeHandler(IpcChannel.GET_INVOICE_ITEMS);
+  removeHandler(IpcChannel.CREATE_INVOICE_ITEM);
+  removeHandler(IpcChannel.CREATE_INVOICE_ITEMS_BULK);
+  removeHandler(IpcChannel.UPDATE_INVOICE_ITEM);
+  removeHandler(IpcChannel.DELETE_INVOICE_ITEM);
+
+  // Payment handlers
+  removeHandler(IpcChannel.GET_PAYMENTS);
+  removeHandler(IpcChannel.GET_PAYMENT);
+  removeHandler(IpcChannel.GET_PAYMENTS_BY_INVOICE);
+  removeHandler(IpcChannel.CREATE_PAYMENT);
+  removeHandler(IpcChannel.UPDATE_PAYMENT);
+  removeHandler(IpcChannel.DELETE_PAYMENT);
+
+  // Payment method handlers
+  removeHandler(IpcChannel.GET_PAYMENT_METHODS);
+  removeHandler(IpcChannel.GET_ACTIVE_PAYMENT_METHODS);
+  removeHandler(IpcChannel.CREATE_PAYMENT_METHOD);
+  removeHandler(IpcChannel.UPDATE_PAYMENT_METHOD);
+  removeHandler(IpcChannel.DELETE_PAYMENT_METHOD);
+
+  // Quotation handlers
+  removeHandler(IpcChannel.GET_QUOTATIONS);
+  removeHandler(IpcChannel.GET_QUOTATION);
+  removeHandler(IpcChannel.GET_QUOTATIONS_BY_CLIENT);
+  removeHandler(IpcChannel.CREATE_QUOTATION);
+  removeHandler(IpcChannel.UPDATE_QUOTATION);
+  removeHandler(IpcChannel.DELETE_QUOTATION);
+  removeHandler(IpcChannel.CONVERT_QUOTATION_TO_INVOICE);
+
+  // Quotation item handlers
+  removeHandler(IpcChannel.GET_QUOTATION_ITEMS);
+  removeHandler(IpcChannel.CREATE_QUOTATION_ITEM);
+  removeHandler(IpcChannel.CREATE_QUOTATION_ITEMS_BULK);
+  removeHandler(IpcChannel.UPDATE_QUOTATION_ITEM);
+  removeHandler(IpcChannel.DELETE_QUOTATION_ITEM);
+
+  // Credit note handlers
+  removeHandler(IpcChannel.GET_CREDIT_NOTES);
+  removeHandler(IpcChannel.GET_CREDIT_NOTE);
+  removeHandler(IpcChannel.GET_CREDIT_NOTES_BY_CLIENT);
+  removeHandler(IpcChannel.GET_UNALLOCATED_CREDIT_NOTES);
+  removeHandler(IpcChannel.CREATE_CREDIT_NOTE);
+  removeHandler(IpcChannel.UPDATE_CREDIT_NOTE);
+  removeHandler(IpcChannel.DELETE_CREDIT_NOTE);
+
+  // Credit note allocation handlers
+  removeHandler(IpcChannel.GET_CREDIT_NOTE_ALLOCATIONS);
+  removeHandler(IpcChannel.CREATE_CREDIT_NOTE_ALLOCATION);
+  removeHandler(IpcChannel.UPDATE_CREDIT_NOTE_ALLOCATION);
+  removeHandler(IpcChannel.DELETE_CREDIT_NOTE_ALLOCATION);
+
+  dataHandlersRegistered = false;
+}
+
 export function registerIpcHandlers() {
-  // Database configuration handlers (always available)
-  const settingsService = new DatabaseSettingsService();
-  const settingsController = new DatabaseSettingsController(settingsService);
+  // Database configuration handlers (only register once)
+  if (!configHandlersRegistered) {
+    const settingsService = new DatabaseSettingsService();
+    const settingsController = new DatabaseSettingsController(settingsService);
 
-  ipcMain.handle(IpcChannel.GET_DATABASE_CONFIG, () =>
-    settingsController.getConfig()
-  );
+    ipcMain.handle(IpcChannel.GET_DATABASE_CONFIG, () =>
+      settingsController.getConfig()
+    );
 
-  ipcMain.handle(IpcChannel.UPDATE_DATABASE_CONFIG, (_, configData) =>
-    settingsController.updateConfig(configData)
-  );
+    ipcMain.handle(IpcChannel.UPDATE_DATABASE_CONFIG, (_, configData) =>
+      settingsController.updateConfig(configData)
+    );
 
-  ipcMain.handle(IpcChannel.TEST_DATABASE_CONNECTION, (_, configData) =>
-    settingsController.testConnection(configData)
-  );
+    ipcMain.handle(IpcChannel.TEST_DATABASE_CONNECTION, (_, configData) =>
+      settingsController.testConnection(configData)
+    );
 
-  ipcMain.handle(IpcChannel.RECONNECT_DATABASE, async () => {
-    try {
-      await closeDatabase();
-      const newDb = await initDatabase();
-      if (newDb) {
-        // Re-register all handlers with new db instance
-        registerIpcHandlers();
-        return { success: true };
+    ipcMain.handle(IpcChannel.RECONNECT_DATABASE, async () => {
+      try {
+        await closeDatabase();
+        const newDb = await initDatabase();
+        if (newDb) {
+          // Remove old data handlers and re-register with new db instance
+          removeDataHandlers();
+          registerDataHandlers();
+          return { success: true };
+        }
+        const error = getConnectionError();
+        return { success: false, error: error?.message || 'Connection failed' };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
       }
-      return { success: false, error: 'Connection failed' };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
-    }
-  });
+    });
 
+    ipcMain.handle(IpcChannel.CHECK_DATABASE_STATUS, () => {
+      const db = getDatabaseOrNull();
+      const error = getConnectionError();
+      return {
+        connected: db !== null,
+        error: error?.message || null,
+      };
+    });
+
+    configHandlersRegistered = true;
+  }
+
+  // Register data handlers if database is available
+  registerDataHandlers();
+}
+
+function registerDataHandlers() {
   // Get database instance (may be null)
   const db = getDatabaseOrNull();
 
-  // Only register data handlers if database is available
+  // Only register data handlers if database is available and not already registered
   if (!db) {
     console.warn('Database not available, data handlers not registered');
+    return;
+  }
+
+  if (dataHandlersRegistered) {
+    console.log('Data handlers already registered');
     return;
   }
 
@@ -127,6 +274,8 @@ export function registerIpcHandlers() {
   ipcMain.handle(IpcChannel.CREATE_USER, (_, data: any) => userController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_USER, (_, { id, data }: any) => userController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_USER, (_, { id }: { id: number }) => userController.delete(id));
+  ipcMain.handle(IpcChannel.AUTHENTICATE_USER, (_, { username, password }: { username: string; password: string }) => userController.authenticate(username, password));
+  ipcMain.handle(IpcChannel.UPDATE_USER_PIN, (_, { id, newPin }: { id: number; newPin: string }) => userController.updatePinSecure(id, newPin));
 
   // ===== PART HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PARTS, () => partController.getAll());
@@ -210,4 +359,7 @@ export function registerIpcHandlers() {
   ipcMain.handle(IpcChannel.CREATE_CREDIT_NOTE_ALLOCATION, (_, data: any) => creditNoteAllocationController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_CREDIT_NOTE_ALLOCATION, (_, { id, data }: any) => creditNoteAllocationController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_CREDIT_NOTE_ALLOCATION, (_, { id }: { id: number }) => creditNoteAllocationController.delete(id));
+
+  dataHandlersRegistered = true;
+  console.log('Data handlers registered successfully');
 }

@@ -120,4 +120,33 @@ export class UserController extends BaseController<UserService> {
       return this.handleError(error);
     }
   }
+
+  async authenticate(username: string, password: string) {
+    try {
+      const result = await this.service.authenticate(username, password);
+      if (result.success) {
+        return this.wrapSuccess({
+          user: result.user,
+          requiresPinChange: result.requiresPinChange,
+        });
+      }
+      return { success: false, error: result.error };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async updatePinSecure(id: number, newPin: string) {
+    try {
+      const user = await this.service.updatePinSecure(id, newPin);
+      if (!user) {
+        return { success: false, error: 'User not found' };
+      }
+      // Don't return the pinHash
+      const { pinHash, ...userWithoutPin } = user;
+      return this.wrapSuccess(userWithoutPin);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }

@@ -17,6 +17,8 @@ export enum IpcChannel {
   CREATE_USER = 'db:create-user',
   UPDATE_USER = 'db:update-user',
   DELETE_USER = 'db:delete-user',
+  AUTHENTICATE_USER = 'db:authenticate-user',
+  UPDATE_USER_PIN = 'db:update-user-pin',
 
   // Part operations
   GET_PARTS = 'db:get-parts',
@@ -106,4 +108,5 @@ export enum IpcChannel {
   UPDATE_DATABASE_CONFIG = 'db:update-config',
   TEST_DATABASE_CONNECTION = 'db:test-connection',
   RECONNECT_DATABASE = 'db:reconnect',
+  CHECK_DATABASE_STATUS = 'db:check-status',
 }
