@@ -1,7 +1,19 @@
-import { Title, Stack, Tabs, Paper, Text, Group, TextInput, NumberInput, Button } from '@mantine/core';
-import { IconSettings, IconCurrencyDollar, IconPrinter, IconShield, IconInfoCircle } from '@tabler/icons-react';
-import { useState } from 'react';
+import { Title, Stack, Tabs, Paper, Text, Group, TextInput, NumberInput, Button, Switch, Alert, Badge } from '@mantine/core';
+import { IconSettings, IconCurrencyDollar, IconPrinter, IconShield, IconInfoCircle, IconDatabase, IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { useState, useEffect } from 'react';
+import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
+import { IpcChannel } from '../../../shared/types/ipc';
+import { useDatabaseConnection } from '../../contexts/DatabaseConnectionContext';
+
+interface DatabaseConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl: boolean;
+}
 
 export function SettingsPage() {
   // Store settings
@@ -15,6 +27,104 @@ export function SettingsPage() {
 
   // Invoice settings
   const [invoicePrefix, setInvoicePrefix] = useState('INV-');
+
+  // Database settings
+  const { isConnected, reconnect } = useDatabaseConnection();
+  const [isTesting, setIsTesting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null);
+
+  const dbForm = useForm<DatabaseConfig>({
+    initialValues: {
+      host: 'localhost',
+      port: 5432,
+      database: 'database',
+      user: 'postgres',
+      password: '',
+      ssl: false,
+    },
+  });
+
+  // Load existing database config on mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_DATABASE_CONFIG, {});
+        if (result.success && result.data) {
+          dbForm.setValues({
+            host: result.data.host || 'localhost',
+            port: result.data.port || 5432,
+            database: result.data.database || 'julius',
+            user: result.data.user || 'postgres',
+            password: result.data.password || '',
+            ssl: result.data.ssl || false,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load database config:', error);
+      }
+    };
+
+    loadConfig();
+  }, []);
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const result = await window.electron.invoke(IpcChannel.TEST_DATABASE_CONNECTION, dbForm.values);
+      if (result.success && result.data) {
+        setTestResult(result.data);
+      } else {
+        setTestResult({
+          success: false,
+          error: result.error || 'Test failed',
+        });
+      }
+    } catch (error) {
+      setTestResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Test failed',
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSaveDatabase = async () => {
+    setIsSaving(true);
+    try {
+      const saveResult = await window.electron.invoke(IpcChannel.UPDATE_DATABASE_CONFIG, dbForm.values);
+      if (!saveResult.success) {
+        throw new Error(saveResult.error || 'Failed to save configuration');
+      }
+
+      const connected = await reconnect();
+      if (connected) {
+        notifications.show({
+          title: 'Database Updated',
+          message: 'Database configuration saved and connection established',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        setTestResult(null);
+      } else {
+        notifications.show({
+          title: 'Connection Failed',
+          message: 'Configuration saved but connection failed. Please check your settings.',
+          color: 'red',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to save configuration',
+        color: 'red',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSaveStoreSettings = () => {
     notifications.show({
@@ -57,6 +167,9 @@ export function SettingsPage() {
           </Tabs.Tab>
           <Tabs.Tab value="printing" leftSection={<IconPrinter size={16} />}>
             Printing
+          </Tabs.Tab>
+          <Tabs.Tab value="database" leftSection={<IconDatabase size={16} />}>
+            Database
           </Tabs.Tab>
           <Tabs.Tab value="permissions" leftSection={<IconShield size={16} />}>
             Permissions
@@ -156,6 +269,101 @@ export function SettingsPage() {
 
               <Group justify="flex-end" mt="md">
                 <Button onClick={handleSaveInvoiceSettings}>Save Printing Settings</Button>
+              </Group>
+            </Stack>
+          </Paper>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="database" pt="md">
+          <Paper withBorder p="md">
+            <Stack>
+              <Group justify="space-between">
+                <div>
+                  <Title order={4}>Database Connection</Title>
+                  <Text size="sm" c="dimmed">
+                    Configure PostgreSQL database connection settings
+                  </Text>
+                </div>
+                <Badge color={isConnected ? 'green' : 'red'} size="lg" variant="light">
+                  {isConnected ? 'Connected' : 'Disconnected'}
+                </Badge>
+              </Group>
+
+              <Group grow>
+                <TextInput
+                  label="Host"
+                  placeholder="localhost"
+                  required
+                  {...dbForm.getInputProps('host')}
+                />
+
+                <NumberInput
+                  label="Port"
+                  placeholder="5432"
+                  required
+                  min={1}
+                  max={65535}
+                  {...dbForm.getInputProps('port')}
+                />
+              </Group>
+
+              <TextInput
+                label="Database Name"
+                placeholder="julius"
+                required
+                {...dbForm.getInputProps('database')}
+              />
+
+              <Group grow>
+                <TextInput
+                  label="Username"
+                  placeholder="postgres"
+                  required
+                  {...dbForm.getInputProps('user')}
+                />
+
+                <TextInput
+                  label="Password"
+                  placeholder="Enter password"
+                  type="password"
+                  {...dbForm.getInputProps('password')}
+                />
+              </Group>
+
+              <Switch
+                label="Use SSL"
+                description="Enable SSL/TLS encryption for the database connection"
+                {...dbForm.getInputProps('ssl', { type: 'checkbox' })}
+              />
+
+              {testResult && (
+                <Alert
+                  color={testResult.success ? 'green' : 'red'}
+                  variant="light"
+                  icon={testResult.success ? <IconCheck size={16} /> : <IconAlertCircle size={16} />}
+                >
+                  {testResult.success ? 'Connection successful!' : testResult.error || 'Connection failed'}
+                </Alert>
+              )}
+
+              <Group justify="space-between" mt="md">
+                <Button
+                  variant="outline"
+                  onClick={handleTestConnection}
+                  loading={isTesting}
+                  disabled={isSaving}
+                  leftSection={<IconDatabase size={16} />}
+                >
+                  Test Connection
+                </Button>
+
+                <Button
+                  onClick={handleSaveDatabase}
+                  loading={isSaving}
+                  disabled={isTesting}
+                >
+                  Save & Reconnect
+                </Button>
               </Group>
             </Stack>
           </Paper>
