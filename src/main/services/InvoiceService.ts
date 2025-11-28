@@ -1,7 +1,30 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql, count, or, ilike } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface InvoiceQueryParams {
+  page?: number;
+  pageSize?: number;
+  includeHistorical?: boolean;
+  search?: string;
+  status?: string;
+}
+
+// Keep old interface for backwards compatibility
+export interface PaginationParams {
+  page?: number;
+  pageSize?: number;
+  includeHistorical?: boolean;
+}
 
 export class InvoiceService extends BaseService<
   typeof schema.invoices,
@@ -28,6 +51,68 @@ export class InvoiceService extends BaseService<
       .from(schema.invoices)
       .where(eq(schema.invoices.isHistorical, 0))
       .orderBy(desc(schema.invoices.createdAt));
+  }
+
+  /**
+   * Find invoices with pagination, search, and filter support
+   * Returns paginated results with total count for efficient data loading
+   */
+  async findPaginated(params: InvoiceQueryParams = {}): Promise<PaginatedResult<schema.Invoice>> {
+    const { page = 1, pageSize = 50, includeHistorical = false, search, status } = params;
+    const offset = (page - 1) * pageSize;
+
+    // Build where conditions array
+    const conditions = [];
+
+    // Historical filter
+    if (!includeHistorical) {
+      conditions.push(eq(schema.invoices.isHistorical, 0));
+    }
+
+    // Status filter
+    if (status && status !== 'all') {
+      conditions.push(eq(schema.invoices.status, status));
+    }
+
+    // Search filter - search across invoice number, client name, reference
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(schema.invoices.invoiceNumber, searchTerm),
+          ilike(schema.invoices.clientName, searchTerm),
+          ilike(schema.invoices.reference, searchTerm)
+        )
+      );
+    }
+
+    // Combine conditions
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count
+    const countResult = await this.db
+      .select({ count: count() })
+      .from(schema.invoices)
+      .where(whereCondition);
+
+    const total = Number(countResult[0]?.count ?? 0);
+
+    // Get paginated data
+    const data = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(whereCondition)
+      .orderBy(desc(schema.invoices.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findByLegacyId(legacyId: number, isHistorical: boolean = false): Promise<schema.Invoice | null> {

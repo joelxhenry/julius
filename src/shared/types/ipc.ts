@@ -42,6 +42,7 @@ export enum IpcChannel {
 
   // Invoice operations
   GET_INVOICES = 'db:get-invoices',
+  GET_INVOICES_PAGINATED = 'db:get-invoices-paginated',
   GET_INVOICE = 'db:get-invoice',
   GET_INVOICES_BY_CLIENT = 'db:get-invoices-by-client',
   GET_UNPAID_INVOICES = 'db:get-unpaid-invoices',

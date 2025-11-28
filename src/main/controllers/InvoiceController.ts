@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { InvoiceService, InvoiceItemService } from '../services/InvoiceService';
+import { InvoiceService, InvoiceItemService, InvoiceQueryParams } from '../services/InvoiceService';
 import * as schema from '../database/schema';
 
 export class InvoiceController extends BaseController<InvoiceService> {
@@ -11,6 +11,15 @@ export class InvoiceController extends BaseController<InvoiceService> {
     try {
       const invoices = await this.service.findAllFiltered(includeHistorical);
       return this.wrapSuccess(invoices);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getPaginated(params: InvoiceQueryParams = {}) {
+    try {
+      const result = await this.service.findPaginated(params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }

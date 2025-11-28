@@ -6,6 +6,22 @@ interface UseInvoicesOptions {
   includeHistorical?: boolean;
 }
 
+export interface InvoiceQueryParams {
+  page?: number;
+  pageSize?: number;
+  includeHistorical?: boolean;
+  search?: string;
+  status?: string;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export function useInvoices(options: UseInvoicesOptions = {}) {
   const { includeHistorical = false } = options;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -30,6 +46,27 @@ export function useInvoices(options: UseInvoicesOptions = {}) {
       setLoading(false);
     }
   }, [includeHistorical]);
+
+  const fetchPaginated = useCallback(async (params: InvoiceQueryParams = {}): Promise<PaginatedResult<Invoice>> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_INVOICES_PAGINATED, params);
+      if (result.success && result.data) {
+        setInvoices(result.data.data);
+        return result.data;
+      }
+      // Fallback for direct data response
+      const paginatedData = result.data || result;
+      setInvoices(paginatedData.data || []);
+      return paginatedData;
+    } catch (err) {
+      setError(err as Error);
+      return { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const fetchByClient = useCallback(async (clientId: number) => {
     setLoading(true);
@@ -122,6 +159,7 @@ export function useInvoices(options: UseInvoicesOptions = {}) {
     loading,
     error,
     fetchAll,
+    fetchPaginated,
     fetchByClient,
     fetchUnpaid,
     getById,

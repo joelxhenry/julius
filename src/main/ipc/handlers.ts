@@ -95,6 +95,7 @@ function removeDataHandlers() {
 
   // Invoice handlers
   removeHandler(IpcChannel.GET_INVOICES);
+  removeHandler(IpcChannel.GET_INVOICES_PAGINATED);
   removeHandler(IpcChannel.GET_INVOICE);
   removeHandler(IpcChannel.GET_INVOICES_BY_CLIENT);
   removeHandler(IpcChannel.GET_UNPAID_INVOICES);
@@ -299,6 +300,7 @@ function registerDataHandlers() {
 
   // ===== INVOICE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_INVOICES, (_, { includeHistorical }: { includeHistorical?: boolean } = {}) => invoiceController.getAll(includeHistorical ?? false));
+  ipcMain.handle(IpcChannel.GET_INVOICES_PAGINATED, (_, params: { page?: number; pageSize?: number; includeHistorical?: boolean; search?: string; status?: string } = {}) => invoiceController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_INVOICE, (_, { id }: { id: number }) => invoiceController.getById(id));
   ipcMain.handle(IpcChannel.GET_INVOICES_BY_CLIENT, (_, { clientId }: { clientId: number }) => invoiceController.getByClient(clientId));
   ipcMain.handle(IpcChannel.GET_UNPAID_INVOICES, () => invoiceController.getUnpaid());
