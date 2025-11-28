@@ -2,6 +2,21 @@ import { useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
 import type { Payment, InsertPayment } from '../../main/database/schema';
 
+export interface PaymentQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  method?: string;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export function usePayments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,6 +36,26 @@ export function usePayments() {
       setPayments(extractArray(result));
     } catch (err) {
       setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchPaginated = useCallback(async (params: PaymentQueryParams = {}): Promise<PaginatedResult<Payment>> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_PAYMENTS_PAGINATED, params);
+      if (result.success && result.data) {
+        setPayments(result.data.data);
+        return result.data;
+      }
+      const paginatedData = result.data || result;
+      setPayments(paginatedData.data || []);
+      return paginatedData;
+    } catch (err) {
+      setError(err as Error);
+      return { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
     } finally {
       setLoading(false);
     }
@@ -92,6 +127,7 @@ export function usePayments() {
     loading,
     error,
     fetchAll,
+    fetchPaginated,
     fetchByInvoice,
     getById,
     create,

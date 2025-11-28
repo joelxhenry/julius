@@ -1,15 +1,8 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc, sql, count, or, ilike } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, count, or, ilike } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
-
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
+import { PaginatedResult } from './types';
 
 export interface InvoiceQueryParams {
   page?: number;

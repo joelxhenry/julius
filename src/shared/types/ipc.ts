@@ -1,6 +1,7 @@
 export enum IpcChannel {
   // Client operations
   GET_CLIENTS = 'db:get-clients',
+  GET_CLIENTS_PAGINATED = 'db:get-clients-paginated',
   GET_CLIENT = 'db:get-client',
   GET_CLIENT_BY_EMAIL = 'db:get-client-by-email',
   SEARCH_CLIENTS = 'db:search-clients',
@@ -10,6 +11,7 @@ export enum IpcChannel {
 
   // User operations
   GET_USERS = 'db:get-users',
+  GET_USERS_PAGINATED = 'db:get-users-paginated',
   GET_USER = 'db:get-user',
   GET_USER_BY_USERNAME = 'db:get-user-by-username',
   GET_ACTIVE_USERS = 'db:get-active-users',
@@ -22,6 +24,7 @@ export enum IpcChannel {
 
   // Part operations
   GET_PARTS = 'db:get-parts',
+  GET_PARTS_PAGINATED = 'db:get-parts-paginated',
   GET_PART = 'db:get-part',
   GET_PART_BY_SKU = 'db:get-part-by-sku',
   SEARCH_PARTS = 'db:search-parts',
@@ -60,6 +63,7 @@ export enum IpcChannel {
 
   // Payment operations
   GET_PAYMENTS = 'db:get-payments',
+  GET_PAYMENTS_PAGINATED = 'db:get-payments-paginated',
   GET_PAYMENT = 'db:get-payment',
   GET_PAYMENTS_BY_INVOICE = 'db:get-payments-by-invoice',
   CREATE_PAYMENT = 'db:create-payment',
@@ -75,6 +79,7 @@ export enum IpcChannel {
 
   // Quotation operations
   GET_QUOTATIONS = 'db:get-quotations',
+  GET_QUOTATIONS_PAGINATED = 'db:get-quotations-paginated',
   GET_QUOTATION = 'db:get-quotation',
   GET_QUOTATIONS_BY_CLIENT = 'db:get-quotations-by-client',
   CREATE_QUOTATION = 'db:create-quotation',
@@ -91,6 +96,7 @@ export enum IpcChannel {
 
   // Credit note operations
   GET_CREDIT_NOTES = 'db:get-credit-notes',
+  GET_CREDIT_NOTES_PAGINATED = 'db:get-credit-notes-paginated',
   GET_CREDIT_NOTE = 'db:get-credit-note',
   GET_CREDIT_NOTES_BY_CLIENT = 'db:get-credit-notes-by-client',
   GET_UNALLOCATED_CREDIT_NOTES = 'db:get-unallocated-credit-notes',

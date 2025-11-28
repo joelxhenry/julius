@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { PaymentService, PaymentMethodService } from '../services/PaymentService';
+import { PaymentService, PaymentMethodService, PaymentQueryParams } from '../services/PaymentService';
 import * as schema from '../database/schema';
 
 export class PaymentController extends BaseController<PaymentService> {
@@ -11,6 +11,15 @@ export class PaymentController extends BaseController<PaymentService> {
     try {
       const payments = await this.service.findAll();
       return this.wrapSuccess(payments);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getPaginated(params: PaymentQueryParams = {}) {
+    try {
+      const result = await this.service.findPaginated(params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }

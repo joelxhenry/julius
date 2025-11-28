@@ -1,7 +1,15 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, count, or, ilike } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
+import { PaginatedResult } from './types';
+
+export interface CreditNoteQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+}
 
 export class CreditNoteService extends BaseService<
   typeof schema.creditNotes,
@@ -10,6 +18,51 @@ export class CreditNoteService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.creditNotes);
+  }
+
+  async findPaginated(params: CreditNoteQueryParams = {}): Promise<PaginatedResult<schema.CreditNote>> {
+    const { page = 1, pageSize = 50, search, status } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [];
+
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(schema.creditNotes.reason, searchTerm)
+        )
+      );
+    }
+
+    if (status && status !== 'all') {
+      conditions.push(eq(schema.creditNotes.status, status));
+    }
+
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countResult = await this.db
+      .select({ count: count() })
+      .from(schema.creditNotes)
+      .where(whereCondition);
+
+    const total = Number(countResult[0]?.count ?? 0);
+
+    const data = await this.db
+      .select()
+      .from(schema.creditNotes)
+      .where(whereCondition)
+      .orderBy(desc(schema.creditNotes.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findByClient(clientId: number): Promise<schema.CreditNote[]> {

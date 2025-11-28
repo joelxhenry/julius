@@ -1,15 +1,53 @@
-import { Title, Group, Button, Stack, Badge } from '@mantine/core';
-import { IconPlus, IconUsers } from '@tabler/icons-react';
-import { DataTable, ColumnDef } from '../../components/common/DataTable/DataTable';
-import { useUsers } from '../../hooks';
+import { Title, Group, Button, Stack, Badge, TextInput, Text, Pagination, Switch } from '@mantine/core';
+import { IconPlus, IconUsers, IconSearch } from '@tabler/icons-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
+import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
+import { useUsers, PaginatedResult } from '../../hooks';
 import { useTabManager } from '../../contexts/TabManagerContext';
 import type { User } from '../../../main/database/schema';
 
+const PAGE_SIZE = 50;
+
 export function UsersListPage() {
-  const { users, loading } = useUsers();
+  const { fetchPaginated, loading } = useUsers();
   const { openTab } = useTabManager();
 
-  const columns: ColumnDef<User>[] = [
+  // Server-side pagination state
+  const [page, setPage] = useState(1);
+  const [paginatedData, setPaginatedData] = useState<PaginatedResult<User>>({
+    data: [],
+    total: 0,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: 0,
+  });
+
+  // Filter state
+  const [searchValue, setSearchValue] = useState('');
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [debouncedSearch] = useDebouncedValue(searchValue, 300);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, activeOnly]);
+
+  // Fetch data when page or filters change
+  useEffect(() => {
+    const loadData = async () => {
+      const result = await fetchPaginated({
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch || undefined,
+        activeOnly: activeOnly || undefined,
+      });
+      setPaginatedData(result);
+    };
+    loadData();
+  }, [page, debouncedSearch, activeOnly, fetchPaginated]);
+
+  const columns: ColumnDef<User>[] = useMemo(() => [
     {
       key: 'id',
       title: 'ID',
@@ -57,7 +95,22 @@ export function UsersListPage() {
         </Badge>
       ),
     },
-  ];
+  ], []);
+
+  const handleRowClick = useCallback(
+    (user: User, options?: RowClickOptions) => {
+      openTab(
+        {
+          type: 'user-detail',
+          path: `/users/${user.id}`,
+          title: `${user.firstName} ${user.lastName}`,
+          entityId: user.id.toString(),
+        },
+        options?.newTab
+      );
+    },
+    [openTab]
+  );
 
   return (
     <Stack>
@@ -79,20 +132,41 @@ export function UsersListPage() {
         </Button>
       </Group>
 
+      <Group>
+        <TextInput
+          placeholder="Search by name, username..."
+          leftSection={<IconSearch size={16} />}
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.currentTarget.value)}
+          style={{ flex: 1, maxWidth: 400 }}
+        />
+        <Switch
+          label={<Text size="sm">Active only</Text>}
+          checked={activeOnly}
+          onChange={(e) => setActiveOnly(e.currentTarget.checked)}
+        />
+        <Text size="sm" c="dimmed">
+          {paginatedData.total} user{paginatedData.total !== 1 ? 's' : ''}
+        </Text>
+      </Group>
+
       <DataTable
-        data={users}
+        data={paginatedData.data}
         columns={columns}
         loading={loading}
-        onRowClick={(user) => openTab({
-          type: 'user-detail',
-          path: `/users/${user.id}`,
-          title: `${user.firstName} ${user.lastName}`,
-          entityId: user.id.toString(),
-        })}
-        searchable
-        pagination
-        keyboardNav
+        onRowClick={handleRowClick}
+        rowKey="id"
       />
+
+      {paginatedData.totalPages > 1 && (
+        <Group justify="center">
+          <Pagination
+            total={paginatedData.totalPages}
+            value={page}
+            onChange={setPage}
+          />
+        </Group>
+      )}
     </Stack>
   );
 }

@@ -1,12 +1,15 @@
-import { Title, Group, Button, Modal, Stack, Badge, Select } from '@mantine/core';
-import { useState, useMemo } from 'react';
-import { IconPlus } from '@tabler/icons-react';
+import { Title, Group, Button, Modal, Stack, Badge, Select, TextInput, Text, Pagination } from '@mantine/core';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
+import { IconPlus, IconSearch, IconPackage } from '@tabler/icons-react';
 import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
 import { PartForm } from '../../components/forms/PartForm';
-import { useParts, usePartVariants } from '../../hooks';
+import { useParts, usePartVariants, PaginatedResult } from '../../hooks';
 import { useTabManager } from '../../contexts/TabManagerContext';
 import type { Part } from '../../../main/database/schema';
 import { PartFormData } from '../../utils/schemas';
+
+const PAGE_SIZE = 50;
 
 type StockStatus = 'all' | 'in-stock' | 'low-stock' | 'out-of-stock';
 
@@ -24,15 +27,47 @@ interface PartWithStock extends Part {
 
 export function PartsListPage() {
   const { openTab } = useTabManager();
-  const { parts, loading, create } = useParts();
+  const { fetchPaginated, loading, create } = useParts();
   const { variants } = usePartVariants();
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [stockFilter, setStockFilter] = useState<StockStatus>('all');
 
+  // Server-side pagination state
+  const [page, setPage] = useState(1);
+  const [paginatedData, setPaginatedData] = useState<PaginatedResult<Part>>({
+    data: [],
+    total: 0,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: 0,
+  });
+
+  // Search state
+  const [searchValue, setSearchValue] = useState('');
+  const [debouncedSearch] = useDebouncedValue(searchValue, 300);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
+  // Fetch data when page or search changes
+  useEffect(() => {
+    const loadData = async () => {
+      const result = await fetchPaginated({
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch || undefined,
+      });
+      setPaginatedData(result);
+    };
+    loadData();
+  }, [page, debouncedSearch, fetchPaginated]);
+
   // Calculate stock status for each part based on its variants
   const partsWithStock = useMemo((): PartWithStock[] => {
-    return parts.map((part) => {
+    return paginatedData.data.map((part) => {
       const partVariants = variants.filter((v) => v.partId === part.id);
       const totalStock = partVariants.reduce((sum, v) => sum + (v.stockQty || 0), 0);
       const hasLowStock = partVariants.some((v) => v.stockQty <= v.reorderLevel && v.stockQty > 0);
@@ -53,9 +88,9 @@ export function PartsListPage() {
         stockStatus,
       };
     });
-  }, [parts, variants]);
+  }, [paginatedData.data, variants]);
 
-  // Filter parts based on stock status
+  // Filter parts based on stock status (client-side filtering for stock status)
   const filteredParts = useMemo(() => {
     if (stockFilter === 'all') {
       return partsWithStock;
@@ -63,7 +98,7 @@ export function PartsListPage() {
     return partsWithStock.filter((part) => part.stockStatus === stockFilter);
   }, [partsWithStock, stockFilter]);
 
-  const columns: ColumnDef<PartWithStock>[] = [
+  const columns: ColumnDef<PartWithStock>[] = useMemo(() => [
     { key: 'id', title: 'ID', sortable: true, width: 80 },
     { key: 'sku', title: 'SKU', sortable: true },
     { key: 'name', title: 'Name', sortable: true },
@@ -91,7 +126,22 @@ export function PartsListPage() {
         );
       },
     }
-  ];
+  ], []);
+
+  const handleRowClick = useCallback(
+    (part: PartWithStock, options?: RowClickOptions) => {
+      openTab(
+        {
+          type: 'part-detail',
+          path: `/inventory/parts/${part.id}`,
+          title: part.name || `Part #${part.id}`,
+          entityId: part.id.toString(),
+        },
+        options?.newTab
+      );
+    },
+    [openTab]
+  );
 
   const handleCreate = async (data: PartFormData) => {
     setIsCreating(true);
@@ -101,6 +151,13 @@ export function PartsListPage() {
         price: data.price?.toString(),
       });
       setCreateModalOpened(false);
+      // Refresh data after create
+      const result = await fetchPaginated({
+        page,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch || undefined,
+      });
+      setPaginatedData(result);
     } finally {
       setIsCreating(false);
     }
@@ -109,16 +166,11 @@ export function PartsListPage() {
   return (
     <Stack>
       <Group justify="space-between">
-        <Title order={2}>Parts Inventory</Title>
         <Group>
-          <Select
-            placeholder="Filter by status"
-            data={stockStatusOptions}
-            value={stockFilter}
-            onChange={(value) => setStockFilter((value as StockStatus) || 'all')}
-            w={160}
-            size="sm"
-          />
+          <IconPackage size={32} />
+          <Title order={2}>Parts Inventory</Title>
+        </Group>
+        <Group>
           <Button
             leftSection={<IconPlus size={16} />}
             onClick={() => setCreateModalOpened(true)}
@@ -128,22 +180,44 @@ export function PartsListPage() {
         </Group>
       </Group>
 
+      <Group>
+        <TextInput
+          placeholder="Search by name, SKU, description..."
+          leftSection={<IconSearch size={16} />}
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.currentTarget.value)}
+          style={{ flex: 1, maxWidth: 400 }}
+        />
+        <Select
+          placeholder="Filter by status"
+          data={stockStatusOptions}
+          value={stockFilter}
+          onChange={(value) => setStockFilter((value as StockStatus) || 'all')}
+          w={160}
+          clearable={false}
+        />
+        <Text size="sm" c="dimmed">
+          {paginatedData.total} part{paginatedData.total !== 1 ? 's' : ''}
+        </Text>
+      </Group>
+
       <DataTable
         data={filteredParts}
         columns={columns}
         loading={loading}
-        onRowClick={(part: PartWithStock, options?: RowClickOptions) => {
-          openTab({
-            type: 'part-detail',
-            path: `/inventory/parts/${part.id}`,
-            title: part.name || `Part #${part.id}`,
-            entityId: part.id.toString(),
-          }, options?.newTab);
-        }}
-        searchable
-        pagination
-        keyboardNav
+        onRowClick={handleRowClick}
+        rowKey="id"
       />
+
+      {paginatedData.totalPages > 1 && (
+        <Group justify="center">
+          <Pagination
+            total={paginatedData.totalPages}
+            value={page}
+            onChange={setPage}
+          />
+        </Group>
+      )}
 
       <Modal
         opened={createModalOpened}

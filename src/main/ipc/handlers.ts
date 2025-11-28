@@ -54,6 +54,7 @@ function removeHandler(channel: IpcChannel) {
 function removeDataHandlers() {
   // Client handlers
   removeHandler(IpcChannel.GET_CLIENTS);
+  removeHandler(IpcChannel.GET_CLIENTS_PAGINATED);
   removeHandler(IpcChannel.GET_CLIENT);
   removeHandler(IpcChannel.GET_CLIENT_BY_EMAIL);
   removeHandler(IpcChannel.SEARCH_CLIENTS);
@@ -63,6 +64,7 @@ function removeDataHandlers() {
 
   // User handlers
   removeHandler(IpcChannel.GET_USERS);
+  removeHandler(IpcChannel.GET_USERS_PAGINATED);
   removeHandler(IpcChannel.GET_USER);
   removeHandler(IpcChannel.GET_USER_BY_USERNAME);
   removeHandler(IpcChannel.GET_ACTIVE_USERS);
@@ -75,6 +77,7 @@ function removeDataHandlers() {
 
   // Part handlers
   removeHandler(IpcChannel.GET_PARTS);
+  removeHandler(IpcChannel.GET_PARTS_PAGINATED);
   removeHandler(IpcChannel.GET_PART);
   removeHandler(IpcChannel.GET_PART_BY_SKU);
   removeHandler(IpcChannel.SEARCH_PARTS);
@@ -113,6 +116,7 @@ function removeDataHandlers() {
 
   // Payment handlers
   removeHandler(IpcChannel.GET_PAYMENTS);
+  removeHandler(IpcChannel.GET_PAYMENTS_PAGINATED);
   removeHandler(IpcChannel.GET_PAYMENT);
   removeHandler(IpcChannel.GET_PAYMENTS_BY_INVOICE);
   removeHandler(IpcChannel.CREATE_PAYMENT);
@@ -128,6 +132,7 @@ function removeDataHandlers() {
 
   // Quotation handlers
   removeHandler(IpcChannel.GET_QUOTATIONS);
+  removeHandler(IpcChannel.GET_QUOTATIONS_PAGINATED);
   removeHandler(IpcChannel.GET_QUOTATION);
   removeHandler(IpcChannel.GET_QUOTATIONS_BY_CLIENT);
   removeHandler(IpcChannel.CREATE_QUOTATION);
@@ -144,6 +149,7 @@ function removeDataHandlers() {
 
   // Credit note handlers
   removeHandler(IpcChannel.GET_CREDIT_NOTES);
+  removeHandler(IpcChannel.GET_CREDIT_NOTES_PAGINATED);
   removeHandler(IpcChannel.GET_CREDIT_NOTE);
   removeHandler(IpcChannel.GET_CREDIT_NOTES_BY_CLIENT);
   removeHandler(IpcChannel.GET_UNALLOCATED_CREDIT_NOTES);
@@ -259,6 +265,7 @@ function registerDataHandlers() {
 
   // ===== CLIENT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_CLIENTS, () => clientController.getAll());
+  ipcMain.handle(IpcChannel.GET_CLIENTS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string } = {}) => clientController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_CLIENT, (_, { id }: { id: number }) => clientController.getById(id));
   ipcMain.handle(IpcChannel.GET_CLIENT_BY_EMAIL, (_, { email }: { email: string }) => clientController.getByEmail(email));
   ipcMain.handle(IpcChannel.SEARCH_CLIENTS, (_, { query }: { query: string }) => clientController.search(query));
@@ -268,6 +275,7 @@ function registerDataHandlers() {
 
   // ===== USER HANDLERS =====
   ipcMain.handle(IpcChannel.GET_USERS, () => userController.getAll());
+  ipcMain.handle(IpcChannel.GET_USERS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; activeOnly?: boolean } = {}) => userController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_USER, (_, { id }: { id: number }) => userController.getById(id));
   ipcMain.handle(IpcChannel.GET_USER_BY_USERNAME, (_, { username }: { username: string }) => userController.getByUsername(username));
   ipcMain.handle(IpcChannel.GET_ACTIVE_USERS, () => userController.getActive());
@@ -280,6 +288,7 @@ function registerDataHandlers() {
 
   // ===== PART HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PARTS, () => partController.getAll());
+  ipcMain.handle(IpcChannel.GET_PARTS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; category?: string } = {}) => partController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_PART, (_, { id }: { id: number }) => partController.getById(id));
   ipcMain.handle(IpcChannel.GET_PART_BY_SKU, (_, { sku }: { sku: string }) => partController.getBySku(sku));
   ipcMain.handle(IpcChannel.SEARCH_PARTS, (_, { query }: { query: string }) => partController.search(query));
@@ -318,6 +327,7 @@ function registerDataHandlers() {
 
   // ===== PAYMENT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PAYMENTS, () => paymentController.getAll());
+  ipcMain.handle(IpcChannel.GET_PAYMENTS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; method?: string } = {}) => paymentController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_PAYMENT, (_, { id }: { id: number }) => paymentController.getById(id));
   ipcMain.handle(IpcChannel.GET_PAYMENTS_BY_INVOICE, (_, { invoiceId }: { invoiceId: number }) => paymentController.getByInvoice(invoiceId));
   ipcMain.handle(IpcChannel.CREATE_PAYMENT, (_, data: any) => paymentController.create(data));
@@ -333,6 +343,7 @@ function registerDataHandlers() {
 
   // ===== QUOTATION HANDLERS =====
   ipcMain.handle(IpcChannel.GET_QUOTATIONS, () => quotationController.getAll());
+  ipcMain.handle(IpcChannel.GET_QUOTATIONS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; status?: string } = {}) => quotationController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_QUOTATION, (_, { id }: { id: number }) => quotationController.getById(id));
   ipcMain.handle(IpcChannel.GET_QUOTATIONS_BY_CLIENT, (_, { clientId }: { clientId: number }) => quotationController.getByClient(clientId));
   ipcMain.handle(IpcChannel.CREATE_QUOTATION, (_, data: any) => quotationController.create(data));
@@ -349,6 +360,7 @@ function registerDataHandlers() {
 
   // ===== CREDIT NOTE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_CREDIT_NOTES, () => creditNoteController.getAll());
+  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; status?: string } = {}) => creditNoteController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.getById(id));
   ipcMain.handle(IpcChannel.GET_CREDIT_NOTES_BY_CLIENT, (_, { clientId }: { clientId: number }) => creditNoteController.getByClient(clientId));
   ipcMain.handle(IpcChannel.GET_UNALLOCATED_CREDIT_NOTES, () => creditNoteController.getUnallocated());

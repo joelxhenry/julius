@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { PartService, PartVariantService } from '../services/PartService';
+import { PartService, PartVariantService, PartQueryParams } from '../services/PartService';
 import * as schema from '../database/schema';
 
 export class PartController extends BaseController<PartService> {
@@ -11,6 +11,15 @@ export class PartController extends BaseController<PartService> {
     try {
       const parts = await this.service.findAll();
       return this.wrapSuccess(parts);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getPaginated(params: PartQueryParams = {}) {
+    try {
+      const result = await this.service.findPaginated(params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }

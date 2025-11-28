@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { UserService } from '../services/UserService';
+import { UserService, UserQueryParams } from '../services/UserService';
 import * as schema from '../database/schema';
 
 export class UserController extends BaseController<UserService> {
@@ -11,6 +11,15 @@ export class UserController extends BaseController<UserService> {
     try {
       const users = await this.service.findAll();
       return this.wrapSuccess(users);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getPaginated(params: UserQueryParams = {}) {
+    try {
+      const result = await this.service.findPaginated(params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }

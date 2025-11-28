@@ -1,12 +1,20 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or } from 'drizzle-orm';
+import { eq, like, or, ilike, desc, count, and } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
+import { PaginatedResult } from './types';
 import crypto from 'crypto';
 
 const DEFAULT_PIN = '0000';
 const DEFAULT_ADMIN_USERNAME = 'admin';
 const DEFAULT_ADMIN_PASSWORD = '0609';
+
+export interface UserQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  activeOnly?: boolean;
+}
 
 // Hash function for PIN/password
 function hashPassword(password: string): string {
@@ -35,6 +43,53 @@ export class UserService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.users);
+  }
+
+  async findPaginated(params: UserQueryParams = {}): Promise<PaginatedResult<schema.User>> {
+    const { page = 1, pageSize = 50, search, activeOnly } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [];
+
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(schema.users.firstName, searchTerm),
+          ilike(schema.users.lastName, searchTerm),
+          ilike(schema.users.username, searchTerm)
+        )
+      );
+    }
+
+    if (activeOnly) {
+      conditions.push(eq(schema.users.active, true));
+    }
+
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countResult = await this.db
+      .select({ count: count() })
+      .from(schema.users)
+      .where(whereCondition);
+
+    const total = Number(countResult[0]?.count ?? 0);
+
+    const data = await this.db
+      .select()
+      .from(schema.users)
+      .where(whereCondition)
+      .orderBy(desc(schema.users.id))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   // Override create to auto-generate default PIN if not provided

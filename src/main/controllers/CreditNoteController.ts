@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { CreditNoteService, CreditNoteAllocationService } from '../services/CreditNoteService';
+import { CreditNoteService, CreditNoteAllocationService, CreditNoteQueryParams } from '../services/CreditNoteService';
 import * as schema from '../database/schema';
 
 export class CreditNoteController extends BaseController<CreditNoteService> {
@@ -11,6 +11,15 @@ export class CreditNoteController extends BaseController<CreditNoteService> {
     try {
       const creditNotes = await this.service.findAll();
       return this.wrapSuccess(creditNotes);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getPaginated(params: CreditNoteQueryParams = {}) {
+    try {
+      const result = await this.service.findPaginated(params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }

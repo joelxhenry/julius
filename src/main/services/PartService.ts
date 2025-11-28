@@ -1,7 +1,15 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or, and } from 'drizzle-orm';
+import { eq, like, or, and, ilike, desc, count } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
+import { PaginatedResult } from './types';
+
+export interface PartQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  category?: string;
+}
 
 export class PartService extends BaseService<
   typeof schema.parts,
@@ -10,6 +18,53 @@ export class PartService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.parts);
+  }
+
+  async findPaginated(params: PartQueryParams = {}): Promise<PaginatedResult<schema.Part>> {
+    const { page = 1, pageSize = 50, search, category } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [];
+
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(schema.parts.name, searchTerm),
+          ilike(schema.parts.sku, searchTerm),
+          ilike(schema.parts.description, searchTerm)
+        )
+      );
+    }
+
+    if (category && category !== 'all') {
+      conditions.push(eq(schema.parts.category, category));
+    }
+
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countResult = await this.db
+      .select({ count: count() })
+      .from(schema.parts)
+      .where(whereCondition);
+
+    const total = Number(countResult[0]?.count ?? 0);
+
+    const data = await this.db
+      .select()
+      .from(schema.parts)
+      .where(whereCondition)
+      .orderBy(desc(schema.parts.id))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findBySku(sku: string): Promise<schema.Part | null> {

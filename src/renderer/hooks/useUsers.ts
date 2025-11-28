@@ -5,6 +5,21 @@ import type { User, InsertUser } from '../../main/database/schema';
 // Type for creating users without requiring pinHash (backend will set default)
 type CreateUserData = Omit<InsertUser, 'pinHash'> & { pinHash?: string };
 
+export interface UserQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  activeOnly?: boolean;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -18,6 +33,26 @@ export function useUsers() {
       setUsers(result.data || result);
     } catch (err) {
       setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchPaginated = useCallback(async (params: UserQueryParams = {}): Promise<PaginatedResult<User>> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_USERS_PAGINATED, params);
+      if (result.success && result.data) {
+        setUsers(result.data.data);
+        return result.data;
+      }
+      const paginatedData = result.data || result;
+      setUsers(paginatedData.data || []);
+      return paginatedData;
+    } catch (err) {
+      setError(err as Error);
+      return { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
     } finally {
       setLoading(false);
     }
@@ -112,6 +147,7 @@ export function useUsers() {
     loading,
     error,
     fetchAll,
+    fetchPaginated,
     fetchActive,
     getById,
     findByUsername,

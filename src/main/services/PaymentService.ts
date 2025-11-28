@@ -1,7 +1,15 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, count, or, ilike } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
+import { PaginatedResult } from './types';
+
+export interface PaymentQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  method?: string;
+}
 
 export class PaymentService extends BaseService<
   typeof schema.payments,
@@ -10,6 +18,52 @@ export class PaymentService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.payments);
+  }
+
+  async findPaginated(params: PaymentQueryParams = {}): Promise<PaginatedResult<schema.Payment>> {
+    const { page = 1, pageSize = 50, search, method } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [];
+
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(schema.payments.reference, searchTerm),
+          ilike(schema.payments.notes, searchTerm)
+        )
+      );
+    }
+
+    if (method && method !== 'all') {
+      conditions.push(eq(schema.payments.method, method));
+    }
+
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countResult = await this.db
+      .select({ count: count() })
+      .from(schema.payments)
+      .where(whereCondition);
+
+    const total = Number(countResult[0]?.count ?? 0);
+
+    const data = await this.db
+      .select()
+      .from(schema.payments)
+      .where(whereCondition)
+      .orderBy(desc(schema.payments.paidAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async findByInvoice(invoiceId: number): Promise<schema.Payment[]> {

@@ -1,8 +1,9 @@
+export * from './types';
 export * from './BaseService';
-export * from './ClientService';
-export * from './UserService';
-export * from './PartService';
-export * from './InvoiceService';
-export * from './PaymentService';
-export * from './QuotationService';
-export * from './CreditNoteService';
+export { ClientService, type ClientQueryParams } from './ClientService';
+export { UserService, type UserQueryParams } from './UserService';
+export { PartService, PartVariantService, type PartQueryParams } from './PartService';
+export { InvoiceService, InvoiceItemService, type InvoiceQueryParams } from './InvoiceService';
+export { PaymentService, PaymentMethodService, type PaymentQueryParams } from './PaymentService';
+export { QuotationService, QuotationItemService, type QuotationQueryParams } from './QuotationService';
+export { CreditNoteService, CreditNoteAllocationService, type CreditNoteQueryParams } from './CreditNoteService';

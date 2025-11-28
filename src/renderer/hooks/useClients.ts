@@ -2,6 +2,20 @@ import { useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
 import type { Client, InsertClient } from '../../main/database/schema';
 
+export interface ClientQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export function useClients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
@@ -15,6 +29,26 @@ export function useClients() {
       setClients(result.data || result);
     } catch (err) {
       setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchPaginated = useCallback(async (params: ClientQueryParams = {}): Promise<PaginatedResult<Client>> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_CLIENTS_PAGINATED, params);
+      if (result.success && result.data) {
+        setClients(result.data.data);
+        return result.data;
+      }
+      const paginatedData = result.data || result;
+      setClients(paginatedData.data || []);
+      return paginatedData;
+    } catch (err) {
+      setError(err as Error);
+      return { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
     } finally {
       setLoading(false);
     }
@@ -96,6 +130,7 @@ export function useClients() {
     loading,
     error,
     fetchAll,
+    fetchPaginated,
     getById,
     findByEmail,
     search,

@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { QuotationService, QuotationItemService } from '../services/QuotationService';
+import { QuotationService, QuotationItemService, QuotationQueryParams } from '../services/QuotationService';
 import * as schema from '../database/schema';
 
 export class QuotationController extends BaseController<QuotationService> {
@@ -11,6 +11,15 @@ export class QuotationController extends BaseController<QuotationService> {
     try {
       const quotations = await this.service.findAll();
       return this.wrapSuccess(quotations);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getPaginated(params: QuotationQueryParams = {}) {
+    try {
+      const result = await this.service.findPaginated(params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }
