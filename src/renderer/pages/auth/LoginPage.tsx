@@ -140,7 +140,7 @@ export function LoginPage() {
               <form onSubmit={handleUsernameSubmit} style={styles}>
                 <Stack gap="lg">
                   <TextInput
-                    label={<Text c="white" fw={500}>Username</Text>}
+                    label={<Text component="span" c="white" fw={500}>Username</Text>}
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -221,8 +221,8 @@ export function LoginPage() {
                   </Box>
 
                   <PasswordInput
-                    label={<Text c="white" fw={500}>PIN</Text>}
-                    description={<Text size="xs" c="rgba(255,255,255,0.6)">{MIN_PIN_LENGTH}-{MAX_PIN_LENGTH} digits</Text>}
+                    label={<Text component="span" c="white" fw={500}>PIN</Text>}
+                    description={<Text component="span" size="xs" c="rgba(255,255,255,0.6)">{MIN_PIN_LENGTH}-{MAX_PIN_LENGTH} digits</Text>}
                     value={pin}
                     onChange={handlePinChange}
                     disabled={isLoading}

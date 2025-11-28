@@ -2,7 +2,12 @@ import { useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
 import type { Invoice, InsertInvoice } from '../../main/database/schema';
 
-export function useInvoices() {
+interface UseInvoicesOptions {
+  includeHistorical?: boolean;
+}
+
+export function useInvoices(options: UseInvoicesOptions = {}) {
+  const { includeHistorical = false } = options;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -13,18 +18,18 @@ export function useInvoices() {
     return Array.isArray(data) ? data : [];
   };
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (includeHist: boolean = includeHistorical) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_INVOICES, undefined);
+      const result = await window.electron.invoke(IpcChannel.GET_INVOICES, { includeHistorical: includeHist });
       setInvoices(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [includeHistorical]);
 
   const fetchByClient = useCallback(async (clientId: number) => {
     setLoading(true);
@@ -109,8 +114,8 @@ export function useInvoices() {
   }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    fetchAll(includeHistorical);
+  }, [fetchAll, includeHistorical]);
 
   return {
     invoices,

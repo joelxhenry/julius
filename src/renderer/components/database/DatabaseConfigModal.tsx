@@ -91,8 +91,6 @@ export function DatabaseConfigModal() {
         throw new Error(saveResult.error || 'Failed to save configuration');
       }
 
-      // Attempt to reconnect
-      console.log('Calling reconnect...');
       const connected = await reconnect();
       console.log('Reconnect returned:', connected);
       if (connected) {
@@ -120,12 +118,8 @@ export function DatabaseConfigModal() {
     }
   };
 
-  // Debug logging
-  console.log('DatabaseConfigModal state:', { isConnected, isChecking, connectionError });
-
   // Don't show if connected
   if (isConnected) {
-    console.log('Database connected, closing modal');
     return null;
   }
 

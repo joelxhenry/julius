@@ -7,9 +7,9 @@ export class InvoiceController extends BaseController<InvoiceService> {
     super(service);
   }
 
-  async getAll() {
+  async getAll(includeHistorical: boolean = false) {
     try {
-      const invoices = await this.service.findAll();
+      const invoices = await this.service.findAllFiltered(includeHistorical);
       return this.wrapSuccess(invoices);
     } catch (error) {
       return this.handleError(error);

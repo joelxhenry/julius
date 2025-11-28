@@ -298,7 +298,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.UPDATE_VARIANT_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => partVariantController.updateStock(id, quantity));
 
   // ===== INVOICE HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_INVOICES, () => invoiceController.getAll());
+  ipcMain.handle(IpcChannel.GET_INVOICES, (_, { includeHistorical }: { includeHistorical?: boolean } = {}) => invoiceController.getAll(includeHistorical ?? false));
   ipcMain.handle(IpcChannel.GET_INVOICE, (_, { id }: { id: number }) => invoiceController.getById(id));
   ipcMain.handle(IpcChannel.GET_INVOICES_BY_CLIENT, (_, { clientId }: { clientId: number }) => invoiceController.getByClient(clientId));
   ipcMain.handle(IpcChannel.GET_UNPAID_INVOICES, () => invoiceController.getUnpaid());

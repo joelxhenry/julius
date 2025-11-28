@@ -12,6 +12,24 @@ export class InvoiceService extends BaseService<
     super(db, schema.invoices);
   }
 
+  /**
+   * Find all invoices, optionally filtering out historical ones
+   * By default, excludes historical invoices for better performance
+   */
+  async findAllFiltered(includeHistorical: boolean = false): Promise<schema.Invoice[]> {
+    if (includeHistorical) {
+      return this.db
+        .select()
+        .from(schema.invoices)
+        .orderBy(desc(schema.invoices.createdAt));
+    }
+    return this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.isHistorical, 0))
+      .orderBy(desc(schema.invoices.createdAt));
+  }
+
   async findByLegacyId(legacyId: number, isHistorical: boolean = false): Promise<schema.Invoice | null> {
     const results = await this.db
       .select()

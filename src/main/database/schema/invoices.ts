@@ -45,6 +45,7 @@ export const invoices = pgTable('invoices', {
   index('invoices_user_id_idx').on(table.userId),
   index('invoices_status_idx').on(table.status),
   index('invoices_created_at_idx').on(table.createdAt),
+  index('invoices_is_historical_idx').on(table.isHistorical),
 ]);
 
 // INVOICE_ITEM table

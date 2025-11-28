@@ -1,6 +1,6 @@
-import { Title, Group, Button, Stack } from '@mantine/core';
-import { IconPlus, IconFileInvoice } from '@tabler/icons-react';
-import { useMemo, useCallback } from 'react';
+import { Title, Group, Button, Stack, Switch, Text } from '@mantine/core';
+import { IconPlus, IconFileInvoice, IconHistory } from '@tabler/icons-react';
+import { useMemo, useCallback, useState } from 'react';
 import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useInvoices } from '../../hooks';
@@ -10,7 +10,8 @@ import numeral from 'numeral';
 
 export function InvoicesListPage() {
   const { openTab } = useTabManager();
-  const { invoices, loading } = useInvoices();
+  const [includeHistorical, setIncludeHistorical] = useState(false);
+  const { invoices, loading } = useInvoices({ includeHistorical });
 
   // Memoize columns to prevent recreation on every render
   const columns: ColumnDef<Invoice>[] = useMemo(
@@ -84,17 +85,25 @@ export function InvoicesListPage() {
           <IconFileInvoice size={32} />
           <Title order={2}>Invoices</Title>
         </Group>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={() => openTab({
-            type: 'invoice-editor',
-            path: '/invoices/new',
-            title: 'New Invoice',
-            entityId: 'new',
-          })}
-        >
-          New Invoice
-        </Button>
+        <Group>
+          <Switch
+            label={<Text size="sm">Include historical</Text>}
+            checked={includeHistorical}
+            onChange={(e) => setIncludeHistorical(e.currentTarget.checked)}
+            thumbIcon={includeHistorical ? <IconHistory size={12} /> : null}
+          />
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={() => openTab({
+              type: 'invoice-editor',
+              path: '/invoices/new',
+              title: 'New Invoice',
+              entityId: 'new',
+            })}
+          >
+            New Invoice
+          </Button>
+        </Group>
       </Group>
 
       <DataTable
