@@ -16,6 +16,7 @@ import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
 import { DatabaseConfigModal } from './renderer/components/database/DatabaseConfigModal';
 import { ErrorBoundary } from './renderer/components/common/ErrorBoundary';
+import { ThemeTransitionOverlay } from './renderer/components/common/ThemeTransitionOverlay';
 import { theme } from './renderer/theme';
 import { router } from './renderer/router';
 
@@ -25,6 +26,7 @@ function AppWithTheme() {
   return (
     <MantineProvider theme={theme} forceColorScheme={colorScheme}>
       <Notifications position="top-right" />
+      <ThemeTransitionOverlay />
       <DatabaseConnectionProvider>
         <DatabaseConfigModal />
         <AuthProvider>

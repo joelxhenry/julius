@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 type ColorScheme = 'light' | 'dark';
 
@@ -6,11 +6,13 @@ interface ThemeContextType {
   colorScheme: ColorScheme;
   toggleColorScheme: () => void;
   setColorScheme: (scheme: ColorScheme) => void;
+  isTransitioning: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'turbo-julius-color-scheme';
+const TRANSITION_DURATION = 300; // ms
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(() => {
@@ -25,6 +27,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     return 'light';
   });
+
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Persist to localStorage whenever colorScheme changes
   useEffect(() => {
@@ -54,16 +58,32 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  const toggleColorScheme = () => {
-    setColorSchemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
+  const transitionTheme = useCallback((newScheme: ColorScheme) => {
+    if (newScheme === colorScheme) return;
 
-  const setColorScheme = (scheme: ColorScheme) => {
-    setColorSchemeState(scheme);
-  };
+    setIsTransitioning(true);
+
+    // Small delay to let the overlay appear before changing theme
+    setTimeout(() => {
+      setColorSchemeState(newScheme);
+
+      // End transition after the theme has been applied
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, TRANSITION_DURATION);
+    }, 50);
+  }, [colorScheme]);
+
+  const toggleColorScheme = useCallback(() => {
+    transitionTheme(colorScheme === 'light' ? 'dark' : 'light');
+  }, [colorScheme, transitionTheme]);
+
+  const setColorScheme = useCallback((scheme: ColorScheme) => {
+    transitionTheme(scheme);
+  }, [transitionTheme]);
 
   return (
-    <ThemeContext.Provider value={{ colorScheme, toggleColorScheme, setColorScheme }}>
+    <ThemeContext.Provider value={{ colorScheme, toggleColorScheme, setColorScheme, isTransitioning }}>
       {children}
     </ThemeContext.Provider>
   );
