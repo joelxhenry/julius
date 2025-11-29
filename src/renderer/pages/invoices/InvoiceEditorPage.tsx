@@ -4,12 +4,9 @@ import {
   Group,
   Button,
   Stack,
-  Select,
   TextInput,
   Textarea,
   LoadingOverlay,
-  Text,
-  Badge,
   Menu,
   ActionIcon,
   SimpleGrid,
@@ -23,7 +20,7 @@ import {
   IconTrash,
   IconPrinter,
 } from '@tabler/icons-react';
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { InvoiceLineItemsGrid, type InvoiceLineItem } from '../../components/transactions/InvoiceLineItemsGrid';
@@ -31,11 +28,12 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { InvoiceTotalsPanel } from '../../components/transactions/InvoiceTotalsPanel';
 import { PaymentModal } from '../../components/transactions/PaymentModal';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { AsyncSelect, type AsyncSelectOption } from '../../components/common/AsyncSelect';
 import { useInvoices, useClients, usePayments } from '../../hooks';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabManager } from '../../contexts/TabManagerContext';
-import { calculateInvoiceTotals, determineInvoiceStatus } from '../../utils/calculations';
-import type { Invoice } from '../../../main/database/schema';
+import { calculateInvoiceTotals } from '../../utils/calculations';
+import type { Invoice, Client } from '../../../main/database/schema';
 import type { PaymentFormData } from '../../utils/schemas';
 
 interface InvoiceEditorPageProps {
@@ -48,7 +46,7 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
   const isNew = id === 'new' || !id;
 
   const { getById: getInvoice, create, update } = useInvoices();
-  const { clients } = useClients();
+  const { searchForSelect: searchClients } = useClients();
   const { create: createPayment } = usePayments();
 
   const [loading, setLoading] = useState(!isNew);
@@ -65,6 +63,8 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
     phone: '',
     email: '',
   });
+  const [clientCache, setClientCache] = useState<Map<string, Client>>(new Map());
+  const [clientInitialOptions, setClientInitialOptions] = useState<AsyncSelectOption[]>([]);
   const [issueDate, setIssueDate] = useState<Date | null>(new Date());
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [notes, setNotes] = useState('');
@@ -79,15 +79,6 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
       lineTotal: 0,
     },
   ]);
-
-  // Create a lookup map for clients (O(1) instead of O(n))
-  const clientsMap = useMemo(() => {
-    const map = new Map<string, typeof clients[0]>();
-    for (const client of clients) {
-      map.set(client.id.toString(), client);
-    }
-    return map;
-  }, [clients]);
 
   // Track initial load state for dirty tracking
   const initialLoadRef = useRef(true);
@@ -106,11 +97,29 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
     setTabDirty(tabId, false);
   }, [tabId, setTabDirty]);
 
+  // Search function for client AsyncSelect
+  const handleClientSearch = useCallback(async (query: string): Promise<AsyncSelectOption[]> => {
+    const results = await searchClients(query, 20);
+    // Cache the clients for later lookup
+    setClientCache((prev) => {
+      const newCache = new Map(prev);
+      results.forEach((c) => {
+        newCache.set(`${c.id}`, c);
+      });
+      return newCache;
+    });
+
+    return results.map((c) => ({
+      value: c.id.toString(),
+      label: c.name,
+    }));
+  }, [searchClients]);
+
   // Handle client selection - auto-fill client fields
   const handleClientChange = useCallback((value: string | null) => {
     setClientId(value);
     if (value) {
-      const selectedClient = clientsMap.get(value);
+      const selectedClient = clientCache.get(value);
       if (selectedClient) {
         setClientInfo({
           name: selectedClient.name || '',
@@ -130,7 +139,7 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
         email: '',
       });
     }
-  }, [clientsMap]);
+  }, [clientCache]);
 
   // Load existing invoice
   useEffect(() => {
@@ -155,6 +164,15 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
           phone: data.clientPhone || '',
           email: data.clientEmail || '',
         });
+
+        // Set initial options for client AsyncSelect if client exists
+        if (data.clientId && data.clientName) {
+          setClientInitialOptions([{
+            value: data.clientId.toString(),
+            label: data.clientName,
+          }]);
+        }
+
         setIssueDate(data.issueDate ? new Date(data.issueDate) : null);
         setDueDate(data.dueDate ? new Date(data.dueDate) : null);
         setNotes(data.notes || '');
@@ -204,12 +222,6 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
 
   // Calculate totals
   const totals = calculateInvoiceTotals(items);
-
-  // Client options
-  const clientOptions = clients.map((c) => ({
-    value: c.id.toString(),
-    label: c.name,
-  }));
 
   const handleSave = async (shouldIssue: boolean = false) => {
     try {
@@ -411,13 +423,13 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
       <Paper withBorder p="md">
         <Stack>
           <Group grow align="flex-start">
-            <Select
+            <AsyncSelect
               label="Client"
               placeholder="Select client or leave blank for walk-in"
-              data={clientOptions}
               value={clientId}
               onChange={handleClientChange}
-              searchable
+              onSearch={handleClientSearch}
+              initialOptions={clientInitialOptions}
               clearable
               disabled={readonly}
             />

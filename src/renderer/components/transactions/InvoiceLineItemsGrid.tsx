@@ -1,8 +1,9 @@
-import { Table, ActionIcon, TextInput, NumberInput, Group, Button, Select } from '@mantine/core';
+import { Table, ActionIcon, NumberInput, Group, Button } from '@mantine/core';
 import { IconTrash, IconPlus } from '@tabler/icons-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { calculateLineTotal } from '../../utils/calculations';
-import { usePartVariants } from '../../hooks';
+import { usePartVariants, type PartVariantWithPart } from '../../hooks';
+import { AsyncSelect, type AsyncSelectOption } from '../common/AsyncSelect';
 import numeral from 'numeral';
 
 export interface InvoiceLineItem {
@@ -23,16 +24,29 @@ interface InvoiceLineItemsGridProps {
 }
 
 export function InvoiceLineItemsGrid({ items, onChange, readonly = false }: InvoiceLineItemsGridProps) {
-  const { variants } = usePartVariants();
+  const { searchForSelect } = usePartVariants();
   const [focusedRow, setFocusedRow] = useState<number | null>(null);
   const [focusedCol, setFocusedCol] = useState<number | null>(null);
   const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const [variantCache, setVariantCache] = useState<Map<string, PartVariantWithPart>>(new Map());
 
-  // Create part variant options for Select
-  const partOptions = variants.map((v) => ({
-    value: v.id.toString(),
-    label: `${v.partName} - ${v.variantName || 'Standard'} (${v.sku})`,
-  }));
+  // Search function for AsyncSelect
+  const handlePartSearch = useCallback(async (query: string): Promise<AsyncSelectOption[]> => {
+    const results = await searchForSelect(query, 20);
+    // Cache the variants for later lookup
+    setVariantCache((prev) => {
+      const newCache = new Map(prev);
+      results.forEach((v) => {
+        newCache.set(`${v.id}`, v);
+      });
+      return newCache;
+    });
+
+    return results.map((v) => ({
+      value: v.id.toString(),
+      label: `${v.partName} - ${v.name || 'Standard'} (${v.sku})`,
+    }));
+  }, [searchForSelect]);
 
   const handleAddLine = () => {
     const newItem: InvoiceLineItem = {
@@ -58,9 +72,9 @@ export function InvoiceLineItemsGrid({ items, onChange, readonly = false }: Invo
 
     // If part variant changed, populate price and tax rate
     if (field === 'partVariantId' && value) {
-      const variant = variants.find((v) => v.id === parseInt(value));
+      const variant = variantCache.get(value.toString());
       if (variant) {
-        item.partName = `${variant.partName} - ${variant.variantName || 'Standard'}`;
+        item.partName = `${variant.partName} - ${variant.name || 'Standard'}`;
         item.unitPrice = variant.price || '0.00';
         item.taxRate = variant.taxable ? '15.00' : '0.00'; // Default tax rate
       }
@@ -160,16 +174,15 @@ export function InvoiceLineItemsGrid({ items, onChange, readonly = false }: Invo
                 {readonly ? (
                   item.partName
                 ) : (
-                  <Select
-                    data={partOptions}
+                  <AsyncSelect
                     value={item.partVariantId?.toString() || null}
                     onChange={(value) => handleItemChange(index, 'partVariantId', value ? parseInt(value) : null)}
-                    placeholder="Select part"
-                    searchable
-                    ref={(el) => {
-                      if (el) inputRefs.current[`${index}-0`] = el as any;
-                    }}
-                    onKeyDown={(e) => handleKeyDown(e, index, 0)}
+                    onSearch={handlePartSearch}
+                    placeholder="Search part..."
+                    initialOptions={item.partVariantId ? [{
+                      value: item.partVariantId.toString(),
+                      label: item.partName,
+                    }] : []}
                   />
                 )}
               </Table.Td>

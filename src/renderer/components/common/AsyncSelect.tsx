@@ -88,6 +88,7 @@ export function AsyncSelect({
   }, [debouncedSearch, loadOptions]);
 
   const handleSearchChange = useCallback((query: string) => {
+    console.log('Search query changed:', query, loading);
     setSearchValue(query);
   }, []);
 
@@ -108,8 +109,6 @@ export function AsyncSelect({
       error={error}
       description={description}
       onSearchChange={handleSearchChange}
-      searchValue={searchValue}
-      rightSection={loading ? <Loader size="xs" /> : undefined}
       nothingFoundMessage={loading ? 'Loading...' : 'No results found'}
     />
   );

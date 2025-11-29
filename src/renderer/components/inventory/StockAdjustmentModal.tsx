@@ -10,13 +10,13 @@ import {
   Text,
   Badge,
   Paper,
-  Autocomplete,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconPlus, IconMinus, IconRefresh } from '@tabler/icons-react';
 import { z } from 'zod';
-import { usePartVariants } from '../../hooks';
+import { usePartVariants, type PartVariantWithPart } from '../../hooks';
+import { AsyncSelect, type AsyncSelectOption } from '../common/AsyncSelect';
 import type { PartVariant } from '../../../main/database/schema';
 
 const stockAdjustmentSchema = z.object({
@@ -35,10 +35,10 @@ interface StockAdjustmentModalProps {
 }
 
 export function StockAdjustmentModal({ opened, onClose, variant: initialVariant }: StockAdjustmentModalProps) {
-  const { variants, updateStock } = usePartVariants();
+  const { updateStock, searchForSelect } = usePartVariants();
   const [selectedVariant, setSelectedVariant] = useState<PartVariant | null>(initialVariant || null);
-  const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialOptions, setInitialOptions] = useState<AsyncSelectOption[]>([]);
 
   const form = useForm<StockAdjustmentFormData>({
     validate: zodResolver(stockAdjustmentSchema),
@@ -50,12 +50,18 @@ export function StockAdjustmentModal({ opened, onClose, variant: initialVariant 
     },
   });
 
+  // Cache for variants fetched during search
+  const [variantCache, setVariantCache] = useState<Map<string, PartVariantWithPart>>(new Map());
+
   // Reset form when modal opens with a new variant
   useEffect(() => {
     if (opened) {
       if (initialVariant) {
         setSelectedVariant(initialVariant);
-        setSearchValue(initialVariant.name || initialVariant.sku || '');
+        setInitialOptions([{
+          value: `${initialVariant.id}`,
+          label: `${initialVariant.sku || 'No SKU'} - ${initialVariant.name || 'Unnamed'} (Stock: ${initialVariant.stockQty})`,
+        }]);
         form.setValues({
           variantId: initialVariant.id,
           adjustmentType: 'add',
@@ -64,27 +70,41 @@ export function StockAdjustmentModal({ opened, onClose, variant: initialVariant 
         });
       } else {
         setSelectedVariant(null);
-        setSearchValue('');
+        setInitialOptions([]);
+        setVariantCache(new Map());
         form.reset();
       }
     }
   }, [opened, initialVariant]);
 
-  // Build autocomplete data from variants
-  const autocompleteData = variants.map((v) => ({
-    value: `${v.id}`,
-    label: `${v.sku || 'No SKU'} - ${v.name || 'Unnamed'} (Stock: ${v.stockQty})`,
-  }));
+  // Search function for AsyncSelect
+  const handleSearch = useCallback(async (query: string): Promise<AsyncSelectOption[]> => {
+    const results = await searchForSelect(query, 20);
+    // Cache the variants for later lookup
+    const newCache = new Map(variantCache);
+    results.forEach((v) => {
+      newCache.set(`${v.id}`, v);
+    });
+    setVariantCache(newCache);
 
-  const handleVariantSelect = useCallback((value: string) => {
-    setSearchValue(value);
-    const variantId = parseInt(value);
-    const variant = variants.find((v) => v.id === variantId);
-    if (variant) {
-      setSelectedVariant(variant);
-      form.setFieldValue('variantId', variant.id);
+    return results.map((v) => ({
+      value: `${v.id}`,
+      label: `${v.sku || 'No SKU'} - ${v.name || 'Unnamed'} (Stock: ${v.stockQty})`,
+    }));
+  }, [searchForSelect, variantCache]);
+
+  const handleVariantChange = useCallback((value: string | null) => {
+    if (value) {
+      const cachedVariant = variantCache.get(value);
+      if (cachedVariant) {
+        setSelectedVariant(cachedVariant);
+        form.setFieldValue('variantId', cachedVariant.id);
+      }
+    } else {
+      setSelectedVariant(null);
+      form.setFieldValue('variantId', 0);
     }
-  }, [variants, form]);
+  }, [variantCache, form]);
 
   const calculateNewStock = () => {
     if (!selectedVariant) return 0;
@@ -149,14 +169,14 @@ export function StockAdjustmentModal({ opened, onClose, variant: initialVariant 
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
           {!initialVariant && (
-            <Autocomplete
+            <AsyncSelect
               label="Search Part Variant"
               placeholder="Search by SKU or name..."
-              data={autocompleteData}
-              value={searchValue}
-              onChange={setSearchValue}
-              onOptionSubmit={handleVariantSelect}
-              limit={10}
+              value={selectedVariant ? `${selectedVariant.id}` : null}
+              onChange={handleVariantChange}
+              onSearch={handleSearch}
+              initialOptions={initialOptions}
+              clearable
             />
           )}
 
