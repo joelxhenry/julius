@@ -105,6 +105,8 @@ function removeDataHandlers() {
   removeHandler(IpcChannel.GET_INVOICE);
   removeHandler(IpcChannel.GET_INVOICES_BY_CLIENT);
   removeHandler(IpcChannel.GET_UNPAID_INVOICES);
+  removeHandler(IpcChannel.GET_ADJACENT_INVOICES);
+  removeHandler(IpcChannel.GET_ADJACENT_INVOICES_WITH_DATA);
   removeHandler(IpcChannel.CREATE_INVOICE);
   removeHandler(IpcChannel.UPDATE_INVOICE);
   removeHandler(IpcChannel.DELETE_INVOICE);
@@ -319,6 +321,8 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_INVOICE, (_, { id }: { id: number }) => invoiceController.getById(id));
   ipcMain.handle(IpcChannel.GET_INVOICES_BY_CLIENT, (_, { clientId }: { clientId: number }) => invoiceController.getByClient(clientId));
   ipcMain.handle(IpcChannel.GET_UNPAID_INVOICES, () => invoiceController.getUnpaid());
+  ipcMain.handle(IpcChannel.GET_ADJACENT_INVOICES, (_, { id }: { id: number }) => invoiceController.getAdjacentInvoices(id));
+  ipcMain.handle(IpcChannel.GET_ADJACENT_INVOICES_WITH_DATA, (_, { id }: { id: number }) => invoiceController.getAdjacentInvoicesWithData(id));
   ipcMain.handle(IpcChannel.CREATE_INVOICE, (_, data: any) => invoiceController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_INVOICE, (_, { id, data }: any) => invoiceController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVOICE, (_, { id }: { id: number }) => invoiceController.delete(id));

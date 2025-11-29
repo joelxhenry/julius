@@ -10,6 +10,7 @@ import {
   Menu,
   ActionIcon,
   SimpleGrid,
+  Tooltip,
 } from '@mantine/core';
 import {
   IconArrowLeft,
@@ -19,17 +20,23 @@ import {
   IconDotsVertical,
   IconTrash,
   IconPrinter,
+  IconChevronLeft,
+  IconChevronRight,
+  IconUser,
+  IconCopy,
+  IconMail,
+  IconReceipt,
 } from '@tabler/icons-react';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { InvoiceLineItemsGrid, type InvoiceLineItem } from '../../components/transactions/InvoiceLineItemsGrid';
+import { InvoiceViewMode } from '../../components/transactions/InvoiceViewMode';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { InvoiceTotalsPanel } from '../../components/transactions/InvoiceTotalsPanel';
 import { PaymentModal } from '../../components/transactions/PaymentModal';
-import { StatusBadge } from '../../components/common/StatusBadge';
 import { AsyncSelect, type AsyncSelectOption } from '../../components/common/AsyncSelect';
-import { useInvoices, useClients, usePayments } from '../../hooks';
+import { useInvoices, useClients, usePayments, useInvoiceNavigation } from '../../hooks';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabManager } from '../../contexts/TabManagerContext';
 import { calculateInvoiceTotals } from '../../utils/calculations';
@@ -40,10 +47,14 @@ interface InvoiceEditorPageProps {
   id?: string;
 }
 
-export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
+export function InvoiceEditorPage({ id: initialId }: InvoiceEditorPageProps) {
   const { tabId } = useTabContext();
   const { openTab, closeTab, setTabDirty, setTabTitle } = useTabManager();
-  const isNew = id === 'new' || !id;
+
+  // Track current invoice ID in state - this allows in-tab navigation without route changes
+  const [currentId, setCurrentId] = useState(initialId);
+  const isNew = currentId === 'new' || !currentId;
+  const currentInvoiceId = isNew ? null : parseInt(currentId!);
 
   const { getById: getInvoice, create, update } = useInvoices();
   const { searchForSelect: searchClients } = useClients();
@@ -82,18 +93,129 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
 
   // Track initial load state for dirty tracking
   const initialLoadRef = useRef(true);
-  const [isDirty, setIsDirty] = useState(false);
+
+  // Helper function to populate form from invoice data
+  // Using 'any' because the actual data from getInvoice may have additional fields not in the Invoice type
+  const populateFormFromInvoice = useCallback(async (data: any) => {
+    setInvoice(data);
+    setClientId(data.clientId?.toString() || null);
+    setClientInfo({
+      name: data.clientName || '',
+      address1: data.clientAddress1 || '',
+      address2: data.clientAddress2 || '',
+      phone: data.clientPhone || '',
+      email: data.clientEmail || '',
+    });
+
+    // Set initial options for client AsyncSelect if client exists
+    if (data.clientId && data.clientName) {
+      setClientInitialOptions([{
+        value: data.clientId.toString(),
+        label: data.clientName,
+      }]);
+    } else {
+      setClientInitialOptions([]);
+    }
+
+    setIssueDate(data.issueDate ? new Date(data.issueDate) : null);
+    setDueDate(data.dueDate ? new Date(data.dueDate) : null);
+    setNotes(data.notes || '');
+
+    // Update tab title with actual invoice number
+    if (data.invoiceNumber) {
+      setTabTitle(tabId, `Invoice #${data.invoiceNumber}`);
+    }
+
+    // Load line items from IPC
+    const itemsResult = await window.electron.invoke(IpcChannel.GET_INVOICE_ITEMS, {
+      invoiceId: data.id,
+    });
+    const loadedItems = itemsResult.data || itemsResult || [];
+    if (loadedItems.length > 0) {
+      setItems(
+        loadedItems.map((item: any) => ({
+          id: item.id,
+          partVariantId: item.partVariantId,
+          partName: item.description || '',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discount || '0.00',
+          taxRate: item.taxRate || '0.00',
+          lineTotal: parseFloat(item.lineTotal) || 0,
+        }))
+      );
+    } else {
+      setItems([{
+        partVariantId: null,
+        partName: '',
+        quantity: 1,
+        unitPrice: '0.00',
+        discount: '0.00',
+        taxRate: '0.00',
+        lineTotal: 0,
+      }]);
+    }
+  }, [tabId, setTabTitle]);
+
+  // Handle navigation to a different invoice (in same tab)
+  const handleNavigate = useCallback(async (invoiceId: number, cachedInvoice: any) => {
+    // Update current ID immediately
+    setCurrentId(invoiceId.toString());
+
+    // Reset the fetchedForIdRef in navigation hook by changing ID
+    initialLoadRef.current = true;
+
+    if (cachedInvoice) {
+      // Use cached data immediately - instant display!
+      await populateFormFromInvoice(cachedInvoice);
+      setLoading(false);
+
+      // Refresh in background for consistency
+      getInvoice(invoiceId).then(async (freshData) => {
+        if (JSON.stringify(freshData) !== JSON.stringify(cachedInvoice)) {
+          await populateFormFromInvoice(freshData);
+        }
+      }).catch(() => {
+        // Silently fail - we already have data displayed
+      });
+    } else {
+      // No cache - show loading and fetch
+      setLoading(true);
+      try {
+        const data = await getInvoice(invoiceId);
+        await populateFormFromInvoice(data);
+      } catch (error) {
+        console.error('Failed to load invoice:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to load invoice',
+          color: 'red',
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Mark initial load complete
+    setTimeout(() => {
+      initialLoadRef.current = false;
+    }, 100);
+  }, [getInvoice, populateFormFromInvoice]);
+
+  // Use navigation hook with callback for in-tab navigation
+  const { hasPrevious, hasNext, goToPrevious, goToNext } = useInvoiceNavigation(currentInvoiceId, {
+    tabId,
+    onNavigate: handleNavigate,
+  });
 
   // Update tab dirty state when form changes
   useEffect(() => {
     if (initialLoadRef.current) return;
-    setIsDirty(true);
     setTabDirty(tabId, true);
   }, [clientId, clientInfo, issueDate, dueDate, notes, items, tabId, setTabDirty]);
 
   // Mark dirty state as clean after save
   const markClean = useCallback(() => {
-    setIsDirty(false);
     setTabDirty(tabId, false);
   }, [tabId, setTabDirty]);
 
@@ -141,7 +263,7 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
     }
   }, [clientCache]);
 
-  // Load existing invoice
+  // Load existing invoice on initial mount
   useEffect(() => {
     const loadInvoice = async () => {
       if (isNew) {
@@ -152,55 +274,12 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
         return;
       }
 
+      const invoiceId = parseInt(currentId!);
+
       try {
         setLoading(true);
-        const data = await getInvoice(parseInt(id!));
-        setInvoice(data);
-        setClientId(data.clientId?.toString() || null);
-        setClientInfo({
-          name: data.clientName || '',
-          address1: data.clientAddress1 || '',
-          address2: data.clientAddress2 || '',
-          phone: data.clientPhone || '',
-          email: data.clientEmail || '',
-        });
-
-        // Set initial options for client AsyncSelect if client exists
-        if (data.clientId && data.clientName) {
-          setClientInitialOptions([{
-            value: data.clientId.toString(),
-            label: data.clientName,
-          }]);
-        }
-
-        setIssueDate(data.issueDate ? new Date(data.issueDate) : null);
-        setDueDate(data.dueDate ? new Date(data.dueDate) : null);
-        setNotes(data.notes || '');
-
-        // Update tab title with actual invoice number
-        if (data.invoiceNumber) {
-          setTabTitle(tabId, `Invoice #${data.invoiceNumber}`);
-        }
-
-        // Load line items from IPC
-        const itemsResult = await window.electron.invoke(IpcChannel.GET_INVOICE_ITEMS, {
-          invoiceId: data.id,
-        });
-        const loadedItems = itemsResult.data || itemsResult || [];
-        if (loadedItems.length > 0) {
-          setItems(
-            loadedItems.map((item: any) => ({
-              id: item.id,
-              partVariantId: item.partVariantId,
-              partName: item.description || '',
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discount: item.discount || '0.00',
-              taxRate: item.taxRate || '0.00',
-              lineTotal: parseFloat(item.lineTotal) || 0,
-            }))
-          );
-        }
+        const data = await getInvoice(invoiceId);
+        await populateFormFromInvoice(data);
       } catch (error) {
         console.error('Failed to load invoice:', error);
         notifications.show({
@@ -218,12 +297,14 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
     };
 
     loadInvoice();
-  }, [id, isNew, getInvoice, tabId, setTabTitle]);
+    // Only run on initial mount - subsequent navigation is handled by handleNavigate
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Calculate totals
   const totals = calculateInvoiceTotals(items);
 
-  const handleSave = async (shouldIssue: boolean = false) => {
+  const handleSave = async (shouldIssue = false) => {
     try {
       setSaving(true);
 
@@ -261,8 +342,8 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
         const result = await create(invoiceData);
         invoiceId = result.id;
       } else {
-        await update(parseInt(id!), invoiceData);
-        invoiceId = parseInt(id!);
+        await update(parseInt(currentId!), invoiceData);
+        invoiceId = parseInt(currentId!);
       }
 
       // Save line items
@@ -331,7 +412,7 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
 
       // Reload invoice to update balance
       if (!isNew) {
-        const updated = await getInvoice(parseInt(id!));
+        const updated = await getInvoice(parseInt(currentId!));
         setInvoice(updated);
       }
     } catch (error) {
@@ -339,13 +420,113 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
     }
   };
 
+  // Compute derived values before hooks that depend on them
+  const status = invoice?.status || 'DRAFT';
+  const balance = invoice ? parseFloat(invoice.balance) : totals.total;
+  // Only DRAFT invoices are editable; all other statuses are readonly
+  const readonly = status !== 'DRAFT';
+
+  // Handle duplicate invoice as new draft
+  const handleDuplicate = useCallback(() => {
+    if (!invoice) return;
+    // Open new invoice with current data (will need to implement copy logic)
+    notifications.show({
+      title: 'Coming Soon',
+      message: 'Duplicate functionality will be available soon',
+      color: 'blue',
+    });
+  }, [invoice]);
+
+  // Handle view client
+  const handleViewClient = useCallback(() => {
+    if (invoice?.clientId) {
+      openTab({
+        type: 'client-editor',
+        path: `/clients/${invoice.clientId}`,
+        title: clientInfo.name || 'Client',
+        entityId: invoice.clientId.toString(),
+      });
+    }
+  }, [invoice?.clientId, clientInfo.name, openTab]);
+
+  // Handle email invoice
+  const handleEmailInvoice = useCallback(() => {
+    if (clientInfo.email) {
+      notifications.show({
+        title: 'Coming Soon',
+        message: 'Email functionality will be available soon',
+        color: 'blue',
+      });
+    }
+  }, [clientInfo.email]);
+
+  // Keyboard shortcuts for navigation and quick actions
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Navigation shortcuts (Alt+Arrow) - only for readonly invoices
+      if (readonly && !isNew) {
+        if (e.altKey && e.key === 'ArrowLeft' && hasPrevious) {
+          e.preventDefault();
+          goToPrevious();
+          return;
+        }
+        if (e.altKey && e.key === 'ArrowRight' && hasNext) {
+          e.preventDefault();
+          goToNext();
+          return;
+        }
+      }
+
+      // Quick action shortcuts - only for existing invoices
+      if (!isNew && invoice) {
+        // Ctrl+Shift+C - View Client
+        if (e.ctrlKey && e.shiftKey && e.key === 'C' && invoice.clientId) {
+          e.preventDefault();
+          handleViewClient();
+          return;
+        }
+        // Ctrl+D - Duplicate as Draft (only for readonly)
+        if (e.ctrlKey && !e.shiftKey && e.key === 'd' && readonly) {
+          e.preventDefault();
+          handleDuplicate();
+          return;
+        }
+        // Ctrl+E - Email Invoice
+        if (e.ctrlKey && !e.shiftKey && e.key === 'e' && clientInfo.email) {
+          e.preventDefault();
+          handleEmailInvoice();
+          return;
+        }
+        // Ctrl+Shift+P - Record Payment (only for non-paid, non-cancelled)
+        if (e.ctrlKey && e.shiftKey && e.key === 'P' && status !== 'PAID' && status !== 'CANCELLED') {
+          e.preventDefault();
+          setPaymentModalOpened(true);
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    readonly,
+    isNew,
+    invoice,
+    hasPrevious,
+    hasNext,
+    goToPrevious,
+    goToNext,
+    handleViewClient,
+    handleDuplicate,
+    handleEmailInvoice,
+    clientInfo.email,
+    status,
+  ]);
+
+  // Early return for loading state - MUST be after all hooks
   if (loading) {
     return <LoadingOverlay visible />;
   }
-
-  const status = invoice?.status || 'DRAFT';
-  const balance = invoice ? parseFloat(invoice.balance) : totals.total;
-  const readonly = status === 'PAID' || status === 'CANCELLED';
 
   return (
     <Stack>
@@ -364,12 +545,69 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
             Back
           </Button>
           <Title order={2}>
-            {isNew ? 'New Invoice' : `Invoice #${invoice?.invoiceNumber}`}
+            {isNew ? 'New Invoice' : (readonly ? 'Invoice' : `Invoice #${invoice?.invoiceNumber}`)}
           </Title>
-          {!isNew && <StatusBadge status={status} />}
+
+          {/* Navigation buttons for readonly (non-draft) invoices */}
+          {readonly && !isNew && (
+            <Group gap="xs" ml="md">
+              <Tooltip label="Previous Invoice (Alt+←)">
+                <ActionIcon
+                  variant="light"
+                  disabled={!hasPrevious}
+                  onClick={goToPrevious}
+                  size="lg"
+                >
+                  <IconChevronLeft size={18} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Next Invoice (Alt+→)">
+                <ActionIcon
+                  variant="light"
+                  disabled={!hasNext}
+                  onClick={goToNext}
+                  size="lg"
+                >
+                  <IconChevronRight size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          )}
         </Group>
 
         <Group>
+          {/* Quick action buttons for existing invoices */}
+          {!isNew && invoice && (
+            <Group gap="xs">
+              {invoice.clientId && (
+                <Tooltip label="View Client (Ctrl+Shift+C)">
+                  <ActionIcon variant="light" onClick={handleViewClient} size="lg">
+                    <IconUser size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              <Tooltip label="View Payments">
+                <ActionIcon variant="light" size="lg">
+                  <IconReceipt size={18} />
+                </ActionIcon>
+              </Tooltip>
+              {readonly && (
+                <Tooltip label="Duplicate as Draft (Ctrl+D)">
+                  <ActionIcon variant="light" onClick={handleDuplicate} size="lg">
+                    <IconCopy size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {clientInfo.email && (
+                <Tooltip label="Email Invoice (Ctrl+E)">
+                  <ActionIcon variant="light" onClick={handleEmailInvoice} size="lg">
+                    <IconMail size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </Group>
+          )}
+
           {!readonly && (
             <>
               <Button
@@ -420,109 +658,132 @@ export function InvoiceEditorPage({ id }: InvoiceEditorPageProps) {
         </Group>
       </Group>
 
-      <Paper withBorder p="md">
-        <Stack>
-          <Group grow align="flex-start">
-            <AsyncSelect
-              label="Client"
-              placeholder="Select client or leave blank for walk-in"
-              value={clientId}
-              onChange={handleClientChange}
-              onSearch={handleClientSearch}
-              initialOptions={clientInitialOptions}
-              clearable
-              disabled={readonly}
-            />
-
-            <DateInput
-              label="Issue Date"
-              value={issueDate}
-              onChange={setIssueDate}
-              disabled={readonly}
-            />
-
-            <DateInput
-              label="Due Date"
-              value={dueDate}
-              onChange={setDueDate}
-              clearable
-              disabled={readonly}
-            />
-          </Group>
-
-          {/* Client Details (editable snapshot) */}
-          <SimpleGrid cols={{ base: 1, md: 2 }}>
-            <TextInput
-              label="Client Name"
-              placeholder="Walk-in Customer"
-              value={clientInfo.name}
-              onChange={(e) => setClientInfo((prev) => ({ ...prev, name: e.target.value }))}
-              disabled={readonly}
-            />
-            <TextInput
-              label="Phone"
-              placeholder="Phone number"
-              value={clientInfo.phone}
-              onChange={(e) => setClientInfo((prev) => ({ ...prev, phone: e.target.value }))}
-              disabled={readonly}
-            />
-            <TextInput
-              label="Email"
-              placeholder="Email address"
-              value={clientInfo.email}
-              onChange={(e) => setClientInfo((prev) => ({ ...prev, email: e.target.value }))}
-              disabled={readonly}
-            />
-            <TextInput
-              label="Address Line 1"
-              placeholder="Street address"
-              value={clientInfo.address1}
-              onChange={(e) => setClientInfo((prev) => ({ ...prev, address1: e.target.value }))}
-              disabled={readonly}
-            />
-            <TextInput
-              label="Address Line 2"
-              placeholder="City, Parish"
-              value={clientInfo.address2}
-              onChange={(e) => setClientInfo((prev) => ({ ...prev, address2: e.target.value }))}
-              disabled={readonly}
-            />
-          </SimpleGrid>
-
-          <Textarea
-            label="Notes"
-            placeholder="Additional notes for this invoice"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={readonly}
+      {/* Conditional rendering: View Mode (readonly) vs Edit Mode */}
+      {readonly && invoice ? (
+        <>
+          <InvoiceViewMode
+            invoiceNumber={invoice.invoiceNumber}
+            status={status}
+            clientInfo={clientInfo}
+            issueDate={issueDate}
+            dueDate={dueDate}
+            notes={notes}
+            items={items}
+            subtotal={totals.subtotal}
+            discountTotal={totals.discountTotal}
+            taxTotal={totals.taxTotal}
+            total={totals.total}
+            balance={balance}
           />
-        </Stack>
-      </Paper>
 
-      <Paper withBorder p="md">
-        <Title order={4} mb="md">
-          Line Items
-        </Title>
-        <InvoiceLineItemsGrid items={items} onChange={setItems} readonly={readonly} />
-      </Paper>
+          {invoice && (
+            <PaymentModal
+              opened={paymentModalOpened}
+              onClose={() => setPaymentModalOpened(false)}
+              onSubmit={handlePayment}
+              invoiceId={invoice.id}
+              balance={balance}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <Paper withBorder p="md">
+            <Stack>
+              <Group grow align="flex-start">
+                <AsyncSelect
+                  label="Client"
+                  placeholder="Select client or leave blank for walk-in"
+                  value={clientId}
+                  onChange={handleClientChange}
+                  onSearch={handleClientSearch}
+                  initialOptions={clientInitialOptions}
+                  clearable
+                />
 
-      <InvoiceTotalsPanel
-        subtotal={totals.subtotal}
-        discountTotal={totals.discountTotal}
-        taxTotal={totals.taxTotal}
-        total={totals.total}
-        balance={balance}
-        showBalance={!isNew}
-      />
+                <DateInput
+                  label="Issue Date"
+                  value={issueDate}
+                  onChange={setIssueDate}
+                />
 
-      {!isNew && invoice && (
-        <PaymentModal
-          opened={paymentModalOpened}
-          onClose={() => setPaymentModalOpened(false)}
-          onSubmit={handlePayment}
-          invoiceId={invoice.id}
-          balance={balance}
-        />
+                <DateInput
+                  label="Due Date"
+                  value={dueDate}
+                  onChange={setDueDate}
+                  clearable
+                />
+              </Group>
+
+              {/* Client Details (editable snapshot) */}
+              <SimpleGrid cols={{ base: 1, md: 2 }}>
+                <TextInput
+                  label="Client Name"
+                  placeholder="Walk-in Customer"
+                  value={clientInfo.name}
+                  onChange={(e) => setClientInfo((prev) => ({ ...prev, name: e.target.value }))}
+                />
+                <TextInput
+                  label="Phone"
+                  placeholder="Phone number"
+                  value={clientInfo.phone}
+                  onChange={(e) => setClientInfo((prev) => ({ ...prev, phone: e.target.value }))}
+                />
+                <TextInput
+                  label="Email"
+                  placeholder="Email address"
+                  value={clientInfo.email}
+                  onChange={(e) => setClientInfo((prev) => ({ ...prev, email: e.target.value }))}
+                />
+                <TextInput
+                  label="Address Line 1"
+                  placeholder="Street address"
+                  value={clientInfo.address1}
+                  onChange={(e) => setClientInfo((prev) => ({ ...prev, address1: e.target.value }))}
+                />
+                <TextInput
+                  label="Address Line 2"
+                  placeholder="City, Parish"
+                  value={clientInfo.address2}
+                  onChange={(e) => setClientInfo((prev) => ({ ...prev, address2: e.target.value }))}
+                />
+              </SimpleGrid>
+
+              <Textarea
+                label="Notes"
+                placeholder="Additional notes for this invoice"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </Stack>
+          </Paper>
+
+          <Paper withBorder p="md">
+            <Title order={4} mb="md">
+              Line Items
+            </Title>
+            <InvoiceLineItemsGrid items={items} onChange={setItems} readonly={false} />
+          </Paper>
+
+          <InvoiceTotalsPanel
+            subtotal={totals.subtotal}
+            discountTotal={totals.discountTotal}
+            taxTotal={totals.taxTotal}
+            total={totals.total}
+            balance={balance}
+            showBalance={!isNew}
+          />
+
+          {!isNew && invoice && (
+            <PaymentModal
+              opened={paymentModalOpened}
+              onClose={() => setPaymentModalOpened(false)}
+              onSubmit={handlePayment}
+              invoiceId={invoice.id}
+              balance={balance}
+            />
+          )}
+        </>
       )}
     </Stack>
   );

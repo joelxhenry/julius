@@ -52,6 +52,8 @@ export enum IpcChannel {
   GET_INVOICE = 'db:get-invoice',
   GET_INVOICES_BY_CLIENT = 'db:get-invoices-by-client',
   GET_UNPAID_INVOICES = 'db:get-unpaid-invoices',
+  GET_ADJACENT_INVOICES = 'db:get-adjacent-invoices',
+  GET_ADJACENT_INVOICES_WITH_DATA = 'db:get-adjacent-invoices-with-data',
   CREATE_INVOICE = 'db:create-invoice',
   UPDATE_INVOICE = 'db:update-invoice',
   DELETE_INVOICE = 'db:delete-invoice',

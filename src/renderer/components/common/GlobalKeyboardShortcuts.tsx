@@ -6,13 +6,13 @@ import { useTheme } from '../../contexts/ThemeContext';
 interface GlobalKeyboardShortcutsProps {
   onOpenSpotlight?: () => void;
   onOpenStockAdjustment?: () => void;
-  onOpenPartsSearch?: () => void;
+  onOpenSearch?: () => void;
 }
 
 export function GlobalKeyboardShortcuts({
   onOpenSpotlight,
   onOpenStockAdjustment,
-  onOpenPartsSearch,
+  onOpenSearch,
 }: GlobalKeyboardShortcutsProps) {
   const { openTab, closeTab, nextTab, prevTab, activeTabId, getActiveTab } = useTabManager();
   const { colorScheme, toggleColorScheme } = useTheme();
@@ -105,14 +105,14 @@ export function GlobalKeyboardShortcuts({
     ],
   ]);
 
-  // Ctrl+F - Parts Search
+  // Ctrl+F - Global Search
   useHotkeys([
     [
       'mod+F',
       (e) => {
         e.preventDefault();
-        if (onOpenPartsSearch) {
-          onOpenPartsSearch();
+        if (onOpenSearch) {
+          onOpenSearch();
         }
       },
     ],

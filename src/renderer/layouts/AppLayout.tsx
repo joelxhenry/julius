@@ -5,7 +5,7 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { GlobalKeyboardShortcuts } from '../components/common/GlobalKeyboardShortcuts';
 import { CommandPalette } from '../components/common/CommandPalette';
-import { PartsSearchSpotlight } from '../components/common/PartsSearchSpotlight';
+import { SearchSpotlight } from '../components/common/SearchSpotlight';
 import { StockAdjustmentModal } from '../components/inventory/StockAdjustmentModal';
 import { TabBar } from '../components/tabs/TabBar';
 import { TabContainer } from '../components/tabs/TabContainer';
@@ -16,7 +16,7 @@ export function AppLayout() {
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const [spotlightOpened, setSpotlightOpened] = useState(false);
   const [stockAdjustmentOpened, setStockAdjustmentOpened] = useState(false);
-  const [partsSearchOpened, setPartsSearchOpened] = useState(false);
+  const [searchOpened, setSearchOpened] = useState(false);
   const { colorScheme } = useTheme();
 
   const isDark = colorScheme === 'dark';
@@ -26,10 +26,10 @@ export function AppLayout() {
       <GlobalKeyboardShortcuts
         onOpenSpotlight={() => setSpotlightOpened(true)}
         onOpenStockAdjustment={() => setStockAdjustmentOpened(true)}
-        onOpenPartsSearch={() => setPartsSearchOpened(true)}
+        onOpenSearch={() => setSearchOpened(true)}
       />
       <CommandPalette opened={spotlightOpened} onClose={() => setSpotlightOpened(false)} />
-      <PartsSearchSpotlight opened={partsSearchOpened} onClose={() => setPartsSearchOpened(false)} />
+      <SearchSpotlight opened={searchOpened} onClose={() => setSearchOpened(false)} />
       <StockAdjustmentModal opened={stockAdjustmentOpened} onClose={() => setStockAdjustmentOpened(false)} />
 
       <AppShell

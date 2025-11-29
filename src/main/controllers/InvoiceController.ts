@@ -135,6 +135,24 @@ export class InvoiceController extends BaseController<InvoiceService> {
       return this.handleError(error);
     }
   }
+
+  async getAdjacentInvoices(id: number) {
+    try {
+      const result = await this.service.getAdjacentInvoices(id);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getAdjacentInvoicesWithData(id: number) {
+    try {
+      const result = await this.service.getAdjacentInvoicesWithData(id);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }
 
 export class InvoiceItemController extends BaseController<InvoiceItemService> {

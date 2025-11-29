@@ -5,6 +5,7 @@ export { useParts } from './useParts';
 export { usePartVariants, type PartVariantWithPart } from './usePartVariants';
 export { useInvoices, type InvoiceQueryParams, type PaginatedResult } from './useInvoices';
 export { useInvoiceItems } from './useInvoiceItems';
+export { useInvoiceNavigation, getCachedInvoice } from './useInvoiceNavigation';
 export { usePayments } from './usePayments';
 export { usePaymentMethods } from './usePaymentMethods';
 export { useQuotations } from './useQuotations';
