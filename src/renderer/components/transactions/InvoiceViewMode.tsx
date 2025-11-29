@@ -71,7 +71,7 @@ export function InvoiceViewMode({
   return (
     <Stack gap="lg">
       {/* Header with Invoice Number and Status */}
-      <Paper withBorder p="lg" bg="gray.0">
+      <Paper withBorder p="lg">
         <Group justify="space-between" align="flex-start">
           <Box>
             <Text size="xs" c="dimmed" tt="uppercase" fw={500}>

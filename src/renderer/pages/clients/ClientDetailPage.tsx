@@ -1,13 +1,25 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Title, Tabs, Paper, Group, Button, LoadingOverlay, Text, ActionIcon, Tooltip, Modal } from '@mantine/core';
-import { IconChevronLeft, IconChevronRight, IconEdit, IconUser, IconFileInvoice, IconCash, IconReceipt } from '@tabler/icons-react';
+import { Title, Tabs, Paper, Group, Button, LoadingOverlay, Text, ActionIcon, Tooltip, Modal, TextInput, Select, Stack, Pagination } from '@mantine/core';
+import { IconChevronLeft, IconChevronRight, IconEdit, IconUser, IconFileInvoice, IconCash, IconReceipt, IconSearch } from '@tabler/icons-react';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { useClients } from '../../hooks';
+import { useDebouncedValue } from '@mantine/hooks';
+import { useClients, useInvoices, PaginatedResult } from '../../hooks';
 import { useTabManager } from '../../contexts/TabManagerContext';
 import { ClientForm } from '../../components/forms/ClientForm';
-import type { Client } from '../../../main/database/schema';
+import { DataTable, ColumnDef, RowClickOptions } from '../../components/common/DataTable/DataTable';
+import { StatusBadge } from '../../components/common/StatusBadge';
+import type { Client, Invoice } from '../../../main/database/schema';
 import type { ClientFormData } from '../../utils/schemas';
 import numeral from 'numeral';
+
+const invoiceStatusOptions = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'unpaid', label: 'Unpaid' },
+  { value: 'partial', label: 'Partial' },
+  { value: 'paid', label: 'Paid' },
+];
+
+const INVOICE_PAGE_SIZE = 20;
 
 // Simple cache for preloaded clients
 const clientCache = new Map<number, Client>();
@@ -21,11 +33,26 @@ export function ClientDetailPage({ id: propId }: ClientDetailPageProps) {
   const id = propId || paramId;
   const navigate = useNavigate();
   const { clients, getById, update } = useClients();
-  const { activeTabId, updateTab, setTabTitle, findTabByPath } = useTabManager();
+  const { fetchPaginated: fetchInvoicesPaginated } = useInvoices();
+  const { activeTabId, updateTab, setTabTitle, findTabByPath, openTab } = useTabManager();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [editModalOpened, setEditModalOpened] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Invoice tab state
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoiceStatus, setInvoiceStatus] = useState<string>('all');
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [debouncedInvoiceSearch] = useDebouncedValue(invoiceSearch, 300);
+  const [invoiceData, setInvoiceData] = useState<PaginatedResult<Invoice>>({
+    data: [],
+    total: 0,
+    page: 1,
+    pageSize: INVOICE_PAGE_SIZE,
+    totalPages: 0,
+  });
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
 
   // Use ref to avoid infinite loops with findTabByPath in useEffect
   const findTabByPathRef = useRef(findTabByPath);
@@ -125,6 +152,93 @@ export function ClientDetailPage({ id: propId }: ClientDetailPageProps) {
       preloadClient(nextClient.id);
     }
   }, [client, loading, prevClient, nextClient, preloadClient]);
+
+  // Reset invoice page when filters change
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [invoiceStatus, debouncedInvoiceSearch]);
+
+  // Fetch client invoices
+  useEffect(() => {
+    if (!client?.id) return;
+
+    const loadInvoices = async () => {
+      setInvoicesLoading(true);
+      try {
+        const result = await fetchInvoicesPaginated({
+          page: invoicePage,
+          pageSize: INVOICE_PAGE_SIZE,
+          clientId: client.id,
+          search: debouncedInvoiceSearch || undefined,
+          status: invoiceStatus !== 'all' ? invoiceStatus : undefined,
+        });
+        setInvoiceData(result);
+      } catch (error) {
+        console.error('Failed to load invoices:', error);
+      } finally {
+        setInvoicesLoading(false);
+      }
+    };
+
+    loadInvoices();
+  }, [client?.id, invoicePage, invoiceStatus, debouncedInvoiceSearch, fetchInvoicesPaginated]);
+
+  // Invoice table columns
+  const invoiceColumns: ColumnDef<Invoice>[] = useMemo(
+    () => [
+      {
+        key: 'invoiceNumber',
+        title: 'Invoice #',
+        sortable: true,
+        width: 120,
+      },
+      {
+        key: 'createdAt',
+        title: 'Date',
+        sortable: true,
+        render: (value) => (value ? new Date(value).toLocaleDateString() : 'N/A'),
+      },
+      {
+        key: 'total',
+        title: 'Total',
+        sortable: true,
+        render: (value) => numeral(parseFloat(value) || 0).format('$0,0.00'),
+      },
+      {
+        key: 'amountPaid',
+        title: 'Balance',
+        sortable: true,
+        render: (value, row) => {
+          const total = parseFloat(row.total as string) || 0;
+          const paid = parseFloat(value as string) || 0;
+          return numeral(total - paid).format('$0,0.00');
+        },
+      },
+      {
+        key: 'status',
+        title: 'Status',
+        sortable: true,
+        render: (value) => <StatusBadge status={value || 'DRAFT'} />,
+      },
+    ],
+    []
+  );
+
+  // Handle invoice row click
+  const handleInvoiceRowClick = useCallback(
+    (invoice: Invoice, options?: RowClickOptions) => {
+      openTab(
+        {
+          type: 'invoice-editor',
+          path: `/invoices/${invoice.id}`,
+          title: `Invoice ${invoice.invoiceNumber}`,
+          entityId: invoice.id.toString(),
+        },
+        options?.newTab
+      );
+    },
+    [openTab]
+  );
 
   const handleSave = async (data: ClientFormData) => {
     if (!id) return;
@@ -258,9 +372,46 @@ export function ClientDetailPage({ id: propId }: ClientDetailPageProps) {
         </Tabs.Panel>
 
         <Tabs.Panel value="invoices" pt="md">
-          <Paper withBorder p="md">
-            <Text c="dimmed">Invoice history will be displayed here</Text>
-          </Paper>
+          <Stack gap="md">
+            <Group>
+              <TextInput
+                placeholder="Search invoice #, reference..."
+                leftSection={<IconSearch size={16} />}
+                value={invoiceSearch}
+                onChange={(e) => setInvoiceSearch(e.currentTarget.value)}
+                style={{ flex: 1, maxWidth: 300 }}
+              />
+              <Select
+                placeholder="Filter by status"
+                data={invoiceStatusOptions}
+                value={invoiceStatus}
+                onChange={(value) => setInvoiceStatus(value || 'all')}
+                w={160}
+                clearable={false}
+              />
+              <Text size="sm" c="dimmed">
+                {invoiceData.total} invoice{invoiceData.total !== 1 ? 's' : ''}
+              </Text>
+            </Group>
+
+            <DataTable
+              data={invoiceData.data}
+              columns={invoiceColumns}
+              loading={invoicesLoading}
+              onRowClick={handleInvoiceRowClick}
+              rowKey="id"
+            />
+
+            {invoiceData.totalPages > 1 && (
+              <Group justify="center">
+                <Pagination
+                  total={invoiceData.totalPages}
+                  value={invoicePage}
+                  onChange={setInvoicePage}
+                />
+              </Group>
+            )}
+          </Stack>
         </Tabs.Panel>
 
         <Tabs.Panel value="payments" pt="md">

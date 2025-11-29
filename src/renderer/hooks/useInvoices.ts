@@ -12,6 +12,7 @@ export interface InvoiceQueryParams {
   includeHistorical?: boolean;
   search?: string;
   status?: string;
+  clientId?: number;
 }
 
 export interface PaginatedResult<T> {

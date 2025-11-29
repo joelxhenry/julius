@@ -22,6 +22,7 @@ export interface InvoiceQueryParams {
   includeHistorical?: boolean;
   search?: string;
   status?: string;
+  clientId?: number;
 }
 
 // Keep old interface for backwards compatibility
@@ -63,7 +64,7 @@ export class InvoiceService extends BaseService<
    * Returns paginated results with total count for efficient data loading
    */
   async findPaginated(params: InvoiceQueryParams = {}): Promise<PaginatedResult<schema.Invoice>> {
-    const { page = 1, pageSize = 50, includeHistorical = false, search, status } = params;
+    const { page = 1, pageSize = 50, includeHistorical = false, search, status, clientId } = params;
     const offset = (page - 1) * pageSize;
 
     // Build where conditions array
@@ -72,6 +73,11 @@ export class InvoiceService extends BaseService<
     // Historical filter
     if (!includeHistorical) {
       conditions.push(eq(schema.invoices.isHistorical, 0));
+    }
+
+    // Client filter
+    if (clientId) {
+      conditions.push(eq(schema.invoices.clientId, clientId));
     }
 
     // Status filter
