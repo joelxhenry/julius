@@ -5,6 +5,7 @@ export enum IpcChannel {
   GET_CLIENT = 'db:get-client',
   GET_CLIENT_BY_EMAIL = 'db:get-client-by-email',
   SEARCH_CLIENTS = 'db:search-clients',
+  SEARCH_CLIENTS_FOR_SELECT = 'db:search-clients-for-select',
   CREATE_CLIENT = 'db:create-client',
   UPDATE_CLIENT = 'db:update-client',
   DELETE_CLIENT = 'db:delete-client',
@@ -16,6 +17,7 @@ export enum IpcChannel {
   GET_USER_BY_USERNAME = 'db:get-user-by-username',
   GET_ACTIVE_USERS = 'db:get-active-users',
   SEARCH_USERS = 'db:search-users',
+  SEARCH_USERS_FOR_SELECT = 'db:search-users-for-select',
   CREATE_USER = 'db:create-user',
   UPDATE_USER = 'db:update-user',
   DELETE_USER = 'db:delete-user',
@@ -42,6 +44,7 @@ export enum IpcChannel {
   UPDATE_PART_VARIANT = 'db:update-part-variant',
   DELETE_PART_VARIANT = 'db:delete-part-variant',
   UPDATE_VARIANT_STOCK = 'db:update-variant-stock',
+  SEARCH_PART_VARIANTS_FOR_SELECT = 'db:search-part-variants-for-select',
 
   // Invoice operations
   GET_INVOICES = 'db:get-invoices',

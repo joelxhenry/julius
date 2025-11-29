@@ -15,6 +15,7 @@ import { TabManagerProvider } from './renderer/contexts/TabManagerContext';
 import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
 import { DatabaseConfigModal } from './renderer/components/database/DatabaseConfigModal';
+import { ErrorBoundary } from './renderer/components/common/ErrorBoundary';
 import { theme } from './renderer/theme';
 import { router } from './renderer/router';
 
@@ -39,8 +40,10 @@ function AppWithTheme() {
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 root.render(
   <React.StrictMode>
-    <ThemeProvider>
-      <AppWithTheme />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppWithTheme />
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

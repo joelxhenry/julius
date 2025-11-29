@@ -138,6 +138,34 @@ export class UserService extends BaseService<
       );
   }
 
+  async searchForSelect(query: string, limit = 20, activeOnly = true): Promise<schema.User[]> {
+    const conditions = [];
+
+    if (activeOnly) {
+      conditions.push(eq(schema.users.active, true));
+    }
+
+    if (query && query.trim()) {
+      const searchTerm = `%${query.trim()}%`;
+      conditions.push(
+        or(
+          ilike(schema.users.firstName, searchTerm),
+          ilike(schema.users.lastName, searchTerm),
+          ilike(schema.users.username, searchTerm)
+        )
+      );
+    }
+
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    return this.db
+      .select()
+      .from(schema.users)
+      .where(whereCondition)
+      .orderBy(desc(schema.users.id))
+      .limit(limit);
+  }
+
   async updatePin(id: number, pinHash: string, usingDefaultPin: boolean = false): Promise<schema.User | null> {
     return this.update(id, { pinHash, usingDefaultPin });
   }

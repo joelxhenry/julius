@@ -50,19 +50,23 @@ export function useInvoices(options: UseInvoicesOptions = {}) {
   const fetchPaginated = useCallback(async (params: InvoiceQueryParams = {}): Promise<PaginatedResult<Invoice>> => {
     setLoading(true);
     setError(null);
+    const emptyResult: PaginatedResult<Invoice> = { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
     try {
       const result = await window.electron.invoke(IpcChannel.GET_INVOICES_PAGINATED, params);
       if (result.success && result.data) {
-        setInvoices(result.data.data);
-        return result.data;
+        const paginatedData = result.data;
+        setInvoices(Array.isArray(paginatedData.data) ? paginatedData.data : []);
+        return {
+          ...emptyResult,
+          ...paginatedData,
+          data: Array.isArray(paginatedData.data) ? paginatedData.data : [],
+        };
       }
-      // Fallback for direct data response
-      const paginatedData = result.data || result;
-      setInvoices(paginatedData.data || []);
-      return paginatedData;
+      // Handle error response
+      return emptyResult;
     } catch (err) {
       setError(err as Error);
-      return { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
+      return emptyResult;
     } finally {
       setLoading(false);
     }

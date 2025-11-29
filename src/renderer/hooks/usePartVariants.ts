@@ -2,17 +2,29 @@ import { useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
 import type { PartVariant, InsertPartVariant } from '../../main/database/schema';
 
+export interface PartVariantWithPart extends PartVariant {
+  partName: string;
+  partSku: string;
+  taxable: boolean;
+}
+
 export function usePartVariants() {
   const [variants, setVariants] = useState<PartVariant[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Helper to safely extract array from API response
+  const extractArray = (result: any): PartVariant[] => {
+    const data = result?.data ?? result;
+    return Array.isArray(data) ? data : [];
+  };
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_PART_VARIANTS, undefined);
-      setVariants(result.data || result);
+      setVariants(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -25,7 +37,7 @@ export function usePartVariants() {
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_VARIANTS_BY_PART, { partId });
-      setVariants(result.data || result);
+      setVariants(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -38,7 +50,7 @@ export function usePartVariants() {
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_ACTIVE_VARIANTS, partId ? { partId } : undefined);
-      setVariants(result.data || result);
+      setVariants(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -51,7 +63,7 @@ export function usePartVariants() {
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_LOW_STOCK_VARIANTS, undefined);
-      setVariants(result.data || result);
+      setVariants(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -115,6 +127,17 @@ export function usePartVariants() {
     }
   }, []);
 
+  const searchForSelect = useCallback(async (query: string, limit: number = 20): Promise<PartVariantWithPart[]> => {
+    try {
+      const result = await window.electron.invoke(IpcChannel.SEARCH_PART_VARIANTS_FOR_SELECT, { query, limit });
+      const data = result.data || result;
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      setError(err as Error);
+      return [];
+    }
+  }, []);
+
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
@@ -132,5 +155,6 @@ export function usePartVariants() {
     update,
     updateStock,
     remove,
+    searchForSelect,
   };
 }

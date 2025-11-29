@@ -264,4 +264,13 @@ export class PartVariantController extends BaseController<PartVariantService> {
       return this.handleError(error);
     }
   }
+
+  async searchForSelect(query: string, limit = 20) {
+    try {
+      const variants = await this.service.searchForSelect(query, limit);
+      return this.wrapSuccess(variants);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }

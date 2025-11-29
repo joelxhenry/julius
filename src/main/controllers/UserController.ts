@@ -76,6 +76,15 @@ export class UserController extends BaseController<UserService> {
     }
   }
 
+  async searchForSelect(query: string, limit = 20, activeOnly = true) {
+    try {
+      const users = await this.service.searchForSelect(query, limit, activeOnly);
+      return this.wrapSuccess(users);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async create(data: schema.InsertUser) {
     try {
       const user = await this.service.create(data);

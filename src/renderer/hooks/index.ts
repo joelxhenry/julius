@@ -2,7 +2,7 @@
 export { useClients } from './useClients';
 export { useUsers } from './useUsers';
 export { useParts } from './useParts';
-export { usePartVariants } from './usePartVariants';
+export { usePartVariants, type PartVariantWithPart } from './usePartVariants';
 export { useInvoices, type InvoiceQueryParams, type PaginatedResult } from './useInvoices';
 export { useInvoiceItems } from './useInvoiceItems';
 export { usePayments } from './usePayments';

@@ -178,4 +178,59 @@ export class PartVariantService extends BaseService<
   async activate(id: number): Promise<schema.PartVariant | null> {
     return this.update(id, { active: true });
   }
+
+  // Type for part variant with joined part info
+  async searchForSelect(query: string, limit = 20): Promise<PartVariantWithPart[]> {
+    const conditions = [];
+
+    if (query && query.trim()) {
+      const searchTerm = `%${query.trim()}%`;
+      conditions.push(
+        or(
+          ilike(schema.parts.name, searchTerm),
+          ilike(schema.partVariants.name, searchTerm),
+          ilike(schema.partVariants.sku, searchTerm),
+          ilike(schema.parts.sku, searchTerm)
+        )
+      );
+    }
+
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const results = await this.db
+      .select({
+        id: schema.partVariants.id,
+        partId: schema.partVariants.partId,
+        sku: schema.partVariants.sku,
+        name: schema.partVariants.name,
+        description: schema.partVariants.description,
+        isGeneric: schema.partVariants.isGeneric,
+        cost: schema.partVariants.cost,
+        price: schema.partVariants.price,
+        wholesalePrice: schema.partVariants.wholesalePrice,
+        currency: schema.partVariants.currency,
+        margin: schema.partVariants.margin,
+        stockQty: schema.partVariants.stockQty,
+        reorderLevel: schema.partVariants.reorderLevel,
+        barcode: schema.partVariants.barcode,
+        location: schema.partVariants.location,
+        createdAt: schema.partVariants.createdAt,
+        partName: schema.parts.name,
+        partSku: schema.parts.sku,
+        taxable: schema.parts.taxable,
+      })
+      .from(schema.partVariants)
+      .innerJoin(schema.parts, eq(schema.partVariants.partId, schema.parts.id))
+      .where(whereCondition)
+      .orderBy(desc(schema.partVariants.id))
+      .limit(limit);
+
+    return results;
+  }
+}
+
+export interface PartVariantWithPart extends schema.PartVariant {
+  partName: string;
+  partSku: string;
+  taxable: boolean;
 }

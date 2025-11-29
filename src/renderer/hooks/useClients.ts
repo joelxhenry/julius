@@ -21,12 +21,18 @@ export function useClients() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Helper to safely extract array from API response
+  const extractArray = (result: any): Client[] => {
+    const data = result?.data ?? result;
+    return Array.isArray(data) ? data : [];
+  };
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_CLIENTS, undefined);
-      setClients(result.data || result);
+      setClients(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
@@ -37,18 +43,22 @@ export function useClients() {
   const fetchPaginated = useCallback(async (params: ClientQueryParams = {}): Promise<PaginatedResult<Client>> => {
     setLoading(true);
     setError(null);
+    const emptyResult: PaginatedResult<Client> = { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
     try {
       const result = await window.electron.invoke(IpcChannel.GET_CLIENTS_PAGINATED, params);
       if (result.success && result.data) {
-        setClients(result.data.data);
-        return result.data;
+        const paginatedData = result.data;
+        setClients(Array.isArray(paginatedData.data) ? paginatedData.data : []);
+        return {
+          ...emptyResult,
+          ...paginatedData,
+          data: Array.isArray(paginatedData.data) ? paginatedData.data : [],
+        };
       }
-      const paginatedData = result.data || result;
-      setClients(paginatedData.data || []);
-      return paginatedData;
+      return emptyResult;
     } catch (err) {
       setError(err as Error);
-      return { data: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
+      return emptyResult;
     } finally {
       setLoading(false);
     }
@@ -79,11 +89,22 @@ export function useClients() {
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.SEARCH_CLIENTS, { query });
-      setClients(result.data || result);
+      setClients(extractArray(result));
     } catch (err) {
       setError(err as Error);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const searchForSelect = useCallback(async (query: string, limit: number = 20): Promise<Client[]> => {
+    try {
+      const result = await window.electron.invoke(IpcChannel.SEARCH_CLIENTS_FOR_SELECT, { query, limit });
+      const data = result.data || result;
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      setError(err as Error);
+      return [];
     }
   }, []);
 
@@ -134,6 +155,7 @@ export function useClients() {
     getById,
     findByEmail,
     search,
+    searchForSelect,
     create,
     update,
     remove,

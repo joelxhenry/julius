@@ -93,6 +93,30 @@ export class ClientService extends BaseService<
       );
   }
 
+  async searchForSelect(query: string, limit = 20): Promise<schema.Client[]> {
+    if (!query || !query.trim()) {
+      return this.db
+        .select()
+        .from(schema.clients)
+        .orderBy(desc(schema.clients.id))
+        .limit(limit);
+    }
+
+    const searchTerm = `%${query.trim()}%`;
+    return this.db
+      .select()
+      .from(schema.clients)
+      .where(
+        or(
+          ilike(schema.clients.name, searchTerm),
+          ilike(schema.clients.email, searchTerm),
+          ilike(schema.clients.phone, searchTerm)
+        )
+      )
+      .orderBy(desc(schema.clients.id))
+      .limit(limit);
+  }
+
   async updateCreditLimit(id: number, creditLimit: number): Promise<schema.Client | null> {
     return this.update(id, { creditLimit });
   }

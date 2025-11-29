@@ -58,6 +58,7 @@ function removeDataHandlers() {
   removeHandler(IpcChannel.GET_CLIENT);
   removeHandler(IpcChannel.GET_CLIENT_BY_EMAIL);
   removeHandler(IpcChannel.SEARCH_CLIENTS);
+  removeHandler(IpcChannel.SEARCH_CLIENTS_FOR_SELECT);
   removeHandler(IpcChannel.CREATE_CLIENT);
   removeHandler(IpcChannel.UPDATE_CLIENT);
   removeHandler(IpcChannel.DELETE_CLIENT);
@@ -69,6 +70,7 @@ function removeDataHandlers() {
   removeHandler(IpcChannel.GET_USER_BY_USERNAME);
   removeHandler(IpcChannel.GET_ACTIVE_USERS);
   removeHandler(IpcChannel.SEARCH_USERS);
+  removeHandler(IpcChannel.SEARCH_USERS_FOR_SELECT);
   removeHandler(IpcChannel.CREATE_USER);
   removeHandler(IpcChannel.UPDATE_USER);
   removeHandler(IpcChannel.DELETE_USER);
@@ -95,6 +97,7 @@ function removeDataHandlers() {
   removeHandler(IpcChannel.UPDATE_PART_VARIANT);
   removeHandler(IpcChannel.DELETE_PART_VARIANT);
   removeHandler(IpcChannel.UPDATE_VARIANT_STOCK);
+  removeHandler(IpcChannel.SEARCH_PART_VARIANTS_FOR_SELECT);
 
   // Invoice handlers
   removeHandler(IpcChannel.GET_INVOICES);
@@ -269,6 +272,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_CLIENT, (_, { id }: { id: number }) => clientController.getById(id));
   ipcMain.handle(IpcChannel.GET_CLIENT_BY_EMAIL, (_, { email }: { email: string }) => clientController.getByEmail(email));
   ipcMain.handle(IpcChannel.SEARCH_CLIENTS, (_, { query }: { query: string }) => clientController.search(query));
+  ipcMain.handle(IpcChannel.SEARCH_CLIENTS_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => clientController.searchForSelect(query, limit));
   ipcMain.handle(IpcChannel.CREATE_CLIENT, (_, data: any) => clientController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_CLIENT, (_, { id, data }: any) => clientController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_CLIENT, (_, { id }: { id: number }) => clientController.delete(id));
@@ -280,6 +284,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_USER_BY_USERNAME, (_, { username }: { username: string }) => userController.getByUsername(username));
   ipcMain.handle(IpcChannel.GET_ACTIVE_USERS, () => userController.getActive());
   ipcMain.handle(IpcChannel.SEARCH_USERS, (_, { query }: { query: string }) => userController.search(query));
+  ipcMain.handle(IpcChannel.SEARCH_USERS_FOR_SELECT, (_, { query, limit, activeOnly }: { query: string; limit?: number; activeOnly?: boolean }) => userController.searchForSelect(query, limit, activeOnly));
   ipcMain.handle(IpcChannel.CREATE_USER, (_, data: any) => userController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_USER, (_, { id, data }: any) => userController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_USER, (_, { id }: { id: number }) => userController.delete(id));
@@ -306,6 +311,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.UPDATE_PART_VARIANT, (_, { id, data }: any) => partVariantController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_PART_VARIANT, (_, { id }: { id: number }) => partVariantController.delete(id));
   ipcMain.handle(IpcChannel.UPDATE_VARIANT_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => partVariantController.updateStock(id, quantity));
+  ipcMain.handle(IpcChannel.SEARCH_PART_VARIANTS_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => partVariantController.searchForSelect(query, limit));
 
   // ===== INVOICE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_INVOICES, (_, { includeHistorical }: { includeHistorical?: boolean } = {}) => invoiceController.getAll(includeHistorical ?? false));

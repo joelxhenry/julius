@@ -70,6 +70,15 @@ export class ClientController extends BaseController<ClientService> {
     }
   }
 
+  async searchForSelect(query: string, limit = 20) {
+    try {
+      const clients = await this.service.searchForSelect(query, limit);
+      return this.wrapSuccess(clients);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async create(data: schema.InsertClient) {
     try {
       const client = await this.service.create(data);

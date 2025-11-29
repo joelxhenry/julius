@@ -15,6 +15,7 @@ import { CreditNotesPage } from '../pages/credit-notes/CreditNotesPage';
 import { UsersListPage } from '../pages/users/UsersListPage';
 import { UserDetailPage } from '../pages/users/UserDetailPage';
 import { SettingsPage } from '../pages/settings/SettingsPage';
+import { NotFoundPage, ErrorPage } from '../pages/error';
 import { useAuth } from '../contexts/AuthContext';
 
 // Protected Route wrapper
@@ -36,13 +37,16 @@ export const router = createHashRouter([
   {
     path: '/login',
     element: <LoginPage />,
+    errorElement: <ErrorPage />,
   },
   {
     path: '/',
     element: <ProtectedRoute />,
+    errorElement: <ErrorPage />,
     children: [
       {
         element: <AppLayout />,
+        errorElement: <ErrorPage />,
         children: [
           {
             index: true,
@@ -108,8 +112,18 @@ export const router = createHashRouter([
             path: 'settings',
             element: <SettingsPage />,
           },
+          // Catch-all for 404 within app layout
+          {
+            path: '*',
+            element: <NotFoundPage />,
+          },
         ],
       },
     ],
+  },
+  // Global catch-all for 404
+  {
+    path: '*',
+    element: <NotFoundPage />,
   },
 ]);
