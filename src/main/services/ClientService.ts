@@ -29,9 +29,10 @@ export class ClientService extends BaseService<
       const searchTerm = `%${search.trim()}%`;
       conditions.push(
         or(
-          ilike(schema.clients.name, searchTerm),
-          ilike(schema.clients.email, searchTerm),
-          ilike(schema.clients.phone, searchTerm)
+          ilike(schema.clients.clientName, searchTerm),
+          ilike(schema.clients.clNumber, searchTerm),
+          ilike(schema.clients.phone, searchTerm),
+          ilike(schema.clients.contact, searchTerm)
         )
       );
     }
@@ -62,33 +63,35 @@ export class ClientService extends BaseService<
     };
   }
 
-  async findByLegacyId(legacyId: number): Promise<schema.Client | null> {
+  async findByClNumber(clNumber: string): Promise<schema.Client | null> {
     const results = await this.db
       .select()
       .from(schema.clients)
-      .where(eq(schema.clients.legacyId, legacyId))
+      .where(eq(schema.clients.clNumber, clNumber))
       .limit(1);
     return results[0] || null;
   }
 
-  async findByEmail(email: string): Promise<schema.Client | null> {
+  async findByName(clientName: string): Promise<schema.Client | null> {
     const results = await this.db
       .select()
       .from(schema.clients)
-      .where(eq(schema.clients.email, email))
+      .where(eq(schema.clients.clientName, clientName))
       .limit(1);
     return results[0] || null;
   }
 
   async search(query: string): Promise<schema.Client[]> {
+    const searchTerm = `%${query}%`;
     return this.db
       .select()
       .from(schema.clients)
       .where(
         or(
-          like(schema.clients.name, `%${query}%`),
-          like(schema.clients.email, `%${query}%`),
-          like(schema.clients.phone, `%${query}%`)
+          like(schema.clients.clientName, searchTerm),
+          like(schema.clients.clNumber, searchTerm),
+          like(schema.clients.phone, searchTerm),
+          like(schema.clients.contact, searchTerm)
         )
       );
   }
@@ -108,20 +111,21 @@ export class ClientService extends BaseService<
       .from(schema.clients)
       .where(
         or(
-          ilike(schema.clients.name, searchTerm),
-          ilike(schema.clients.email, searchTerm),
-          ilike(schema.clients.phone, searchTerm)
+          ilike(schema.clients.clientName, searchTerm),
+          ilike(schema.clients.clNumber, searchTerm),
+          ilike(schema.clients.phone, searchTerm),
+          ilike(schema.clients.contact, searchTerm)
         )
       )
       .orderBy(desc(schema.clients.id))
       .limit(limit);
   }
 
-  async updateCreditLimit(id: number, creditLimit: number): Promise<schema.Client | null> {
-    return this.update(id, { creditLimit });
+  async updateCreditLimit(id: number, creditLimit: string): Promise<schema.Client | null> {
+    return this.update(id, { creditLimit, updatedAt: new Date() });
   }
 
-  async updateDiscountRate(id: number, discountRate: number): Promise<schema.Client | null> {
-    return this.update(id, { discountRate });
+  async updateDiscountPct(id: number, discountPct: string): Promise<schema.Client | null> {
+    return this.update(id, { discountPct, updatedAt: new Date() });
   }
 }

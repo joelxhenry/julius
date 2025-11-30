@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { CreditNoteService, CreditNoteAllocationService, CreditNoteQueryParams } from '../services/CreditNoteService';
+import { CreditNoteService, CreditNoteQueryParams } from '../services/CreditNoteService';
 import * as schema from '../database/schema';
 
 export class CreditNoteController extends BaseController<CreditNoteService> {
@@ -37,6 +37,18 @@ export class CreditNoteController extends BaseController<CreditNoteService> {
     }
   }
 
+  async getByCrNumber(crNumber: string) {
+    try {
+      const creditNote = await this.service.findByCrNumber(crNumber);
+      if (!creditNote) {
+        return { success: false, error: 'Credit note not found' };
+      }
+      return this.wrapSuccess(creditNote);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async getByClient(clientId: number) {
     try {
       const creditNotes = await this.service.findByClient(clientId);
@@ -46,9 +58,18 @@ export class CreditNoteController extends BaseController<CreditNoteService> {
     }
   }
 
-  async getByInvoice(invoiceId: number) {
+  async getByInvoice(invNumber: string) {
     try {
-      const creditNotes = await this.service.findByInvoice(invoiceId);
+      const creditNotes = await this.service.findByInvoice(invNumber);
+      return this.wrapSuccess(creditNotes);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getBySalesperson(salespersonId: number) {
+    try {
+      const creditNotes = await this.service.findBySalesperson(salespersonId);
       return this.wrapSuccess(creditNotes);
     } catch (error) {
       return this.handleError(error);
@@ -64,9 +85,9 @@ export class CreditNoteController extends BaseController<CreditNoteService> {
     }
   }
 
-  async getUnallocated() {
+  async getUnused() {
     try {
-      const creditNotes = await this.service.findUnallocated();
+      const creditNotes = await this.service.findUnused();
       return this.wrapSuccess(creditNotes);
     } catch (error) {
       return this.handleError(error);
@@ -103,9 +124,9 @@ export class CreditNoteController extends BaseController<CreditNoteService> {
     }
   }
 
-  async markAllocated(id: number) {
+  async recordUsage(id: number, amount: string) {
     try {
-      const creditNote = await this.service.markAllocated(id);
+      const creditNote = await this.service.recordUsage(id, amount);
       if (!creditNote) {
         return { success: false, error: 'Credit note not found' };
       }
@@ -114,86 +135,14 @@ export class CreditNoteController extends BaseController<CreditNoteService> {
       return this.handleError(error);
     }
   }
-}
 
-export class CreditNoteAllocationController extends BaseController<CreditNoteAllocationService> {
-  constructor(service: CreditNoteAllocationService) {
-    super(service);
-  }
-
-  async getAll() {
+  async archive(id: number) {
     try {
-      const allocations = await this.service.findAll();
-      return this.wrapSuccess(allocations);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async getById(id: number) {
-    try {
-      const allocation = await this.service.findById(id);
-      if (!allocation) {
-        return { success: false, error: 'Credit note allocation not found' };
+      const creditNote = await this.service.archive(id);
+      if (!creditNote) {
+        return { success: false, error: 'Credit note not found' };
       }
-      return this.wrapSuccess(allocation);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async getByCreditNote(creditNoteId: number) {
-    try {
-      const allocations = await this.service.findByCreditNote(creditNoteId);
-      return this.wrapSuccess(allocations);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async getByInvoice(invoiceId: number) {
-    try {
-      const allocations = await this.service.findByInvoice(invoiceId);
-      return this.wrapSuccess(allocations);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async getTotalAllocated(creditNoteId: number) {
-    try {
-      const total = await this.service.getTotalAllocated(creditNoteId);
-      return this.wrapSuccess({ total });
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async create(data: schema.InsertCreditNoteAllocation) {
-    try {
-      const allocation = await this.service.create(data);
-      return this.wrapSuccess(allocation);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async update(id: number, data: Partial<schema.InsertCreditNoteAllocation>) {
-    try {
-      const allocation = await this.service.update(id, data);
-      if (!allocation) {
-        return { success: false, error: 'Credit note allocation not found' };
-      }
-      return this.wrapSuccess(allocation);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async delete(id: number) {
-    try {
-      await this.service.delete(id);
-      return this.wrapSuccess({ deleted: true });
+      return this.wrapSuccess(creditNote);
     } catch (error) {
       return this.handleError(error);
     }

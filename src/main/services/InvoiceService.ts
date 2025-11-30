@@ -19,17 +19,10 @@ export interface AdjacentInvoicesWithData {
 export interface InvoiceQueryParams {
   page?: number;
   pageSize?: number;
-  includeHistorical?: boolean;
+  includeArchived?: boolean;
   search?: string;
   status?: string;
   clientId?: number;
-}
-
-// Keep old interface for backwards compatibility
-export interface PaginationParams {
-  page?: number;
-  pageSize?: number;
-  includeHistorical?: boolean;
 }
 
 export class InvoiceService extends BaseService<
@@ -41,12 +34,8 @@ export class InvoiceService extends BaseService<
     super(db, schema.invoices);
   }
 
-  /**
-   * Find all invoices, optionally filtering out historical ones
-   * By default, excludes historical invoices for better performance
-   */
-  async findAllFiltered(includeHistorical: boolean = false): Promise<schema.Invoice[]> {
-    if (includeHistorical) {
+  async findAllFiltered(includeArchived: boolean = false): Promise<schema.Invoice[]> {
+    if (includeArchived) {
       return this.db
         .select()
         .from(schema.invoices)
@@ -55,52 +44,41 @@ export class InvoiceService extends BaseService<
     return this.db
       .select()
       .from(schema.invoices)
-      .where(eq(schema.invoices.isHistorical, 0))
+      .where(eq(schema.invoices.isArchived, false))
       .orderBy(desc(schema.invoices.createdAt));
   }
 
-  /**
-   * Find invoices with pagination, search, and filter support
-   * Returns paginated results with total count for efficient data loading
-   */
   async findPaginated(params: InvoiceQueryParams = {}): Promise<PaginatedResult<schema.Invoice>> {
-    const { page = 1, pageSize = 50, includeHistorical = false, search, status, clientId } = params;
+    const { page = 1, pageSize = 50, includeArchived = false, search, status, clientId } = params;
     const offset = (page - 1) * pageSize;
 
-    // Build where conditions array
     const conditions = [];
 
-    // Historical filter
-    if (!includeHistorical) {
-      conditions.push(eq(schema.invoices.isHistorical, 0));
+    if (!includeArchived) {
+      conditions.push(eq(schema.invoices.isArchived, false));
     }
 
-    // Client filter
     if (clientId) {
       conditions.push(eq(schema.invoices.clientId, clientId));
     }
 
-    // Status filter
     if (status && status !== 'all') {
       conditions.push(eq(schema.invoices.status, status));
     }
 
-    // Search filter - search across invoice number, client name, reference
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`;
       conditions.push(
         or(
-          ilike(schema.invoices.invoiceNumber, searchTerm),
+          ilike(schema.invoices.invNumber, searchTerm),
           ilike(schema.invoices.clientName, searchTerm),
           ilike(schema.invoices.reference, searchTerm)
         )
       );
     }
 
-    // Combine conditions
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get total count
     const countResult = await this.db
       .select({ count: count() })
       .from(schema.invoices)
@@ -108,7 +86,6 @@ export class InvoiceService extends BaseService<
 
     const total = Number(countResult[0]?.count ?? 0);
 
-    // Get paginated data
     const data = await this.db
       .select()
       .from(schema.invoices)
@@ -126,16 +103,11 @@ export class InvoiceService extends BaseService<
     };
   }
 
-  async findByLegacyId(legacyId: number, isHistorical: boolean = false): Promise<schema.Invoice | null> {
+  async findByInvNumber(invNumber: string): Promise<schema.Invoice | null> {
     const results = await this.db
       .select()
       .from(schema.invoices)
-      .where(
-        and(
-          eq(schema.invoices.legacyId, legacyId),
-          eq(schema.invoices.isHistorical, isHistorical ? 1 : 0)
-        )
-      )
+      .where(eq(schema.invoices.invNumber, invNumber))
       .limit(1);
     return results[0] || null;
   }
@@ -148,11 +120,11 @@ export class InvoiceService extends BaseService<
       .orderBy(desc(schema.invoices.createdAt));
   }
 
-  async findByEmployee(employeeId: number): Promise<schema.Invoice[]> {
+  async findBySalesperson(salespersonId: number): Promise<schema.Invoice[]> {
     return this.db
       .select()
       .from(schema.invoices)
-      .where(eq(schema.invoices.employeeId, employeeId))
+      .where(eq(schema.invoices.salespersonId, salespersonId))
       .orderBy(desc(schema.invoices.createdAt));
   }
 
@@ -170,47 +142,48 @@ export class InvoiceService extends BaseService<
       .from(schema.invoices)
       .where(
         and(
-          gte(schema.invoices.createdAt, startDate),
-          lte(schema.invoices.createdAt, endDate)
+          gte(schema.invoices.invDate, startDate),
+          lte(schema.invoices.invDate, endDate)
         )
       )
-      .orderBy(desc(schema.invoices.createdAt));
+      .orderBy(desc(schema.invoices.invDate));
   }
 
   async findUnpaid(): Promise<schema.Invoice[]> {
-    return this.db
+    // Find invoices where totalPaid < total
+    const allInvoices = await this.db
       .select()
       .from(schema.invoices)
       .where(
         and(
-          eq(schema.invoices.status, 'unpaid'),
-          eq(schema.invoices.isHistorical, 0)
+          eq(schema.invoices.status, 'A'),
+          eq(schema.invoices.isArchived, false)
         )
-      )
-      .orderBy(desc(schema.invoices.createdAt));
+      );
+
+    return allInvoices.filter(inv => {
+      const total = parseFloat(inv.total || '0');
+      const totalPaid = parseFloat(inv.totalPaid || '0');
+      return totalPaid < total;
+    });
   }
 
-  async recordPayment(id: number, amount: number): Promise<schema.Invoice | null> {
+  async recordPayment(id: number, amount: string): Promise<schema.Invoice | null> {
     const invoice = await this.findById(id);
     if (!invoice) return null;
 
-    const newAmountPaid = invoice.amountPaid + amount;
-    const newBalance = invoice.total - newAmountPaid;
-    const newStatus = newBalance <= 0 ? 'paid' : newBalance < invoice.total ? 'partial' : 'unpaid';
+    const currentPaid = parseFloat(invoice.totalPaid || '0');
+    const newTotalPaid = currentPaid + parseFloat(amount);
+    const total = parseFloat(invoice.total || '0');
+    const newStatus = newTotalPaid >= total ? 'P' : 'A'; // P = Paid, A = Active
 
     return this.update(id, {
-      amountPaid: newAmountPaid,
-      balance: newBalance,
+      totalPaid: newTotalPaid.toFixed(2),
       status: newStatus,
     });
   }
 
-  /**
-   * Get adjacent (previous and next) non-draft invoice IDs for navigation
-   * Previous = newer invoice (higher createdAt), Next = older invoice (lower createdAt)
-   */
   async getAdjacentInvoices(invoiceId: number): Promise<AdjacentInvoices> {
-    // First get the current invoice's createdAt
     const currentInvoice = await this.findById(invoiceId);
     if (!currentInvoice) {
       return { previousId: null, nextId: null };
@@ -218,7 +191,6 @@ export class InvoiceService extends BaseService<
 
     const currentCreatedAt = currentInvoice.createdAt;
 
-    // Get previous invoice (newer - higher createdAt, non-draft)
     const previousResult = await this.db
       .select({ id: schema.invoices.id })
       .from(schema.invoices)
@@ -231,7 +203,6 @@ export class InvoiceService extends BaseService<
       .orderBy(asc(schema.invoices.createdAt))
       .limit(1);
 
-    // Get next invoice (older - lower createdAt, non-draft)
     const nextResult = await this.db
       .select({ id: schema.invoices.id })
       .from(schema.invoices)
@@ -250,12 +221,7 @@ export class InvoiceService extends BaseService<
     };
   }
 
-  /**
-   * Get adjacent (previous and next) non-draft invoices with full data for caching
-   * Previous = newer invoice (higher createdAt), Next = older invoice (lower createdAt)
-   */
   async getAdjacentInvoicesWithData(invoiceId: number): Promise<AdjacentInvoicesWithData> {
-    // First get the current invoice's createdAt
     const currentInvoice = await this.findById(invoiceId);
     if (!currentInvoice) {
       return { previousId: null, nextId: null, previousInvoice: null, nextInvoice: null };
@@ -263,7 +229,6 @@ export class InvoiceService extends BaseService<
 
     const currentCreatedAt = currentInvoice.createdAt;
 
-    // Get previous invoice (newer - higher createdAt, non-draft) with full data
     const previousResult = await this.db
       .select()
       .from(schema.invoices)
@@ -276,7 +241,6 @@ export class InvoiceService extends BaseService<
       .orderBy(asc(schema.invoices.createdAt))
       .limit(1);
 
-    // Get next invoice (older - lower createdAt, non-draft) with full data
     const nextResult = await this.db
       .select()
       .from(schema.invoices)
@@ -298,45 +262,5 @@ export class InvoiceService extends BaseService<
       previousInvoice,
       nextInvoice,
     };
-  }
-}
-
-export class InvoiceItemService extends BaseService<
-  typeof schema.invoiceItems,
-  schema.InvoiceItem,
-  schema.InsertInvoiceItem
-> {
-  constructor(db: NodePgDatabase<typeof schema>) {
-    super(db, schema.invoiceItems);
-  }
-
-  async findByInvoice(invoiceId: number): Promise<schema.InvoiceItem[]> {
-    return this.db
-      .select()
-      .from(schema.invoiceItems)
-      .where(eq(schema.invoiceItems.invoiceId, invoiceId));
-  }
-
-  async findByLegacyId(legacyId: number): Promise<schema.InvoiceItem | null> {
-    const results = await this.db
-      .select()
-      .from(schema.invoiceItems)
-      .where(eq(schema.invoiceItems.legacyId, legacyId))
-      .limit(1);
-    return results[0] || null;
-  }
-
-  async bulkCreate(items: schema.InsertInvoiceItem[]): Promise<schema.InvoiceItem[]> {
-    return this.db
-      .insert(schema.invoiceItems)
-      .values(items)
-      .returning();
-  }
-
-  async deleteByInvoice(invoiceId: number): Promise<boolean> {
-    await this.db
-      .delete(schema.invoiceItems)
-      .where(eq(schema.invoiceItems.invoiceId, invoiceId));
-    return true;
   }
 }

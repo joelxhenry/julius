@@ -4,11 +4,13 @@ import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
 
+export type PaymentDocumentType = 'INVOICE' | 'CREDIT' | 'BILL';
+
 export interface PaymentQueryParams {
   page?: number;
   pageSize?: number;
   search?: string;
-  method?: string;
+  documentType?: PaymentDocumentType;
 }
 
 export class PaymentService extends BaseService<
@@ -21,7 +23,7 @@ export class PaymentService extends BaseService<
   }
 
   async findPaginated(params: PaymentQueryParams = {}): Promise<PaginatedResult<schema.Payment>> {
-    const { page = 1, pageSize = 50, search, method } = params;
+    const { page = 1, pageSize = 50, search, documentType } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -30,14 +32,15 @@ export class PaymentService extends BaseService<
       const searchTerm = `%${search.trim()}%`;
       conditions.push(
         or(
-          ilike(schema.payments.reference, searchTerm),
-          ilike(schema.payments.notes, searchTerm)
+          ilike(schema.payments.documentNumber, searchTerm),
+          ilike(schema.payments.payerName, searchTerm),
+          ilike(schema.payments.paymentDesc, searchTerm)
         )
       );
     }
 
-    if (method && method !== 'all') {
-      conditions.push(eq(schema.payments.method, method));
+    if (documentType) {
+      conditions.push(eq(schema.payments.documentType, documentType));
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
@@ -53,7 +56,7 @@ export class PaymentService extends BaseService<
       .select()
       .from(schema.payments)
       .where(whereCondition)
-      .orderBy(desc(schema.payments.paidAt))
+      .orderBy(desc(schema.payments.paymentDate))
       .limit(pageSize)
       .offset(offset);
 
@@ -66,29 +69,51 @@ export class PaymentService extends BaseService<
     };
   }
 
-  async findByInvoice(invoiceId: number): Promise<schema.Payment[]> {
+  async findByDocumentType(documentType: PaymentDocumentType): Promise<schema.Payment[]> {
     return this.db
       .select()
       .from(schema.payments)
-      .where(eq(schema.payments.invoiceId, invoiceId))
-      .orderBy(desc(schema.payments.paidAt));
+      .where(eq(schema.payments.documentType, documentType))
+      .orderBy(desc(schema.payments.paymentDate));
   }
 
-  async findByLegacyId(legacyId: number): Promise<schema.Payment | null> {
-    const results = await this.db
-      .select()
-      .from(schema.payments)
-      .where(eq(schema.payments.legacyId, legacyId))
-      .limit(1);
-    return results[0] || null;
-  }
-
-  async findByPaymentMethod(paymentMethodId: number): Promise<schema.Payment[]> {
+  async findByInvoice(invoiceNumber: string): Promise<schema.Payment[]> {
     return this.db
       .select()
       .from(schema.payments)
-      .where(eq(schema.payments.paymentMethodId, paymentMethodId))
-      .orderBy(desc(schema.payments.paidAt));
+      .where(
+        and(
+          eq(schema.payments.documentType, 'INVOICE'),
+          eq(schema.payments.invoiceNumber, invoiceNumber)
+        )
+      )
+      .orderBy(desc(schema.payments.paymentDate));
+  }
+
+  async findByCreditNote(creditNoteNumber: string): Promise<schema.Payment[]> {
+    return this.db
+      .select()
+      .from(schema.payments)
+      .where(
+        and(
+          eq(schema.payments.documentType, 'CREDIT'),
+          eq(schema.payments.creditNoteNumber, creditNoteNumber)
+        )
+      )
+      .orderBy(desc(schema.payments.paymentDate));
+  }
+
+  async findByBill(billNumber: string): Promise<schema.Payment[]> {
+    return this.db
+      .select()
+      .from(schema.payments)
+      .where(
+        and(
+          eq(schema.payments.documentType, 'BILL'),
+          eq(schema.payments.billNumber, billNumber)
+        )
+      )
+      .orderBy(desc(schema.payments.paymentDate));
   }
 
   async findByDateRange(startDate: string, endDate: string): Promise<schema.Payment[]> {
@@ -97,16 +122,52 @@ export class PaymentService extends BaseService<
       .from(schema.payments)
       .where(
         and(
-          gte(schema.payments.paidAt, startDate),
-          lte(schema.payments.paidAt, endDate)
+          gte(schema.payments.paymentDate, startDate),
+          lte(schema.payments.paymentDate, endDate)
         )
       )
-      .orderBy(desc(schema.payments.paidAt));
+      .orderBy(desc(schema.payments.paymentDate));
   }
 
   async getTotalByDateRange(startDate: string, endDate: string): Promise<number> {
     const payments = await this.findByDateRange(startDate, endDate);
-    return payments.reduce((sum, payment) => sum + payment.amount, 0);
+    return payments.reduce((sum, payment) => {
+      return sum + parseFloat(payment.amount || '0');
+    }, 0);
+  }
+
+  async createInvoicePayment(
+    invoiceNumber: string,
+    amount: string,
+    payerName?: string,
+    paymentDesc?: string
+  ): Promise<schema.Payment> {
+    return this.create({
+      documentType: 'INVOICE',
+      documentNumber: invoiceNumber,
+      invoiceNumber,
+      amount,
+      payerName,
+      paymentDesc,
+      paymentDate: new Date().toISOString().split('T')[0],
+    });
+  }
+
+  async createBillPayment(
+    billNumber: string,
+    amount: string,
+    payerName?: string,
+    paymentDesc?: string
+  ): Promise<schema.Payment> {
+    return this.create({
+      documentType: 'BILL',
+      documentNumber: billNumber,
+      billNumber,
+      amount,
+      payerName,
+      paymentDesc,
+      paymentDate: new Date().toISOString().split('T')[0],
+    });
   }
 }
 
@@ -117,6 +178,15 @@ export class PaymentMethodService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.paymentMethods);
+  }
+
+  async findByCode(code: string): Promise<schema.PaymentMethod | null> {
+    const results = await this.db
+      .select()
+      .from(schema.paymentMethods)
+      .where(eq(schema.paymentMethods.code, code))
+      .limit(1);
+    return results[0] || null;
   }
 
   async findByName(name: string): Promise<schema.PaymentMethod | null> {

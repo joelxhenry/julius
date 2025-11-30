@@ -8,34 +8,42 @@ let dataHandlersRegistered = false;
 
 // Import services
 import {
+  BranchService,
+  CategoryService,
   ClientService,
-  UserService,
-  PartService,
-  PartVariantService,
+  SupplierService,
+  EmployeeService,
+  InventoryService,
+  VariantService,
   InvoiceService,
-  InvoiceItemService,
+  QuotationService,
+  CreditNoteService,
+  DocumentLineItemService,
+  BillService,
   PaymentService,
   PaymentMethodService,
-  QuotationService,
-  QuotationItemService,
-  CreditNoteService,
-  CreditNoteAllocationService,
+  GctPaymentService,
+  EmployeeAttendanceService,
 } from '../services';
 
 // Import controllers
 import {
+  BranchController,
+  CategoryController,
   ClientController,
-  UserController,
-  PartController,
-  PartVariantController,
+  SupplierController,
+  EmployeeController,
+  InventoryController,
+  VariantController,
   InvoiceController,
-  InvoiceItemController,
+  QuotationController,
+  CreditNoteController,
+  DocumentLineItemController,
+  BillController,
   PaymentController,
   PaymentMethodController,
-  QuotationController,
-  QuotationItemController,
-  CreditNoteController,
-  CreditNoteAllocationController,
+  GctPaymentController,
+  EmployeeAttendanceController,
 } from '../controllers';
 
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
@@ -52,121 +60,16 @@ function removeHandler(channel: IpcChannel) {
 
 // Remove all data handlers (called before re-registering)
 function removeDataHandlers() {
-  // Client handlers
-  removeHandler(IpcChannel.GET_CLIENTS);
-  removeHandler(IpcChannel.GET_CLIENTS_PAGINATED);
-  removeHandler(IpcChannel.GET_CLIENT);
-  removeHandler(IpcChannel.GET_CLIENT_BY_EMAIL);
-  removeHandler(IpcChannel.SEARCH_CLIENTS);
-  removeHandler(IpcChannel.SEARCH_CLIENTS_FOR_SELECT);
-  removeHandler(IpcChannel.CREATE_CLIENT);
-  removeHandler(IpcChannel.UPDATE_CLIENT);
-  removeHandler(IpcChannel.DELETE_CLIENT);
-
-  // User handlers
-  removeHandler(IpcChannel.GET_USERS);
-  removeHandler(IpcChannel.GET_USERS_PAGINATED);
-  removeHandler(IpcChannel.GET_USER);
-  removeHandler(IpcChannel.GET_USER_BY_USERNAME);
-  removeHandler(IpcChannel.GET_ACTIVE_USERS);
-  removeHandler(IpcChannel.SEARCH_USERS);
-  removeHandler(IpcChannel.SEARCH_USERS_FOR_SELECT);
-  removeHandler(IpcChannel.CREATE_USER);
-  removeHandler(IpcChannel.UPDATE_USER);
-  removeHandler(IpcChannel.DELETE_USER);
-  removeHandler(IpcChannel.AUTHENTICATE_USER);
-  removeHandler(IpcChannel.UPDATE_USER_PIN);
-
-  // Part handlers
-  removeHandler(IpcChannel.GET_PARTS);
-  removeHandler(IpcChannel.GET_PARTS_PAGINATED);
-  removeHandler(IpcChannel.GET_PART);
-  removeHandler(IpcChannel.GET_PART_BY_SKU);
-  removeHandler(IpcChannel.SEARCH_PARTS);
-  removeHandler(IpcChannel.CREATE_PART);
-  removeHandler(IpcChannel.UPDATE_PART);
-  removeHandler(IpcChannel.DELETE_PART);
-
-  // Part variant handlers
-  removeHandler(IpcChannel.GET_PART_VARIANTS);
-  removeHandler(IpcChannel.GET_PART_VARIANT);
-  removeHandler(IpcChannel.GET_VARIANTS_BY_PART);
-  removeHandler(IpcChannel.GET_ACTIVE_VARIANTS);
-  removeHandler(IpcChannel.GET_LOW_STOCK_VARIANTS);
-  removeHandler(IpcChannel.CREATE_PART_VARIANT);
-  removeHandler(IpcChannel.UPDATE_PART_VARIANT);
-  removeHandler(IpcChannel.DELETE_PART_VARIANT);
-  removeHandler(IpcChannel.UPDATE_VARIANT_STOCK);
-  removeHandler(IpcChannel.SEARCH_PART_VARIANTS_FOR_SELECT);
-
-  // Invoice handlers
-  removeHandler(IpcChannel.GET_INVOICES);
-  removeHandler(IpcChannel.GET_INVOICES_PAGINATED);
-  removeHandler(IpcChannel.GET_INVOICE);
-  removeHandler(IpcChannel.GET_INVOICES_BY_CLIENT);
-  removeHandler(IpcChannel.GET_UNPAID_INVOICES);
-  removeHandler(IpcChannel.GET_ADJACENT_INVOICES);
-  removeHandler(IpcChannel.GET_ADJACENT_INVOICES_WITH_DATA);
-  removeHandler(IpcChannel.CREATE_INVOICE);
-  removeHandler(IpcChannel.UPDATE_INVOICE);
-  removeHandler(IpcChannel.DELETE_INVOICE);
-  removeHandler(IpcChannel.RECORD_PAYMENT);
-
-  // Invoice item handlers
-  removeHandler(IpcChannel.GET_INVOICE_ITEMS);
-  removeHandler(IpcChannel.CREATE_INVOICE_ITEM);
-  removeHandler(IpcChannel.CREATE_INVOICE_ITEMS_BULK);
-  removeHandler(IpcChannel.UPDATE_INVOICE_ITEM);
-  removeHandler(IpcChannel.DELETE_INVOICE_ITEM);
-
-  // Payment handlers
-  removeHandler(IpcChannel.GET_PAYMENTS);
-  removeHandler(IpcChannel.GET_PAYMENTS_PAGINATED);
-  removeHandler(IpcChannel.GET_PAYMENT);
-  removeHandler(IpcChannel.GET_PAYMENTS_BY_INVOICE);
-  removeHandler(IpcChannel.CREATE_PAYMENT);
-  removeHandler(IpcChannel.UPDATE_PAYMENT);
-  removeHandler(IpcChannel.DELETE_PAYMENT);
-
-  // Payment method handlers
-  removeHandler(IpcChannel.GET_PAYMENT_METHODS);
-  removeHandler(IpcChannel.GET_ACTIVE_PAYMENT_METHODS);
-  removeHandler(IpcChannel.CREATE_PAYMENT_METHOD);
-  removeHandler(IpcChannel.UPDATE_PAYMENT_METHOD);
-  removeHandler(IpcChannel.DELETE_PAYMENT_METHOD);
-
-  // Quotation handlers
-  removeHandler(IpcChannel.GET_QUOTATIONS);
-  removeHandler(IpcChannel.GET_QUOTATIONS_PAGINATED);
-  removeHandler(IpcChannel.GET_QUOTATION);
-  removeHandler(IpcChannel.GET_QUOTATIONS_BY_CLIENT);
-  removeHandler(IpcChannel.CREATE_QUOTATION);
-  removeHandler(IpcChannel.UPDATE_QUOTATION);
-  removeHandler(IpcChannel.DELETE_QUOTATION);
-  removeHandler(IpcChannel.CONVERT_QUOTATION_TO_INVOICE);
-
-  // Quotation item handlers
-  removeHandler(IpcChannel.GET_QUOTATION_ITEMS);
-  removeHandler(IpcChannel.CREATE_QUOTATION_ITEM);
-  removeHandler(IpcChannel.CREATE_QUOTATION_ITEMS_BULK);
-  removeHandler(IpcChannel.UPDATE_QUOTATION_ITEM);
-  removeHandler(IpcChannel.DELETE_QUOTATION_ITEM);
-
-  // Credit note handlers
-  removeHandler(IpcChannel.GET_CREDIT_NOTES);
-  removeHandler(IpcChannel.GET_CREDIT_NOTES_PAGINATED);
-  removeHandler(IpcChannel.GET_CREDIT_NOTE);
-  removeHandler(IpcChannel.GET_CREDIT_NOTES_BY_CLIENT);
-  removeHandler(IpcChannel.GET_UNALLOCATED_CREDIT_NOTES);
-  removeHandler(IpcChannel.CREATE_CREDIT_NOTE);
-  removeHandler(IpcChannel.UPDATE_CREDIT_NOTE);
-  removeHandler(IpcChannel.DELETE_CREDIT_NOTE);
-
-  // Credit note allocation handlers
-  removeHandler(IpcChannel.GET_CREDIT_NOTE_ALLOCATIONS);
-  removeHandler(IpcChannel.CREATE_CREDIT_NOTE_ALLOCATION);
-  removeHandler(IpcChannel.UPDATE_CREDIT_NOTE_ALLOCATION);
-  removeHandler(IpcChannel.DELETE_CREDIT_NOTE_ALLOCATION);
+  // Remove all IpcChannel handlers
+  Object.values(IpcChannel).forEach((channel) => {
+    if (!channel.startsWith('db:get-config') &&
+        !channel.startsWith('db:update-config') &&
+        !channel.startsWith('db:test-connection') &&
+        !channel.startsWith('db:reconnect') &&
+        !channel.startsWith('db:check-status')) {
+      removeHandler(channel as IpcChannel);
+    }
+  });
 
   dataHandlersRegistered = false;
 }
@@ -241,36 +144,64 @@ function registerDataHandlers() {
   }
 
   // Initialize services
+  const branchService = new BranchService(db);
+  const categoryService = new CategoryService(db);
   const clientService = new ClientService(db);
-  const userService = new UserService(db);
-  const partService = new PartService(db);
-  const partVariantService = new PartVariantService(db);
+  const supplierService = new SupplierService(db);
+  const employeeService = new EmployeeService(db);
+  const inventoryService = new InventoryService(db);
+  const variantService = new VariantService(db);
   const invoiceService = new InvoiceService(db);
-  const invoiceItemService = new InvoiceItemService(db);
+  const quotationService = new QuotationService(db);
+  const creditNoteService = new CreditNoteService(db);
+  const documentLineItemService = new DocumentLineItemService(db);
+  const billService = new BillService(db);
   const paymentService = new PaymentService(db);
   const paymentMethodService = new PaymentMethodService(db);
-  const quotationService = new QuotationService(db);
-  const quotationItemService = new QuotationItemService(db);
-  const creditNoteService = new CreditNoteService(db);
-  const creditNoteAllocationService = new CreditNoteAllocationService(db);
+  const gctPaymentService = new GctPaymentService(db);
+  const employeeAttendanceService = new EmployeeAttendanceService(db);
 
   // Initialize controllers
+  const branchController = new BranchController(branchService);
+  const categoryController = new CategoryController(categoryService);
   const clientController = new ClientController(clientService);
-  const userController = new UserController(userService);
-  const partController = new PartController(partService);
-  const partVariantController = new PartVariantController(partVariantService);
+  const supplierController = new SupplierController(supplierService);
+  const employeeController = new EmployeeController(employeeService);
+  const inventoryController = new InventoryController(inventoryService);
+  const variantController = new VariantController(variantService);
   const invoiceController = new InvoiceController(invoiceService);
-  const invoiceItemController = new InvoiceItemController(invoiceItemService);
+  const quotationController = new QuotationController(quotationService);
+  const creditNoteController = new CreditNoteController(creditNoteService);
+  const documentLineItemController = new DocumentLineItemController(documentLineItemService);
+  const billController = new BillController(billService);
   const paymentController = new PaymentController(paymentService);
   const paymentMethodController = new PaymentMethodController(paymentMethodService);
-  const quotationController = new QuotationController(quotationService);
-  const quotationItemController = new QuotationItemController(quotationItemService);
-  const creditNoteController = new CreditNoteController(creditNoteService);
-  const creditNoteAllocationController = new CreditNoteAllocationController(creditNoteAllocationService);
+  const gctPaymentController = new GctPaymentController(gctPaymentService);
+  const employeeAttendanceController = new EmployeeAttendanceController(employeeAttendanceService);
+
+  // ===== BRANCH HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_BRANCHES, () => branchController.getAll());
+  ipcMain.handle(IpcChannel.GET_BRANCH, (_, { id }: { id: number }) => branchController.getById(id));
+  ipcMain.handle(IpcChannel.GET_BRANCH_BY_CODE, (_, { code }: { code: string }) => branchController.getByCode(code));
+  ipcMain.handle(IpcChannel.GET_ACTIVE_BRANCHES, () => branchController.getActive());
+  ipcMain.handle(IpcChannel.CREATE_BRANCH, (_, data: any) => branchController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_BRANCH, (_, { id, data }: any) => branchController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_BRANCH, (_, { id }: { id: number }) => branchController.delete(id));
+
+  // ===== CATEGORY HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_CATEGORIES, () => categoryController.getAll());
+  ipcMain.handle(IpcChannel.GET_CATEGORIES_PAGINATED, (_, params: any = {}) => categoryController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_CATEGORY, (_, { id }: { id: number }) => categoryController.getById(id));
+  ipcMain.handle(IpcChannel.GET_CATEGORY_BY_CODE, (_, { code }: { code: string }) => categoryController.getByCode(code));
+  ipcMain.handle(IpcChannel.GET_CATEGORIES_BY_TYPE, (_, { categoryType }: { categoryType: 'ACCOUNT' | 'INVENTORY' }) => categoryController.getByType(categoryType));
+  ipcMain.handle(IpcChannel.GET_ROOT_CATEGORIES, (_, { categoryType }: { categoryType?: 'ACCOUNT' | 'INVENTORY' } = {}) => categoryController.getRoots(categoryType));
+  ipcMain.handle(IpcChannel.CREATE_CATEGORY, (_, data: any) => categoryController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_CATEGORY, (_, { id, data }: any) => categoryController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_CATEGORY, (_, { id }: { id: number }) => categoryController.delete(id));
 
   // ===== CLIENT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_CLIENTS, () => clientController.getAll());
-  ipcMain.handle(IpcChannel.GET_CLIENTS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string } = {}) => clientController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_CLIENTS_PAGINATED, (_, params: any = {}) => clientController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_CLIENT, (_, { id }: { id: number }) => clientController.getById(id));
   ipcMain.handle(IpcChannel.GET_CLIENT_BY_EMAIL, (_, { email }: { email: string }) => clientController.getByEmail(email));
   ipcMain.handle(IpcChannel.SEARCH_CLIENTS, (_, { query }: { query: string }) => clientController.search(query));
@@ -279,110 +210,178 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.UPDATE_CLIENT, (_, { id, data }: any) => clientController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_CLIENT, (_, { id }: { id: number }) => clientController.delete(id));
 
-  // ===== USER HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_USERS, () => userController.getAll());
-  ipcMain.handle(IpcChannel.GET_USERS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; activeOnly?: boolean } = {}) => userController.getPaginated(params));
-  ipcMain.handle(IpcChannel.GET_USER, (_, { id }: { id: number }) => userController.getById(id));
-  ipcMain.handle(IpcChannel.GET_USER_BY_USERNAME, (_, { username }: { username: string }) => userController.getByUsername(username));
-  ipcMain.handle(IpcChannel.GET_ACTIVE_USERS, () => userController.getActive());
-  ipcMain.handle(IpcChannel.SEARCH_USERS, (_, { query }: { query: string }) => userController.search(query));
-  ipcMain.handle(IpcChannel.SEARCH_USERS_FOR_SELECT, (_, { query, limit, activeOnly }: { query: string; limit?: number; activeOnly?: boolean }) => userController.searchForSelect(query, limit, activeOnly));
-  ipcMain.handle(IpcChannel.CREATE_USER, (_, data: any) => userController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_USER, (_, { id, data }: any) => userController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_USER, (_, { id }: { id: number }) => userController.delete(id));
-  ipcMain.handle(IpcChannel.AUTHENTICATE_USER, (_, { username, password }: { username: string; password: string }) => userController.authenticate(username, password));
-  ipcMain.handle(IpcChannel.UPDATE_USER_PIN, (_, { id, newPin }: { id: number; newPin: string }) => userController.updatePinSecure(id, newPin));
+  // ===== SUPPLIER HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_SUPPLIERS, () => supplierController.getAll());
+  ipcMain.handle(IpcChannel.GET_SUPPLIERS_PAGINATED, (_, params: any = {}) => supplierController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_SUPPLIER, (_, { id }: { id: number }) => supplierController.getById(id));
+  ipcMain.handle(IpcChannel.GET_SUPPLIER_BY_CODE, (_, { supplierCode }: { supplierCode: string }) => supplierController.getBySupplierCode(supplierCode));
+  ipcMain.handle(IpcChannel.GET_ACTIVE_SUPPLIERS, () => supplierController.getActive());
+  ipcMain.handle(IpcChannel.SEARCH_SUPPLIERS, (_, { query }: { query: string }) => supplierController.search(query));
+  ipcMain.handle(IpcChannel.CREATE_SUPPLIER, (_, data: any) => supplierController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_SUPPLIER, (_, { id, data }: any) => supplierController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_SUPPLIER, (_, { id }: { id: number }) => supplierController.delete(id));
 
-  // ===== PART HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_PARTS, () => partController.getAll());
-  ipcMain.handle(IpcChannel.GET_PARTS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; category?: string } = {}) => partController.getPaginated(params));
-  ipcMain.handle(IpcChannel.GET_PART, (_, { id }: { id: number }) => partController.getById(id));
-  ipcMain.handle(IpcChannel.GET_PART_BY_SKU, (_, { sku }: { sku: string }) => partController.getBySku(sku));
-  ipcMain.handle(IpcChannel.SEARCH_PARTS, (_, { query }: { query: string }) => partController.search(query));
-  ipcMain.handle(IpcChannel.CREATE_PART, (_, data: any) => partController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_PART, (_, { id, data }: any) => partController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_PART, (_, { id }: { id: number }) => partController.delete(id));
+  // ===== EMPLOYEE HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_EMPLOYEES, () => employeeController.getAll());
+  ipcMain.handle(IpcChannel.GET_EMPLOYEES_PAGINATED, (_, params: any = {}) => employeeController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE, (_, { id }: { id: number }) => employeeController.getById(id));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_BY_USERNAME, (_, { username }: { username: string }) => employeeController.getByUsername(username));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_BY_CODE, (_, { employeeCode }: { employeeCode: string }) => employeeController.getByEmployeeCode(employeeCode));
+  ipcMain.handle(IpcChannel.GET_ACTIVE_EMPLOYEES, () => employeeController.getActive());
+  ipcMain.handle(IpcChannel.GET_SALESPEOPLE, () => employeeController.getSalespeople());
+  ipcMain.handle(IpcChannel.SEARCH_EMPLOYEES, (_, { query }: { query: string }) => employeeController.search(query));
+  ipcMain.handle(IpcChannel.SEARCH_EMPLOYEES_FOR_SELECT, (_, { query, limit, activeOnly }: { query: string; limit?: number; activeOnly?: boolean }) => employeeController.searchForSelect(query, limit, activeOnly));
+  ipcMain.handle(IpcChannel.CREATE_EMPLOYEE, (_, data: any) => employeeController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE, (_, { id, data }: any) => employeeController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_EMPLOYEE, (_, { id }: { id: number }) => employeeController.delete(id));
+  ipcMain.handle(IpcChannel.AUTHENTICATE_EMPLOYEE, (_, { username, password }: { username: string; password: string }) => employeeController.authenticate(username, password));
+  ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PIN, (_, { id, newPin }: { id: number; newPin: string }) => employeeController.updatePinSecure(id, newPin));
+  ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PERMISSIONS, (_, { id, permissions }: { id: number; permissions: Record<string, any> }) => employeeController.updatePermissions(id, permissions));
 
-  // ===== PART VARIANT HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_PART_VARIANTS, () => partVariantController.getAll());
-  ipcMain.handle(IpcChannel.GET_PART_VARIANT, (_, { id }: { id: number }) => partVariantController.getById(id));
-  ipcMain.handle(IpcChannel.GET_VARIANTS_BY_PART, (_, { partId }: { partId: number }) => partVariantController.getByPartId(partId));
-  ipcMain.handle(IpcChannel.GET_ACTIVE_VARIANTS, (_, { partId }: { partId?: number }) => partVariantController.getActive(partId));
-  ipcMain.handle(IpcChannel.GET_LOW_STOCK_VARIANTS, () => partVariantController.getLowStock());
-  ipcMain.handle(IpcChannel.CREATE_PART_VARIANT, (_, data: any) => partVariantController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_PART_VARIANT, (_, { id, data }: any) => partVariantController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_PART_VARIANT, (_, { id }: { id: number }) => partVariantController.delete(id));
-  ipcMain.handle(IpcChannel.UPDATE_VARIANT_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => partVariantController.updateStock(id, quantity));
-  ipcMain.handle(IpcChannel.SEARCH_PART_VARIANTS_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => partVariantController.searchForSelect(query, limit));
+  // ===== INVENTORY HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_INVENTORY, () => inventoryController.getAll());
+  ipcMain.handle(IpcChannel.GET_INVENTORY_PAGINATED, (_, params: any = {}) => inventoryController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_ITEM, (_, { id }: { id: number }) => inventoryController.getById(id));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_BY_SKU, (_, { sku }: { sku: string }) => inventoryController.getBySku(sku));
+  ipcMain.handle(IpcChannel.GET_LOW_STOCK_INVENTORY, () => inventoryController.getLowStock());
+  ipcMain.handle(IpcChannel.GET_ACTIVE_INVENTORY, () => inventoryController.getActive());
+  ipcMain.handle(IpcChannel.SEARCH_INVENTORY, (_, { query }: { query: string }) => inventoryController.search(query));
+  ipcMain.handle(IpcChannel.CREATE_INVENTORY, (_, data: any) => inventoryController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_INVENTORY, (_, { id, data }: any) => inventoryController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_INVENTORY, (_, { id }: { id: number }) => inventoryController.delete(id));
+  ipcMain.handle(IpcChannel.UPDATE_INVENTORY_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => inventoryController.updateStock(id, quantity));
+
+  // ===== VARIANT HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_VARIANTS, () => variantController.getAll());
+  ipcMain.handle(IpcChannel.GET_VARIANTS_PAGINATED, (_, params: any = {}) => variantController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_VARIANT, (_, { id }: { id: number }) => variantController.getById(id));
+  ipcMain.handle(IpcChannel.GET_VARIANTS_BY_INVENTORY, (_, { inventoryId }: { inventoryId: number }) => variantController.getByInventoryId(inventoryId));
+  ipcMain.handle(IpcChannel.GET_VARIANT_BY_BARCODE, (_, { barcode }: { barcode: string }) => variantController.getByBarcode(barcode));
+  ipcMain.handle(IpcChannel.GET_VARIANT_BY_SKU, (_, { variantSku }: { variantSku: string }) => variantController.getByVariantSku(variantSku));
+  ipcMain.handle(IpcChannel.GET_ACTIVE_VARIANTS, (_, { inventoryId }: { inventoryId?: number } = {}) => variantController.getActive(inventoryId));
+  ipcMain.handle(IpcChannel.GET_LOW_STOCK_VARIANTS, () => variantController.getLowStock());
+  ipcMain.handle(IpcChannel.SEARCH_VARIANTS_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => variantController.searchForSelect(query, limit));
+  ipcMain.handle(IpcChannel.CREATE_VARIANT, (_, data: any) => variantController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_VARIANT, (_, { id, data }: any) => variantController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_VARIANT, (_, { id }: { id: number }) => variantController.delete(id));
+  ipcMain.handle(IpcChannel.UPDATE_VARIANT_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => variantController.updateStock(id, quantity));
+  ipcMain.handle(IpcChannel.SET_VARIANT_STOCK, (_, { id, stockQty }: { id: number; stockQty: number }) => variantController.setStock(id, stockQty));
 
   // ===== INVOICE HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_INVOICES, (_, { includeHistorical }: { includeHistorical?: boolean } = {}) => invoiceController.getAll(includeHistorical ?? false));
-  ipcMain.handle(IpcChannel.GET_INVOICES_PAGINATED, (_, params: { page?: number; pageSize?: number; includeHistorical?: boolean; search?: string; status?: string } = {}) => invoiceController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_INVOICES, (_, { includeArchived }: { includeArchived?: boolean } = {}) => invoiceController.getAll(includeArchived ?? false));
+  ipcMain.handle(IpcChannel.GET_INVOICES_PAGINATED, (_, params: any = {}) => invoiceController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_INVOICE, (_, { id }: { id: number }) => invoiceController.getById(id));
+  ipcMain.handle(IpcChannel.GET_INVOICE_BY_NUMBER, (_, { invNumber }: { invNumber: string }) => invoiceController.getByInvNumber(invNumber));
   ipcMain.handle(IpcChannel.GET_INVOICES_BY_CLIENT, (_, { clientId }: { clientId: number }) => invoiceController.getByClient(clientId));
+  ipcMain.handle(IpcChannel.GET_INVOICES_BY_SALESPERSON, (_, { salespersonId }: { salespersonId: number }) => invoiceController.getBySalesperson(salespersonId));
   ipcMain.handle(IpcChannel.GET_UNPAID_INVOICES, () => invoiceController.getUnpaid());
   ipcMain.handle(IpcChannel.GET_ADJACENT_INVOICES, (_, { id }: { id: number }) => invoiceController.getAdjacentInvoices(id));
   ipcMain.handle(IpcChannel.GET_ADJACENT_INVOICES_WITH_DATA, (_, { id }: { id: number }) => invoiceController.getAdjacentInvoicesWithData(id));
   ipcMain.handle(IpcChannel.CREATE_INVOICE, (_, data: any) => invoiceController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_INVOICE, (_, { id, data }: any) => invoiceController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVOICE, (_, { id }: { id: number }) => invoiceController.delete(id));
-  ipcMain.handle(IpcChannel.RECORD_PAYMENT, (_, { id, amount }: { id: number; amount: number }) => invoiceController.recordPayment(id, amount));
+  ipcMain.handle(IpcChannel.RECORD_INVOICE_PAYMENT, (_, { id, amount }: { id: number; amount: string }) => invoiceController.recordPayment(id, amount));
+  ipcMain.handle(IpcChannel.ARCHIVE_INVOICE, (_, { id }: { id: number }) => invoiceController.archive(id));
 
-  // ===== INVOICE ITEM HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_INVOICE_ITEMS, (_, { invoiceId }: { invoiceId: number }) => invoiceItemController.getByInvoice(invoiceId));
-  ipcMain.handle(IpcChannel.CREATE_INVOICE_ITEM, (_, data: any) => invoiceItemController.create(data));
-  ipcMain.handle(IpcChannel.CREATE_INVOICE_ITEMS_BULK, (_, { items }: { items: any[] }) => invoiceItemController.bulkCreate(items));
-  ipcMain.handle(IpcChannel.UPDATE_INVOICE_ITEM, (_, { id, data }: any) => invoiceItemController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_INVOICE_ITEM, (_, { id }: { id: number }) => invoiceItemController.delete(id));
+  // ===== QUOTATION HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_QUOTATIONS, () => quotationController.getAll());
+  ipcMain.handle(IpcChannel.GET_QUOTATIONS_PAGINATED, (_, params: any = {}) => quotationController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_QUOTATION, (_, { id }: { id: number }) => quotationController.getById(id));
+  ipcMain.handle(IpcChannel.GET_QUOTATION_BY_NUMBER, (_, { quoteNum }: { quoteNum: string }) => quotationController.getByQuoteNum(quoteNum));
+  ipcMain.handle(IpcChannel.GET_QUOTATIONS_BY_CLIENT, (_, { clientId }: { clientId: number }) => quotationController.getByClient(clientId));
+  ipcMain.handle(IpcChannel.GET_QUOTATIONS_BY_SALESPERSON, (_, { salespersonId }: { salespersonId: number }) => quotationController.getBySalesperson(salespersonId));
+  ipcMain.handle(IpcChannel.CREATE_QUOTATION, (_, data: any) => quotationController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_QUOTATION, (_, { id, data }: any) => quotationController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_QUOTATION, (_, { id }: { id: number }) => quotationController.delete(id));
+  ipcMain.handle(IpcChannel.CONVERT_QUOTATION_TO_INVOICE, (_, { id }: { id: number }) => quotationController.convertToInvoice(id));
+  ipcMain.handle(IpcChannel.EXPIRE_QUOTATION, (_, { id }: { id: number }) => quotationController.expire(id));
+  ipcMain.handle(IpcChannel.ARCHIVE_QUOTATION, (_, { id }: { id: number }) => quotationController.archive(id));
+
+  // ===== CREDIT NOTE HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES, () => creditNoteController.getAll());
+  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES_PAGINATED, (_, params: any = {}) => creditNoteController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.getById(id));
+  ipcMain.handle(IpcChannel.GET_CREDIT_NOTE_BY_NUMBER, (_, { crNumber }: { crNumber: string }) => creditNoteController.getByCrNumber(crNumber));
+  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES_BY_CLIENT, (_, { clientId }: { clientId: number }) => creditNoteController.getByClient(clientId));
+  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES_BY_INVOICE, (_, { invNumber }: { invNumber: string }) => creditNoteController.getByInvoice(invNumber));
+  ipcMain.handle(IpcChannel.GET_UNUSED_CREDIT_NOTES, () => creditNoteController.getUnused());
+  ipcMain.handle(IpcChannel.CREATE_CREDIT_NOTE, (_, data: any) => creditNoteController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_CREDIT_NOTE, (_, { id, data }: any) => creditNoteController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.delete(id));
+  ipcMain.handle(IpcChannel.RECORD_CREDIT_NOTE_USAGE, (_, { id, amount }: { id: number; amount: string }) => creditNoteController.recordUsage(id, amount));
+  ipcMain.handle(IpcChannel.ARCHIVE_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.archive(id));
+
+  // ===== DOCUMENT LINE ITEM HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS, () => documentLineItemController.getAll());
+  ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, (_, { invNumber }: { invNumber: string }) => documentLineItemController.getByInvoice(invNumber));
+  ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_QUOTATION, (_, { quoteNum }: { quoteNum: string }) => documentLineItemController.getByQuotation(quoteNum));
+  ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_CREDIT_NOTE, (_, { crNumber }: { crNumber: string }) => documentLineItemController.getByCreditNote(crNumber));
+  ipcMain.handle(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, (_, data: any) => documentLineItemController.create(data));
+  ipcMain.handle(IpcChannel.CREATE_DOCUMENT_LINE_ITEMS_BULK, (_, { items }: { items: any[] }) => documentLineItemController.bulkCreate(items));
+  ipcMain.handle(IpcChannel.UPDATE_DOCUMENT_LINE_ITEM, (_, { id, data }: any) => documentLineItemController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_DOCUMENT_LINE_ITEM, (_, { id }: { id: number }) => documentLineItemController.delete(id));
+  ipcMain.handle(IpcChannel.DELETE_DOCUMENT_LINE_ITEMS_BY_DOCUMENT, (_, { documentType, documentNumber }: { documentType: 'INVOICE' | 'QUOTE' | 'CREDIT'; documentNumber: string }) => documentLineItemController.deleteByDocument(documentType, documentNumber));
+
+  // ===== BILL HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_BILLS, () => billController.getAll());
+  ipcMain.handle(IpcChannel.GET_BILLS_PAGINATED, (_, params: any = {}) => billController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_BILL, (_, { id }: { id: number }) => billController.getById(id));
+  ipcMain.handle(IpcChannel.GET_BILL_BY_NUMBER, (_, { billNo }: { billNo: string }) => billController.getByBillNo(billNo));
+  ipcMain.handle(IpcChannel.GET_BILLS_BY_SUPPLIER, (_, { supplierId }: { supplierId: number }) => billController.getBySupplier(supplierId));
+  ipcMain.handle(IpcChannel.GET_UNPAID_BILLS, () => billController.getUnpaid());
+  ipcMain.handle(IpcChannel.CREATE_BILL, (_, data: any) => billController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_BILL, (_, { id, data }: any) => billController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_BILL, (_, { id }: { id: number }) => billController.delete(id));
+  ipcMain.handle(IpcChannel.RECORD_BILL_PAYMENT, (_, { id, amount }: { id: number; amount: string }) => billController.recordPayment(id, amount));
+  ipcMain.handle(IpcChannel.ARCHIVE_BILL, (_, { id }: { id: number }) => billController.archive(id));
 
   // ===== PAYMENT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PAYMENTS, () => paymentController.getAll());
-  ipcMain.handle(IpcChannel.GET_PAYMENTS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; method?: string } = {}) => paymentController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_PAYMENTS_PAGINATED, (_, params: any = {}) => paymentController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_PAYMENT, (_, { id }: { id: number }) => paymentController.getById(id));
-  ipcMain.handle(IpcChannel.GET_PAYMENTS_BY_INVOICE, (_, { invoiceId }: { invoiceId: number }) => paymentController.getByInvoice(invoiceId));
+  ipcMain.handle(IpcChannel.GET_PAYMENTS_BY_DOCUMENT_TYPE, (_, { documentType }: { documentType: 'INVOICE' | 'CREDIT' | 'BILL' }) => paymentController.getByDocumentType(documentType));
+  ipcMain.handle(IpcChannel.GET_PAYMENTS_BY_INVOICE, (_, { invoiceNumber }: { invoiceNumber: string }) => paymentController.getByInvoice(invoiceNumber));
+  ipcMain.handle(IpcChannel.GET_PAYMENTS_BY_CREDIT_NOTE, (_, { creditNoteNumber }: { creditNoteNumber: string }) => paymentController.getByCreditNote(creditNoteNumber));
+  ipcMain.handle(IpcChannel.GET_PAYMENTS_BY_BILL, (_, { billNumber }: { billNumber: string }) => paymentController.getByBill(billNumber));
+  ipcMain.handle(IpcChannel.GET_PAYMENTS_BY_DATE_RANGE, (_, { startDate, endDate }: { startDate: string; endDate: string }) => paymentController.getByDateRange(startDate, endDate));
   ipcMain.handle(IpcChannel.CREATE_PAYMENT, (_, data: any) => paymentController.create(data));
+  ipcMain.handle(IpcChannel.CREATE_INVOICE_PAYMENT, (_, { invoiceNumber, amount, payerName, paymentDesc }: any) => paymentController.createInvoicePayment(invoiceNumber, amount, payerName, paymentDesc));
+  ipcMain.handle(IpcChannel.CREATE_BILL_PAYMENT, (_, { billNumber, amount, payerName, paymentDesc }: any) => paymentController.createBillPayment(billNumber, amount, payerName, paymentDesc));
   ipcMain.handle(IpcChannel.UPDATE_PAYMENT, (_, { id, data }: any) => paymentController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_PAYMENT, (_, { id }: { id: number }) => paymentController.delete(id));
 
   // ===== PAYMENT METHOD HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PAYMENT_METHODS, () => paymentMethodController.getAll());
+  ipcMain.handle(IpcChannel.GET_PAYMENT_METHOD, (_, { id }: { id: number }) => paymentMethodController.getById(id));
+  ipcMain.handle(IpcChannel.GET_PAYMENT_METHOD_BY_CODE, (_, { code }: { code: string }) => paymentMethodController.getByCode(code));
   ipcMain.handle(IpcChannel.GET_ACTIVE_PAYMENT_METHODS, () => paymentMethodController.getActive());
   ipcMain.handle(IpcChannel.CREATE_PAYMENT_METHOD, (_, data: any) => paymentMethodController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_PAYMENT_METHOD, (_, { id, data }: any) => paymentMethodController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_PAYMENT_METHOD, (_, { id }: { id: number }) => paymentMethodController.delete(id));
 
-  // ===== QUOTATION HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_QUOTATIONS, () => quotationController.getAll());
-  ipcMain.handle(IpcChannel.GET_QUOTATIONS_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; status?: string } = {}) => quotationController.getPaginated(params));
-  ipcMain.handle(IpcChannel.GET_QUOTATION, (_, { id }: { id: number }) => quotationController.getById(id));
-  ipcMain.handle(IpcChannel.GET_QUOTATIONS_BY_CLIENT, (_, { clientId }: { clientId: number }) => quotationController.getByClient(clientId));
-  ipcMain.handle(IpcChannel.CREATE_QUOTATION, (_, data: any) => quotationController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_QUOTATION, (_, { id, data }: any) => quotationController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_QUOTATION, (_, { id }: { id: number }) => quotationController.delete(id));
-  ipcMain.handle(IpcChannel.CONVERT_QUOTATION_TO_INVOICE, (_, { id }: { id: number }) => quotationController.convertToInvoice(id));
+  // ===== GCT PAYMENT HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_GCT_PAYMENTS, () => gctPaymentController.getAll());
+  ipcMain.handle(IpcChannel.GET_GCT_PAYMENTS_PAGINATED, (_, params: any = {}) => gctPaymentController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_GCT_PAYMENT, (_, { id }: { id: number }) => gctPaymentController.getById(id));
+  ipcMain.handle(IpcChannel.GET_GCT_PAYMENTS_BY_PERIOD, (_, { periodStart, periodEnd }: { periodStart: string; periodEnd: string }) => gctPaymentController.getByPeriod(periodStart, periodEnd));
+  ipcMain.handle(IpcChannel.GET_GCT_PAYMENTS_BY_YEAR, (_, { year }: { year: number }) => gctPaymentController.getByYear(year));
+  ipcMain.handle(IpcChannel.CREATE_GCT_PAYMENT, (_, data: any) => gctPaymentController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_GCT_PAYMENT, (_, { id, data }: any) => gctPaymentController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_GCT_PAYMENT, (_, { id }: { id: number }) => gctPaymentController.delete(id));
 
-  // ===== QUOTATION ITEM HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_QUOTATION_ITEMS, (_, { quotationId }: { quotationId: number }) => quotationItemController.getByQuotation(quotationId));
-  ipcMain.handle(IpcChannel.CREATE_QUOTATION_ITEM, (_, data: any) => quotationItemController.create(data));
-  ipcMain.handle(IpcChannel.CREATE_QUOTATION_ITEMS_BULK, (_, { items }: { items: any[] }) => quotationItemController.bulkCreate(items));
-  ipcMain.handle(IpcChannel.UPDATE_QUOTATION_ITEM, (_, { id, data }: any) => quotationItemController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_QUOTATION_ITEM, (_, { id }: { id: number }) => quotationItemController.delete(id));
-
-  // ===== CREDIT NOTE HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES, () => creditNoteController.getAll());
-  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES_PAGINATED, (_, params: { page?: number; pageSize?: number; search?: string; status?: string } = {}) => creditNoteController.getPaginated(params));
-  ipcMain.handle(IpcChannel.GET_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.getById(id));
-  ipcMain.handle(IpcChannel.GET_CREDIT_NOTES_BY_CLIENT, (_, { clientId }: { clientId: number }) => creditNoteController.getByClient(clientId));
-  ipcMain.handle(IpcChannel.GET_UNALLOCATED_CREDIT_NOTES, () => creditNoteController.getUnallocated());
-  ipcMain.handle(IpcChannel.CREATE_CREDIT_NOTE, (_, data: any) => creditNoteController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_CREDIT_NOTE, (_, { id, data }: any) => creditNoteController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.delete(id));
-
-  // ===== CREDIT NOTE ALLOCATION HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_CREDIT_NOTE_ALLOCATIONS, (_, { creditNoteId }: { creditNoteId: number }) => creditNoteAllocationController.getByCreditNote(creditNoteId));
-  ipcMain.handle(IpcChannel.CREATE_CREDIT_NOTE_ALLOCATION, (_, data: any) => creditNoteAllocationController.create(data));
-  ipcMain.handle(IpcChannel.UPDATE_CREDIT_NOTE_ALLOCATION, (_, { id, data }: any) => creditNoteAllocationController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_CREDIT_NOTE_ALLOCATION, (_, { id }: { id: number }) => creditNoteAllocationController.delete(id));
+  // ===== EMPLOYEE ATTENDANCE HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_ATTENDANCE, () => employeeAttendanceController.getAll());
+  ipcMain.handle(IpcChannel.GET_ATTENDANCE_PAGINATED, (_, params: any = {}) => employeeAttendanceController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_ATTENDANCE_RECORD, (_, { id }: { id: number }) => employeeAttendanceController.getById(id));
+  ipcMain.handle(IpcChannel.GET_ATTENDANCE_BY_EMPLOYEE, (_, { employeeId }: { employeeId: number }) => employeeAttendanceController.getByEmployee(employeeId));
+  ipcMain.handle(IpcChannel.GET_ATTENDANCE_BY_DATE_RANGE, (_, { startDate, endDate, employeeId }: { startDate: string; endDate: string; employeeId?: number }) => employeeAttendanceController.getByDateRange(startDate, endDate, employeeId));
+  ipcMain.handle(IpcChannel.GET_ACTIVE_CLOCK_IN, (_, { employeeId }: { employeeId: number }) => employeeAttendanceController.getActiveClockIn(employeeId));
+  ipcMain.handle(IpcChannel.CLOCK_IN, (_, { employeeId, notes }: { employeeId: number; notes?: string }) => employeeAttendanceController.clockIn(employeeId, notes));
+  ipcMain.handle(IpcChannel.CLOCK_OUT, (_, { employeeId, notes }: { employeeId: number; notes?: string }) => employeeAttendanceController.clockOut(employeeId, notes));
+  ipcMain.handle(IpcChannel.GET_TOTAL_HOURS, (_, { employeeId, startDate, endDate }: { employeeId: number; startDate: string; endDate: string }) => employeeAttendanceController.getTotalHours(employeeId, startDate, endDate));
+  ipcMain.handle(IpcChannel.CREATE_ATTENDANCE, (_, data: any) => employeeAttendanceController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_ATTENDANCE, (_, { id, data }: any) => employeeAttendanceController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_ATTENDANCE, (_, { id }: { id: number }) => employeeAttendanceController.delete(id));
 
   dataHandlersRegistered = true;
   console.log('Data handlers registered successfully');

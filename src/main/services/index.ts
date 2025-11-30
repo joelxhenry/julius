@@ -1,9 +1,32 @@
 export * from './types';
 export * from './BaseService';
+
+// Reference/Lookup Services
+export { BranchService } from './BranchService';
+export { CategoryService, type CategoryQueryParams } from './CategoryService';
+
+// Master Data Services
 export { ClientService, type ClientQueryParams } from './ClientService';
-export { UserService, type UserQueryParams } from './UserService';
-export { PartService, PartVariantService, type PartQueryParams, type PartVariantWithPart } from './PartService';
-export { InvoiceService, InvoiceItemService, type InvoiceQueryParams } from './InvoiceService';
-export { PaymentService, PaymentMethodService, type PaymentQueryParams } from './PaymentService';
-export { QuotationService, QuotationItemService, type QuotationQueryParams } from './QuotationService';
-export { CreditNoteService, CreditNoteAllocationService, type CreditNoteQueryParams } from './CreditNoteService';
+export { SupplierService, type SupplierQueryParams } from './SupplierService';
+export { EmployeeService, type EmployeeQueryParams, type AuthResult } from './EmployeeService';
+
+// Inventory Services
+export { InventoryService, type InventoryQueryParams } from './InventoryService';
+export { VariantService, type VariantQueryParams, type VariantWithInventory } from './VariantService';
+export { InventoryAlternateService } from './InventoryAlternateService';
+export { InventoryTransactionService, type InventoryTransactionQueryParams } from './InventoryTransactionService';
+export { InventoryReceivingService } from './InventoryReceivingService';
+
+// Document Services
+export { InvoiceService, type InvoiceQueryParams } from './InvoiceService';
+export { QuotationService, type QuotationQueryParams } from './QuotationService';
+export { CreditNoteService, type CreditNoteQueryParams } from './CreditNoteService';
+export { DocumentLineItemService, type DocumentLineItemQueryParams } from './DocumentLineItemService';
+export { BillService, type BillQueryParams } from './BillService';
+
+// Payment Services
+export { PaymentService, PaymentMethodService, type PaymentQueryParams, type PaymentDocumentType } from './PaymentService';
+export { GctPaymentService, type GctPaymentQueryParams } from './GctPaymentService';
+
+// Employee Services
+export { EmployeeAttendanceService, type AttendanceQueryParams } from './EmployeeAttendanceService';

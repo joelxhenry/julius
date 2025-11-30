@@ -1,5 +1,5 @@
 import { BaseController } from './BaseController';
-import { PaymentService, PaymentMethodService, PaymentQueryParams } from '../services/PaymentService';
+import { PaymentService, PaymentMethodService, PaymentQueryParams, PaymentDocumentType } from '../services/PaymentService';
 import * as schema from '../database/schema';
 
 export class PaymentController extends BaseController<PaymentService> {
@@ -37,30 +37,36 @@ export class PaymentController extends BaseController<PaymentService> {
     }
   }
 
-  async getByInvoice(invoiceId: number) {
+  async getByDocumentType(documentType: PaymentDocumentType) {
     try {
-      const payments = await this.service.findByInvoice(invoiceId);
+      const payments = await this.service.findByDocumentType(documentType);
       return this.wrapSuccess(payments);
     } catch (error) {
       return this.handleError(error);
     }
   }
 
-  async getByLegacyId(legacyId: number) {
+  async getByInvoice(invoiceNumber: string) {
     try {
-      const payment = await this.service.findByLegacyId(legacyId);
-      if (!payment) {
-        return { success: false, error: 'Payment not found' };
-      }
-      return this.wrapSuccess(payment);
+      const payments = await this.service.findByInvoice(invoiceNumber);
+      return this.wrapSuccess(payments);
     } catch (error) {
       return this.handleError(error);
     }
   }
 
-  async getByPaymentMethod(paymentMethodId: number) {
+  async getByCreditNote(creditNoteNumber: string) {
     try {
-      const payments = await this.service.findByPaymentMethod(paymentMethodId);
+      const payments = await this.service.findByCreditNote(creditNoteNumber);
+      return this.wrapSuccess(payments);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getByBill(billNumber: string) {
+    try {
+      const payments = await this.service.findByBill(billNumber);
       return this.wrapSuccess(payments);
     } catch (error) {
       return this.handleError(error);
@@ -88,6 +94,44 @@ export class PaymentController extends BaseController<PaymentService> {
   async create(data: schema.InsertPayment) {
     try {
       const payment = await this.service.create(data);
+      return this.wrapSuccess(payment);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async createInvoicePayment(
+    invoiceNumber: string,
+    amount: string,
+    payerName?: string,
+    paymentDesc?: string
+  ) {
+    try {
+      const payment = await this.service.createInvoicePayment(
+        invoiceNumber,
+        amount,
+        payerName,
+        paymentDesc
+      );
+      return this.wrapSuccess(payment);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async createBillPayment(
+    billNumber: string,
+    amount: string,
+    payerName?: string,
+    paymentDesc?: string
+  ) {
+    try {
+      const payment = await this.service.createBillPayment(
+        billNumber,
+        amount,
+        payerName,
+        paymentDesc
+      );
       return this.wrapSuccess(payment);
     } catch (error) {
       return this.handleError(error);
@@ -133,6 +177,18 @@ export class PaymentMethodController extends BaseController<PaymentMethodService
   async getById(id: number) {
     try {
       const method = await this.service.findById(id);
+      if (!method) {
+        return { success: false, error: 'Payment method not found' };
+      }
+      return this.wrapSuccess(method);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getByCode(code: string) {
+    try {
+      const method = await this.service.findByCode(code);
       if (!method) {
         return { success: false, error: 'Payment method not found' };
       }

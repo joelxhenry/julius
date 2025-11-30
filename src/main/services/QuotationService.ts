@@ -9,6 +9,8 @@ export interface QuotationQueryParams {
   pageSize?: number;
   search?: string;
   status?: string;
+  clientId?: number;
+  includeArchived?: boolean;
 }
 
 export class QuotationService extends BaseService<
@@ -21,15 +23,20 @@ export class QuotationService extends BaseService<
   }
 
   async findPaginated(params: QuotationQueryParams = {}): Promise<PaginatedResult<schema.Quotation>> {
-    const { page = 1, pageSize = 50, search, status } = params;
+    const { page = 1, pageSize = 50, search, status, clientId, includeArchived = false } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
+
+    if (!includeArchived) {
+      conditions.push(eq(schema.quotations.isArchived, false));
+    }
 
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`;
       conditions.push(
         or(
+          ilike(schema.quotations.quoteNum, searchTerm),
           ilike(schema.quotations.reference, searchTerm),
           ilike(schema.quotations.clientName, searchTerm)
         )
@@ -38,6 +45,10 @@ export class QuotationService extends BaseService<
 
     if (status && status !== 'all') {
       conditions.push(eq(schema.quotations.status, status));
+    }
+
+    if (clientId) {
+      conditions.push(eq(schema.quotations.clientId, clientId));
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
@@ -66,6 +77,15 @@ export class QuotationService extends BaseService<
     };
   }
 
+  async findByQuoteNum(quoteNum: string): Promise<schema.Quotation | null> {
+    const results = await this.db
+      .select()
+      .from(schema.quotations)
+      .where(eq(schema.quotations.quoteNum, quoteNum))
+      .limit(1);
+    return results[0] || null;
+  }
+
   async findByClient(clientId: number): Promise<schema.Quotation[]> {
     return this.db
       .select()
@@ -74,11 +94,11 @@ export class QuotationService extends BaseService<
       .orderBy(desc(schema.quotations.createdAt));
   }
 
-  async findByEmployee(employeeId: number): Promise<schema.Quotation[]> {
+  async findBySalesperson(salespersonId: number): Promise<schema.Quotation[]> {
     return this.db
       .select()
       .from(schema.quotations)
-      .where(eq(schema.quotations.employeeId, employeeId))
+      .where(eq(schema.quotations.salespersonId, salespersonId))
       .orderBy(desc(schema.quotations.createdAt));
   }
 
@@ -96,11 +116,11 @@ export class QuotationService extends BaseService<
       .from(schema.quotations)
       .where(
         and(
-          gte(schema.quotations.createdAt, startDate),
-          lte(schema.quotations.createdAt, endDate)
+          gte(schema.quotations.quoteDate, startDate),
+          lte(schema.quotations.quoteDate, endDate)
         )
       )
-      .orderBy(desc(schema.quotations.createdAt));
+      .orderBy(desc(schema.quotations.quoteDate));
   }
 
   async convertToInvoice(id: number): Promise<schema.Quotation | null> {
@@ -110,35 +130,8 @@ export class QuotationService extends BaseService<
   async expire(id: number): Promise<schema.Quotation | null> {
     return this.update(id, { status: 'expired' });
   }
-}
 
-export class QuotationItemService extends BaseService<
-  typeof schema.quotationItems,
-  schema.QuotationItem,
-  schema.InsertQuotationItem
-> {
-  constructor(db: NodePgDatabase<typeof schema>) {
-    super(db, schema.quotationItems);
-  }
-
-  async findByQuotation(quotationId: number): Promise<schema.QuotationItem[]> {
-    return this.db
-      .select()
-      .from(schema.quotationItems)
-      .where(eq(schema.quotationItems.quotationId, quotationId));
-  }
-
-  async bulkCreate(items: schema.InsertQuotationItem[]): Promise<schema.QuotationItem[]> {
-    return this.db
-      .insert(schema.quotationItems)
-      .values(items)
-      .returning();
-  }
-
-  async deleteByQuotation(quotationId: number): Promise<boolean> {
-    await this.db
-      .delete(schema.quotationItems)
-      .where(eq(schema.quotationItems.quotationId, quotationId));
-    return true;
+  async archive(id: number): Promise<schema.Quotation | null> {
+    return this.update(id, { isArchived: true });
   }
 }

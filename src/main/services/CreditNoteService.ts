@@ -9,6 +9,8 @@ export interface CreditNoteQueryParams {
   pageSize?: number;
   search?: string;
   status?: string;
+  clientId?: number;
+  includeArchived?: boolean;
 }
 
 export class CreditNoteService extends BaseService<
@@ -21,22 +23,32 @@ export class CreditNoteService extends BaseService<
   }
 
   async findPaginated(params: CreditNoteQueryParams = {}): Promise<PaginatedResult<schema.CreditNote>> {
-    const { page = 1, pageSize = 50, search, status } = params;
+    const { page = 1, pageSize = 50, search, status, clientId, includeArchived = false } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
+
+    if (!includeArchived) {
+      conditions.push(eq(schema.creditNotes.isArchived, false));
+    }
 
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`;
       conditions.push(
         or(
-          ilike(schema.creditNotes.reason, searchTerm)
+          ilike(schema.creditNotes.crNumber, searchTerm),
+          ilike(schema.creditNotes.reference, searchTerm),
+          ilike(schema.creditNotes.clientName, searchTerm)
         )
       );
     }
 
     if (status && status !== 'all') {
       conditions.push(eq(schema.creditNotes.status, status));
+    }
+
+    if (clientId) {
+      conditions.push(eq(schema.creditNotes.clientId, clientId));
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
@@ -65,6 +77,15 @@ export class CreditNoteService extends BaseService<
     };
   }
 
+  async findByCrNumber(crNumber: string): Promise<schema.CreditNote | null> {
+    const results = await this.db
+      .select()
+      .from(schema.creditNotes)
+      .where(eq(schema.creditNotes.crNumber, crNumber))
+      .limit(1);
+    return results[0] || null;
+  }
+
   async findByClient(clientId: number): Promise<schema.CreditNote[]> {
     return this.db
       .select()
@@ -73,11 +94,19 @@ export class CreditNoteService extends BaseService<
       .orderBy(desc(schema.creditNotes.createdAt));
   }
 
-  async findByInvoice(invoiceId: number): Promise<schema.CreditNote[]> {
+  async findByInvoice(invNumber: string): Promise<schema.CreditNote[]> {
     return this.db
       .select()
       .from(schema.creditNotes)
-      .where(eq(schema.creditNotes.invoiceId, invoiceId))
+      .where(eq(schema.creditNotes.invNumber, invNumber))
+      .orderBy(desc(schema.creditNotes.createdAt));
+  }
+
+  async findBySalesperson(salespersonId: number): Promise<schema.CreditNote[]> {
+    return this.db
+      .select()
+      .from(schema.creditNotes)
+      .where(eq(schema.creditNotes.salespersonId, salespersonId))
       .orderBy(desc(schema.creditNotes.createdAt));
   }
 
@@ -87,51 +116,48 @@ export class CreditNoteService extends BaseService<
       .from(schema.creditNotes)
       .where(
         and(
-          gte(schema.creditNotes.createdAt, startDate),
-          lte(schema.creditNotes.createdAt, endDate)
+          gte(schema.creditNotes.crDate, startDate),
+          lte(schema.creditNotes.crDate, endDate)
         )
       )
-      .orderBy(desc(schema.creditNotes.createdAt));
+      .orderBy(desc(schema.creditNotes.crDate));
   }
 
-  async findUnallocated(): Promise<schema.CreditNote[]> {
-    return this.db
+  async findUnused(): Promise<schema.CreditNote[]> {
+    // Find credit notes where totalUsed < total
+    const allCreditNotes = await this.db
       .select()
       .from(schema.creditNotes)
-      .where(eq(schema.creditNotes.status, 'unallocated'))
-      .orderBy(desc(schema.creditNotes.createdAt));
+      .where(
+        and(
+          eq(schema.creditNotes.status, 'A'),
+          eq(schema.creditNotes.isArchived, false)
+        )
+      );
+
+    return allCreditNotes.filter(cn => {
+      const total = parseFloat(cn.total || '0');
+      const totalUsed = parseFloat(cn.totalUsed || '0');
+      return totalUsed < total;
+    });
   }
 
-  async markAllocated(id: number): Promise<schema.CreditNote | null> {
-    return this.update(id, { status: 'allocated' });
-  }
-}
+  async recordUsage(id: number, amount: string): Promise<schema.CreditNote | null> {
+    const creditNote = await this.findById(id);
+    if (!creditNote) return null;
 
-export class CreditNoteAllocationService extends BaseService<
-  typeof schema.creditNoteAllocations,
-  schema.CreditNoteAllocation,
-  schema.InsertCreditNoteAllocation
-> {
-  constructor(db: NodePgDatabase<typeof schema>) {
-    super(db, schema.creditNoteAllocations);
-  }
+    const currentUsed = parseFloat(creditNote.totalUsed || '0');
+    const newTotalUsed = currentUsed + parseFloat(amount);
+    const total = parseFloat(creditNote.total || '0');
+    const newStatus = newTotalUsed >= total ? 'U' : 'A'; // U = Used, A = Active
 
-  async findByCreditNote(creditNoteId: number): Promise<schema.CreditNoteAllocation[]> {
-    return this.db
-      .select()
-      .from(schema.creditNoteAllocations)
-      .where(eq(schema.creditNoteAllocations.creditNoteId, creditNoteId));
+    return this.update(id, {
+      totalUsed: newTotalUsed.toFixed(2),
+      status: newStatus,
+    });
   }
 
-  async findByInvoice(invoiceId: number): Promise<schema.CreditNoteAllocation[]> {
-    return this.db
-      .select()
-      .from(schema.creditNoteAllocations)
-      .where(eq(schema.creditNoteAllocations.invoiceId, invoiceId));
-  }
-
-  async getTotalAllocated(creditNoteId: number): Promise<number> {
-    const allocations = await this.findByCreditNote(creditNoteId);
-    return allocations.reduce((sum, allocation) => sum + allocation.amountApplied, 0);
+  async archive(id: number): Promise<schema.CreditNote | null> {
+    return this.update(id, { isArchived: true });
   }
 }
