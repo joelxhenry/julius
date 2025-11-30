@@ -6,17 +6,17 @@ import './renderer/styles/globals.css';
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/notifications/styles.css';
-import '@mantine/spotlight/styles.css';
 
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { AuthProvider } from './renderer/contexts/AuthContext';
-import { TabManagerProvider } from './renderer/contexts/TabManagerContext';
 import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
+import { KeyboardShortcutProvider } from './renderer/contexts/KeyboardShortcutContext';
 import { DatabaseConfigModal } from './renderer/components/database/DatabaseConfigModal';
 import { ErrorBoundary } from './renderer/components/common/ErrorBoundary';
 import { ThemeTransitionOverlay } from './renderer/components/common/ThemeTransitionOverlay';
+import { KeyboardShortcutHelp } from './renderer/components/common/KeyboardShortcutHelp';
 import { theme } from './renderer/theme';
 import { router } from './renderer/router';
 
@@ -30,9 +30,10 @@ function AppWithTheme() {
       <DatabaseConnectionProvider>
         <DatabaseConfigModal />
         <AuthProvider>
-          <TabManagerProvider>
+          <KeyboardShortcutProvider>
+            <KeyboardShortcutHelp />
             <RouterProvider router={router} />
-          </TabManagerProvider>
+          </KeyboardShortcutProvider>
         </AuthProvider>
       </DatabaseConnectionProvider>
     </MantineProvider>

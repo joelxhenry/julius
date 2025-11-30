@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { IpcChannel } from '../../shared/types/ipc';
-import type { User } from '../../main/database/schema';
+import type { Employee } from '../../main/database/schema';
 
-// User type without pinHash for security
-type SafeUser = Omit<User, 'pinHash'>;
+// Employee type without pinHash for security
+type SafeEmployee = Omit<Employee, 'pinHash'>;
 
 interface AuthContextType {
-  user: SafeUser | null;
+  user: SafeEmployee | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   requiresPinChange: boolean;
@@ -21,13 +21,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = 'turbo-julius-auth';
 
 interface StoredAuth {
-  user: SafeUser;
+  user: SafeEmployee;
   timestamp: number;
   requiresPinChange: boolean;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<SafeUser | null>(null);
+  const [user, setUser] = useState<SafeEmployee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [requiresPinChange, setRequiresPinChange] = useState(false);
 
@@ -61,21 +61,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     try {
-      const result = await window.electron.invoke(IpcChannel.AUTHENTICATE_USER, { username, password });
+      const result = await window.electron.invoke(IpcChannel.AUTHENTICATE_EMPLOYEE, { username, password });
 
       if (!result.success) {
         throw new Error(result.error || 'Authentication failed');
       }
 
-      const { user: authenticatedUser, requiresPinChange: needsPinChange } = result.data;
+      const { employee: authenticatedEmployee, requiresPinChange: needsPinChange } = result.data;
 
       // Store user data
-      setUser(authenticatedUser);
+      setUser(authenticatedEmployee);
       setRequiresPinChange(needsPinChange || false);
 
       // Save to localStorage
       const authData: StoredAuth = {
-        user: authenticatedUser,
+        user: authenticatedEmployee,
         timestamp: Date.now(),
         requiresPinChange: needsPinChange || false,
       };
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const result = await window.electron.invoke(IpcChannel.UPDATE_USER_PIN, { id: user.id, newPin });
+      const result = await window.electron.invoke(IpcChannel.UPDATE_EMPLOYEE_PIN, { id: user.id, newPin });
 
       if (result.success) {
         setRequiresPinChange(false);
@@ -122,10 +122,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const hasPermission = useCallback((permissionCode: string): boolean => {
-    // TODO: Implement permission checking based on user role
-    // For now, return true to allow development
+    if (!user) return false;
+
+    // Check if user has permissions JSONB field
+    if (user.permissions && typeof user.permissions === 'object') {
+      const permissions = user.permissions as Record<string, boolean>;
+      return permissions[permissionCode] === true;
+    }
+
+    // Default to true for admin users or if no permissions set
     return true;
-  }, []);
+  }, [user]);
 
   const value: AuthContextType = {
     user,

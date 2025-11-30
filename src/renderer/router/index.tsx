@@ -1,37 +1,14 @@
-import { createHashRouter, Navigate, Outlet } from 'react-router-dom';
+import { createHashRouter } from 'react-router-dom';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { AppLayout } from '../layouts/AppLayout';
-import { DashboardPage } from '../pages/dashboard/DashboardPage';
-import { ClientsListPage } from '../pages/clients/ClientsListPage';
-import { ClientDetailPage } from '../pages/clients/ClientDetailPage';
-import { PartsListPage } from '../pages/inventory/PartsListPage';
-import { PartDetailPage } from '../pages/inventory/PartDetailPage';
-import { InvoicesListPage } from '../pages/invoices/InvoicesListPage';
-import { InvoiceEditorPage } from '../pages/invoices/InvoiceEditorPage';
-import { QuotationsListPage } from '../pages/quotations/QuotationsListPage';
-import { QuotationEditorPage } from '../pages/quotations/QuotationEditorPage';
-import { PaymentsListPage } from '../pages/payments/PaymentsListPage';
-import { CreditNotesPage } from '../pages/credit-notes/CreditNotesPage';
-import { UsersListPage } from '../pages/users/UsersListPage';
-import { UserDetailPage } from '../pages/users/UserDetailPage';
-import { SettingsPage } from '../pages/settings/SettingsPage';
 import { NotFoundPage, ErrorPage } from '../pages/error';
-import { useAuth } from '../contexts/AuthContext';
-
-// Protected Route wrapper
-function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
-}
+import { LandingPage } from '../pages/LandingPage';
+import { InvoicesPage, InvoiceCreatePage } from '../pages/invoices';
+import { QuotationsPage, QuotationCreatePage } from '../pages/quotations';
+import { InventoryPage } from '../pages/inventory';
+import { PaymentsPage } from '../pages/payments';
+import { AttendancePage } from '../pages/attendance';
+import { DashboardPage } from '../pages/dashboard';
 
 export const router = createHashRouter([
   {
@@ -41,83 +18,49 @@ export const router = createHashRouter([
   },
   {
     path: '/',
-    element: <ProtectedRoute />,
+    element: <AppLayout />,
     errorElement: <ErrorPage />,
     children: [
       {
-        element: <AppLayout />,
-        errorElement: <ErrorPage />,
-        children: [
-          {
-            index: true,
-            element: <DashboardPage />,
-          },
-          // Clients routes
-          {
-            path: 'clients',
-            element: <ClientsListPage />,
-          },
-          {
-            path: 'clients/:id',
-            element: <ClientDetailPage />,
-          },
-          // Inventory routes
-          {
-            path: 'inventory/parts',
-            element: <PartsListPage />,
-          },
-          {
-            path: 'inventory/parts/:id',
-            element: <PartDetailPage />,
-          },
-          // Invoices routes
-          {
-            path: 'invoices',
-            element: <InvoicesListPage />,
-          },
-          {
-            path: 'invoices/:id',
-            element: <InvoiceEditorPage />,
-          },
-          // Quotations routes
-          {
-            path: 'quotations',
-            element: <QuotationsListPage />,
-          },
-          {
-            path: 'quotations/:id',
-            element: <QuotationEditorPage />,
-          },
-          // Payments routes
-          {
-            path: 'payments',
-            element: <PaymentsListPage />,
-          },
-          // Credit Notes routes
-          {
-            path: 'credit-notes',
-            element: <CreditNotesPage />,
-          },
-          // Users routes
-          {
-            path: 'users',
-            element: <UsersListPage />,
-          },
-          {
-            path: 'users/:id',
-            element: <UserDetailPage />,
-          },
-          // Settings route
-          {
-            path: 'settings',
-            element: <SettingsPage />,
-          },
-          // Catch-all for 404 within app layout
-          {
-            path: '*',
-            element: <NotFoundPage />,
-          },
-        ],
+        index: true,
+        element: <LandingPage />,
+      },
+      {
+        path: 'invoices',
+        element: <InvoicesPage />,
+      },
+      {
+        path: 'invoices/new',
+        element: <InvoiceCreatePage />,
+      },
+      {
+        path: 'quotations',
+        element: <QuotationsPage />,
+      },
+      {
+        path: 'quotations/new',
+        element: <QuotationCreatePage />,
+      },
+      {
+        path: 'inventory',
+        element: <InventoryPage />,
+      },
+      {
+        path: 'payments',
+        element: <PaymentsPage />,
+      },
+      {
+        path: 'attendance',
+        element: <AttendancePage />,
+      },
+      {
+        path: 'dashboard',
+        element: <DashboardPage />,
+      },
+      // Catch-all for 404 within app layout
+      {
+        path: '*',
+        element: <NotFoundPage />,
       },
     ],
   },
