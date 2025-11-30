@@ -1,53 +1,39 @@
-import { pgTable, varchar, integer, serial, numeric, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, integer, serial, numeric, boolean, timestamp, date, index } from 'drizzle-orm/pg-core';
 import { clients } from './clients';
-import { users } from './users';
-import { partVariants } from './parts';
+import { employees } from './employees';
 
-// QUOTATION table
+// QUOTATION table - sales quotations
 export const quotations = pgTable('quotations', {
   id: serial('id').primaryKey(),
+  quoteNum: varchar('quote_num', { length: 20 }).notNull().unique(),
+  quoteDate: date('quote_date').notNull(),
+  salespersonId: integer('salesperson_id')
+    .references(() => employees.id, { onDelete: 'set null' }),
+  clientId: integer('client_id')
+    .references(() => clients.id, { onDelete: 'set null' }),
 
-  quotationNumber: varchar('quotation_number', { length: 100 }).notNull().unique(),
-  clientId: integer('client_id').references(() => clients.id, { onDelete: 'set null' }),
-
-
-  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
-  status: varchar('status', { length: 50 }).notNull(),
-
+  // Denormalized client data for historical records
+  clientName: varchar('client_name', { length: 100 }),
+  clientAddress1: varchar('client_address1', { length: 200 }),
+  clientAddress2: varchar('client_address2', { length: 200 }),
+  clientPhone: varchar('client_phone', { length: 100 }),
 
   reference: varchar('reference', { length: 100 }),
-
-
-  isTaxable: integer('is_taxable').notNull().default(1),
-
-  subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
-  taxTotal: numeric('tax_total', { precision: 10, scale: 2 }).notNull(),
-  discountTotal: numeric('discount_total', { precision: 10, scale: 2 }).notNull(),
-  total: numeric('total', { precision: 10, scale: 2 }).notNull(),
-  amountPaid: numeric('amount_paid', { precision: 10, scale: 2 }).notNull().default('0.00'),
-
-
-  is_wholesale: integer('is_wholesale').notNull().default(0),
-
-  createdAt: timestamp('created_at').notNull().defaultNow()
-});
-
-// QUOTATION_ITEM table
-export const quotationItems = pgTable('quotation_items', {
-  id: serial('id').primaryKey(),
-  quotationId: integer('quotation_id')
-    .notNull()
-    .references(() => quotations.id, { onDelete: 'cascade' }),
-    variantId: integer('variant_id').references(() => partVariants.id, { onDelete: 'set null' }),
-    quantity: integer('quantity').notNull(),
-    unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
-    discount: numeric('discount', { precision: 10, scale: 2 }).notNull().default('0.00'),
-    tax: numeric('tax', { precision: 10, scale: 2 }).notNull().default('0.00'),
-});
+  subTotal: numeric('sub_total', { precision: 15, scale: 2 }).notNull().default('0'),
+  tax: numeric('tax', { precision: 15, scale: 2 }).notNull().default('0'),
+  total: numeric('total', { precision: 15, scale: 2 }).notNull().default('0'),
+  isTaxable: boolean('is_taxable').notNull().default(true),
+  pricing: varchar('pricing', { length: 10 }).notNull().default('R'),
+  isArchived: boolean('is_archived').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('idx_quotes_number').on(table.quoteNum),
+  index('idx_quotes_date').on(table.quoteDate),
+  index('idx_quotes_client').on(table.clientName),
+  index('idx_quotes_client_id').on(table.clientId),
+  index('idx_quotes_archived').on(table.isArchived),
+]);
 
 // Export types
 export type Quotation = typeof quotations.$inferSelect;
 export type InsertQuotation = typeof quotations.$inferInsert;
-
-export type QuotationItem = typeof quotationItems.$inferSelect;
-export type InsertQuotationItem = typeof quotationItems.$inferInsert;

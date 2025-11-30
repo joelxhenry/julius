@@ -1,73 +1,45 @@
-import { pgTable, varchar, integer, serial, numeric, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, integer, serial, numeric, boolean, timestamp, date, index } from 'drizzle-orm/pg-core';
 import { clients } from './clients';
-import { partVariants } from './parts';
-import { users } from './users';
+import { employees } from './employees';
 
-// INVOICE table
+// INVOICE table - sales invoices
 export const invoices = pgTable('invoices', {
   id: serial('id').primaryKey(),
+  invNumber: varchar('inv_number', { length: 20 }).notNull().unique(),
+  invDate: date('inv_date').notNull(),
+  invTime: integer('inv_time'),
+  salespersonId: integer('salesperson_id')
+    .references(() => employees.id, { onDelete: 'set null' }),
+  clientId: integer('client_id')
+    .references(() => clients.id, { onDelete: 'set null' }),
 
-  invoiceNumber: varchar('invoice_number', { length: 100 }).notNull().unique(),
-  clientId: integer('client_id').references(() => clients.id, { onDelete: 'set null' }),
-
-
-  clientName: varchar('client_name', { length: 255 }),
-  clientAddress1: varchar('client_address_1', { length: 255 }),
-  clientAddress2: varchar('client_address_2', { length: 255 }),
-  clientPhone: varchar('client_phone', { length: 50 }),
-  clientEmail: varchar('client_email', { length: 100 }),
-
-
-  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
-  status: varchar('status', { length: 50 }).notNull(),
-
+  // Denormalized client data for historical records
+  clientName: varchar('client_name', { length: 100 }),
+  clientAddress1: varchar('client_address1', { length: 200 }),
+  clientAddress2: varchar('client_address2', { length: 200 }),
+  clientPhone: varchar('client_phone', { length: 100 }),
 
   reference: varchar('reference', { length: 100 }),
-
-
-  isTaxable: integer('is_taxable').notNull().default(1),
-
-  subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
-  taxTotal: numeric('tax_total', { precision: 10, scale: 2 }).notNull(),
-  discountTotal: numeric('discount_total', { precision: 10, scale: 2 }).notNull(),
-  total: numeric('total', { precision: 10, scale: 2 }).notNull(),
-  amountPaid: numeric('amount_paid', { precision: 10, scale: 2 }).notNull().default('0.00'),
-
-
-  credit_terms: integer('credit_terms').notNull().default(0),
-
-  is_wholesale: integer('is_wholesale').notNull().default(0),
-
-  isHistorical: integer('is_historical').notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow()
+  subTotal: numeric('sub_total', { precision: 15, scale: 2 }).notNull().default('0'),
+  tax: numeric('tax', { precision: 15, scale: 2 }).notNull().default('0'),
+  total: numeric('total', { precision: 15, scale: 2 }).notNull().default('0'),
+  totalPaid: numeric('total_paid', { precision: 15, scale: 2 }).notNull().default('0'),
+  status: varchar('status', { length: 10 }).notNull().default('A'),
+  isTaxable: boolean('is_taxable').notNull().default(true),
+  pricing: varchar('pricing', { length: 10 }).notNull().default('R'),
+  creditTerms: varchar('credit_terms', { length: 50 }),
+  isArchived: boolean('is_archived').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
-  index('invoices_client_id_idx').on(table.clientId),
-  index('invoices_user_id_idx').on(table.userId),
-  index('invoices_status_idx').on(table.status),
-  index('invoices_created_at_idx').on(table.createdAt),
-  index('invoices_is_historical_idx').on(table.isHistorical),
-]);
-
-// INVOICE_ITEM table
-export const invoiceItems = pgTable('invoice_items', {
-  id: serial('id').primaryKey(),
-  invoiceId: integer('invoice_id')
-    .notNull()
-    .references(() => invoices.id, { onDelete: 'cascade' }),
-
-  variantId: integer('variant_id').references(() => partVariants.id, { onDelete: 'set null' }),
-  quantity: integer('quantity').notNull(),
-  unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
-  discount: numeric('discount', { precision: 10, scale: 2 }).notNull().default('0.00'),
-  tax: numeric('tax', { precision: 10, scale: 2 }).notNull().default('0.00'),
-}, (table) => [
-  index('invoice_items_invoice_id_idx').on(table.invoiceId),
-  index('invoice_items_variant_id_idx').on(table.variantId),
+  index('idx_invoices_number').on(table.invNumber),
+  index('idx_invoices_date').on(table.invDate),
+  index('idx_invoices_client').on(table.clientName),
+  index('idx_invoices_client_id').on(table.clientId),
+  index('idx_invoices_salesperson').on(table.salespersonId),
+  index('idx_invoices_status').on(table.status),
+  index('idx_invoices_archived').on(table.isArchived),
 ]);
 
 // Export types
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = typeof invoices.$inferInsert;
-
-export type InvoiceItem = typeof invoiceItems.$inferSelect;
-export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;

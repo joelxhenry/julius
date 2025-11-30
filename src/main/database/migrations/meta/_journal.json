@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1764251673259,
-      "tag": "0000_brief_puck",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1764280978395,
-      "tag": "0001_chunky_marauders",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1764285588508,
-      "tag": "0002_high_lockheed",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1764331420959,
-      "tag": "0003_shocking_jack_murdock",
+      "when": 1764527820071,
+      "tag": "0000_modern_robin_chapel",
       "breakpoints": true
     }
   ]

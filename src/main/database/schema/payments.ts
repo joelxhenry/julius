@@ -1,8 +1,10 @@
-import { pgTable, varchar, integer, serial, numeric, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, integer, serial, numeric, boolean, timestamp, date, index, check } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { invoices } from './invoices';
-import { users } from './users';
+import { creditNotes } from './creditNotes';
+import { bills } from './bills';
 
-// PAYMENT_METHOD table
+// PAYMENT_METHOD table - payment method lookup
 export const paymentMethods = pgTable('payment_methods', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 50 }).notNull().unique(),
@@ -10,28 +12,37 @@ export const paymentMethods = pgTable('payment_methods', {
   active: boolean('active').notNull().default(true),
 });
 
-// PAYMENT table
+// PAYMENTS table - unified payments for invoices, credit notes, and bills
 export const payments = pgTable('payments', {
   id: serial('id').primaryKey(),
-  invoiceId: integer('invoice_id')
-    .notNull()
-    .references(() => invoices.id, { onDelete: 'cascade' }),
+  documentType: varchar('document_type', { length: 10 }).notNull(), // 'INVOICE', 'CREDIT', 'BILL'
+  documentNumber: varchar('document_number', { length: 50 }).notNull(),
 
+  // Nullable FKs - only one should be set based on document_type
+  invoiceNumber: varchar('invoice_number', { length: 20 })
+    .references(() => invoices.invNumber, { onDelete: 'cascade' }),
+  creditNoteNumber: varchar('credit_note_number', { length: 20 })
+    .references(() => creditNotes.crNumber, { onDelete: 'cascade' }),
+  billNumber: varchar('bill_number', { length: 50 })
+    .references(() => bills.billNo, { onDelete: 'cascade' }),
 
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'set null' }),
-
-
-  notes: varchar('notes', { length: 255 }),
-
-
-  paymentMethodId: integer('payment_method_id')
-    .notNull()
-    .references(() => paymentMethods.id, { onDelete: 'restrict' }),
-
-
-  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
-  paidAt: timestamp('paid_at').notNull().defaultNow(),
-});
+  payerName: varchar('payer_name', { length: 100 }),
+  paymentDate: date('payment_date'),
+  paymentDesc: varchar('payment_desc', { length: 100 }),
+  paymentDesc2: varchar('payment_desc2', { length: 100 }),
+  amount: numeric('amount', { precision: 15, scale: 2 }).notNull().default('0'),
+  currency: varchar('currency', { length: 10 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('idx_payments_type_number').on(table.documentType, table.documentNumber),
+  index('idx_payments_date').on(table.paymentDate),
+  index('idx_payments_invoice').on(table.invoiceNumber),
+  index('idx_payments_credit').on(table.creditNoteNumber),
+  index('idx_payments_bill').on(table.billNumber),
+  check('payments_type_check', sql`${table.documentType} IN ('INVOICE', 'CREDIT', 'BILL')`),
+  // Note: The FK consistency check from POSTGRES_SCHEMA.md would require a trigger in PostgreSQL
+  // as Drizzle doesn't support complex check constraints involving multiple columns
+]);
 
 // Export types
 export type PaymentMethod = typeof paymentMethods.$inferSelect;

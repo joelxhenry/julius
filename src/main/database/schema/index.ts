@@ -1,10 +1,30 @@
 // Export all schema tables and types
+
+// Reference/Lookup Tables
+export * from './branches';
+export * from './categories';
+
+// Master Data Tables
 export * from './clients';
-export * from './parts';
-export * from './quotations';
+export * from './suppliers';
+export * from './employees';
+
+// Inventory Tables
+export * from './inventory';
+
+// Sales Documents
 export * from './invoices';
-export * from './payments';
+export * from './quotations';
 export * from './creditNotes';
+export * from './documentLineItems';
+export * from './payments';
+
+// Purchasing
+export * from './bills';
+
+// HR Tables
+export * from './employeeAttendance';
+
+// System Tables
+export * from './gctPayments';
 export * from './settings';
-export * from './audit';
-export * from './users';

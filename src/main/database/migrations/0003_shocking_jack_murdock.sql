@@ -1,1 +1,0 @@
-CREATE INDEX "invoices_is_historical_idx" ON "invoices" USING btree ("is_historical");
