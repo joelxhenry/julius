@@ -1,11 +1,26 @@
+import { useState } from 'react';
 import { Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip } from '@mantine/core';
 import { IconLogout, IconUser, IconSun, IconMoon } from '@tabler/icons-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { PasswordVerificationModal } from '../auth/PasswordVerificationModal';
 
 export function Header() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { colorScheme, toggleColorScheme } = useTheme();
+  const navigate = useNavigate();
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  const handleProfileClick = () => {
+    setPasswordModalOpen(true);
+  };
+
+  const handlePasswordVerified = (employee: SafeEmployee) => {
+    setPasswordModalOpen(false);
+    updateUser(employee);
+    navigate('/profile');
+  };
 
   return (
     <Group
@@ -43,50 +58,60 @@ export function Header() {
           </ActionIcon>
         </Tooltip>
 
-        {user && (
-          <Menu shadow="lg" width={220} position="bottom-end">
-            <Menu.Target>
-              <Tooltip label={`${user.firstName} ${user.lastName}`} position="bottom">
-                <ActionIcon
-                  variant="subtle"
-                  size="lg"
+        <Menu shadow="lg" width={220} position="bottom-end">
+          <Menu.Target>
+            <Tooltip label={user ? `${user.firstName} ${user.lastName}` : 'Sign In'} position="bottom">
+              <ActionIcon
+                variant="subtle"
+                size="lg"
+                radius="xl"
+              >
+                <Avatar
+                  size="sm"
                   radius="xl"
+                  color={user ? 'blue' : 'gray'}
+                  variant="filled"
                 >
-                  <Avatar
-                    size="sm"
-                    radius="xl"
-                    color="blue"
-                    variant="filled"
-                  >
-                    {user.firstName?.[0]}{user.lastName?.[0]}
-                  </Avatar>
-                </ActionIcon>
-              </Tooltip>
-            </Menu.Target>
+                  {user ? `${user.firstName?.[0]}${user.lastName?.[0]}` : <IconUser size={16} />}
+                </Avatar>
+              </ActionIcon>
+            </Tooltip>
+          </Menu.Target>
 
-            <Menu.Dropdown>
-              <Menu.Label>Account</Menu.Label>
-              <Menu.Item leftSection={<IconUser size={14} />}>
-                Profile
-              </Menu.Item>
-              <Menu.Item
-                leftSection={colorScheme === 'light' ? <IconMoon size={14} /> : <IconSun size={14} />}
-                onClick={toggleColorScheme}
-              >
-                {colorScheme === 'light' ? 'Dark Mode' : 'Light Mode'}
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item
-                color="red"
-                leftSection={<IconLogout size={14} />}
-                onClick={logout}
-              >
-                Logout
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
-        )}
+          <Menu.Dropdown>
+            <Menu.Label>Account</Menu.Label>
+            <Menu.Item leftSection={<IconUser size={14} />} onClick={handleProfileClick}>
+              {user ? 'Profile' : 'Sign In'}
+            </Menu.Item>
+            <Menu.Item
+              leftSection={colorScheme === 'light' ? <IconMoon size={14} /> : <IconSun size={14} />}
+              onClick={toggleColorScheme}
+            >
+              {colorScheme === 'light' ? 'Dark Mode' : 'Light Mode'}
+            </Menu.Item>
+            {user && (
+              <>
+                <Menu.Divider />
+                <Menu.Item
+                  color="red"
+                  leftSection={<IconLogout size={14} />}
+                  onClick={logout}
+                >
+                  Logout
+                </Menu.Item>
+              </>
+            )}
+          </Menu.Dropdown>
+        </Menu>
       </Group>
+
+      <PasswordVerificationModal
+        opened={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+        onVerified={handlePasswordVerified}
+        title="Profile Access"
+        description="Enter your username and password to access your profile"
+      />
     </Group>
   );
 }

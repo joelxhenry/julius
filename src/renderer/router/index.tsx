@@ -9,6 +9,7 @@ import { InventoryPage } from '../pages/inventory';
 import { PaymentsPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import { DashboardPage } from '../pages/dashboard';
+import { ProfilePage } from '../pages/profile';
 
 export const router = createHashRouter([
   {
@@ -56,6 +57,10 @@ export const router = createHashRouter([
       {
         path: 'dashboard',
         element: <DashboardPage />,
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
       },
       // Catch-all for 404 within app layout
       {

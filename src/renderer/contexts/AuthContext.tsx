@@ -20,6 +20,7 @@ interface AuthContextType {
   hasPermission: (permissionCode: string) => boolean;
   refreshActivity: () => void;
   setIdleTimeout: (timeout: number) => void;
+  updateUser: (user: SafeEmployee) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -148,6 +149,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(AUTH_STORAGE_KEY);
   }, []);
 
+  // Update user data (e.g., after profile update)
+  const updateUser = useCallback((updatedUser: SafeEmployee) => {
+    setUser(updatedUser);
+    setLastActivity(Date.now());
+  }, []);
+
   const hasPermission = useCallback((permissionCode: string): boolean => {
     if (!user) return false;
 
@@ -174,6 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasPermission,
     refreshActivity,
     setIdleTimeout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import * as schema from './schema/index';
 import { ConfigManager } from '../config/ConfigManager';
 import { DatabaseConfig } from '../config/types';
+import { runSeeds } from './seed';
 
 export type DatabaseSchema = typeof schema;
 export type AppDatabase = NodePgDatabase<typeof schema>;
@@ -55,6 +56,9 @@ export async function initDatabase(): Promise<AppDatabase | null> {
 
     // Run migrations
     await runMigrations(db);
+
+    // Run seeds (creates super user if not exists)
+    await runSeeds(db);
 
     connectionError = null;
     console.log('Database initialized successfully');

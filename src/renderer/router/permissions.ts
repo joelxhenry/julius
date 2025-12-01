@@ -41,6 +41,12 @@ export const publicRoutes: string[] = [
   '/login',
 ];
 
+// Routes that require full password authentication (not just PIN)
+// These are sensitive routes that need stronger verification
+export const passwordProtectedRoutes: RoutePermission[] = [
+  { path: '/profile', description: 'My Profile' },
+];
+
 /**
  * Get the required permission for a given path
  * Returns undefined for public routes
@@ -109,10 +115,22 @@ export function isAuthOnlyRoute(path: string): boolean {
  * Get the description for a route
  */
 export function getRouteDescription(path: string): string {
-  for (const route of [...authenticatedRoutes, ...permissionProtectedRoutes]) {
+  for (const route of [...authenticatedRoutes, ...permissionProtectedRoutes, ...passwordProtectedRoutes]) {
     if (matchRoute(path, route.path)) {
       return route.description;
     }
   }
   return 'this feature';
+}
+
+/**
+ * Check if a route requires password authentication (not just PIN)
+ */
+export function isPasswordProtectedRoute(path: string): boolean {
+  for (const route of passwordProtectedRoutes) {
+    if (matchRoute(path, route.path)) {
+      return true;
+    }
+  }
+  return false;
 }

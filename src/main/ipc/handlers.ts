@@ -236,6 +236,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.DELETE_EMPLOYEE, (_, { id }: { id: number }) => employeeController.delete(id));
   ipcMain.handle(IpcChannel.AUTHENTICATE_EMPLOYEE, (_, { username, password }: { username: string; password: string }) => employeeController.authenticate(username, password));
   ipcMain.handle(IpcChannel.VERIFY_EMPLOYEE_PIN, (_, { pin }: { pin: string }) => employeeController.verifyPin(pin));
+  ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PASSWORD, (_, { id, newPassword }: { id: number; newPassword: string }) => employeeController.updatePassword(id, newPassword));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PERMISSIONS, (_, { id, permissions }: { id: number; permissions: Record<string, any> }) => employeeController.updatePermissions(id, permissions));
 
   // ===== INVENTORY HANDLERS =====

@@ -164,6 +164,20 @@ export class EmployeeController extends BaseController<EmployeeService> {
     }
   }
 
+  async updatePassword(id: number, newPassword: string) {
+    try {
+      const employee = await this.service.updatePasswordSecure(id, newPassword);
+      if (!employee) {
+        return { success: false, error: 'Employee not found' };
+      }
+      // Don't return the passwordHash
+      const { passwordHash, ...safeEmployee } = employee;
+      return this.wrapSuccess(safeEmployee);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async deactivate(id: number, endDate: string) {
     try {
       const employee = await this.service.deactivate(id, endDate);
