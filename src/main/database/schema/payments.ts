@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { invoices } from './invoices';
 import { creditNotes } from './creditNotes';
 import { bills } from './bills';
+import { employees } from './employees';
 
 // PAYMENT_METHOD table - payment method lookup
 export const paymentMethods = pgTable('payment_methods', {
@@ -32,6 +33,10 @@ export const payments = pgTable('payments', {
   paymentDesc2: varchar('payment_desc2', { length: 100 }),
   amount: numeric('amount', { precision: 15, scale: 2 }).notNull().default('0'),
   currency: varchar('currency', { length: 10 }),
+
+  // Employee who processed the payment (nullable for existing data)
+  processedById: integer('processed_by_id').references(() => employees.id),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_payments_type_number').on(table.documentType, table.documentNumber),
@@ -39,6 +44,7 @@ export const payments = pgTable('payments', {
   index('idx_payments_invoice').on(table.invoiceNumber),
   index('idx_payments_credit').on(table.creditNoteNumber),
   index('idx_payments_bill').on(table.billNumber),
+  index('idx_payments_processed_by').on(table.processedById),
   check('payments_type_check', sql`${table.documentType} IN ('INVOICE', 'CREDIT', 'BILL')`),
   // Note: The FK consistency check from POSTGRES_SCHEMA.md would require a trigger in PostgreSQL
   // as Drizzle doesn't support complex check constraints involving multiple columns

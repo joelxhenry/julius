@@ -15,6 +15,8 @@ import {
   Collapse,
   Alert,
   Loader,
+  ActionIcon,
+  Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -27,6 +29,7 @@ import {
   IconLock,
   IconChevronDown,
   IconChevronUp,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
 import { IpcChannel } from '../../../shared/types/ipc';
@@ -50,6 +53,7 @@ export function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  const [isCodeLoading, setIsCodeLoading] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
@@ -180,6 +184,59 @@ export function ProfilePage() {
     }
   };
 
+  const handleRegenerateCode = async () => {
+    if (!user) return;
+
+    setIsCodeLoading(true);
+    try {
+      // Generate a new code
+      const codeResult = await window.electron.invoke(IpcChannel.GENERATE_EMPLOYEE_CODE);
+      if (!codeResult.success || !codeResult.data?.code) {
+        notifications.show({
+          title: 'Error',
+          message: codeResult.error || 'Failed to generate new code',
+          color: 'red',
+          icon: <IconAlertCircle size={16} />,
+        });
+        return;
+      }
+
+      const newCode = codeResult.data.code;
+
+      // Update the employee with the new code
+      const updateResult = await window.electron.invoke(IpcChannel.UPDATE_EMPLOYEE, {
+        id: user.id,
+        data: { code: newCode },
+      });
+
+      if (updateResult.success && updateResult.data) {
+        updateUser(updateResult.data);
+        notifications.show({
+          title: 'Code Updated',
+          message: `Your employee code has been changed to ${newCode}`,
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+      } else {
+        notifications.show({
+          title: 'Error',
+          message: updateResult.error || 'Failed to update employee code',
+          color: 'red',
+          icon: <IconAlertCircle size={16} />,
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />,
+      });
+    } finally {
+      setIsCodeLoading(false);
+    }
+  };
+
   if (!user) {
     return (
       <Box p="xl" ta="center">
@@ -272,7 +329,22 @@ export function ProfilePage() {
               <Title order={4}>Account Information</Title>
 
               <Group grow>
-                <TextInput label="Employee Code" value={user.code} disabled />
+                <TextInput
+                  label="Employee Code"
+                  value={user.code}
+                  disabled
+                  rightSection={
+                    <Tooltip label="Generate new code">
+                      <ActionIcon
+                        variant="subtle"
+                        onClick={handleRegenerateCode}
+                        loading={isCodeLoading}
+                      >
+                        <IconRefresh size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  }
+                />
                 <TextInput label="Username" value={user.username || 'Not set'} disabled />
               </Group>
 

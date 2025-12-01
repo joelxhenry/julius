@@ -16,6 +16,15 @@ export class EmployeeController extends BaseController<EmployeeService> {
     }
   }
 
+  async generateNextCode() {
+    try {
+      const code = await this.service.generateNextCode();
+      return this.wrapSuccess({ code });
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async getPaginated(params: EmployeeQueryParams = {}) {
     try {
       const result = await this.service.findPaginated(params);
@@ -209,6 +218,62 @@ export class EmployeeController extends BaseController<EmployeeService> {
         return { success: false, error: 'Employee not found' };
       }
       return this.wrapSuccess(employee);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  // ==================== Activity Methods ====================
+
+  async getEmployeeInvoices(employeeId: number, params: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}) {
+    try {
+      const result = await this.service.getEmployeeInvoices(employeeId, params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getEmployeeQuotations(employeeId: number, params: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}) {
+    try {
+      const result = await this.service.getEmployeeQuotations(employeeId, params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getEmployeeCreditNotes(employeeId: number, params: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}) {
+    try {
+      const result = await this.service.getEmployeeCreditNotes(employeeId, params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getEmployeePayments(employeeId: number, params: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}) {
+    try {
+      const result = await this.service.getEmployeePayments(employeeId, params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getEmployeeAttendance(employeeId: number, params: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}) {
+    try {
+      const result = await this.service.getEmployeeAttendance(employeeId, params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getEmployeeActivitySummary(employeeId: number, params: { startDate?: string; endDate?: string } = {}) {
+    try {
+      const result = await this.service.getEmployeeActivitySummary(employeeId, params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }

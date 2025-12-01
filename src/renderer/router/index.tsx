@@ -10,6 +10,12 @@ import { PaymentsPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import { DashboardPage } from '../pages/dashboard';
 import { ProfilePage } from '../pages/profile';
+import {
+  EmployeesPage,
+  EmployeeEditorPage,
+  EmployeeDetailPage,
+  EmployeePermissionsPage,
+} from '../pages/employees';
 
 export const router = createHashRouter([
   {
@@ -61,6 +67,27 @@ export const router = createHashRouter([
       {
         path: 'profile',
         element: <ProfilePage />,
+      },
+      // Employee Management
+      {
+        path: 'employees',
+        element: <EmployeesPage />,
+      },
+      {
+        path: 'employees/new',
+        element: <EmployeeEditorPage />,
+      },
+      {
+        path: 'employees/:id',
+        element: <EmployeeDetailPage />,
+      },
+      {
+        path: 'employees/:id/edit',
+        element: <EmployeeEditorPage />,
+      },
+      {
+        path: 'employees/:id/permissions',
+        element: <EmployeePermissionsPage />,
       },
       // Catch-all for 404 within app layout
       {

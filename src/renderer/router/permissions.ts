@@ -28,11 +28,17 @@ export const authenticatedRoutes: RoutePermission[] = [
 
 // Routes that require specific permissions
 export const permissionProtectedRoutes: RoutePermission[] = [
+  // Dashboard
   { path: '/dashboard', permission: 'VIEW_DASHBOARD', description: 'Dashboard' },
   { path: '/dashboard/reports', permission: 'VIEW_REPORTS', description: 'Reports' },
-  { path: '/dashboard/employees', permission: 'MANAGE_EMPLOYEES', description: 'Employee Management' },
   { path: '/dashboard/settings', permission: 'MANAGE_SETTINGS', description: 'System Settings' },
-  { path: '/dashboard/access', permission: 'MANAGE_ACCESS', description: 'Access Management' },
+
+  // Employee Management
+  { path: '/employees', permission: 'VIEW_EMPLOYEES', description: 'Employee List' },
+  { path: '/employees/new', permission: 'CREATE_EMPLOYEE', description: 'Create Employee' },
+  { path: '/employees/:id', permission: 'VIEW_EMPLOYEES', description: 'Employee Details' },
+  { path: '/employees/:id/edit', permission: 'EDIT_EMPLOYEE', description: 'Edit Employee' },
+  { path: '/employees/:id/permissions', permission: 'MANAGE_PERMISSIONS', description: 'Manage Permissions' },
 ];
 
 // Public routes (no authentication required)

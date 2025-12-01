@@ -54,10 +54,19 @@ export enum IpcChannel {
   CREATE_EMPLOYEE = 'db:create-employee',
   UPDATE_EMPLOYEE = 'db:update-employee',
   DELETE_EMPLOYEE = 'db:delete-employee',
+  GENERATE_EMPLOYEE_CODE = 'db:generate-employee-code',
   AUTHENTICATE_EMPLOYEE = 'db:authenticate-employee',
   VERIFY_EMPLOYEE_PIN = 'db:verify-employee-pin',
   UPDATE_EMPLOYEE_PASSWORD = 'db:update-employee-password',
   UPDATE_EMPLOYEE_PERMISSIONS = 'db:update-employee-permissions',
+
+  // Employee activity queries
+  GET_EMPLOYEE_INVOICES = 'db:get-employee-invoices',
+  GET_EMPLOYEE_QUOTATIONS = 'db:get-employee-quotations',
+  GET_EMPLOYEE_CREDIT_NOTES = 'db:get-employee-credit-notes',
+  GET_EMPLOYEE_PAYMENTS = 'db:get-employee-payments',
+  GET_EMPLOYEE_ATTENDANCE = 'db:get-employee-attendance',
+  GET_EMPLOYEE_ACTIVITY_SUMMARY = 'db:get-employee-activity-summary',
 
   // Inventory operations
   GET_INVENTORY = 'db:get-inventory',

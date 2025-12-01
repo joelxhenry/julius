@@ -234,10 +234,19 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.CREATE_EMPLOYEE, (_, data: any) => employeeController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE, (_, { id, data }: any) => employeeController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_EMPLOYEE, (_, { id }: { id: number }) => employeeController.delete(id));
+  ipcMain.handle(IpcChannel.GENERATE_EMPLOYEE_CODE, () => employeeController.generateNextCode());
   ipcMain.handle(IpcChannel.AUTHENTICATE_EMPLOYEE, (_, { username, password }: { username: string; password: string }) => employeeController.authenticate(username, password));
   ipcMain.handle(IpcChannel.VERIFY_EMPLOYEE_PIN, (_, { pin }: { pin: string }) => employeeController.verifyPin(pin));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PASSWORD, (_, { id, newPassword }: { id: number; newPassword: string }) => employeeController.updatePassword(id, newPassword));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PERMISSIONS, (_, { id, permissions }: { id: number; permissions: Record<string, any> }) => employeeController.updatePermissions(id, permissions));
+
+  // ===== EMPLOYEE ACTIVITY HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_INVOICES, (_, { employeeId, ...params }: { employeeId: number; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => employeeController.getEmployeeInvoices(employeeId, params));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_QUOTATIONS, (_, { employeeId, ...params }: { employeeId: number; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => employeeController.getEmployeeQuotations(employeeId, params));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_CREDIT_NOTES, (_, { employeeId, ...params }: { employeeId: number; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => employeeController.getEmployeeCreditNotes(employeeId, params));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_PAYMENTS, (_, { employeeId, ...params }: { employeeId: number; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => employeeController.getEmployeePayments(employeeId, params));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_ATTENDANCE, (_, { employeeId, ...params }: { employeeId: number; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => employeeController.getEmployeeAttendance(employeeId, params));
+  ipcMain.handle(IpcChannel.GET_EMPLOYEE_ACTIVITY_SUMMARY, (_, { employeeId, ...params }: { employeeId: number; startDate?: string; endDate?: string }) => employeeController.getEmployeeActivitySummary(employeeId, params));
 
   // ===== INVENTORY HANDLERS =====
   ipcMain.handle(IpcChannel.GET_INVENTORY, () => inventoryController.getAll());

@@ -6,8 +6,17 @@ import {
   IconUserCog,
   IconLock,
 } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
-const dashboardSections = [
+interface DashboardSection {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  color: string;
+  path?: string;
+}
+
+const dashboardSections: DashboardSection[] = [
   {
     title: 'Reports',
     description: 'Sales, inventory, and financial reports',
@@ -28,9 +37,10 @@ const dashboardSections = [
   },
   {
     title: 'User Management',
-    description: 'Manage employee accounts',
+    description: 'View, create, and manage employee accounts',
     icon: <IconUserCog size={24} />,
     color: 'violet',
+    path: '/employees',
   },
   {
     title: 'Access Management',
@@ -41,6 +51,14 @@ const dashboardSections = [
 ];
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+
+  const handleSectionClick = (section: DashboardSection) => {
+    if (section.path) {
+      navigate(section.path);
+    }
+  };
+
   return (
     <Stack p="xl" gap="lg">
       <Title order={2}>Dashboard</Title>
@@ -50,7 +68,14 @@ export function DashboardPage() {
 
       <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
         {dashboardSections.map((section) => (
-          <Paper key={section.title} p="lg" radius="md" withBorder>
+          <Paper
+            key={section.title}
+            p="lg"
+            radius="md"
+            withBorder
+            style={{ cursor: section.path ? 'pointer' : 'default' }}
+            onClick={() => handleSectionClick(section)}
+          >
             <Stack gap="sm">
               <Group>
                 <ThemeIcon size={40} radius="md" variant="light" color={section.color}>
@@ -61,9 +86,11 @@ export function DashboardPage() {
               <Text size="sm" c="dimmed">
                 {section.description}
               </Text>
-              <Text size="xs" c="dimmed" fs="italic">
-                Under development
-              </Text>
+              {!section.path && (
+                <Text size="xs" c="dimmed" fs="italic">
+                  Under development
+                </Text>
+              )}
             </Stack>
           </Paper>
         ))}
