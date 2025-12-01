@@ -1,17 +1,34 @@
-import { PinInput as MantinePinInput, PinInputProps } from '@mantine/core';
+import { PasswordInput, PasswordInputProps } from '@mantine/core';
+import { forwardRef } from 'react';
 
-interface CustomPINInputProps extends Omit<PinInputProps, 'length' | 'type' | 'mask'> {
-  length?: number;
+interface PINInputProps extends Omit<PasswordInputProps, 'type'> {
+  /** Placeholder text */
+  placeholder?: string;
 }
 
-export function PINInput({ length = 4, ...props }: CustomPINInputProps) {
-  return (
-    <MantinePinInput
-      length={length}
-      type="number"
-      mask
-      size="lg"
-      {...props}
-    />
-  );
-}
+/**
+ * Alphanumeric PIN input component
+ * Uses a password input for masking
+ */
+export const PINInput = forwardRef<HTMLInputElement, PINInputProps>(
+  ({ placeholder = 'Enter PIN', ...props }, ref) => {
+    return (
+      <PasswordInput
+        ref={ref}
+        placeholder={placeholder}
+        autoComplete="off"
+        size="lg"
+        styles={{
+          input: {
+            textAlign: 'center',
+            letterSpacing: '0.2em',
+            fontFamily: 'monospace',
+          },
+        }}
+        {...props}
+      />
+    );
+  }
+);
+
+PINInput.displayName = 'PINInput';

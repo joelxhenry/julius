@@ -1,12 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { AppShell, Box } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { notifications } from '@mantine/notifications';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
+import { PinVerificationModal } from '../components/auth/PinVerificationModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useKeyboardShortcutContext } from '../contexts/KeyboardShortcutContext';
+import { useAuth, SafeEmployee } from '../contexts/AuthContext';
+import { useIdleTimeout } from '../hooks/useIdleTimeout';
 import { KeyboardShortcut } from '../hooks/useKeyboardShortcuts';
+import { isPublicRoute, getRoutePermission, getRouteDescription } from '../router/permissions';
 
 // Global navigation shortcuts
 const navigationShortcuts = [
@@ -25,16 +30,112 @@ export function AppLayout() {
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const { colorScheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
+  const { isSessionValid, hasPermission } = useAuth();
+
+  // Initialize idle timeout tracking
+  useIdleTimeout();
 
   const isDark = colorScheme === 'dark';
 
-  // Register global navigation shortcuts
+  // PIN verification modal state
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [requiredPermission, setRequiredPermission] = useState<string | undefined>(undefined);
+  const previousPathRef = useRef<string>(location.pathname);
+
+  // Handle navigation with PIN verification
+  const handleProtectedNavigation = useCallback(
+    (path: string) => {
+      // Public routes don't need authentication
+      if (isPublicRoute(path)) {
+        navigate(path);
+        return;
+      }
+
+      const permission = getRoutePermission(path);
+
+      // Check if user has valid session
+      if (isSessionValid) {
+        // Session is valid, check permission if required
+        if (permission === null || hasPermission(permission)) {
+          navigate(path);
+          return;
+        } else {
+          // Has session but lacks permission
+          notifications.show({
+            title: 'Access Denied',
+            message: `You do not have permission to access ${getRouteDescription(path)}`,
+            color: 'red',
+          });
+          return;
+        }
+      }
+
+      // Need PIN verification
+      setPendingNavigation(path);
+      setRequiredPermission(permission ?? undefined);
+      setPinModalOpen(true);
+    },
+    [isSessionValid, hasPermission, navigate]
+  );
+
+  // Handle successful PIN verification
+  const handlePinVerified = useCallback(
+    (employee: SafeEmployee) => {
+      if (pendingNavigation) {
+        navigate(pendingNavigation);
+        setPendingNavigation(null);
+      }
+      setPinModalOpen(false);
+      setRequiredPermission(undefined);
+    },
+    [pendingNavigation, navigate]
+  );
+
+  // Handle PIN modal close (cancelled)
+  const handlePinModalClose = useCallback(() => {
+    setPinModalOpen(false);
+    setPendingNavigation(null);
+    setRequiredPermission(undefined);
+    // Navigate back to previous path if we were trying to access a protected route
+    if (pendingNavigation && !isPublicRoute(location.pathname)) {
+      navigate(previousPathRef.current);
+    }
+  }, [pendingNavigation, location.pathname, navigate]);
+
+  // Track previous path
+  useEffect(() => {
+    if (isPublicRoute(location.pathname) || isSessionValid) {
+      previousPathRef.current = location.pathname;
+    }
+  }, [location.pathname, isSessionValid]);
+
+  // Check route access on location change
+  useEffect(() => {
+    const path = location.pathname;
+
+    // Skip if public route
+    if (isPublicRoute(path)) {
+      return;
+    }
+
+    // Check if session is valid for protected routes
+    if (!isSessionValid) {
+      const permission = getRoutePermission(path);
+      setPendingNavigation(path);
+      setRequiredPermission(permission ?? undefined);
+      setPinModalOpen(true);
+    }
+  }, [location.pathname, isSessionValid]);
+
+  // Register global navigation shortcuts with PIN verification
   useEffect(() => {
     const shortcuts: KeyboardShortcut[] = navigationShortcuts.map((item) => ({
       key: item.key,
       alt: true,
-      callback: () => navigate(item.path),
+      callback: () => handleProtectedNavigation(item.path),
       description: item.description,
     }));
 
@@ -43,66 +144,77 @@ export function AppLayout() {
     return () => {
       unregisterShortcuts('navigation');
     };
-  }, [navigate, registerShortcuts, unregisterShortcuts]);
+  }, [handleProtectedNavigation, registerShortcuts, unregisterShortcuts]);
 
   return (
-    <AppShell
-      header={{ height: 60 }}
-      navbar={{
-        width: 260,
-        breakpoint: 'sm',
-        collapsed: { mobile: !mobileOpened, desktop: !desktopOpened },
-      }}
-      padding={0}
-      styles={{
-        root: {
-          transition: 'background-color 200ms ease',
-        },
-        main: {
-          background: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)',
-          transition: 'background-color 200ms ease',
-        },
-      }}
-    >
-      <AppShell.Header
-        style={{
-          background: 'var(--mantine-color-body)',
-          transition: 'background-color 200ms ease, border-color 200ms ease',
+    <>
+      <AppShell
+        header={{ height: 60 }}
+        navbar={{
+          width: 260,
+          breakpoint: 'sm',
+          collapsed: { mobile: !mobileOpened, desktop: !desktopOpened },
         }}
-      >
-        <Header />
-      </AppShell.Header>
-
-      <AppShell.Navbar
-        p={0}
-        style={{
-          background: 'var(--mantine-color-body)',
-          transition: 'background-color 200ms ease, border-color 200ms ease',
-        }}
-      >
-        <Sidebar />
-      </AppShell.Navbar>
-
-      <AppShell.Main
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          transition: 'background-color 200ms ease',
-        }}
-      >
-        <Box
-          style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: 'var(--mantine-spacing-md)',
+        padding={0}
+        styles={{
+          root: {
+            transition: 'background-color 200ms ease',
+          },
+          main: {
             background: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)',
+            transition: 'background-color 200ms ease',
+          },
+        }}
+      >
+        <AppShell.Header
+          style={{
+            background: 'var(--mantine-color-body)',
+            transition: 'background-color 200ms ease, border-color 200ms ease',
+          }}
+        >
+          <Header />
+        </AppShell.Header>
+
+        <AppShell.Navbar
+          p={0}
+          style={{
+            background: 'var(--mantine-color-body)',
+            transition: 'background-color 200ms ease, border-color 200ms ease',
+          }}
+        >
+          <Sidebar onNavigate={handleProtectedNavigation} />
+        </AppShell.Navbar>
+
+        <AppShell.Main
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
             transition: 'background-color 200ms ease',
           }}
         >
-          <Outlet />
-        </Box>
-      </AppShell.Main>
-    </AppShell>
+          <Box
+            style={{
+              flex: 1,
+              overflow: 'auto',
+              padding: 'var(--mantine-spacing-md)',
+              background: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)',
+              transition: 'background-color 200ms ease',
+            }}
+          >
+            <Outlet />
+          </Box>
+        </AppShell.Main>
+      </AppShell>
+
+      <PinVerificationModal
+        opened={pinModalOpen}
+        onClose={handlePinModalClose}
+        onVerified={handlePinVerified}
+        requiredPermission={requiredPermission}
+        title="Authentication Required"
+        description={`Enter your PIN to access ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
+      />
+    </>
   );
 }

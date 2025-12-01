@@ -33,12 +33,20 @@ const adminNavItems: NavItem[] = [
   { label: 'Dashboard', icon: <IconDashboard size={20} stroke={1.5} />, path: '/dashboard', shortcut: 'Alt+D' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: (path: string) => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleNavClick = (path: string) => {
-    navigate(path);
+    if (onNavigate) {
+      onNavigate(path);
+    } else {
+      navigate(path);
+    }
   };
 
   const isPathActive = (path: string) => {

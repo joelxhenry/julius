@@ -2,34 +2,52 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { IpcChannel } from '../../shared/types/ipc';
 import type { Employee } from '../../main/database/schema';
 
-// Employee type without pinHash for security
-type SafeEmployee = Omit<Employee, 'pinHash'>;
+// Employee type without sensitive fields
+export type SafeEmployee = Omit<Employee, 'passwordHash'>;
+
+// Default idle timeout: 3 minutes in milliseconds
+const DEFAULT_IDLE_TIMEOUT = 3 * 60 * 1000;
 
 interface AuthContextType {
   user: SafeEmployee | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  requiresPinChange: boolean;
+  isSessionValid: boolean;
+  idleTimeout: number;
   login: (username: string, password: string) => Promise<void>;
+  verifyPin: (code: string) => Promise<SafeEmployee>;
   logout: () => void;
-  updatePin: (newPin: string) => Promise<boolean>;
   hasPermission: (permissionCode: string) => boolean;
+  refreshActivity: () => void;
+  setIdleTimeout: (timeout: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'turbo-julius-auth';
+const IDLE_TIMEOUT_KEY = 'turbo-julius-idle-timeout';
 
 interface StoredAuth {
   user: SafeEmployee;
   timestamp: number;
-  requiresPinChange: boolean;
+  lastActivity: number;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SafeEmployee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [requiresPinChange, setRequiresPinChange] = useState(false);
+  const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const [idleTimeout, setIdleTimeoutState] = useState<number>(() => {
+    const stored = localStorage.getItem(IDLE_TIMEOUT_KEY);
+    return stored ? parseInt(stored, 10) : DEFAULT_IDLE_TIMEOUT;
+  });
+
+  // Check if session is still valid based on idle timeout
+  const isSessionValid = useCallback(() => {
+    if (!user) return false;
+    const timeSinceActivity = Date.now() - lastActivity;
+    return timeSinceActivity < idleTimeout;
+  }, [user, lastActivity, idleTimeout]);
 
   // Load saved session on mount
   useEffect(() => {
@@ -37,14 +55,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const stored = localStorage.getItem(AUTH_STORAGE_KEY);
         if (stored) {
-          const { user: storedUser, timestamp, requiresPinChange: storedRequiresPinChange }: StoredAuth = JSON.parse(stored);
+          const { user: storedUser, lastActivity: storedLastActivity }: StoredAuth = JSON.parse(stored);
 
-          // Check if session is less than 24 hours old
-          const hoursSinceLogin = (Date.now() - timestamp) / (1000 * 60 * 60);
-          if (hoursSinceLogin < 24) {
+          // Check if session is still valid (within idle timeout)
+          const timeSinceActivity = Date.now() - storedLastActivity;
+          if (timeSinceActivity < idleTimeout) {
             setUser(storedUser);
-            setRequiresPinChange(storedRequiresPinChange || false);
+            setLastActivity(storedLastActivity);
           } else {
+            // Session expired
             localStorage.removeItem(AUTH_STORAGE_KEY);
           }
         }
@@ -57,8 +76,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadSavedSession();
+  }, [idleTimeout]);
+
+  // Save session to localStorage whenever user or lastActivity changes
+  useEffect(() => {
+    if (user) {
+      const authData: StoredAuth = {
+        user,
+        timestamp: Date.now(),
+        lastActivity,
+      };
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+    }
+  }, [user, lastActivity]);
+
+  // Refresh activity timestamp
+  const refreshActivity = useCallback(() => {
+    setLastActivity(Date.now());
   }, []);
 
+  // Set idle timeout
+  const setIdleTimeout = useCallback((timeout: number) => {
+    setIdleTimeoutState(timeout);
+    localStorage.setItem(IDLE_TIMEOUT_KEY, timeout.toString());
+  }, []);
+
+  // Username/password login (full login)
   const login = useCallback(async (username: string, password: string) => {
     try {
       const result = await window.electron.invoke(IpcChannel.AUTHENTICATE_EMPLOYEE, { username, password });
@@ -67,19 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(result.error || 'Authentication failed');
       }
 
-      const { employee: authenticatedEmployee, requiresPinChange: needsPinChange } = result.data;
+      const { employee: authenticatedEmployee } = result.data;
 
-      // Store user data
       setUser(authenticatedEmployee);
-      setRequiresPinChange(needsPinChange || false);
-
-      // Save to localStorage
-      const authData: StoredAuth = {
-        user: authenticatedEmployee,
-        timestamp: Date.now(),
-        requiresPinChange: needsPinChange || false,
-      };
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+      setLastActivity(Date.now());
 
     } catch (error) {
       console.error('Login failed:', error);
@@ -87,50 +121,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setRequiresPinChange(false);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+  // Code verification (quick auth using employee code)
+  const verifyPin = useCallback(async (code: string): Promise<SafeEmployee> => {
+    try {
+      const result = await window.electron.invoke(IpcChannel.VERIFY_EMPLOYEE_PIN, { pin: code });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Invalid code');
+      }
+
+      const { employee: verifiedEmployee } = result.data;
+
+      setUser(verifiedEmployee);
+      setLastActivity(Date.now());
+
+      return verifiedEmployee;
+    } catch (error) {
+      console.error('Code verification failed:', error);
+      throw error;
+    }
   }, []);
 
-  const updatePin = useCallback(async (newPin: string): Promise<boolean> => {
-    if (!user || user.id === 0) {
-      // Virtual admin user - can't update PIN
-      console.warn('Cannot update PIN for virtual admin user');
-      return false;
-    }
-
-    try {
-      const result = await window.electron.invoke(IpcChannel.UPDATE_EMPLOYEE_PIN, { id: user.id, newPin });
-
-      if (result.success) {
-        setRequiresPinChange(false);
-        // Update stored auth
-        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (stored) {
-          const authData: StoredAuth = JSON.parse(stored);
-          authData.requiresPinChange = false;
-          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-        }
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('PIN update failed:', error);
-      return false;
-    }
-  }, [user]);
+  const logout = useCallback(() => {
+    setUser(null);
+    setLastActivity(Date.now());
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }, []);
 
   const hasPermission = useCallback((permissionCode: string): boolean => {
     if (!user) return false;
 
-    // Check if user has permissions JSONB field
+    // ADMIN permission bypasses all checks
     if (user.permissions && typeof user.permissions === 'object') {
       const permissions = user.permissions as Record<string, boolean>;
+      if (permissions['ADMIN'] === true) return true;
       return permissions[permissionCode] === true;
     }
 
-    // Default to true for admin users or if no permissions set
+    // Default to true if no permissions set (backwards compatibility)
     return true;
   }, [user]);
 
@@ -138,11 +166,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isAuthenticated: !!user,
     isLoading,
-    requiresPinChange,
+    isSessionValid: isSessionValid(),
+    idleTimeout,
     login,
+    verifyPin,
     logout,
-    updatePin,
     hasPermission,
+    refreshActivity,
+    setIdleTimeout,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -164,7 +195,6 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    // Redirect to login will be handled by router
     return null;
   }
 

@@ -1,0 +1,118 @@
+/**
+ * Route permissions configuration
+ * Maps routes to required permission codes
+ *
+ * Permission codes should match what's stored in the employee.permissions JSONB field
+ * Special permission: 'ADMIN' bypasses all permission checks
+ */
+
+export interface RoutePermission {
+  path: string;
+  permission?: string; // If undefined, only requires authentication (no specific permission)
+  description: string;
+}
+
+// Routes that require authentication but no specific permission
+// Just need a valid PIN/session
+export const authenticatedRoutes: RoutePermission[] = [
+  { path: '/invoices', description: 'Search Invoices' },
+  { path: '/invoices/new', description: 'Create Invoice' },
+  { path: '/invoices/:id', description: 'View Invoice' },
+  { path: '/quotations', description: 'Search Quotations' },
+  { path: '/quotations/new', description: 'Create Quotation' },
+  { path: '/quotations/:id', description: 'View Quotation' },
+  { path: '/inventory', description: 'Search Inventory' },
+  { path: '/payments', description: 'Process Payments' },
+  { path: '/attendance', description: 'Clock In/Out' },
+];
+
+// Routes that require specific permissions
+export const permissionProtectedRoutes: RoutePermission[] = [
+  { path: '/dashboard', permission: 'VIEW_DASHBOARD', description: 'Dashboard' },
+  { path: '/dashboard/reports', permission: 'VIEW_REPORTS', description: 'Reports' },
+  { path: '/dashboard/employees', permission: 'MANAGE_EMPLOYEES', description: 'Employee Management' },
+  { path: '/dashboard/settings', permission: 'MANAGE_SETTINGS', description: 'System Settings' },
+  { path: '/dashboard/access', permission: 'MANAGE_ACCESS', description: 'Access Management' },
+];
+
+// Public routes (no authentication required)
+export const publicRoutes: string[] = [
+  '/',
+  '/login',
+];
+
+/**
+ * Get the required permission for a given path
+ * Returns undefined for public routes
+ * Returns null for authenticated-only routes (no specific permission)
+ * Returns the permission code for permission-protected routes
+ */
+export function getRoutePermission(path: string): string | null | undefined {
+  // Check public routes first
+  if (publicRoutes.includes(path)) {
+    return undefined; // No auth required
+  }
+
+  // Check permission-protected routes (exact match first, then pattern match)
+  for (const route of permissionProtectedRoutes) {
+    if (matchRoute(path, route.path)) {
+      return route.permission;
+    }
+  }
+
+  // Check authenticated routes
+  for (const route of authenticatedRoutes) {
+    if (matchRoute(path, route.path)) {
+      return null; // Auth required but no specific permission
+    }
+  }
+
+  // Default: require authentication for unknown routes
+  return null;
+}
+
+/**
+ * Check if a path matches a route pattern
+ * Supports :param style patterns
+ */
+function matchRoute(path: string, pattern: string): boolean {
+  // Exact match
+  if (path === pattern) return true;
+
+  // Pattern match (e.g., /invoices/:id matches /invoices/123)
+  const pathParts = path.split('/');
+  const patternParts = pattern.split('/');
+
+  if (pathParts.length !== patternParts.length) return false;
+
+  return patternParts.every((part, index) => {
+    if (part.startsWith(':')) return true; // Wildcard match
+    return part === pathParts[index];
+  });
+}
+
+/**
+ * Check if a route is public
+ */
+export function isPublicRoute(path: string): boolean {
+  return getRoutePermission(path) === undefined;
+}
+
+/**
+ * Check if a route requires authentication only (no specific permission)
+ */
+export function isAuthOnlyRoute(path: string): boolean {
+  return getRoutePermission(path) === null;
+}
+
+/**
+ * Get the description for a route
+ */
+export function getRouteDescription(path: string): string {
+  for (const route of [...authenticatedRoutes, ...permissionProtectedRoutes]) {
+    if (matchRoute(path, route.path)) {
+      return route.description;
+    }
+  }
+  return 'this feature';
+}

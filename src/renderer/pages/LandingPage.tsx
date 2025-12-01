@@ -8,8 +8,10 @@ import {
   IconClock,
   IconDashboard,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
 import { ActionCard } from '../components/common/ActionCard';
+import { PinVerificationModal } from '../components/auth/PinVerificationModal';
+import { useProtectedNavigation } from '../hooks/useProtectedNavigation';
+import { getRouteDescription } from '../router/permissions';
 
 const actionItems = [
   {
@@ -79,53 +81,71 @@ const dashboardItem = {
 } as const;
 
 export function LandingPage() {
-  const navigate = useNavigate();
+  const {
+    navigateTo,
+    pinModalOpen,
+    pendingNavigation,
+    requiredPermission,
+    handlePinVerified,
+    handlePinModalClose,
+  } = useProtectedNavigation();
 
   return (
-    <Box p="xl" maw={1200} mx="auto">
-      <Stack gap="xl">
-        <Stack gap="xs">
-          <Title order={2}>Quick Actions</Title>
-          <Text c="dimmed" size="sm">
-            Select an action below or use keyboard shortcuts
-          </Text>
-        </Stack>
+    <>
+      <Box p="xl" maw={1200} mx="auto">
+        <Stack gap="xl">
+          <Stack gap="xs">
+            <Title order={2}>Quick Actions</Title>
+            <Text c="dimmed" size="sm">
+              Select an action below or use keyboard shortcuts
+            </Text>
+          </Stack>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-          {actionItems.map((item) => (
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+            {actionItems.map((item) => (
+              <ActionCard
+                key={item.id}
+                icon={item.icon}
+                title={item.title}
+                description={item.description}
+                shortcut={item.shortcut}
+                onClick={() => navigateTo(item.path)}
+                color={item.color}
+              />
+            ))}
+          </SimpleGrid>
+
+          <Box>
             <ActionCard
-              key={item.id}
-              icon={item.icon}
-              title={item.title}
-              description={item.description}
-              shortcut={item.shortcut}
-              onClick={() => navigate(item.path)}
-              color={item.color}
+              icon={dashboardItem.icon}
+              title={dashboardItem.title}
+              description={dashboardItem.description}
+              shortcut={dashboardItem.shortcut}
+              onClick={() => navigateTo(dashboardItem.path)}
+              color={dashboardItem.color}
             />
-          ))}
-        </SimpleGrid>
+          </Box>
 
-        <Box>
-          <ActionCard
-            icon={dashboardItem.icon}
-            title={dashboardItem.title}
-            description={dashboardItem.description}
-            shortcut={dashboardItem.shortcut}
-            onClick={() => navigate(dashboardItem.path)}
-            color={dashboardItem.color}
-          />
-        </Box>
+          <Group justify="center" gap="xs" mt="md">
+            <Text size="sm" c="dimmed">
+              Press
+            </Text>
+            <Kbd size="sm">?</Kbd>
+            <Text size="sm" c="dimmed">
+              for keyboard shortcuts
+            </Text>
+          </Group>
+        </Stack>
+      </Box>
 
-        <Group justify="center" gap="xs" mt="md">
-          <Text size="sm" c="dimmed">
-            Press
-          </Text>
-          <Kbd size="sm">?</Kbd>
-          <Text size="sm" c="dimmed">
-            for keyboard shortcuts
-          </Text>
-        </Group>
-      </Stack>
-    </Box>
+      <PinVerificationModal
+        opened={pinModalOpen}
+        onClose={handlePinModalClose}
+        onVerified={handlePinVerified}
+        requiredPermission={requiredPermission}
+        title="Authentication Required"
+        description={`Enter your access code to ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
+      />
+    </>
   );
 }

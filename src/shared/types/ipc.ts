@@ -55,7 +55,7 @@ export enum IpcChannel {
   UPDATE_EMPLOYEE = 'db:update-employee',
   DELETE_EMPLOYEE = 'db:delete-employee',
   AUTHENTICATE_EMPLOYEE = 'db:authenticate-employee',
-  UPDATE_EMPLOYEE_PIN = 'db:update-employee-pin',
+  VERIFY_EMPLOYEE_PIN = 'db:verify-employee-pin',
   UPDATE_EMPLOYEE_PERMISSIONS = 'db:update-employee-permissions',
 
   // Inventory operations

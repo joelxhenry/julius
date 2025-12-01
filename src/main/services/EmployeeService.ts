@@ -30,11 +30,20 @@ function verifyPassword(password: string, hash: string): boolean {
   return hashPassword(password) === hash;
 }
 
+// Safe employee type without sensitive fields
+export type SafeEmployee = Omit<schema.Employee, 'passwordHash'>;
+
 export interface AuthResult {
   success: boolean;
-  employee?: Omit<schema.Employee, 'passwordHash'>;
+  employee?: SafeEmployee;
   error?: string;
   requiresPasswordChange?: boolean;
+}
+
+export interface PinVerificationResult {
+  success: boolean;
+  employee?: SafeEmployee;
+  error?: string;
 }
 
 export class EmployeeService extends BaseService<
@@ -252,6 +261,53 @@ export class EmployeeService extends BaseService<
   async updatePasswordSecure(id: number, newPassword: string): Promise<schema.Employee | null> {
     const hashedPassword = hashPassword(newPassword);
     return this.update(id, { passwordHash: hashedPassword });
+  }
+
+  /**
+   * Verify an employee by their unique code (used as PIN)
+   * Code lookup is case-insensitive
+   */
+  async verifyPin(code: string): Promise<PinVerificationResult> {
+    if (!code || !code.trim()) {
+      return {
+        success: false,
+        error: 'Please enter your employee code',
+      };
+    }
+
+    // Find employee by code (case-insensitive)
+    const results = await this.db
+      .select()
+      .from(schema.employees)
+      .where(ilike(schema.employees.code, code.trim()))
+      .limit(1);
+
+    const employee = results[0];
+
+    if (!employee) {
+      return {
+        success: false,
+        error: 'Employee code not recognized. Please check and try again.',
+      };
+    }
+
+    console.error('Employee found:', employee);
+
+    // Check if employee is active
+    if (employee.status !== 'active') {
+      return {
+        success: false,
+        error: 'Your account is not active. Please contact an administrator.',
+      };
+    }
+
+    // Remove sensitive fields from response
+    const { passwordHash, ...safeEmployee } = employee;
+
+    return {
+      success: true,
+      employee: safeEmployee,
+    };
   }
 
   // Export hash function for use elsewhere

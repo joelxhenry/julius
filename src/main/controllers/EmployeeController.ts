@@ -136,39 +136,26 @@ export class EmployeeController extends BaseController<EmployeeService> {
     }
   }
 
-  async updatePin(id: number, pinHash: string, usingDefaultPin: boolean = false) {
-    try {
-      const employee = await this.service.updatePin(id, pinHash, usingDefaultPin);
-      if (!employee) {
-        return { success: false, error: 'Employee not found' };
-      }
-      return this.wrapSuccess(employee);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async updatePinSecure(id: number, newPin: string) {
-    try {
-      const employee = await this.service.updatePinSecure(id, newPin);
-      if (!employee) {
-        return { success: false, error: 'Employee not found' };
-      }
-      // Don't return the pinHash
-      const { pinHash, ...employeeWithoutPin } = employee;
-      return this.wrapSuccess(employeeWithoutPin);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
   async authenticate(username: string, password: string) {
     try {
       const result = await this.service.authenticate(username, password);
       if (result.success) {
         return this.wrapSuccess({
           employee: result.employee,
-          requiresPinChange: result.requiresPinChange,
+        });
+      }
+      return { success: false, error: result.error };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async verifyPin(pin: string) {
+    try {
+      const result = await this.service.verifyPin(pin);
+      if (result.success) {
+        return this.wrapSuccess({
+          employee: result.employee,
         });
       }
       return { success: false, error: result.error };
