@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, and } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 
@@ -44,5 +44,33 @@ export class InventoryAlternateService extends BaseService<
       .select()
       .from(schema.inventoryAlternates)
       .where(eq(schema.inventoryAlternates.supplier, supplier));
+  }
+
+  async deleteAlternate(partNo: string, alternateNo: string): Promise<boolean> {
+    // Delete the alternate relation in either direction
+    const result = await this.db
+      .delete(schema.inventoryAlternates)
+      .where(
+        or(
+          and(
+            eq(schema.inventoryAlternates.partNo, partNo),
+            eq(schema.inventoryAlternates.alternateNo, alternateNo)
+          ),
+          and(
+            eq(schema.inventoryAlternates.partNo, alternateNo),
+            eq(schema.inventoryAlternates.alternateNo, partNo)
+          )
+        )
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  async createAlternate(partNo: string, alternateNo: string, supplier?: string): Promise<schema.InventoryAlternate> {
+    return this.create({
+      partNo,
+      alternateNo,
+      supplier: supplier || null,
+    });
   }
 }

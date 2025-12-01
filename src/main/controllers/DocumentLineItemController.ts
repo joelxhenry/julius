@@ -120,4 +120,22 @@ export class DocumentLineItemController extends BaseController<DocumentLineItemS
       return this.handleError(error);
     }
   }
+
+  async getVariantSales(sku: string, params: DocumentLineItemQueryParams = {}) {
+    try {
+      const result = await this.service.getVariantSales(sku, params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getInventorySalesSummary(sku: string, params: { startDate?: string; endDate?: string } = {}) {
+    try {
+      const result = await this.service.getInventorySalesSummary(sku, params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }

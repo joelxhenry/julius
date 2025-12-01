@@ -343,8 +343,6 @@ export class EmployeeService extends BaseService<
       };
     }
 
-    console.error('Employee found:', employee);
-
     // Check if employee is active
     if (employee.status !== 'active') {
       return {

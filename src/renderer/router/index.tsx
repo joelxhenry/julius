@@ -5,7 +5,7 @@ import { NotFoundPage, ErrorPage } from '../pages/error';
 import { LandingPage } from '../pages/LandingPage';
 import { InvoicesPage, InvoiceCreatePage } from '../pages/invoices';
 import { QuotationsPage, QuotationCreatePage } from '../pages/quotations';
-import { InventoryPage } from '../pages/inventory';
+import { InventoryPage, InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
 import { PaymentsPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import { DashboardPage } from '../pages/dashboard';
@@ -16,6 +16,7 @@ import {
   EmployeeDetailPage,
   EmployeePermissionsPage,
 } from '../pages/employees';
+import { SettingsPage } from '../pages/settings';
 
 export const router = createHashRouter([
   {
@@ -50,7 +51,19 @@ export const router = createHashRouter([
       },
       {
         path: 'inventory',
-        element: <InventoryPage />,
+        element: <InventoryListPage />,
+      },
+      {
+        path: 'inventory/new',
+        element: <InventoryEditorPage />,
+      },
+      {
+        path: 'inventory/:id',
+        element: <InventoryDetailPage />,
+      },
+      {
+        path: 'inventory/:id/edit',
+        element: <InventoryEditorPage />,
       },
       {
         path: 'payments',
@@ -88,6 +101,11 @@ export const router = createHashRouter([
       {
         path: 'employees/:id/permissions',
         element: <EmployeePermissionsPage />,
+      },
+      // Settings
+      {
+        path: 'settings',
+        element: <SettingsPage />,
       },
       // Catch-all for 404 within app layout
       {

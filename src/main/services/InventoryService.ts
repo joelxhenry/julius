@@ -34,7 +34,9 @@ export class InventoryService extends BaseService<
           ilike(schema.inventory.sku, searchTerm),
           ilike(schema.inventory.description1, searchTerm),
           ilike(schema.inventory.description2, searchTerm),
-          ilike(schema.inventory.model, searchTerm)
+          ilike(schema.inventory.model, searchTerm),
+          ilike(schema.inventory.category, searchTerm),
+          ilike(schema.inventory.location, searchTerm)
         )
       );
     }
@@ -161,6 +163,15 @@ export class InventoryService extends BaseService<
       .update(schema.inventory)
       .set({ price, updatedAt: new Date() })
       .where(eq(schema.inventory.sku, sku))
+      .returning();
+    return results[0] || null;
+  }
+
+  async updateStock(id: number, quantity: number): Promise<schema.Inventory | null> {
+    const results = await this.db
+      .update(schema.inventory)
+      .set({ quantity, updatedAt: new Date() })
+      .where(eq(schema.inventory.id, id))
       .returning();
     return results[0] || null;
   }

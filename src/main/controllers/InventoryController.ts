@@ -67,6 +67,15 @@ export class InventoryController extends BaseController<InventoryService> {
     }
   }
 
+  async searchForSelect(query: string, limit = 20) {
+    try {
+      const items = await this.service.searchForSelect(query, limit);
+      return this.wrapSuccess(items);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async getLowStock() {
     try {
       const items = await this.service.findLowStock();

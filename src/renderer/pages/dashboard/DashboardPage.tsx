@@ -34,6 +34,7 @@ const dashboardSections: DashboardSection[] = [
     description: 'Application configuration',
     icon: <IconSettings size={24} />,
     color: 'gray',
+    path: '/settings',
   },
   {
     title: 'User Management',

@@ -76,6 +76,7 @@ export enum IpcChannel {
   GET_LOW_STOCK_INVENTORY = 'db:get-low-stock-inventory',
   GET_ACTIVE_INVENTORY = 'db:get-active-inventory',
   SEARCH_INVENTORY = 'db:search-inventory',
+  SEARCH_INVENTORY_FOR_SELECT = 'db:search-inventory-for-select',
   CREATE_INVENTORY = 'db:create-inventory',
   UPDATE_INVENTORY = 'db:update-inventory',
   DELETE_INVENTORY = 'db:delete-inventory',
@@ -212,6 +213,23 @@ export enum IpcChannel {
   CREATE_ATTENDANCE = 'db:create-attendance',
   UPDATE_ATTENDANCE = 'db:update-attendance',
   DELETE_ATTENDANCE = 'db:delete-attendance',
+
+  // Inventory transaction operations
+  GET_INVENTORY_TRANSACTIONS = 'db:get-inventory-transactions',
+  GET_INVENTORY_TRANSACTIONS_PAGINATED = 'db:get-inventory-transactions-paginated',
+  GET_INVENTORY_TRANSACTIONS_BY_SKU = 'db:get-inventory-transactions-by-sku',
+  GET_INVENTORY_TRANSACTIONS_BY_DATE_RANGE = 'db:get-inventory-transactions-by-date-range',
+  CREATE_INVENTORY_TRANSACTION = 'db:create-inventory-transaction',
+
+  // Inventory alternates operations
+  GET_INVENTORY_ALTERNATES = 'db:get-inventory-alternates',
+  GET_INVENTORY_ALTERNATES_BY_PART = 'db:get-inventory-alternates-by-part',
+  CREATE_INVENTORY_ALTERNATE = 'db:create-inventory-alternate',
+  DELETE_INVENTORY_ALTERNATE = 'db:delete-inventory-alternate',
+
+  // Inventory sales queries
+  GET_VARIANT_SALES = 'db:get-variant-sales',
+  GET_INVENTORY_SALES_SUMMARY = 'db:get-inventory-sales-summary',
 
   // Database configuration operations
   GET_DATABASE_CONFIG = 'db:get-config',

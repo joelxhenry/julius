@@ -92,6 +92,31 @@ export class VariantService extends BaseService<
       .where(eq(schema.variants.parentSku, parentSku));
   }
 
+  async findByInventoryId(inventoryId: number): Promise<schema.Variant[]> {
+    // First get the inventory item to find its SKU
+    const inventoryItem = await this.db
+      .select()
+      .from(schema.inventory)
+      .where(eq(schema.inventory.id, inventoryId))
+      .limit(1);
+
+    if (!inventoryItem[0]) {
+      return [];
+    }
+
+    return this.findByParentSku(inventoryItem[0].sku);
+  }
+
+  async findByBarcode(barcode: string): Promise<schema.Variant | null> {
+    // Search for variant by variantSku (which may contain barcode)
+    const results = await this.db
+      .select()
+      .from(schema.variants)
+      .where(eq(schema.variants.variantSku, barcode))
+      .limit(1);
+    return results[0] || null;
+  }
+
   async findByVariantSku(variantSku: string): Promise<schema.Variant | null> {
     const results = await this.db
       .select()
@@ -178,6 +203,14 @@ export class VariantService extends BaseService<
 
   async setQuantity(id: number, quantity: number): Promise<schema.Variant | null> {
     return this.update(id, { quantity, updatedAt: new Date() });
+  }
+
+  async updateStock(id: number, quantity: number): Promise<schema.Variant | null> {
+    return this.update(id, { quantity, updatedAt: new Date() });
+  }
+
+  async setStock(id: number, stockQty: number): Promise<schema.Variant | null> {
+    return this.update(id, { quantity: stockQty, updatedAt: new Date() });
   }
 
   async updatePrice(id: number, price: string): Promise<schema.Variant | null> {
