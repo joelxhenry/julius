@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import {
   Stack,
   Text,
@@ -14,6 +15,8 @@ import {
   Tooltip,
   Menu,
   Alert,
+  useMantineTheme,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { IconPlus, IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
 import type { InventoryWarning } from './InventoryWarningModal';
@@ -54,6 +57,9 @@ interface InvoiceLineItemsTableProps {
   formatCurrency: (value: number) => string;
   inventoryWarnings?: InventoryWarning[];
   isCheckingInventory?: boolean;
+  selectedLineItemId?: string | null;
+  onSelectLineItem?: (itemId: string | null) => void;
+  focusTrigger?: { field: 'quantity' | 'discount' | null; timestamp: number };
 }
 
 export function InvoiceLineItemsTable({
@@ -69,7 +75,29 @@ export function InvoiceLineItemsTable({
   formatCurrency,
   inventoryWarnings = [],
   isCheckingInventory = false,
+  selectedLineItemId,
+  onSelectLineItem,
+  focusTrigger,
 }: InvoiceLineItemsTableProps) {
+  const theme = useMantineTheme();
+  const { colorScheme } = useMantineColorScheme();
+
+  // Refs for quantity and discount inputs (for keyboard focus shortcuts)
+  const quantityRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const discountRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Handle focus triggers from parent
+  useEffect(() => {
+    if (focusTrigger && focusTrigger.field && selectedLineItemId) {
+      const refs = focusTrigger.field === 'quantity' ? quantityRefs : discountRefs;
+      const input = refs.current[selectedLineItemId];
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }
+  }, [focusTrigger, selectedLineItemId]);
+
   // Get warning for specific SKU
   const getWarningForSku = (sku: string): InventoryWarning | undefined => {
     return inventoryWarnings.find((w) => w.sku === sku);
@@ -115,11 +143,23 @@ export function InvoiceLineItemsTable({
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {lineItems.map((item) => {
+              {lineItems.map((item, idx) => {
                 const warning = getWarningForSku(item.sku);
+                const isSelected = selectedLineItemId === item.id;
                 return (
                   <>
-                    <Table.Tr key={item.id}>
+                    <Table.Tr
+                      key={`${item.id}-${idx}`}
+                      onClick={() => onSelectLineItem?.(item.id)}
+                      style={{
+                        backgroundColor: isSelected
+                          ? colorScheme === 'dark'
+                            ? theme.colors.blue[9]
+                            : theme.colors.blue[0]
+                          : undefined,
+                        cursor: 'pointer',
+                      }}
+                    >
                       <Table.Td>
                         <Group gap="xs">
                           <TextInput
@@ -150,6 +190,11 @@ export function InvoiceLineItemsTable({
                       </Table.Td>
                       <Table.Td>
                         <NumberInput
+                          ref={(el) => {
+                            if (el) {
+                              quantityRefs.current[item.id] = el as any;
+                            }
+                          }}
                           size="xs"
                           variant="unstyled"
                           value={item.quantity}
@@ -172,6 +217,11 @@ export function InvoiceLineItemsTable({
                       </Table.Td>
                       <Table.Td>
                         <NumberInput
+                          ref={(el) => {
+                            if (el) {
+                              discountRefs.current[item.id] = el as any;
+                            }
+                          }}
                           size="xs"
                           variant="unstyled"
                           value={item.discount}

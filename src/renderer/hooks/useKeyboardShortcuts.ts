@@ -18,16 +18,19 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]) {
     (e: KeyboardEvent) => {
       // Skip if user is typing in an input field
       const target = e.target as HTMLElement;
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
-        // Allow Escape key to work even in inputs
-        if (e.key !== 'Escape') {
-          return;
-        }
-      }
+      const isInInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable;
 
-      // Also skip if contentEditable
-      if (target.isContentEditable) {
-        if (e.key !== 'Escape') {
+      if (isInInput) {
+        // Allow Escape and Delete keys to work even in inputs
+        if (e.key === 'Escape' || e.key === 'Delete') {
+          // Continue to check for shortcuts
+        }
+        // Allow shortcuts with Ctrl, Alt, or Ctrl+Shift modifiers
+        else if (e.ctrlKey || e.altKey || (e.ctrlKey && e.shiftKey)) {
+          // Continue to check for shortcuts
+        }
+        // Skip other keys when in input fields
+        else {
           return;
         }
       }

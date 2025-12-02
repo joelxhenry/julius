@@ -11,6 +11,7 @@ import {
   Center,
   ActionIcon,
   Alert,
+  Modal,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -19,10 +20,12 @@ import {
   IconDeviceFloppy,
   IconCheck,
   IconAlertTriangle,
+  IconKeyboard,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
+import { useKeyboardShortcutContext } from '../../contexts/KeyboardShortcutContext';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import {
   AdminOverrideModal,
@@ -30,6 +33,9 @@ import {
   InvoiceLineItemsTable,
   InvoiceSummaryCard,
   VariantSelectorModal,
+  BulkDiscountModal,
+  TargetTotalModal,
+  KeyboardShortcutsModal,
   Client,
   InventoryItem,
   LineItem,
@@ -52,6 +58,7 @@ export function InvoiceCreatePage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { markTabDirty, updateTabTitle } = useTabContext();
+  const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
   const locationState = location.state as LocationState | null;
 
   const isEditing = !!id;
@@ -68,6 +75,13 @@ export function InvoiceCreatePage() {
   const [salespersonId, setSalespersonId] = useState<number | null>(locationState?.salespersonId ?? null);
   const [salespersonName, setSalespersonName] = useState<string>(locationState?.salespersonName ?? '');
   const [originalInvNumber, setOriginalInvNumber] = useState<string | null>(null);
+
+  // Selection state for keyboard shortcuts
+  const [selectedLineItemId, setSelectedLineItemId] = useState<string | null>(null);
+  const [focusTrigger, setFocusTrigger] = useState<{ field: 'quantity' | 'discount' | null; timestamp: number }>({
+    field: null,
+    timestamp: 0,
+  });
 
   // Search state
   const [clientSearch, setClientSearch] = useState('');
@@ -92,6 +106,19 @@ export function InvoiceCreatePage() {
   const [pendingItem, setPendingItem] = useState<InventoryItem | null>(null);
   const { variants, isLoading: isLoadingVariants, checkHasVariants, loadVariants, clearVariants } = useVariants();
 
+  // Bulk discount modal
+  const [bulkDiscountModalOpen, { open: openBulkDiscountModal, close: closeBulkDiscountModal }] = useDisclosure(false);
+
+  // Target total modal
+  const [targetTotalModalOpen, { open: openTargetTotalModal, close: closeTargetTotalModal }] = useDisclosure(false);
+
+  // Keyboard shortcuts help modal
+  const [shortcutsModalOpen, { open: openShortcutsModal, close: closeShortcutsModal }] = useDisclosure(false);
+
+  // Delete confirmation modal
+  const [deleteConfirmOpen, { open: openDeleteConfirm, close: closeDeleteConfirm }] = useDisclosure(false);
+  const [itemToDelete, setItemToDelete] = useState<LineItem | null>(null);
+
   // Inventory check hook - checks inventory in real-time as quantities change
   const { inventoryWarnings, isChecking: isCheckingInventory, hasWarnings } = useInventoryCheck(
     lineItems.map(item => ({ sku: item.sku, quantity: item.quantity }))
@@ -112,6 +139,21 @@ export function InvoiceCreatePage() {
       loadInvoice(parseInt(id, 10));
     }
   }, [id, isEditing]);
+
+  // Auto-select first line item when items are added
+  useEffect(() => {
+    if (lineItems.length > 0 && !selectedLineItemId) {
+      setSelectedLineItemId(lineItems[0].id);
+    }
+  }, [lineItems, selectedLineItemId]);
+
+  // Clear selection if selected item is removed
+  useEffect(() => {
+    if (selectedLineItemId && !lineItems.find((item) => item.id === selectedLineItemId)) {
+      // Selected item was removed, select first available item or null
+      setSelectedLineItemId(lineItems.length > 0 ? lineItems[0].id : null);
+    }
+  }, [lineItems, selectedLineItemId]);
 
   const loadInvoice = async (invoiceId: number) => {
     setIsLoading(true);
@@ -344,6 +386,44 @@ export function InvoiceCreatePage() {
     setLineItems((prev) => prev.filter((item) => item.id !== itemId));
   }, []);
 
+  // Selection helper functions
+  const selectLineItem = useCallback((itemId: string | null) => {
+    setSelectedLineItemId(itemId);
+  }, []);
+
+  const selectNextLineItem = useCallback(() => {
+    if (lineItems.length === 0) return;
+
+    const currentIndex = lineItems.findIndex((item) => item.id === selectedLineItemId);
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % lineItems.length;
+    setSelectedLineItemId(lineItems[nextIndex].id);
+  }, [lineItems, selectedLineItemId]);
+
+  const selectPreviousLineItem = useCallback(() => {
+    if (lineItems.length === 0) return;
+
+    const currentIndex = lineItems.findIndex((item) => item.id === selectedLineItemId);
+    const prevIndex = currentIndex === -1 ? lineItems.length - 1 : (currentIndex - 1 + lineItems.length) % lineItems.length;
+    setSelectedLineItemId(lineItems[prevIndex].id);
+  }, [lineItems, selectedLineItemId]);
+
+  // Apply bulk discount to all line items
+  const handleApplyBulkDiscount = useCallback((discountPercent: number) => {
+    setLineItems((prev) =>
+      prev.map((item) => {
+        const updated = { ...item, discount: discountPercent };
+        // Recalculate amount with new discount
+        updated.amount = item.quantity * item.unitPrice * (1 - discountPercent / 100);
+        return updated;
+      })
+    );
+    notifications.show({
+      title: 'Discount Applied',
+      message: `${discountPercent}% discount applied to all line items`,
+      color: 'green',
+    });
+  }, []);
+
   // Save invoice as draft
   const handleSaveDraft = useCallback(async () => {
     if (lineItems.length === 0) {
@@ -458,6 +538,116 @@ export function InvoiceCreatePage() {
     // Need to verify salesperson first
     openIssueModal();
   }, [creditCheck, openOverrideModal, openIssueModal]);
+
+  // Register keyboard shortcuts for line items
+  useEffect(() => {
+    const shortcuts = [
+      {
+        key: 'q',
+        ctrl: true,
+        callback: () => {
+          if (selectedLineItemId) {
+            setFocusTrigger({ field: 'quantity', timestamp: Date.now() });
+          }
+        },
+        description: 'Focus quantity field of selected line item',
+      },
+      {
+        key: 'd',
+        ctrl: true,
+        shift: true,
+        callback: () => {
+          if (selectedLineItemId) {
+            setFocusTrigger({ field: 'discount', timestamp: Date.now() });
+          }
+        },
+        description: 'Focus discount field of selected line item',
+      },
+      {
+        key: 'Delete',
+        callback: () => {
+          if (!selectedLineItemId) return;
+
+          const item = lineItems.find((item) => item.id === selectedLineItemId);
+          if (!item) return;
+
+          setItemToDelete(item);
+          openDeleteConfirm();
+        },
+        description: 'Delete selected line item',
+      },
+      {
+        key: 'd',
+        ctrl: true,
+        alt: true,
+        callback: () => {
+          if (lineItems.length === 0) {
+            notifications.show({
+              title: 'No Line Items',
+              message: 'Add line items before applying bulk discount',
+              color: 'orange',
+            });
+            return;
+          }
+          openBulkDiscountModal();
+        },
+        description: 'Apply bulk discount to all line items',
+      },
+      {
+        key: 't',
+        ctrl: true,
+        callback: () => {
+          if (lineItems.length === 0) {
+            notifications.show({
+              title: 'No Line Items',
+              message: 'Add line items before calculating target total',
+              color: 'orange',
+            });
+            return;
+          }
+          openTargetTotalModal();
+        },
+        description: 'Calculate discount for target total',
+      },
+      {
+        key: 's',
+        ctrl: true,
+        callback: () => {
+          handleSaveDraft();
+        },
+        description: 'Save invoice as draft',
+      },
+      {
+        key: 's',
+        ctrl: true,
+        shift: true,
+        callback: () => {
+          handleIssueInvoice();
+        },
+        description: 'Issue invoice',
+      },
+      {
+        key: 'ArrowUp',
+        callback: () => {
+          selectPreviousLineItem();
+        },
+        description: 'Select previous line item',
+      },
+      {
+        key: 'ArrowDown',
+        callback: () => {
+          selectNextLineItem();
+        },
+        description: 'Select next line item',
+      },
+    ];
+
+    registerShortcuts('invoice-line-items', shortcuts);
+
+    return () => {
+      unregisterShortcuts('invoice-line-items');
+    };
+  }, [selectedLineItemId, lineItems, removeLineItem, openBulkDiscountModal, openTargetTotalModal, handleSaveDraft, handleIssueInvoice, selectPreviousLineItem, selectNextLineItem, registerShortcuts, unregisterShortcuts]);
 
   // Handle issue after verification
   const handleIssueVerified = useCallback(
@@ -590,6 +780,15 @@ export function InvoiceCreatePage() {
           </Group>
 
           <Group gap="sm">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="lg"
+              onClick={openShortcutsModal}
+              title="Keyboard Shortcuts"
+            >
+              <IconKeyboard size={20} />
+            </ActionIcon>
             <Button variant="light" leftSection={<IconDeviceFloppy size={16} />} onClick={handleSaveDraft} loading={isSaving}>
               Save Draft
             </Button>
@@ -671,6 +870,9 @@ export function InvoiceCreatePage() {
               formatCurrency={formatCurrency}
               inventoryWarnings={inventoryWarnings}
               isCheckingInventory={isCheckingInventory}
+              selectedLineItemId={selectedLineItemId}
+              onSelectLineItem={selectLineItem}
+              focusTrigger={focusTrigger}
             />
           </Grid.Col>
 
@@ -730,6 +932,58 @@ export function InvoiceCreatePage() {
         isLoading={isLoadingVariants}
         onSelectVariant={handleVariantSelect}
       />
+
+      {/* Bulk Discount Modal */}
+      <BulkDiscountModal
+        opened={bulkDiscountModalOpen}
+        onClose={closeBulkDiscountModal}
+        onApply={handleApplyBulkDiscount}
+      />
+
+      {/* Target Total Modal */}
+      <TargetTotalModal
+        opened={targetTotalModalOpen}
+        onClose={closeTargetTotalModal}
+        onApply={handleApplyBulkDiscount}
+        currentSubTotal={totals.subTotal}
+        taxRate={TAX_RATE}
+        isTaxable={isTaxable}
+        formatCurrency={formatCurrency}
+      />
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsModal opened={shortcutsModalOpen} onClose={closeShortcutsModal} />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteConfirmOpen}
+        onClose={closeDeleteConfirm}
+        title="Delete Line Item"
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            Are you sure you want to delete "{itemToDelete?.description || itemToDelete?.sku}"?
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="default" onClick={closeDeleteConfirm}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={() => {
+                if (itemToDelete) {
+                  removeLineItem(itemToDelete.id);
+                  closeDeleteConfirm();
+                  setItemToDelete(null);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </>
   );
 }

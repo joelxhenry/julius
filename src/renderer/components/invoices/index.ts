@@ -5,4 +5,7 @@ export { InvoiceLineItemsTable, type LineItem } from './InvoiceLineItemsTable';
 export { InvoiceSummaryCard } from './InvoiceSummaryCard';
 export { InventoryWarningModal, type InventoryWarning } from './InventoryWarningModal';
 export { VariantSelectorModal, type Variant } from './VariantSelectorModal';
+export { BulkDiscountModal } from './BulkDiscountModal';
+export { TargetTotalModal } from './TargetTotalModal';
+export { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 export * from './types';
