@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTabContext } from '../../contexts/TabContext';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import {
   AdminOverrideModal,
@@ -50,6 +51,7 @@ export function InvoiceCreatePage() {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { markTabDirty, updateTabTitle } = useTabContext();
   const locationState = location.state as LocationState | null;
 
   const isEditing = !!id;
@@ -65,6 +67,7 @@ export function InvoiceCreatePage() {
   const [creditTerms, setCreditTerms] = useState('');
   const [salespersonId, setSalespersonId] = useState<number | null>(locationState?.salespersonId ?? null);
   const [salespersonName, setSalespersonName] = useState<string>(locationState?.salespersonName ?? '');
+  const [originalInvNumber, setOriginalInvNumber] = useState<string | null>(null);
 
   // Search state
   const [clientSearch, setClientSearch] = useState('');
@@ -123,6 +126,10 @@ export function InvoiceCreatePage() {
         setPricing(inv.pricing);
         setCreditTerms(inv.creditTerms || '');
         setSalespersonId(inv.salespersonId);
+        setOriginalInvNumber(inv.invNumber);
+
+        // Update tab title
+        updateTabTitle(location.pathname, `Edit Invoice ${inv.invNumber}`);
 
         // Load client
         if (inv.clientId) {
@@ -163,6 +170,12 @@ export function InvoiceCreatePage() {
       setIsLoading(false);
     }
   };
+
+  // Track dirty state - mark tab as dirty when there are changes
+  useEffect(() => {
+    const hasChanges = lineItems.length > 0 || clientId !== null || reference !== '';
+    markTabDirty(location.pathname, hasChanges);
+  }, [lineItems, clientId, reference, location.pathname, markTabDirty]);
 
   // Search clients
   const searchClients = useDebouncedCallback(async (query: string) => {

@@ -41,8 +41,9 @@ import {
   IconCheck,
   IconDotsVertical,
 } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
 
@@ -146,12 +147,21 @@ const ACTIVITY_COLORS: Record<string, string> = {
 
 export function InventoryDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
+  const { updateTabTitle } = useTabContext();
 
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState<Inventory | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>('overview');
+
+  // Update tab title when item loads
+  useEffect(() => {
+    if (item) {
+      updateTabTitle(location.pathname, `${item.sku} - ${item.description1 || 'Inventory Item'}`);
+    }
+  }, [item, location.pathname, updateTabTitle]);
 
   // Variants state
   const [variants, setVariants] = useState<Variant[]>([]);

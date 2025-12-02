@@ -12,8 +12,10 @@ import {
   IconFileText,
   IconReceipt,
   IconBell,
+  IconLayout,
 } from '@tabler/icons-react';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
+import { InterfaceSettingsTab } from './InterfaceSettingsTab';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string | null>('database');
@@ -27,6 +29,9 @@ export function SettingsPage() {
           <Tabs.List>
             <Tabs.Tab value="database" leftSection={<IconDatabase size={16} />}>
               Database
+            </Tabs.Tab>
+            <Tabs.Tab value="interface" leftSection={<IconLayout size={16} />}>
+              Interface
             </Tabs.Tab>
             <Tabs.Tab value="company" leftSection={<IconBuilding size={16} />} disabled>
               Company
@@ -44,6 +49,10 @@ export function SettingsPage() {
 
           <Tabs.Panel value="database" pt="lg">
             <DatabaseSettingsTab />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="interface" pt="lg">
+            <InterfaceSettingsTab />
           </Tabs.Panel>
 
           <Tabs.Panel value="company" pt="lg">

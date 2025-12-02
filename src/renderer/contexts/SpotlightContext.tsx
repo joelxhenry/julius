@@ -32,10 +32,12 @@ const SpotlightContext = createContext<SpotlightContextValue | null>(null);
 
 interface SpotlightProviderProps {
   children: React.ReactNode;
+  onNavigate?: (path: string) => void;
 }
 
-export function SpotlightProvider({ children }: SpotlightProviderProps) {
-  const navigate = useNavigate();
+export function SpotlightProvider({ children, onNavigate }: SpotlightProviderProps) {
+  const defaultNavigate = useNavigate();
+  const navigate = onNavigate || defaultNavigate;
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQueryState] = useState('');
   const [results, setResults] = useState<SpotlightResult[]>([]);

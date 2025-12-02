@@ -5,15 +5,19 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
+import { TabBar } from '../components/layout/TabBar';
+import { TabContainer } from '../components/layout/TabContainer';
 import { PinVerificationModal } from '../components/auth/PinVerificationModal';
 import { Spotlight } from '../components/common/Spotlight';
 import { useTheme } from '../contexts/ThemeContext';
 import { useKeyboardShortcutContext } from '../contexts/KeyboardShortcutContext';
 import { SpotlightProvider } from '../contexts/SpotlightContext';
+import { TabProvider, useTabContext } from '../contexts/TabContext';
 import { useAuth, SafeEmployee } from '../contexts/AuthContext';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
 import { KeyboardShortcut } from '../hooks/useKeyboardShortcuts';
 import { isPublicRoute, getRoutePermission, getRouteDescription } from '../router/permissions';
+import { getComponentForPath } from '../utils/componentMapper';
 
 // Global navigation shortcuts
 const navigationShortcuts = [
@@ -27,7 +31,7 @@ const navigationShortcuts = [
   { key: 'd', path: '/dashboard', description: 'Dashboard' },
 ];
 
-export function AppLayout() {
+function AppLayoutContent() {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
   const { colorScheme } = useTheme();
@@ -35,6 +39,7 @@ export function AppLayout() {
   const location = useLocation();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
   const { isSessionValid, hasPermission } = useAuth();
+  const { tabs, openTab, isTabbed, closeCurrentTab, nextTab, previousTab, selectTabByIndex } = useTabContext();
 
   // Initialize idle timeout tracking
   useIdleTimeout();
@@ -62,7 +67,15 @@ export function AppLayout() {
       if (isSessionValid) {
         // Session is valid, check permission if required
         if (permission === null || hasPermission(permission)) {
-          navigate(path);
+          // Check if this route should be tabbed
+          if (isTabbed(path)) {
+            // Create component and open in tab
+            const component = getComponentForPath(path);
+            openTab(path, component);
+          } else {
+            // Non-tabbed route, use regular navigation
+            navigate(path);
+          }
           return;
         } else {
           // Has session but lacks permission
@@ -80,20 +93,26 @@ export function AppLayout() {
       setRequiredPermission(permission ?? undefined);
       setPinModalOpen(true);
     },
-    [isSessionValid, hasPermission, navigate]
+    [isSessionValid, hasPermission, navigate, isTabbed, openTab]
   );
 
   // Handle successful PIN verification
   const handlePinVerified = useCallback(
     (employee: SafeEmployee) => {
       if (pendingNavigation) {
-        navigate(pendingNavigation);
+        // Check if this route should be tabbed
+        if (isTabbed(pendingNavigation)) {
+          const component = getComponentForPath(pendingNavigation);
+          openTab(pendingNavigation, component);
+        } else {
+          navigate(pendingNavigation);
+        }
         setPendingNavigation(null);
       }
       setPinModalOpen(false);
       setRequiredPermission(undefined);
     },
-    [pendingNavigation, navigate]
+    [pendingNavigation, navigate, isTabbed, openTab]
   );
 
   // Handle PIN modal close (cancelled)
@@ -148,8 +167,51 @@ export function AppLayout() {
     };
   }, [handleProtectedNavigation, registerShortcuts, unregisterShortcuts]);
 
+  // Register tab keyboard shortcuts
+  useEffect(() => {
+    const tabShortcuts: KeyboardShortcut[] = [
+      {
+        key: 'w',
+        ctrl: true,
+        callback: closeCurrentTab,
+        description: 'Close current tab',
+      },
+      {
+        key: 'Tab',
+        ctrl: true,
+        callback: (e) => {
+          e?.preventDefault();
+          nextTab();
+        },
+        description: 'Next tab',
+      },
+      {
+        key: 'Tab',
+        ctrl: true,
+        shift: true,
+        callback: (e) => {
+          e?.preventDefault();
+          previousTab();
+        },
+        description: 'Previous tab',
+      },
+      ...Array.from({ length: 9 }, (_, i) => ({
+        key: String(i + 1),
+        ctrl: true,
+        callback: () => selectTabByIndex(i),
+        description: `Switch to tab ${i + 1}`,
+      })),
+    ];
+
+    registerShortcuts('tabs', tabShortcuts);
+
+    return () => {
+      unregisterShortcuts('tabs');
+    };
+  }, [closeCurrentTab, nextTab, previousTab, selectTabByIndex, registerShortcuts, unregisterShortcuts]);
+
   return (
-    <SpotlightProvider>
+    <SpotlightProvider onNavigate={handleProtectedNavigation}>
       <AppShell
         header={{ height: 60 }}
         navbar={{
@@ -195,17 +257,27 @@ export function AppLayout() {
             transition: 'background-color 200ms ease',
           }}
         >
-          <Box
-            style={{
-              flex: 1,
-              overflow: 'auto',
-              padding: 'var(--mantine-spacing-md)',
-              background: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)',
-              transition: 'background-color 200ms ease',
-            }}
-          >
-            <Outlet />
-          </Box>
+          <TabBar />
+
+          {/* Show TabContainer when tabs exist AND we're on a tabbed route */}
+          {tabs.length > 0 && isTabbed(location.pathname) && (
+            <TabContainer />
+          )}
+
+          {/* Show Outlet when on non-tabbed routes OR when no tabs exist */}
+          {(!isTabbed(location.pathname) || tabs.length === 0) && (
+            <Box
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                padding: 'var(--mantine-spacing-md)',
+                background: isDark ? 'var(--mantine-color-dark-8)' : 'var(--mantine-color-gray-0)',
+                transition: 'background-color 200ms ease',
+              }}
+            >
+              <Outlet />
+            </Box>
+          )}
         </AppShell.Main>
       </AppShell>
 
@@ -220,5 +292,13 @@ export function AppLayout() {
         description={`Enter your PIN to access ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
       />
     </SpotlightProvider>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <TabProvider>
+      <AppLayoutContent />
+    </TabProvider>
   );
 }

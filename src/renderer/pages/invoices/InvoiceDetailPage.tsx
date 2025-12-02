@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useTabContext } from '../../contexts/TabContext';
 import {
   Stack,
   Title,
@@ -106,7 +107,9 @@ const statusLabels: Record<string, string> = {
 
 export function InvoiceDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
+  const { updateTabTitle } = useTabContext();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -116,6 +119,13 @@ export function InvoiceDetailPage() {
   });
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
+
+  // Update tab title when invoice loads
+  useEffect(() => {
+    if (invoice) {
+      updateTabTitle(location.pathname, `Invoice ${invoice.invNumber}`);
+    }
+  }, [invoice, location.pathname, updateTabTitle]);
 
   // Load invoice data
   useEffect(() => {
