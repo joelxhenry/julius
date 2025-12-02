@@ -3,7 +3,7 @@ import { LoginPage } from '../pages/auth/LoginPage';
 import { AppLayout } from '../layouts/AppLayout';
 import { NotFoundPage, ErrorPage } from '../pages/error';
 import { LandingPage } from '../pages/LandingPage';
-import { InvoicesPage, InvoiceCreatePage } from '../pages/invoices';
+import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
 import { QuotationsPage, QuotationCreatePage } from '../pages/quotations';
 import { InventoryPage, InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
 import { PaymentsPage } from '../pages/payments';
@@ -39,6 +39,14 @@ export const router = createHashRouter([
       },
       {
         path: 'invoices/new',
+        element: <InvoiceCreatePage />,
+      },
+      {
+        path: 'invoices/:id',
+        element: <InvoiceDetailPage />,
+      },
+      {
+        path: 'invoices/:id/edit',
         element: <InvoiceCreatePage />,
       },
       {

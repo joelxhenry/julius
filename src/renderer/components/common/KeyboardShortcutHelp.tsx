@@ -1,4 +1,4 @@
-import { Modal, Stack, Text, Group, Kbd, Table, Title, Divider } from '@mantine/core';
+import { Modal, Stack, Text, Group, Kbd, Table, Divider } from '@mantine/core';
 import { useKeyboardShortcutContext } from '../../contexts/KeyboardShortcutContext';
 
 const navigationShortcuts = [
@@ -78,7 +78,7 @@ export function KeyboardShortcutHelp() {
     <Modal
       opened={isHelpOpen}
       onClose={closeHelp}
-      title={<Title order={3}>Keyboard Shortcuts</Title>}
+      title="Keyboard Shortcuts"
       size="md"
       centered
     >

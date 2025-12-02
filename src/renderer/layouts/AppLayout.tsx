@@ -6,8 +6,10 @@ import { notifications } from '@mantine/notifications';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { PinVerificationModal } from '../components/auth/PinVerificationModal';
+import { Spotlight } from '../components/common/Spotlight';
 import { useTheme } from '../contexts/ThemeContext';
 import { useKeyboardShortcutContext } from '../contexts/KeyboardShortcutContext';
+import { SpotlightProvider } from '../contexts/SpotlightContext';
 import { useAuth, SafeEmployee } from '../contexts/AuthContext';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
 import { KeyboardShortcut } from '../hooks/useKeyboardShortcuts';
@@ -147,7 +149,7 @@ export function AppLayout() {
   }, [handleProtectedNavigation, registerShortcuts, unregisterShortcuts]);
 
   return (
-    <>
+    <SpotlightProvider>
       <AppShell
         header={{ height: 60 }}
         navbar={{
@@ -207,6 +209,8 @@ export function AppLayout() {
         </AppShell.Main>
       </AppShell>
 
+      <Spotlight />
+
       <PinVerificationModal
         opened={pinModalOpen}
         onClose={handlePinModalClose}
@@ -215,6 +219,6 @@ export function AppLayout() {
         title="Authentication Required"
         description={`Enter your PIN to access ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
       />
-    </>
+    </SpotlightProvider>
   );
 }

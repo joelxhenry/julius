@@ -1,0 +1,663 @@
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Stack,
+  Title,
+  Text,
+  Paper,
+  Group,
+  Button,
+  Badge,
+  Loader,
+  Center,
+  Grid,
+  Table,
+  ActionIcon,
+  Menu,
+  Divider,
+  Alert,
+  Card,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconArrowLeft,
+  IconEdit,
+  IconCash,
+  IconFileText,
+  IconUser,
+  IconChevronLeft,
+  IconChevronRight,
+  IconDotsVertical,
+  IconArchive,
+  IconAlertTriangle,
+  IconCheck,
+  IconPackage,
+  IconReceipt,
+} from '@tabler/icons-react';
+import { IpcChannel } from '../../../shared/types/ipc';
+import { AdminOverrideModal, AdminOverrideResult, CreditIssue } from '../../components/invoices';
+
+interface Invoice {
+  id: number;
+  invNumber: string;
+  invDate: string;
+  salespersonId: number | null;
+  clientId: number | null;
+  clientName: string | null;
+  clientAddress1: string | null;
+  clientAddress2: string | null;
+  clientPhone: string | null;
+  reference: string | null;
+  subTotal: string;
+  tax: string;
+  total: string;
+  totalPaid: string;
+  status: string;
+  isTaxable: boolean;
+  pricing: string;
+  creditTerms: string | null;
+  isArchived: boolean;
+  issuedAt: string | null;
+  issuedById: number | null;
+  adminOverrideById: number | null;
+  adminOverrideNotes: string | null;
+  adminOverrideAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface LineItem {
+  id: number;
+  sku: string;
+  description: string | null;
+  quantity: number;
+  unitPrice: string;
+  discount: string;
+  amount: string;
+  isTaxable: boolean;
+}
+
+interface CreditCheckResult {
+  canCreateInvoice: boolean;
+  requiresAdminOverride: boolean;
+  reasons: CreditIssue[];
+  creditLimit: number;
+  currentBalance: number;
+  overdueAmount: number;
+  overdueInvoiceCount: number;
+}
+
+const statusColors: Record<string, string> = {
+  draft: 'gray',
+  active: 'blue',
+  partially_paid: 'yellow',
+  paid: 'green',
+  archived: 'gray',
+};
+
+const statusLabels: Record<string, string> = {
+  draft: 'Draft',
+  active: 'Active',
+  partially_paid: 'Partially Paid',
+  paid: 'Paid',
+  archived: 'Archived',
+};
+
+export function InvoiceDetailPage() {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [adjacentIds, setAdjacentIds] = useState<{ previousId: number | null; nextId: number | null }>({
+    previousId: null,
+    nextId: null,
+  });
+  const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
+  const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
+
+  // Load invoice data
+  useEffect(() => {
+    const loadInvoice = async () => {
+      if (!id) return;
+
+      setIsLoading(true);
+      try {
+        // Load invoice
+        const invResult = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: parseInt(id, 10) });
+        if (invResult.success && invResult.data) {
+          setInvoice(invResult.data);
+
+          // Load line items
+          const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, {
+            invNumber: invResult.data.invNumber,
+          });
+          if (itemsResult.success && itemsResult.data) {
+            setLineItems(itemsResult.data);
+          }
+
+          // Load adjacent invoices
+          const adjResult = await window.electron.invoke(IpcChannel.GET_ADJACENT_INVOICES, { id: parseInt(id, 10) });
+          if (adjResult.success && adjResult.data) {
+            setAdjacentIds(adjResult.data);
+          }
+
+          // Check credit if there's a client and invoice is not paid/archived
+          if (invResult.data.clientId && ['draft', 'active', 'partially_paid'].includes(invResult.data.status)) {
+            const creditResult = await window.electron.invoke(IpcChannel.CHECK_CLIENT_CREDIT, {
+              clientId: invResult.data.clientId,
+            });
+            if (creditResult.success && creditResult.data) {
+              setCreditCheck(creditResult.data);
+            }
+          }
+        } else {
+          notifications.show({
+            title: 'Error',
+            message: 'Invoice not found',
+            color: 'red',
+          });
+          navigate('/invoices');
+        }
+      } catch (error) {
+        console.error('Failed to load invoice:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to load invoice',
+          color: 'red',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadInvoice();
+  }, [id, navigate]);
+
+  // Format currency
+  const formatCurrency = (value: string | null) => {
+    const num = parseFloat(value || '0');
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(num);
+  };
+
+  // Format date
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  // Navigate to previous/next invoice
+  const handleNavigateAdjacent = useCallback(
+    (targetId: number | null) => {
+      if (targetId) {
+        navigate(`/invoices/${targetId}`);
+      }
+    },
+    [navigate]
+  );
+
+  // Issue invoice (draft -> active)
+  const handleIssueInvoice = useCallback(async () => {
+    if (!invoice) return;
+
+    // Check credit first
+    if (creditCheck?.requiresAdminOverride) {
+      openOverrideModal();
+      return;
+    }
+
+    try {
+      // TODO: Get current salesperson ID from context/session
+      const result = await window.electron.invoke(IpcChannel.ISSUE_INVOICE, {
+        invoiceId: invoice.id,
+        issuedById: invoice.salespersonId || 1, // Fallback to 1 for now
+      });
+
+      if (result.success) {
+        notifications.show({
+          title: 'Invoice Issued',
+          message: `Invoice ${invoice.invNumber} has been issued`,
+          color: 'green',
+        });
+        // Reload the invoice
+        const updatedResult = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoice.id });
+        if (updatedResult.success && updatedResult.data) {
+          setInvoice(updatedResult.data);
+        }
+      } else {
+        notifications.show({
+          title: 'Error',
+          message: result.error || 'Failed to issue invoice',
+          color: 'red',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to issue invoice',
+        color: 'red',
+      });
+    }
+  }, [invoice, creditCheck, openOverrideModal]);
+
+  // Handle admin override approval
+  const handleOverrideApproved = useCallback(
+    async (result: AdminOverrideResult) => {
+      if (!invoice) return;
+
+      try {
+        const issueResult = await window.electron.invoke(IpcChannel.ISSUE_INVOICE, {
+          invoiceId: invoice.id,
+          issuedById: invoice.salespersonId || 1,
+          adminOverrideById: result.adminId,
+          adminOverrideNotes: result.notes,
+        });
+
+        if (issueResult.success) {
+          notifications.show({
+            title: 'Invoice Issued',
+            message: `Invoice ${invoice.invNumber} has been issued with admin override`,
+            color: 'green',
+          });
+          // Reload the invoice
+          const updatedResult = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoice.id });
+          if (updatedResult.success && updatedResult.data) {
+            setInvoice(updatedResult.data);
+          }
+        } else {
+          notifications.show({
+            title: 'Error',
+            message: issueResult.error || 'Failed to issue invoice',
+            color: 'red',
+          });
+        }
+      } catch (error) {
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to issue invoice',
+          color: 'red',
+        });
+      }
+    },
+    [invoice]
+  );
+
+  // Archive invoice
+  const handleArchive = useCallback(async () => {
+    if (!invoice) return;
+
+    try {
+      const result = await window.electron.invoke(IpcChannel.ARCHIVE_INVOICE, { id: invoice.id });
+      if (result.success) {
+        notifications.show({
+          title: 'Invoice Archived',
+          message: `Invoice ${invoice.invNumber} has been archived`,
+          color: 'green',
+        });
+        navigate('/invoices');
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to archive invoice',
+        color: 'red',
+      });
+    }
+  }, [invoice, navigate]);
+
+  // Navigate to payment recording
+  const handleRecordPayment = useCallback(() => {
+    if (invoice) {
+      navigate(`/payments/new?invoiceId=${invoice.id}`);
+    }
+  }, [invoice, navigate]);
+
+  // Navigate to create credit note
+  const handleCreateCreditNote = useCallback(() => {
+    if (invoice) {
+      navigate(`/credit-notes/new?invoiceId=${invoice.id}`);
+    }
+  }, [invoice, navigate]);
+
+  // Navigate to client
+  const handleViewClient = useCallback(() => {
+    if (invoice?.clientId) {
+      navigate(`/clients/${invoice.clientId}`);
+    }
+  }, [invoice, navigate]);
+
+  // View inventory item (removed navigation to prevent leaving invoice page)
+  // Users can use spotlight search (Cmd/Ctrl+K) to quickly find inventory items if needed
+
+  if (isLoading) {
+    return (
+      <Center h="60vh">
+        <Loader size="lg" />
+      </Center>
+    );
+  }
+
+  if (!invoice) {
+    return null;
+  }
+
+  const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
+
+  return (
+    <>
+      <Stack gap="lg">
+        {/* Header */}
+        <Group justify="space-between" align="flex-start">
+          <Group gap="md">
+            <ActionIcon variant="subtle" size="lg" onClick={() => navigate('/invoices')}>
+              <IconArrowLeft size={20} />
+            </ActionIcon>
+            <Stack gap={4}>
+              <Group gap="sm">
+                <Title order={2}>Invoice {invoice.invNumber}</Title>
+                <Badge color={statusColors[invoice.status]} variant="light" size="lg">
+                  {statusLabels[invoice.status]}
+                </Badge>
+              </Group>
+              <Text c="dimmed" size="sm">
+                Created {formatDate(invoice.createdAt)}
+                {invoice.issuedAt && ` • Issued ${formatDate(invoice.issuedAt)}`}
+              </Text>
+            </Stack>
+          </Group>
+
+          <Group gap="sm">
+            {/* Navigation */}
+            <Group gap={4}>
+              <ActionIcon
+                variant="subtle"
+                disabled={!adjacentIds.previousId}
+                onClick={() => handleNavigateAdjacent(adjacentIds.previousId)}
+              >
+                <IconChevronLeft size={16} />
+              </ActionIcon>
+              <ActionIcon
+                variant="subtle"
+                disabled={!adjacentIds.nextId}
+                onClick={() => handleNavigateAdjacent(adjacentIds.nextId)}
+              >
+                <IconChevronRight size={16} />
+              </ActionIcon>
+            </Group>
+
+            {/* Quick Actions */}
+            {invoice.status === 'draft' && (
+              <Button leftSection={<IconCheck size={16} />} color="green" onClick={handleIssueInvoice}>
+                Issue Invoice
+              </Button>
+            )}
+            {invoice.status === 'draft' && (
+              <Button
+                variant="light"
+                leftSection={<IconEdit size={16} />}
+                onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+              >
+                Edit
+              </Button>
+            )}
+            {['active', 'partially_paid'].includes(invoice.status) && (
+              <Button leftSection={<IconCash size={16} />} onClick={handleRecordPayment}>
+                Record Payment
+              </Button>
+            )}
+
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="lg">
+                  <IconDotsVertical size={20} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {['active', 'partially_paid', 'paid'].includes(invoice.status) && (
+                  <Menu.Item leftSection={<IconFileText size={16} />} onClick={handleCreateCreditNote}>
+                    Create Credit Note
+                  </Menu.Item>
+                )}
+                {invoice.clientId && (
+                  <Menu.Item leftSection={<IconUser size={16} />} onClick={handleViewClient}>
+                    View Client
+                  </Menu.Item>
+                )}
+                <Menu.Divider />
+                <Menu.Item leftSection={<IconArchive size={16} />} color="red" onClick={handleArchive}>
+                  Archive Invoice
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+        </Group>
+
+        {/* Credit Warning */}
+        {creditCheck?.requiresAdminOverride && invoice.status === 'draft' && (
+          <Alert icon={<IconAlertTriangle size={16} />} color="orange" title="Credit Issues Detected">
+            {creditCheck.reasons.map((reason, idx) => (
+              <Text key={idx} size="sm">
+                {reason.message}
+              </Text>
+            ))}
+          </Alert>
+        )}
+
+        {/* Admin Override Info */}
+        {invoice.adminOverrideById && (
+          <Alert icon={<IconAlertTriangle size={16} />} color="yellow" variant="light" title="Admin Override Applied">
+            <Text size="sm">
+              This invoice was issued with an admin override.
+              {invoice.adminOverrideNotes && ` Notes: ${invoice.adminOverrideNotes}`}
+            </Text>
+          </Alert>
+        )}
+
+        <Grid>
+          {/* Invoice Details */}
+          <Grid.Col span={{ base: 12, md: 8 }}>
+            <Paper withBorder p="md" radius="md">
+              <Stack gap="md">
+                <Text fw={600}>Invoice Details</Text>
+                <Grid>
+                  <Grid.Col span={6}>
+                    <Text size="sm" c="dimmed">
+                      Invoice Number
+                    </Text>
+                    <Text fw={500}>{invoice.invNumber}</Text>
+                  </Grid.Col>
+                  <Grid.Col span={6}>
+                    <Text size="sm" c="dimmed">
+                      Invoice Date
+                    </Text>
+                    <Text fw={500}>{formatDate(invoice.invDate)}</Text>
+                  </Grid.Col>
+                  <Grid.Col span={6}>
+                    <Text size="sm" c="dimmed">
+                      Reference
+                    </Text>
+                    <Text fw={500}>{invoice.reference || '-'}</Text>
+                  </Grid.Col>
+                  <Grid.Col span={6}>
+                    <Text size="sm" c="dimmed">
+                      Credit Terms
+                    </Text>
+                    <Text fw={500}>{invoice.creditTerms || '-'}</Text>
+                  </Grid.Col>
+                </Grid>
+
+                <Divider />
+
+                <Text fw={600}>Client Information</Text>
+                <Grid>
+                  <Grid.Col span={12}>
+                    <Text size="sm" c="dimmed">
+                      Client Name
+                    </Text>
+                    <Group gap="xs">
+                      <Text fw={500}>{invoice.clientName || 'Walk-in Customer'}</Text>
+                      {invoice.clientId && (
+                        <ActionIcon variant="subtle" size="sm" onClick={handleViewClient}>
+                          <IconUser size={14} />
+                        </ActionIcon>
+                      )}
+                    </Group>
+                  </Grid.Col>
+                  {(invoice.clientAddress1 || invoice.clientAddress2) && (
+                    <Grid.Col span={12}>
+                      <Text size="sm" c="dimmed">
+                        Address
+                      </Text>
+                      <Text fw={500}>
+                        {[invoice.clientAddress1, invoice.clientAddress2].filter(Boolean).join(', ')}
+                      </Text>
+                    </Grid.Col>
+                  )}
+                  {invoice.clientPhone && (
+                    <Grid.Col span={6}>
+                      <Text size="sm" c="dimmed">
+                        Phone
+                      </Text>
+                      <Text fw={500}>{invoice.clientPhone}</Text>
+                    </Grid.Col>
+                  )}
+                </Grid>
+              </Stack>
+            </Paper>
+
+            {/* Line Items */}
+            <Paper withBorder p="md" radius="md" mt="md">
+              <Stack gap="md">
+                <Text fw={600}>Line Items</Text>
+                <Table>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>SKU</Table.Th>
+                      <Table.Th>Description</Table.Th>
+                      <Table.Th ta="center">Qty</Table.Th>
+                      <Table.Th ta="right">Unit Price</Table.Th>
+                      <Table.Th ta="right">Amount</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {lineItems.map((item) => (
+                      <Table.Tr key={item.id}>
+                        <Table.Td>
+                          <Group gap="xs">
+                            <Text size="sm" fw={500}>
+                              {item.sku}
+                            </Text>
+                            <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm" truncate maw={200}>
+                            {item.description || '-'}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td ta="center">{item.quantity}</Table.Td>
+                        <Table.Td ta="right">{formatCurrency(item.unitPrice)}</Table.Td>
+                        <Table.Td ta="right">{formatCurrency(item.amount)}</Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Stack>
+            </Paper>
+          </Grid.Col>
+
+          {/* Summary */}
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <Card withBorder p="md" radius="md">
+              <Stack gap="md">
+                <Text fw={600}>Summary</Text>
+                <Stack gap="xs">
+                  <Group justify="space-between">
+                    <Text size="sm" c="dimmed">
+                      Subtotal
+                    </Text>
+                    <Text size="sm">{formatCurrency(invoice.subTotal)}</Text>
+                  </Group>
+                  <Group justify="space-between">
+                    <Text size="sm" c="dimmed">
+                      Tax
+                    </Text>
+                    <Text size="sm">{formatCurrency(invoice.tax)}</Text>
+                  </Group>
+                  <Divider />
+                  <Group justify="space-between">
+                    <Text fw={600}>Total</Text>
+                    <Text fw={600} size="lg">
+                      {formatCurrency(invoice.total)}
+                    </Text>
+                  </Group>
+                  <Divider />
+                  <Group justify="space-between">
+                    <Text size="sm" c="dimmed">
+                      Paid
+                    </Text>
+                    <Text size="sm" c="green">
+                      {formatCurrency(invoice.totalPaid)}
+                    </Text>
+                  </Group>
+                  <Group justify="space-between">
+                    <Text fw={500}>Balance Due</Text>
+                    <Text fw={500} c={balance > 0 ? 'red' : 'green'}>
+                      {formatCurrency(balance.toFixed(2))}
+                    </Text>
+                  </Group>
+                </Stack>
+              </Stack>
+            </Card>
+
+            {/* Quick Actions Card */}
+            <Card withBorder p="md" radius="md" mt="md">
+              <Stack gap="sm">
+                <Text fw={600}>Quick Actions</Text>
+                {invoice.status === 'draft' && (
+                  <Button fullWidth variant="light" color="green" leftSection={<IconCheck size={16} />} onClick={handleIssueInvoice}>
+                    Issue Invoice
+                  </Button>
+                )}
+                {['active', 'partially_paid'].includes(invoice.status) && (
+                  <Button fullWidth variant="light" leftSection={<IconCash size={16} />} onClick={handleRecordPayment}>
+                    Record Payment
+                  </Button>
+                )}
+                {['active', 'partially_paid', 'paid'].includes(invoice.status) && (
+                  <Button fullWidth variant="light" color="orange" leftSection={<IconReceipt size={16} />} onClick={handleCreateCreditNote}>
+                    Create Credit Note
+                  </Button>
+                )}
+                {invoice.clientId && (
+                  <Button fullWidth variant="subtle" leftSection={<IconUser size={16} />} onClick={handleViewClient}>
+                    View Client
+                  </Button>
+                )}
+              </Stack>
+            </Card>
+          </Grid.Col>
+        </Grid>
+      </Stack>
+
+      {/* Admin Override Modal */}
+      {creditCheck && (
+        <AdminOverrideModal
+          opened={overrideModalOpen}
+          onClose={closeOverrideModal}
+          onApproved={handleOverrideApproved}
+          clientName={invoice.clientName || 'Unknown Client'}
+          creditIssues={creditCheck.reasons}
+        />
+      )}
+    </>
+  );
+}

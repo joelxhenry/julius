@@ -1,6 +1,9 @@
-import { pgTable, varchar, integer, serial, numeric, boolean, timestamp, date, index } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, text, integer, serial, numeric, boolean, timestamp, date, index } from 'drizzle-orm/pg-core';
 import { clients } from './clients';
 import { employees } from './employees';
+
+// Invoice status flow: draft -> active -> partially_paid -> paid -> archived
+export type InvoiceStatus = 'draft' | 'active' | 'partially_paid' | 'paid' | 'archived';
 
 // INVOICE table - sales invoices
 export const invoices = pgTable('invoices', {
@@ -24,12 +27,28 @@ export const invoices = pgTable('invoices', {
   tax: numeric('tax', { precision: 15, scale: 2 }).notNull().default('0'),
   total: numeric('total', { precision: 15, scale: 2 }).notNull().default('0'),
   totalPaid: numeric('total_paid', { precision: 15, scale: 2 }).notNull().default('0'),
-  status: varchar('status', { length: 10 }).notNull().default('A'),
+
+  // Status: draft -> active -> partially_paid -> paid -> archived
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+
   isTaxable: boolean('is_taxable').notNull().default(true),
   pricing: varchar('pricing', { length: 10 }).notNull().default('R'),
   creditTerms: varchar('credit_terms', { length: 50 }),
   isArchived: boolean('is_archived').notNull().default(false),
+
+  // Issued tracking (when invoice moves from draft to active)
+  issuedAt: timestamp('issued_at'),
+  issuedById: integer('issued_by_id')
+    .references(() => employees.id, { onDelete: 'set null' }),
+
+  // Admin override tracking (for credit block bypass)
+  adminOverrideById: integer('admin_override_by_id')
+    .references(() => employees.id, { onDelete: 'set null' }),
+  adminOverrideNotes: text('admin_override_notes'),
+  adminOverrideAt: timestamp('admin_override_at'),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_invoices_number').on(table.invNumber),
   index('idx_invoices_date').on(table.invDate),
@@ -38,6 +57,7 @@ export const invoices = pgTable('invoices', {
   index('idx_invoices_salesperson').on(table.salespersonId),
   index('idx_invoices_status').on(table.status),
   index('idx_invoices_archived').on(table.isArchived),
+  index('idx_invoices_issued_by').on(table.issuedById),
 ]);
 
 // Export types

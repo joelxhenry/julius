@@ -69,12 +69,17 @@ CREATE TABLE clients (
     custom1 VARCHAR(100),
     custom2 VARCHAR(100),
     lb_disc NUMERIC(5,2),
+
+    -- Credit status flag (manually set by admin when client has bad credit history)
+    is_bad_credit BOOLEAN NOT NULL DEFAULT FALSE,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_clients_name ON clients(client_name);
 CREATE INDEX idx_clients_cl_number ON clients(cl_number);
+CREATE INDEX idx_clients_bad_credit ON clients(is_bad_credit);
 ```
 
 #### suppliers
@@ -309,6 +314,7 @@ CREATE INDEX idx_inv_rec_supplier ON inventory_receiving(supplier);
 
 #### invoices
 ```sql
+-- Invoice status flow: draft -> active -> partially_paid -> paid -> archived
 CREATE TABLE invoices (
     id SERIAL PRIMARY KEY,
     inv_number VARCHAR(20) UNIQUE NOT NULL,
@@ -325,14 +331,31 @@ CREATE TABLE invoices (
     tax NUMERIC(15,2) DEFAULT 0,
     total NUMERIC(15,2) DEFAULT 0,
     total_paid NUMERIC(15,2) DEFAULT 0,
-    status VARCHAR(10) DEFAULT 'A',
+
+    -- Status: draft -> active -> partially_paid -> paid -> archived
+    status VARCHAR(20) NOT NULL DEFAULT 'draft',
+
     is_taxable BOOLEAN DEFAULT TRUE,
     pricing VARCHAR(10) DEFAULT 'R',
     credit_terms VARCHAR(50),
     is_archived BOOLEAN DEFAULT FALSE,
+
+    -- Issued tracking (when invoice moves from draft to active)
+    issued_at TIMESTAMP,
+    issued_by_id INTEGER,
+
+    -- Admin override tracking (for credit block bypass)
+    admin_override_by_id INTEGER,
+    admin_override_notes TEXT,
+    admin_override_at TIMESTAMP,
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT fk_invoices_salesperson FOREIGN KEY (salesperson_id) REFERENCES employees(id) ON DELETE SET NULL,
-    CONSTRAINT fk_invoices_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+    CONSTRAINT fk_invoices_client FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
+    CONSTRAINT fk_invoices_issued_by FOREIGN KEY (issued_by_id) REFERENCES employees(id) ON DELETE SET NULL,
+    CONSTRAINT fk_invoices_admin_override FOREIGN KEY (admin_override_by_id) REFERENCES employees(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_invoices_number ON invoices(inv_number);
@@ -342,6 +365,7 @@ CREATE INDEX idx_invoices_client_id ON invoices(client_id);
 CREATE INDEX idx_invoices_salesperson ON invoices(salesperson_id);
 CREATE INDEX idx_invoices_status ON invoices(status);
 CREATE INDEX idx_invoices_archived ON invoices(is_archived);
+CREATE INDEX idx_invoices_issued_by ON invoices(issued_by_id);
 ```
 
 #### quotations
@@ -635,6 +659,8 @@ CREATE SEQUENCE seq_transfer_number START WITH 6408;
 |-------------|--------------|-----------|-----------|
 | invoices | employees | salesperson_id | SET NULL |
 | invoices | clients | client_id | SET NULL |
+| invoices | employees | issued_by_id | SET NULL |
+| invoices | employees | admin_override_by_id | SET NULL |
 | quotations | employees | salesperson_id | SET NULL |
 | quotations | clients | client_id | SET NULL |
 | credit_notes | invoices | inv_number | SET NULL |

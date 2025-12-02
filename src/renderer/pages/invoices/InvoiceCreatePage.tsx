@@ -1,25 +1,722 @@
-import { Stack, Title, Text, Paper, Center, ThemeIcon } from '@mantine/core';
-import { IconFileInvoice } from '@tabler/icons-react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import {
+  Stack,
+  Title,
+  Text,
+  Group,
+  Button,
+  Grid,
+  Loader,
+  Center,
+  ActionIcon,
+  Alert,
+} from '@mantine/core';
+import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import {
+  IconArrowLeft,
+  IconDeviceFloppy,
+  IconCheck,
+  IconAlertTriangle,
+} from '@tabler/icons-react';
+import { IpcChannel } from '../../../shared/types/ipc';
+import { useAuth } from '../../contexts/AuthContext';
+import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
+import {
+  AdminOverrideModal,
+  InvoiceFormHeader,
+  InvoiceLineItemsTable,
+  InvoiceSummaryCard,
+  VariantSelectorModal,
+  Client,
+  InventoryItem,
+  LineItem,
+  CreditCheckResult,
+  AdminOverrideResult,
+  TAX_RATE,
+  formatCurrency,
+} from '../../components/invoices';
+import { useInventoryCheck } from '../../hooks/useInventoryCheck';
+import { useVariants } from '../../hooks/useVariants';
+
+interface LocationState {
+  salespersonId?: number;
+  salespersonName?: string;
+}
 
 export function InvoiceCreatePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const locationState = location.state as LocationState | null;
+
+  const isEditing = !!id;
+
+  // Form state
+  const [invDate, setInvDate] = useState<Date>(new Date());
+  const [reference, setReference] = useState('');
+  const [clientId, setClientId] = useState<number | null>(null);
+  const [client, setClient] = useState<Client | null>(null);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [isTaxable, setIsTaxable] = useState(true);
+  const [pricing, setPricing] = useState('R'); // R = Retail, W = Wholesale
+  const [creditTerms, setCreditTerms] = useState('');
+  const [salespersonId, setSalespersonId] = useState<number | null>(locationState?.salespersonId ?? null);
+  const [salespersonName, setSalespersonName] = useState<string>(locationState?.salespersonName ?? '');
+
+  // Search state
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientOptions, setClientOptions] = useState<{ value: string; label: string; client: Client }[]>([]);
+  const [isSearchingClients, setIsSearchingClients] = useState(false);
+
+  const [itemSearch, setItemSearch] = useState('');
+  const [itemOptions, setItemOptions] = useState<{ value: string; label: string; item: InventoryItem }[]>([]);
+  const [isSearchingItems, setIsSearchingItems] = useState(false);
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Credit check
+  const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
+  const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
+  const [issueModalOpen, { open: openIssueModal, close: closeIssueModal }] = useDisclosure(false);
+
+  // Variant selection
+  const [variantModalOpen, { open: openVariantModal, close: closeVariantModal }] = useDisclosure(false);
+  const [pendingItem, setPendingItem] = useState<InventoryItem | null>(null);
+  const { variants, isLoading: isLoadingVariants, checkHasVariants, loadVariants, clearVariants } = useVariants();
+
+  // Inventory check hook - checks inventory in real-time as quantities change
+  const { inventoryWarnings, isChecking: isCheckingInventory, hasWarnings } = useInventoryCheck(
+    lineItems.map(item => ({ sku: item.sku, quantity: item.quantity }))
+  );
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    const subTotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const taxableAmount = lineItems.filter((item) => item.isTaxable).reduce((sum, item) => sum + item.amount, 0);
+    const tax = isTaxable ? taxableAmount * TAX_RATE : 0;
+    const total = subTotal + tax;
+    return { subTotal, tax, total };
+  }, [lineItems, isTaxable]);
+
+  // Load existing invoice if editing
+  useEffect(() => {
+    if (isEditing && id) {
+      loadInvoice(parseInt(id, 10));
+    }
+  }, [id, isEditing]);
+
+  const loadInvoice = async (invoiceId: number) => {
+    setIsLoading(true);
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoiceId });
+      if (result.success && result.data) {
+        const inv = result.data;
+        setInvDate(new Date(inv.invDate));
+        setReference(inv.reference || '');
+        setClientId(inv.clientId);
+        setIsTaxable(inv.isTaxable);
+        setPricing(inv.pricing);
+        setCreditTerms(inv.creditTerms || '');
+        setSalespersonId(inv.salespersonId);
+
+        // Load client
+        if (inv.clientId) {
+          const clientResult = await window.electron.invoke(IpcChannel.GET_CLIENT, { id: inv.clientId });
+          if (clientResult.success && clientResult.data) {
+            setClient(clientResult.data);
+            setClientSearch(clientResult.data.clientName);
+          }
+        }
+
+        // Load line items
+        const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, {
+          invNumber: inv.invNumber,
+        });
+        if (itemsResult.success && itemsResult.data) {
+          setLineItems(
+            itemsResult.data.map((item: any, idx: number) => ({
+              id: `existing-${idx}`,
+              sku: item.sku || '',
+              description: item.description || '',
+              quantity: item.quantity,
+              unitPrice: parseFloat(item.unitPrice || '0'),
+              discount: parseFloat(item.discount || '0'),
+              isTaxable: item.isTaxable,
+              amount: parseFloat(item.amount || '0'),
+            }))
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load invoice:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to load invoice',
+        color: 'red',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Search clients
+  const searchClients = useDebouncedCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setClientOptions([]);
+      return;
+    }
+
+    setIsSearchingClients(true);
+    try {
+      const result = await window.electron.invoke(IpcChannel.SEARCH_CLIENTS_FOR_SELECT, { query, limit: 10 });
+      if (result.success && result.data) {
+        setClientOptions(
+          result.data.map((c: Client) => ({
+            value: c.id.toString(),
+            label: `${c.clientName}${c.clNumber ? ` (${c.clNumber})` : ''}`,
+            client: c,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to search clients:', error);
+    } finally {
+      setIsSearchingClients(false);
+    }
+  }, 300);
+
+  // Search inventory items
+  const searchItems = useDebouncedCallback(async (query: string) => {
+    if (!query || query.length < 2) {
+      setItemOptions([]);
+      return;
+    }
+
+    setIsSearchingItems(true);
+    try {
+      const result = await window.electron.invoke(IpcChannel.SEARCH_INVENTORY_FOR_SELECT, { query, limit: 15 });
+      if (result.success && result.data) {
+        setItemOptions(
+          result.data.map((item: InventoryItem) => ({
+            value: item.sku,
+            label: `${item.sku} - ${item.description1 || 'No description'}`,
+            item,
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to search items:', error);
+    } finally {
+      setIsSearchingItems(false);
+    }
+  }, 300);
+
+  // Check client credit
+  const checkClientCredit = useCallback(async (checkClientId: number) => {
+    try {
+      const result = await window.electron.invoke(IpcChannel.CHECK_CLIENT_CREDIT, { clientId: checkClientId });
+      if (result.success && result.data) {
+        setCreditCheck(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to check client credit:', error);
+    }
+  }, []);
+
+  // Handle client selection
+  const handleClientSelect = useCallback(
+    (value: string) => {
+      const option = clientOptions.find((o) => o.value === value);
+      if (option) {
+        setClient(option.client);
+        setClientId(option.client.id);
+        setClientSearch(option.client.clientName);
+        setIsTaxable(option.client.isTaxable);
+        setCreditTerms(option.client.creditTerms || '');
+        checkClientCredit(option.client.id);
+      }
+    },
+    [clientOptions, checkClientCredit]
+  );
+
+  // Add line item from inventory item (used after variant selection or for non-variant items)
+  const addLineItemFromInventory = useCallback(
+    (item: InventoryItem, sku?: string, description?: string) => {
+      const unitPrice = pricing === 'W' ? parseFloat(item.cost || '0') * 1.15 : parseFloat(item.price || '0');
+
+      const newLineItem: LineItem = {
+        id: `new-${Date.now()}`,
+        sku: sku || item.sku,
+        description: description || item.description1 || '',
+        quantity: 1,
+        unitPrice,
+        discount: 0,
+        isTaxable: item.isTaxable,
+        amount: unitPrice,
+        inventoryId: item.id,
+      };
+
+      setLineItems((prev) => [...prev, newLineItem]);
+      setItemSearch('');
+      setItemOptions([]);
+    },
+    [pricing]
+  );
+
+  // Handle variant selection
+  const handleVariantSelect = useCallback(
+    (variant: any) => {
+      if (pendingItem) {
+        // Use variant SKU and name, but pricing from parent item
+        addLineItemFromInventory(pendingItem, variant.variantSku, variant.variantName);
+        setPendingItem(null);
+        clearVariants();
+      }
+    },
+    [pendingItem, addLineItemFromInventory, clearVariants]
+  );
+
+  // Handle item selection - check for variants first
+  const handleItemSelect = useCallback(
+    async (value: string) => {
+      const option = itemOptions.find((o) => o.value === value);
+      if (option) {
+        const item = option.item;
+
+        // Check if item has variants
+        const hasVariants = await checkHasVariants(item.sku);
+
+        if (hasVariants) {
+          // Load variants and show selector modal
+          setPendingItem(item);
+          await loadVariants(item.sku);
+          openVariantModal();
+        } else {
+          // No variants, add item directly
+          addLineItemFromInventory(item);
+        }
+      }
+    },
+    [itemOptions, checkHasVariants, loadVariants, addLineItemFromInventory, openVariantModal]
+  );
+
+  // Update line item
+  const updateLineItem = useCallback((itemId: string, field: keyof LineItem, value: any) => {
+    setLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+
+        const updated = { ...item, [field]: value };
+
+        // Recalculate amount
+        if (field === 'quantity' || field === 'unitPrice' || field === 'discount') {
+          const qty = field === 'quantity' ? value : item.quantity;
+          const price = field === 'unitPrice' ? value : item.unitPrice;
+          const disc = field === 'discount' ? value : item.discount;
+          updated.amount = qty * price * (1 - disc / 100);
+        }
+
+        return updated;
+      })
+    );
+  }, []);
+
+  // Remove line item
+  const removeLineItem = useCallback((itemId: string) => {
+    setLineItems((prev) => prev.filter((item) => item.id !== itemId));
+  }, []);
+
+  // Save invoice as draft
+  const handleSaveDraft = useCallback(async () => {
+    if (lineItems.length === 0) {
+      notifications.show({
+        title: 'Error',
+        message: 'Please add at least one line item',
+        color: 'red',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const invoiceData = {
+        invDate: invDate.toISOString().split('T')[0],
+        salespersonId,
+        clientId,
+        clientName: client?.clientName || null,
+        clientAddress1: client?.address1 || null,
+        clientAddress2: client?.address2 || null,
+        clientPhone: client?.phone || null,
+        reference: reference || null,
+        subTotal: totals.subTotal.toFixed(2),
+        tax: totals.tax.toFixed(2),
+        total: totals.total.toFixed(2),
+        totalPaid: '0',
+        status: 'draft',
+        isTaxable,
+        pricing,
+        creditTerms: creditTerms || null,
+      };
+
+      let invoiceId: number;
+      let invNumber: string;
+
+      if (isEditing && id) {
+        const result = await window.electron.invoke(IpcChannel.UPDATE_INVOICE, {
+          id: parseInt(id, 10),
+          data: invoiceData,
+        });
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to update invoice');
+        }
+        invoiceId = parseInt(id, 10);
+        invNumber = result.data.invNumber;
+      } else {
+        const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE, invoiceData);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to create invoice');
+        }
+        invoiceId = result.data.id;
+        invNumber = result.data.invNumber;
+      }
+
+      // Save line items
+      for (let i = 0; i < lineItems.length; i++) {
+        const item = lineItems[i];
+        await window.electron.invoke(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, {
+          documentType: 'INVOICE',
+          documentNumber: invNumber,
+          lineNumber: i + 1,
+          sku: item.sku || null,
+          description: item.description,
+          quantity: item.quantity.toString(),
+          unitPrice: item.unitPrice.toFixed(2),
+          discount: item.discount.toFixed(2),
+          isTaxable: item.isTaxable,
+          amount: item.amount.toFixed(2),
+        });
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: `Invoice ${invNumber} saved as draft`,
+        color: 'green',
+      });
+
+      navigate(`/invoices/${invoiceId}`);
+    } catch (error) {
+      console.error('Failed to save invoice:', error);
+      notifications.show({
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to save invoice',
+        color: 'red',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    isEditing,
+    id,
+    invDate,
+    salespersonId,
+    clientId,
+    client,
+    reference,
+    totals,
+    isTaxable,
+    pricing,
+    creditTerms,
+    lineItems,
+    navigate,
+  ]);
+
+  // Issue invoice directly
+  const handleIssueInvoice = useCallback(async () => {
+    if (creditCheck?.requiresAdminOverride) {
+      openOverrideModal();
+      return;
+    }
+
+    // Need to verify salesperson first
+    openIssueModal();
+  }, [creditCheck, openOverrideModal, openIssueModal]);
+
+  // Handle issue after verification
+  const handleIssueVerified = useCallback(
+    async (adminOverride?: AdminOverrideResult) => {
+      if (lineItems.length === 0) {
+        notifications.show({
+          title: 'Error',
+          message: 'Please add at least one line item',
+          color: 'red',
+        });
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const invoiceData = {
+          invDate: invDate.toISOString().split('T')[0],
+          salespersonId,
+          clientId,
+          clientName: client?.clientName || null,
+          clientAddress1: client?.address1 || null,
+          clientAddress2: client?.address2 || null,
+          clientPhone: client?.phone || null,
+          reference: reference || null,
+          subTotal: totals.subTotal.toFixed(2),
+          tax: totals.tax.toFixed(2),
+          total: totals.total.toFixed(2),
+          totalPaid: '0',
+          status: 'active',
+          isTaxable,
+          pricing,
+          creditTerms: creditTerms || null,
+          issuedAt: new Date(),
+          issuedById: salespersonId,
+          ...(adminOverride && {
+            adminOverrideById: adminOverride.adminId,
+            adminOverrideNotes: adminOverride.notes,
+            adminOverrideAt: new Date(),
+          }),
+        };
+
+        const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE, invoiceData);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to create invoice');
+        }
+
+        const invoiceId = result.data.id;
+        const invNumber = result.data.invNumber;
+
+        // Save line items
+        for (let i = 0; i < lineItems.length; i++) {
+          const item = lineItems[i];
+          await window.electron.invoke(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, {
+            documentType: 'INVOICE',
+            documentNumber: invNumber,
+            lineNumber: i + 1,
+            sku: item.sku || null,
+            description: item.description,
+            quantity: item.quantity.toString(),
+            unitPrice: item.unitPrice.toFixed(2),
+            discount: item.discount.toFixed(2),
+            isTaxable: item.isTaxable,
+            amount: item.amount.toFixed(2),
+          });
+        }
+
+        // Create inventory transactions (reduce stock)
+        const transactionResult = await window.electron.invoke(IpcChannel.CREATE_INVOICE_TRANSACTIONS, {
+          invNumber,
+          lineItems: lineItems.map(item => ({ sku: item.sku, quantity: item.quantity })),
+          invDate: invDate.toISOString().split('T')[0],
+        });
+
+        if (!transactionResult.success) {
+          console.error('Warning: Failed to create inventory transactions:', transactionResult.error);
+          // Don't fail the entire operation, just warn
+          notifications.show({
+            title: 'Warning',
+            message: 'Invoice created but inventory may not have been updated',
+            color: 'yellow',
+          });
+        }
+
+        notifications.show({
+          title: 'Success',
+          message: `Invoice ${invNumber} created and issued`,
+          color: 'green',
+        });
+
+        navigate(`/invoices/${invoiceId}`);
+      } catch (error) {
+        console.error('Failed to issue invoice:', error);
+        notifications.show({
+          title: 'Error',
+          message: error instanceof Error ? error.message : 'Failed to issue invoice',
+          color: 'red',
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [invDate, salespersonId, clientId, client, reference, totals, isTaxable, pricing, creditTerms, lineItems, navigate]
+  );
+
+  if (isLoading) {
+    return (
+      <Center h="60vh">
+        <Loader size="lg" />
+      </Center>
+    );
+  }
+
   return (
-    <Stack p="xl" gap="lg">
-      <Title order={2}>Create Invoice</Title>
-      <Paper p="xl" radius="md" withBorder>
-        <Center>
-          <Stack align="center" gap="md">
-            <ThemeIcon size={60} radius="xl" variant="light" color="blue">
-              <IconFileInvoice size={30} />
-            </ThemeIcon>
-            <Text size="lg" fw={500}>
-              New Invoice
+    <>
+      <Stack gap="lg">
+        {/* Header */}
+        <Group justify="space-between" align="flex-start">
+          <Group gap="md">
+            <ActionIcon variant="subtle" size="lg" onClick={() => navigate('/invoices')}>
+              <IconArrowLeft size={20} />
+            </ActionIcon>
+            <Stack gap={4}>
+              <Title order={2}>{isEditing ? 'Edit Invoice' : 'New Invoice'}</Title>
+              {salespersonName && (
+                <Text c="dimmed" size="sm">
+                  Salesperson: {salespersonName}
+                </Text>
+              )}
+            </Stack>
+          </Group>
+
+          <Group gap="sm">
+            <Button variant="light" leftSection={<IconDeviceFloppy size={16} />} onClick={handleSaveDraft} loading={isSaving}>
+              Save Draft
+            </Button>
+            <Button
+              color="green"
+              leftSection={<IconCheck size={16} />}
+              onClick={handleIssueInvoice}
+              loading={isSaving}
+              disabled={lineItems.length === 0}
+            >
+              Save & Issue
+            </Button>
+          </Group>
+        </Group>
+
+        {/* Credit Warning */}
+        {creditCheck?.requiresAdminOverride && (
+          <Alert icon={<IconAlertTriangle size={16} />} color="orange" title="Credit Issues Detected">
+            {creditCheck.reasons.map((reason, idx) => (
+              <Text key={idx} size="sm">
+                {reason.message}
+              </Text>
+            ))}
+            <Text size="sm" mt="xs" fw={500}>
+              Admin override required to issue this invoice.
             </Text>
-            <Text c="dimmed" ta="center" maw={400}>
-              Create a new sales invoice. This feature is under development.
+          </Alert>
+        )}
+
+        {/* Inventory Warning Summary */}
+        {inventoryWarnings.length > 0 && (
+          <Alert icon={<IconAlertTriangle size={16} />} color="orange" title="Inventory Availability Warning">
+            <Text size="sm">
+              {inventoryWarnings.length} item(s) have insufficient stock. See inline warnings below for details and
+              alternatives.
             </Text>
-          </Stack>
-        </Center>
-      </Paper>
-    </Stack>
+            {inventoryWarnings.some(w => w.hasAlternates) && (
+              <Text size="sm" mt="xs">
+                Quick replace buttons are available for items with alternatives.
+              </Text>
+            )}
+          </Alert>
+        )}
+
+        <Grid>
+          {/* Invoice Details */}
+          <Grid.Col span={{ base: 12, md: 8 }}>
+            <InvoiceFormHeader
+              invDate={invDate}
+              setInvDate={setInvDate}
+              reference={reference}
+              setReference={setReference}
+              client={client}
+              clientSearch={clientSearch}
+              setClientSearch={setClientSearch}
+              clientOptions={clientOptions}
+              isSearchingClients={isSearchingClients}
+              onClientSearchChange={searchClients}
+              onClientSelect={handleClientSelect}
+              pricing={pricing}
+              setPricing={setPricing}
+              creditTerms={creditTerms}
+              setCreditTerms={setCreditTerms}
+              isTaxable={isTaxable}
+              setIsTaxable={setIsTaxable}
+            />
+
+            {/* Line Items */}
+            <InvoiceLineItemsTable
+              lineItems={lineItems}
+              itemSearch={itemSearch}
+              setItemSearch={setItemSearch}
+              itemOptions={itemOptions}
+              isSearchingItems={isSearchingItems}
+              onItemSearchChange={searchItems}
+              onItemSelect={handleItemSelect}
+              onUpdateLineItem={updateLineItem}
+              onRemoveLineItem={removeLineItem}
+              formatCurrency={formatCurrency}
+              inventoryWarnings={inventoryWarnings}
+              isCheckingInventory={isCheckingInventory}
+            />
+          </Grid.Col>
+
+          {/* Summary */}
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <InvoiceSummaryCard
+              lineItemCount={lineItems.length}
+              totals={totals}
+              isTaxable={isTaxable}
+              isSaving={isSaving}
+              hasLineItems={lineItems.length > 0}
+              formatCurrency={formatCurrency}
+              onSaveDraft={handleSaveDraft}
+              onIssueInvoice={handleIssueInvoice}
+            />
+          </Grid.Col>
+        </Grid>
+      </Stack>
+
+      {/* Admin Override Modal */}
+      {creditCheck && (
+        <AdminOverrideModal
+          opened={overrideModalOpen}
+          onClose={closeOverrideModal}
+          onApproved={(result) => {
+            closeOverrideModal();
+            handleIssueVerified(result);
+          }}
+          clientName={client?.clientName || 'Unknown Client'}
+          creditIssues={creditCheck.reasons}
+        />
+      )}
+
+      {/* Issue Verification Modal */}
+      <PinVerificationModal
+        opened={issueModalOpen}
+        onClose={closeIssueModal}
+        onVerified={() => {
+          closeIssueModal();
+          handleIssueVerified();
+        }}
+        title="Issue Invoice"
+        description="Verify your access code to issue this invoice."
+        requiredPermission="CREATE_INVOICE"
+      />
+
+      {/* Variant Selector Modal */}
+      <VariantSelectorModal
+        opened={variantModalOpen}
+        onClose={() => {
+          closeVariantModal();
+          setPendingItem(null);
+          clearVariants();
+        }}
+        parentSku={pendingItem?.sku || ''}
+        variants={variants}
+        isLoading={isLoadingVariants}
+        onSelectVariant={handleVariantSelect}
+      />
+    </>
   );
 }

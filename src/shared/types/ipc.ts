@@ -77,6 +77,8 @@ export enum IpcChannel {
   GET_ACTIVE_INVENTORY = 'db:get-active-inventory',
   SEARCH_INVENTORY = 'db:search-inventory',
   SEARCH_INVENTORY_FOR_SELECT = 'db:search-inventory-for-select',
+  GET_INVENTORY_VARIANTS = 'db:get-inventory-variants',
+  CHECK_HAS_VARIANTS = 'db:check-has-variants',
   CREATE_INVENTORY = 'db:create-inventory',
   UPDATE_INVENTORY = 'db:update-inventory',
   DELETE_INVENTORY = 'db:delete-inventory',
@@ -113,6 +115,26 @@ export enum IpcChannel {
   DELETE_INVOICE = 'db:delete-invoice',
   RECORD_INVOICE_PAYMENT = 'db:record-invoice-payment',
   ARCHIVE_INVOICE = 'db:archive-invoice',
+
+  // Invoice status operations
+  GET_DRAFT_INVOICES = 'db:get-draft-invoices',
+  GET_RECENT_INVOICES = 'db:get-recent-invoices',
+  GET_OVERDUE_INVOICES = 'db:get-overdue-invoices',
+  ISSUE_INVOICE = 'db:issue-invoice',
+  SEARCH_INVOICES = 'db:search-invoices',
+  CHECK_INVOICE_INVENTORY = 'db:check-invoice-inventory',
+  CREATE_INVOICE_TRANSACTIONS = 'db:create-invoice-transactions',
+
+  // Spotlight search
+  SPOTLIGHT_SEARCH = 'db:spotlight-search',
+
+  // Access code verification
+  VERIFY_ACCESS_CODE = 'db:verify-access-code',
+  CHECK_SALESPERSON_ACCESS = 'db:check-salesperson-access',
+
+  // Credit check operations
+  CHECK_CLIENT_CREDIT = 'db:check-client-credit',
+  GET_CLIENT_ARREARS_INFO = 'db:get-client-arrears-info',
 
   // Quotation operations
   GET_QUOTATIONS = 'db:get-quotations',

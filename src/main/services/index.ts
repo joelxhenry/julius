@@ -18,11 +18,15 @@ export { InventoryTransactionService, type InventoryTransactionQueryParams } fro
 export { InventoryReceivingService } from './InventoryReceivingService';
 
 // Document Services
-export { InvoiceService, type InvoiceQueryParams } from './InvoiceService';
+export { InvoiceService, type InvoiceQueryParams, type IssueInvoiceParams } from './InvoiceService';
 export { QuotationService, type QuotationQueryParams } from './QuotationService';
 export { CreditNoteService, type CreditNoteQueryParams } from './CreditNoteService';
 export { DocumentLineItemService, type DocumentLineItemQueryParams } from './DocumentLineItemService';
 export { BillService, type BillQueryParams } from './BillService';
+
+// Credit & Search Services
+export { CreditCheckService, type CreditCheckResult, type CreditIssue, type ArrearsInfo } from './CreditCheckService';
+export { SpotlightService, type SpotlightResult, type SpotlightSearchParams } from './SpotlightService';
 
 // Payment Services
 export { PaymentService, PaymentMethodService, type PaymentQueryParams, type PaymentDocumentType } from './PaymentService';

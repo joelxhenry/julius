@@ -94,6 +94,24 @@ export class InventoryController extends BaseController<InventoryService> {
     }
   }
 
+  async getVariants(parentSku: string) {
+    try {
+      const variants = await this.service.getVariantsBySku(parentSku);
+      return this.wrapSuccess(variants);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async checkHasVariants(parentSku: string) {
+    try {
+      const hasVariants = await this.service.hasVariants(parentSku);
+      return this.wrapSuccess({ hasVariants });
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async create(data: schema.InsertInventory) {
     try {
       const item = await this.service.create(data);

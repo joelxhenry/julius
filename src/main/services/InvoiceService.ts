@@ -1,6 +1,7 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc, asc, count, or, ilike, ne, gt, lt } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, count, or, ilike, ne, gt, lt, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
+import { InvoiceStatus } from '../database/schema/invoices';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
 
@@ -25,6 +26,13 @@ export interface InvoiceQueryParams {
   clientId?: number;
 }
 
+export interface IssueInvoiceParams {
+  invoiceId: number;
+  issuedById: number;
+  adminOverrideById?: number;
+  adminOverrideNotes?: string;
+}
+
 export class InvoiceService extends BaseService<
   typeof schema.invoices,
   schema.Invoice,
@@ -32,6 +40,17 @@ export class InvoiceService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.invoices);
+  }
+
+  async create(data: schema.InsertInvoice): Promise<schema.Invoice> {
+    // Generate invoice number if not provided
+    if (!data.invNumber) {
+      const result = await this.db.execute(sql`SELECT nextval('seq_invoice_number') as next_num`);
+      const nextNum = (result.rows[0] as any).next_num;
+      data.invNumber = "T" + nextNum.toString();
+    }
+
+    return super.create(data);
   }
 
   async findAllFiltered(includeArchived: boolean = false): Promise<schema.Invoice[]> {
@@ -262,5 +281,195 @@ export class InvoiceService extends BaseService<
       previousInvoice,
       nextInvoice,
     };
+  }
+
+  async findDraftInvoices(): Promise<schema.Invoice[]> {
+    return this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.status, 'draft'))
+      .orderBy(desc(schema.invoices.createdAt));
+  }
+
+  async findRecentInvoices(limit: number = 20): Promise<schema.Invoice[]> {
+    return this.db
+      .select()
+      .from(schema.invoices)
+      .where(
+        and(
+          ne(schema.invoices.status, 'draft'),
+          eq(schema.invoices.isArchived, false)
+        )
+      )
+      .orderBy(desc(schema.invoices.createdAt))
+      .limit(limit);
+  }
+
+  async findOverdueInvoices(creditTermsDays: number = 30): Promise<schema.Invoice[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - creditTermsDays);
+    const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+
+    return this.db
+      .select()
+      .from(schema.invoices)
+      .where(
+        and(
+          or(
+            eq(schema.invoices.status, 'active'),
+            eq(schema.invoices.status, 'partially_paid')
+          ),
+          eq(schema.invoices.isArchived, false),
+          lte(schema.invoices.invDate, cutoffDateStr)
+        )
+      )
+      .orderBy(asc(schema.invoices.invDate));
+  }
+
+  async issueInvoice(params: IssueInvoiceParams): Promise<schema.Invoice | null> {
+    const { invoiceId, issuedById, adminOverrideById, adminOverrideNotes } = params;
+
+    const invoice = await this.findById(invoiceId);
+    if (!invoice) return null;
+
+    if (invoice.status !== 'draft') {
+      throw new Error('Only draft invoices can be issued');
+    }
+
+    const updateData: Partial<schema.InsertInvoice> = {
+      status: 'active',
+      issuedAt: new Date(),
+      issuedById,
+      updatedAt: new Date(),
+    };
+
+    if (adminOverrideById) {
+      updateData.adminOverrideById = adminOverrideById;
+      updateData.adminOverrideNotes = adminOverrideNotes ?? null;
+      updateData.adminOverrideAt = new Date();
+    }
+
+    return this.update(invoiceId, updateData);
+  }
+
+  async searchInvoices(query: string, limit: number = 20): Promise<schema.Invoice[]> {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+
+    const searchTerm = `%${query.trim()}%`;
+
+    return this.db
+      .select()
+      .from(schema.invoices)
+      .where(
+        or(
+          ilike(schema.invoices.invNumber, searchTerm),
+          ilike(schema.invoices.clientName, searchTerm),
+          ilike(schema.invoices.reference, searchTerm)
+        )
+      )
+      .orderBy(desc(schema.invoices.createdAt))
+      .limit(limit);
+  }
+
+  async updateInvoiceStatus(id: number, status: InvoiceStatus): Promise<schema.Invoice | null> {
+    return this.update(id, {
+      status,
+      updatedAt: new Date(),
+    });
+  }
+
+  /**
+   * Check inventory availability for line items
+   * Returns items that have insufficient stock or alternatives available
+   */
+  async checkInventoryAvailability(lineItems: Array<{ sku: string | null; quantity: number }>) {
+    const warnings: Array<{
+      sku: string;
+      requestedQty: number;
+      availableQty: number;
+      hasAlternates: boolean;
+      alternates: Array<{ sku: string; description: string; availableQty: number }>;
+    }> = [];
+
+    for (const item of lineItems) {
+      if (!item.sku) continue;
+
+      // Get inventory item
+      const [inventoryItem] = await this.db
+        .select()
+        .from(schema.inventory)
+        .where(eq(schema.inventory.sku, item.sku))
+        .limit(1);
+
+      if (!inventoryItem) continue;
+
+      // Check if quantity exceeds available
+      if (item.quantity > inventoryItem.quantity) {
+        // Get alternates
+        const alternates = await this.db
+          .select({
+            alternateSku: schema.inventoryAlternates.alternateNo,
+          })
+          .from(schema.inventoryAlternates)
+          .where(eq(schema.inventoryAlternates.partNo, item.sku));
+
+        const alternatesWithStock = [];
+        for (const alt of alternates) {
+          const [altItem] = await this.db
+            .select()
+            .from(schema.inventory)
+            .where(eq(schema.inventory.sku, alt.alternateSku))
+            .limit(1);
+
+          if (altItem && altItem.quantity >= item.quantity) {
+            alternatesWithStock.push({
+              sku: altItem.sku,
+              description: altItem.description1 || altItem.description2 || 'No description',
+              availableQty: altItem.quantity,
+            });
+          }
+        }
+
+        warnings.push({
+          sku: item.sku,
+          requestedQty: item.quantity,
+          availableQty: inventoryItem.quantity,
+          hasAlternates: alternatesWithStock.length > 0,
+          alternates: alternatesWithStock,
+        });
+      }
+    }
+
+    return warnings;
+  }
+
+  /**
+   * Create inventory transactions when invoice is issued
+   * Reduces inventory quantities and creates transaction records
+   */
+  async createInventoryTransactions(
+    invNumber: string,
+    lineItems: Array<{ sku: string | null; quantity: number }>,
+    invDate: string
+  ): Promise<void> {
+    for (const item of lineItems) {
+      if (!item.sku || item.quantity <= 0) continue;
+
+      // Create transaction record
+      await this.db.insert(schema.inventoryTransactions).values({
+        sku: item.sku,
+        activity: 'SALE',
+        reference: invNumber,
+        quantity: -item.quantity, // Negative for sales
+        activityDate: invDate,
+      });
+
+      // Update inventory quantity
+      await this.db.execute(
+        sql`UPDATE inventory SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE sku = ${item.sku}`
+      );
+    }
   }
 }

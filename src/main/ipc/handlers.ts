@@ -26,6 +26,8 @@ import {
   PaymentMethodService,
   GctPaymentService,
   EmployeeAttendanceService,
+  CreditCheckService,
+  SpotlightService,
 } from '../services';
 
 // Import controllers
@@ -67,10 +69,10 @@ function removeDataHandlers() {
   // Remove all IpcChannel handlers
   Object.values(IpcChannel).forEach((channel) => {
     if (!channel.startsWith('db:get-config') &&
-        !channel.startsWith('db:update-config') &&
-        !channel.startsWith('db:test-connection') &&
-        !channel.startsWith('db:reconnect') &&
-        !channel.startsWith('db:check-status')) {
+      !channel.startsWith('db:update-config') &&
+      !channel.startsWith('db:test-connection') &&
+      !channel.startsWith('db:reconnect') &&
+      !channel.startsWith('db:check-status')) {
       removeHandler(channel as IpcChannel);
     }
   });
@@ -166,6 +168,8 @@ function registerDataHandlers() {
   const paymentMethodService = new PaymentMethodService(db);
   const gctPaymentService = new GctPaymentService(db);
   const employeeAttendanceService = new EmployeeAttendanceService(db);
+  const creditCheckService = new CreditCheckService(db);
+  const spotlightService = new SpotlightService(db);
 
   // Initialize controllers
   const branchController = new BranchController(branchService);
@@ -269,6 +273,8 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY, (_, { id, data }: any) => inventoryController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVENTORY, (_, { id }: { id: number }) => inventoryController.delete(id));
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => inventoryController.updateStock(id, quantity));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.getVariants(parentSku));
+  ipcMain.handle(IpcChannel.CHECK_HAS_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.checkHasVariants(parentSku));
 
   // ===== VARIANT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_VARIANTS, () => variantController.getAll());
@@ -318,6 +324,153 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.DELETE_INVOICE, (_, { id }: { id: number }) => invoiceController.delete(id));
   ipcMain.handle(IpcChannel.RECORD_INVOICE_PAYMENT, (_, { id, amount }: { id: number; amount: string }) => invoiceController.recordPayment(id, amount));
   ipcMain.handle(IpcChannel.ARCHIVE_INVOICE, (_, { id }: { id: number }) => invoiceController.archive(id));
+
+  // ===== INVOICE STATUS HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_DRAFT_INVOICES, async () => {
+    try {
+      const data = await invoiceService.findDraftInvoices();
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+  ipcMain.handle(IpcChannel.GET_RECENT_INVOICES, async (_, { limit }: { limit?: number } = {}) => {
+    try {
+      const data = await invoiceService.findRecentInvoices(limit);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+  ipcMain.handle(IpcChannel.GET_OVERDUE_INVOICES, async (_, { creditTermsDays }: { creditTermsDays?: number } = {}) => {
+    try {
+      const data = await invoiceService.findOverdueInvoices(creditTermsDays);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+  ipcMain.handle(IpcChannel.ISSUE_INVOICE, async (_, params: { invoiceId: number; issuedById: number; adminOverrideById?: number; adminOverrideNotes?: string }) => {
+    try {
+      const data = await invoiceService.issueInvoice(params);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+  ipcMain.handle(IpcChannel.SEARCH_INVOICES, async (_, { query, limit }: { query: string; limit?: number }) => {
+    try {
+      const data = await invoiceService.searchInvoices(query, limit);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle(
+    IpcChannel.CHECK_INVOICE_INVENTORY,
+    async (_, { lineItems }: { lineItems: Array<{ sku: string | null; quantity: number }> }) =>
+      invoiceController.checkInventoryAvailability(lineItems)
+  );
+
+  ipcMain.handle(
+    IpcChannel.CREATE_INVOICE_TRANSACTIONS,
+    async (
+      _,
+      {
+        invNumber,
+        lineItems,
+        invDate,
+      }: { invNumber: string; lineItems: Array<{ sku: string | null; quantity: number }>; invDate: string }
+    ) => invoiceController.createInventoryTransactions(invNumber, lineItems, invDate)
+  );
+
+  // ===== SPOTLIGHT SEARCH HANDLERS =====
+  ipcMain.handle(IpcChannel.SPOTLIGHT_SEARCH, async (_, params: { query: string; limit?: number; types?: ('invoice' | 'client' | 'inventory' | 'quotation')[] }) => {
+    try {
+      const data = await spotlightService.search(params);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  // ===== ACCESS CODE VERIFICATION HANDLERS =====
+  ipcMain.handle(IpcChannel.VERIFY_ACCESS_CODE, async (_, { accessCode }: { accessCode: string }) => {
+    try {
+      // Find employee by code column
+      const employee = await employeeService.findByCode(accessCode);
+
+      if (!employee) {
+        return { success: false, error: 'Invalid access code' };
+      }
+
+      return {
+        success: true,
+        data: {
+          employeeId: employee.id,
+          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.code,
+          isSalesperson: employee.isSalesperson,
+          permissions: employee.permissions,
+        },
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.CHECK_SALESPERSON_ACCESS, async (_, { accessCode }: { accessCode: string }) => {
+    try {
+      // Find employee by code column
+      const employee = await employeeService.findByCode(accessCode);
+
+      if (!employee) {
+        return { success: false, error: 'Invalid access code' };
+      }
+
+      if (!employee.isSalesperson) {
+        return { success: false, error: 'Access code does not belong to a salesperson' };
+      }
+
+      // Check for CREATE_INVOICE permission
+      const permissions = employee.permissions as Record<string, boolean> | null;
+      const canCreateInvoice = permissions?.CREATE_INVOICE ?? false;
+
+      if (!canCreateInvoice) {
+        return { success: false, error: 'Employee does not have permission to create invoices' };
+      }
+
+      return {
+        success: true,
+        data: {
+          employeeId: employee.id,
+          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.code,
+          isSalesperson: true,
+        },
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  // ===== CREDIT CHECK HANDLERS =====
+  ipcMain.handle(IpcChannel.CHECK_CLIENT_CREDIT, async (_, { clientId }: { clientId: number }) => {
+    try {
+      const data = await creditCheckService.checkClientCredit(clientId);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_CLIENT_ARREARS_INFO, async (_, { clientId }: { clientId: number }) => {
+    try {
+      const data = await creditCheckService.getClientArrearsInfo(clientId);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
 
   // ===== QUOTATION HANDLERS =====
   ipcMain.handle(IpcChannel.GET_QUOTATIONS, () => quotationController.getAll());

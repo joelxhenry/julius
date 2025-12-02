@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or, and, ilike, desc, count } from 'drizzle-orm';
+import { eq, like, or, and, ilike, desc, asc, count } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -135,6 +135,23 @@ export class InventoryService extends BaseService<
       .where(whereCondition)
       .orderBy(desc(schema.inventory.id))
       .limit(limit);
+  }
+
+  async getVariantsBySku(parentSku: string): Promise<schema.Variant[]> {
+    return this.db
+      .select()
+      .from(schema.variants)
+      .where(and(eq(schema.variants.parentSku, parentSku), eq(schema.variants.isActive, true)))
+      .orderBy(asc(schema.variants.variantName));
+  }
+
+  async hasVariants(parentSku: string): Promise<boolean> {
+    const variants = await this.db
+      .select({ count: count() })
+      .from(schema.variants)
+      .where(and(eq(schema.variants.parentSku, parentSku), eq(schema.variants.isActive, true)));
+
+    return Number(variants[0]?.count ?? 0) > 0;
   }
 
   async updateQuantity(sku: string, quantityChange: number): Promise<schema.Inventory | null> {

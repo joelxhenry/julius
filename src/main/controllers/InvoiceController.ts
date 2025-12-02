@@ -96,6 +96,7 @@ export class InvoiceController extends BaseController<InvoiceService> {
 
   async create(data: schema.InsertInvoice) {
     try {
+      console.log('Creating invoice with data:', data);
       const invoice = await this.service.create(data);
       return this.wrapSuccess(invoice);
     } catch (error) {
@@ -161,6 +162,28 @@ export class InvoiceController extends BaseController<InvoiceService> {
     try {
       const result = await this.service.getAdjacentInvoicesWithData(id);
       return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async checkInventoryAvailability(lineItems: Array<{ sku: string | null; quantity: number }>) {
+    try {
+      const warnings = await this.service.checkInventoryAvailability(lineItems);
+      return this.wrapSuccess(warnings);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async createInventoryTransactions(
+    invNumber: string,
+    lineItems: Array<{ sku: string | null; quantity: number }>,
+    invDate: string
+  ) {
+    try {
+      await this.service.createInventoryTransactions(invNumber, lineItems, invDate);
+      return this.wrapSuccess({ created: true });
     } catch (error) {
       return this.handleError(error);
     }
