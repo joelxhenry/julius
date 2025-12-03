@@ -150,4 +150,13 @@ export class QuotationController extends BaseController<QuotationService> {
       return this.handleError(error);
     }
   }
+
+  async getAdjacentQuotations(id: number) {
+    try {
+      const adjacent = await this.service.getAdjacentQuotations(id);
+      return this.wrapSuccess(adjacent);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }

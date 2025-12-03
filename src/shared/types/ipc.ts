@@ -150,6 +150,7 @@ export enum IpcChannel {
   CONVERT_QUOTATION_TO_INVOICE = 'db:convert-quotation-to-invoice',
   EXPIRE_QUOTATION = 'db:expire-quotation',
   ARCHIVE_QUOTATION = 'db:archive-quotation',
+  GET_ADJACENT_QUOTATIONS = 'db:get-adjacent-quotations',
 
   // Credit note operations
   GET_CREDIT_NOTES = 'db:get-credit-notes',

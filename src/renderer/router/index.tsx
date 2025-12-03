@@ -4,7 +4,7 @@ import { AppLayout } from '../layouts/AppLayout';
 import { NotFoundPage, ErrorPage } from '../pages/error';
 import { LandingPage } from '../pages/LandingPage';
 import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
-import { QuotationsPage, QuotationCreatePage } from '../pages/quotations';
+import { QuotationsPage, QuotationCreatePage, QuotationDetailPage } from '../pages/quotations';
 import { InventoryPage, InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
 import { PaymentsPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
@@ -56,6 +56,14 @@ export const router = createHashRouter([
       },
       {
         path: 'quotations/new',
+        element: <QuotationCreatePage />,
+      },
+      {
+        path: 'quotations/:id',
+        element: <QuotationDetailPage />,
+      },
+      {
+        path: 'quotations/:id/edit',
         element: <QuotationCreatePage />,
       },
       {

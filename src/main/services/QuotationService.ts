@@ -1,8 +1,18 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc, count, or, ilike } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, count, or, ilike, ne, gt, lt, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
+
+export interface ConvertToInvoiceResult {
+  invoice: schema.Invoice;
+  quotation: schema.Quotation;
+}
+
+export interface AdjacentQuotations {
+  previousId: number | null;
+  nextId: number | null;
+}
 
 export interface QuotationQueryParams {
   page?: number;
@@ -123,8 +133,75 @@ export class QuotationService extends BaseService<
       .orderBy(desc(schema.quotations.quoteDate));
   }
 
-  async convertToInvoice(id: number): Promise<schema.Quotation | null> {
-    return this.update(id, { status: 'converted' });
+  /**
+   * Convert a quotation to an invoice draft
+   * Creates a new invoice with status 'draft' and copies all line items
+   */
+  async convertToInvoice(id: number): Promise<ConvertToInvoiceResult | null> {
+    const quotation = await this.findById(id);
+    if (!quotation) return null;
+
+    // Generate invoice number
+    const invNumResult = await this.db.execute(sql`SELECT nextval('seq_invoice_number') as next_num`);
+    const invNumber = (invNumResult.rows[0] as { next_num: string }).next_num.toString();
+
+    // Create invoice draft from quotation data
+    const [invoice] = await this.db
+      .insert(schema.invoices)
+      .values({
+        invNumber,
+        invDate: new Date().toISOString().split('T')[0],
+        clientId: quotation.clientId,
+        clientName: quotation.clientName,
+        salespersonId: quotation.salespersonId,
+        salespersonName: quotation.salespersonName,
+        reference: `Quote #${quotation.quoteNum}`,
+        subTotal: quotation.subTotal,
+        tax: quotation.tax,
+        total: quotation.total,
+        totalPaid: '0.00',
+        status: 'draft',
+        isArchived: false,
+      })
+      .returning();
+
+    // Copy line items from quotation to invoice
+    const quoteLineItems = await this.db
+      .select()
+      .from(schema.documentLineItems)
+      .where(
+        and(
+          eq(schema.documentLineItems.documentType, 'QUOTE'),
+          eq(schema.documentLineItems.documentNumber, quotation.quoteNum)
+        )
+      )
+      .orderBy(schema.documentLineItems.lineNumber);
+
+    if (quoteLineItems.length > 0) {
+      const invoiceLineItems = quoteLineItems.map((item) => ({
+        documentType: 'INVOICE' as const,
+        documentNumber: invNumber,
+        lineNumber: item.lineNumber,
+        sku: item.sku,
+        isVariant: item.isVariant,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        isTaxable: item.isTaxable,
+        amount: item.amount,
+      }));
+
+      await this.db.insert(schema.documentLineItems).values(invoiceLineItems);
+    }
+
+    // Update quotation status to converted
+    const updatedQuotation = await this.update(id, { status: 'converted' });
+
+    return {
+      invoice,
+      quotation: updatedQuotation!,
+    };
   }
 
   async expire(id: number): Promise<schema.Quotation | null> {
@@ -133,5 +210,48 @@ export class QuotationService extends BaseService<
 
   async archive(id: number): Promise<schema.Quotation | null> {
     return this.update(id, { isArchived: true });
+  }
+
+  /**
+   * Get adjacent quotations for navigation (excluding archived)
+   */
+  async getAdjacentQuotations(quotationId: number): Promise<AdjacentQuotations> {
+    const currentQuotation = await this.findById(quotationId);
+    if (!currentQuotation) {
+      return { previousId: null, nextId: null };
+    }
+
+    const currentCreatedAt = currentQuotation.createdAt;
+
+    // Previous = newer (created after current)
+    const previousResult = await this.db
+      .select({ id: schema.quotations.id })
+      .from(schema.quotations)
+      .where(
+        and(
+          eq(schema.quotations.isArchived, false),
+          gt(schema.quotations.createdAt, currentCreatedAt)
+        )
+      )
+      .orderBy(asc(schema.quotations.createdAt))
+      .limit(1);
+
+    // Next = older (created before current)
+    const nextResult = await this.db
+      .select({ id: schema.quotations.id })
+      .from(schema.quotations)
+      .where(
+        and(
+          eq(schema.quotations.isArchived, false),
+          lt(schema.quotations.createdAt, currentCreatedAt)
+        )
+      )
+      .orderBy(desc(schema.quotations.createdAt))
+      .limit(1);
+
+    return {
+      previousId: previousResult[0]?.id ?? null,
+      nextId: nextResult[0]?.id ?? null,
+    };
   }
 }

@@ -1,5 +1,5 @@
 import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
-import { QuotationsPage, QuotationCreatePage } from '../pages/quotations';
+import { QuotationsPage, QuotationCreatePage, QuotationDetailPage } from '../pages/quotations';
 import { InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
 import { PaymentsPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
@@ -32,6 +32,12 @@ export function getComponentForPath(path: string): React.ReactNode {
   // Quotations
   if (cleanPath === 'quotations') return <QuotationsPage />;
   if (cleanPath === 'quotations/new') return <QuotationCreatePage />;
+  if (cleanPath.match(/^quotations\/\d+$/)) {
+    return <QuotationDetailPage />;
+  }
+  if (cleanPath.match(/^quotations\/\d+\/edit$/)) {
+    return <QuotationCreatePage />;
+  }
 
   // Inventory
   if (cleanPath === 'inventory') return <InventoryListPage />;

@@ -490,6 +490,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.CONVERT_QUOTATION_TO_INVOICE, (_, { id }: { id: number }) => quotationController.convertToInvoice(id));
   ipcMain.handle(IpcChannel.EXPIRE_QUOTATION, (_, { id }: { id: number }) => quotationController.expire(id));
   ipcMain.handle(IpcChannel.ARCHIVE_QUOTATION, (_, { id }: { id: number }) => quotationController.archive(id));
+  ipcMain.handle(IpcChannel.GET_ADJACENT_QUOTATIONS, (_, { id }: { id: number }) => quotationController.getAdjacentQuotations(id));
 
   // ===== CREDIT NOTE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_CREDIT_NOTES, () => creditNoteController.getAll());
