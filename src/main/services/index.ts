@@ -34,3 +34,12 @@ export { GctPaymentService, type GctPaymentQueryParams } from './GctPaymentServi
 
 // Employee Services
 export { EmployeeAttendanceService, type AttendanceQueryParams } from './EmployeeAttendanceService';
+
+// System Settings
+export {
+  SystemSettingsService,
+  SystemSettingKeys,
+  SystemSettingGroups,
+  type SystemSettingKey,
+  type SystemSettingGroup,
+} from './SystemSettingsService';

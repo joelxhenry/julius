@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
 import { InterfaceSettingsTab } from './InterfaceSettingsTab';
+import { TaxSettingsTab } from './TaxSettingsTab';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string | null>('database');
@@ -33,16 +34,16 @@ export function SettingsPage() {
             <Tabs.Tab value="interface" leftSection={<IconLayout size={16} />}>
               Interface
             </Tabs.Tab>
-            <Tabs.Tab value="company" leftSection={<IconBuilding size={16} />} disabled>
+            <Tabs.Tab value="company" leftSection={<IconBuilding size={16} />}>
               Company
             </Tabs.Tab>
-            <Tabs.Tab value="documents" leftSection={<IconFileText size={16} />} disabled>
+            <Tabs.Tab value="documents" leftSection={<IconFileText size={16} />}>
               Documents
             </Tabs.Tab>
-            <Tabs.Tab value="tax" leftSection={<IconReceipt size={16} />} disabled>
+            <Tabs.Tab value="tax" leftSection={<IconReceipt size={16} />}>
               Tax
             </Tabs.Tab>
-            <Tabs.Tab value="notifications" leftSection={<IconBell size={16} />} disabled>
+            <Tabs.Tab value="notifications" leftSection={<IconBell size={16} />}>
               Notifications
             </Tabs.Tab>
           </Tabs.List>
@@ -70,10 +71,7 @@ export function SettingsPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="tax" pt="lg">
-            <Stack align="center" py="xl">
-              <IconReceipt size={48} stroke={1} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Tax settings coming soon</Text>
-            </Stack>
+            <TaxSettingsTab />
           </Tabs.Panel>
 
           <Tabs.Panel value="notifications" pt="lg">

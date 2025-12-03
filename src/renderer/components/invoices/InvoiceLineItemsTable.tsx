@@ -20,29 +20,10 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
 import type { InventoryWarning } from './InventoryWarningModal';
+import type { LineItem, InventoryItem } from '../../../shared/types/inventory';
 
-export interface LineItem {
-  id: string;
-  sku: string;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-  discount: number;
-  isTaxable: boolean;
-  amount: number;
-  inventoryId?: number;
-}
-
-interface InventoryItem {
-  id: number;
-  sku: string;
-  description1: string | null;
-  description2: string | null;
-  price: string;
-  cost: string;
-  quantity: number;
-  isTaxable: boolean;
-}
+// Re-export LineItem for backwards compatibility
+export type { LineItem };
 
 interface InvoiceLineItemsTableProps {
   lineItems: LineItem[];

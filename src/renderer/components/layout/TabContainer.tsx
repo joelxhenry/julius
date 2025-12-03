@@ -1,3 +1,4 @@
+import React from 'react';
 import { useTabContext } from '../../contexts/TabContext';
 
 export function TabContainer() {
@@ -28,7 +29,8 @@ export function TabContainer() {
             padding: 'var(--mantine-spacing-md)',
           }}
         >
-          {tab.component}
+          {/* Use path as key to force re-render when navigating within same tab */}
+          <React.Fragment key={tab.path}>{tab.component}</React.Fragment>
         </div>
       ))}
     </div>

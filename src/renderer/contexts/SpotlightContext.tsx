@@ -24,6 +24,7 @@ interface SpotlightContextValue {
   selectedIndex: number;
   setSelectedIndex: (index: number) => void;
   navigateToSelected: () => void;
+  navigateToResult: (result: SpotlightResult) => void;
   moveUp: () => void;
   moveDown: () => void;
 }
@@ -97,13 +98,17 @@ export function SpotlightProvider({ children, onNavigate }: SpotlightProviderPro
     debouncedSearch(newQuery);
   }, [debouncedSearch]);
 
+  const navigateToResult = useCallback((result: SpotlightResult) => {
+    navigate(result.url);
+    close();
+  }, [navigate, close]);
+
   const navigateToSelected = useCallback(() => {
     if (results.length > 0 && selectedIndex >= 0 && selectedIndex < results.length) {
       const selected = results[selectedIndex];
-      navigate(selected.url);
-      close();
+      navigateToResult(selected);
     }
-  }, [results, selectedIndex, navigate, close]);
+  }, [results, selectedIndex, navigateToResult]);
 
   const moveUp = useCallback(() => {
     setSelectedIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
@@ -162,10 +167,11 @@ export function SpotlightProvider({ children, onNavigate }: SpotlightProviderPro
       selectedIndex,
       setSelectedIndex,
       navigateToSelected,
+      navigateToResult,
       moveUp,
       moveDown,
     }),
-    [isOpen, open, close, toggle, query, setQuery, results, isLoading, selectedIndex, navigateToSelected, moveUp, moveDown]
+    [isOpen, open, close, toggle, query, setQuery, results, isLoading, selectedIndex, navigateToSelected, navigateToResult, moveUp, moveDown]
   );
 
   return (

@@ -12,6 +12,23 @@ export interface InventoryQueryParams {
   location?: string;
 }
 
+/**
+ * Unified search result type for inventory and variants
+ */
+export interface UnifiedSearchResult {
+  id: number;
+  sku: string;
+  description1: string | null;
+  description2: string | null;
+  price: string;
+  cost: string;
+  quantity: number;
+  isTaxable: boolean;
+  isVariant: boolean;
+  parentSku: string | null;
+  variantName: string | null;
+}
+
 export class InventoryService extends BaseService<
   typeof schema.inventory,
   schema.Inventory,
@@ -201,5 +218,97 @@ export class InventoryService extends BaseService<
 
     // Filter in JS since Drizzle doesn't support column comparisons easily
     return results.filter(item => item.quantity <= item.minLevel);
+  }
+
+  /**
+   * Search inventory and variants together, returning a unified result
+   * Useful for invoice line item selection
+   */
+  async searchWithVariants(query: string, limit = 20): Promise<UnifiedSearchResult[]> {
+    const results: UnifiedSearchResult[] = [];
+
+    if (!query || !query.trim()) {
+      return results;
+    }
+
+    const searchTerm = `%${query.trim()}%`;
+
+    // Search inventory items
+    const inventoryItems = await this.db
+      .select()
+      .from(schema.inventory)
+      .where(
+        or(
+          ilike(schema.inventory.sku, searchTerm),
+          ilike(schema.inventory.description1, searchTerm),
+          ilike(schema.inventory.model, searchTerm)
+        )
+      )
+      .orderBy(desc(schema.inventory.id))
+      .limit(limit);
+
+    // Add inventory items to results
+    for (const item of inventoryItems) {
+      results.push({
+        id: item.id,
+        sku: item.sku,
+        description1: item.description1,
+        description2: item.description2,
+        price: item.price,
+        cost: item.cost,
+        quantity: item.quantity,
+        isTaxable: item.isTaxable,
+        isVariant: false,
+        parentSku: null,
+        variantName: null,
+      });
+    }
+
+    // Search variants
+    const variantItems = await this.db
+      .select({
+        variant: schema.variants,
+        parent: schema.inventory,
+      })
+      .from(schema.variants)
+      .leftJoin(schema.inventory, eq(schema.variants.parentSku, schema.inventory.sku))
+      .where(
+        and(
+          eq(schema.variants.isActive, true),
+          or(
+            ilike(schema.variants.variantSku, searchTerm),
+            ilike(schema.variants.variantName, searchTerm),
+            ilike(schema.variants.description, searchTerm)
+          )
+        )
+      )
+      .orderBy(desc(schema.variants.id))
+      .limit(limit);
+
+    // Add variant items to results
+    for (const { variant, parent } of variantItems) {
+      results.push({
+        id: variant.id,
+        sku: variant.variantSku,
+        description1: variant.variantName || variant.description,
+        description2: parent?.description1 || null,
+        price: variant.price || parent?.price || '0',
+        cost: variant.cost || parent?.cost || '0',
+        quantity: variant.quantity,
+        isTaxable: parent?.isTaxable ?? true,
+        isVariant: true,
+        parentSku: variant.parentSku,
+        variantName: variant.variantName,
+      });
+    }
+
+    // Sort by relevance (exact SKU matches first) and limit
+    results.sort((a, b) => {
+      const aExact = a.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
+      const bExact = b.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
+      return aExact - bExact;
+    });
+
+    return results.slice(0, limit);
   }
 }

@@ -16,6 +16,7 @@ import {
   EmployeeDetailPage,
   EmployeePermissionsPage,
 } from '../pages/employees';
+import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 import { SettingsPage } from '../pages/settings';
 
 export const router = createHashRouter([
@@ -109,6 +110,23 @@ export const router = createHashRouter([
       {
         path: 'employees/:id/permissions',
         element: <EmployeePermissionsPage />,
+      },
+      // Client Management
+      {
+        path: 'clients',
+        element: <ClientsPage />,
+      },
+      {
+        path: 'clients/new',
+        element: <ClientEditorPage />,
+      },
+      {
+        path: 'clients/:id',
+        element: <ClientDetailPage />,
+      },
+      {
+        path: 'clients/:id/edit',
+        element: <ClientEditorPage />,
       },
       // Settings
       {

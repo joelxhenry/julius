@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { IconSearch } from '@tabler/icons-react';
+import { useTaxRate } from '../../hooks/index';
 
 interface Client {
   id: number;
@@ -67,6 +68,9 @@ export function InvoiceFormHeader({
   isTaxable,
   setIsTaxable,
 }: InvoiceFormHeaderProps) {
+
+
+  const { taxRate } = useTaxRate();
   return (
     <Paper withBorder p="md" radius="md">
       <Stack gap="md">
@@ -153,7 +157,7 @@ export function InvoiceFormHeader({
               <Switch
                 checked={isTaxable}
                 onChange={(e) => setIsTaxable(e.currentTarget.checked)}
-                label={isTaxable ? 'Yes (15% GCT)' : 'No'}
+                label={isTaxable ? `Yes (${(taxRate * 100)}% GCT)` : 'No'}
               />
             </Stack>
           </Grid.Col>

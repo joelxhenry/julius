@@ -41,11 +41,11 @@ import {
   LineItem,
   CreditCheckResult,
   AdminOverrideResult,
-  TAX_RATE,
   formatCurrency,
 } from '../../components/invoices';
 import { useInventoryCheck } from '../../hooks/useInventoryCheck';
 import { useVariants } from '../../hooks/useVariants';
+import { useTaxRate } from '../../hooks/useTaxRate';
 
 interface LocationState {
   salespersonId?: number;
@@ -75,6 +75,9 @@ export function InvoiceCreatePage() {
   const [salespersonId, setSalespersonId] = useState<number | null>(locationState?.salespersonId ?? null);
   const [salespersonName, setSalespersonName] = useState<string>(locationState?.salespersonName ?? '');
   const [originalInvNumber, setOriginalInvNumber] = useState<string | null>(null);
+
+  // Tax rate from system settings
+  const { taxRate } = useTaxRate();
 
   // Selection state for keyboard shortcuts
   const [selectedLineItemId, setSelectedLineItemId] = useState<string | null>(null);
@@ -128,10 +131,10 @@ export function InvoiceCreatePage() {
   const totals = useMemo(() => {
     const subTotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
     const taxableAmount = lineItems.filter((item) => item.isTaxable).reduce((sum, item) => sum + item.amount, 0);
-    const tax = isTaxable ? taxableAmount * TAX_RATE : 0;
+    const tax = isTaxable ? taxableAmount * taxRate : 0;
     const total = subTotal + tax;
     return { subTotal, tax, total };
-  }, [lineItems, isTaxable]);
+  }, [lineItems, isTaxable, taxRate]);
 
   // Load existing invoice if editing
   useEffect(() => {
@@ -301,7 +304,7 @@ export function InvoiceCreatePage() {
 
   // Add line item from inventory item (used after variant selection or for non-variant items)
   const addLineItemFromInventory = useCallback(
-    (item: InventoryItem, sku?: string, description?: string) => {
+    (item: InventoryItem, sku?: string, description?: string, isVariant: boolean = false) => {
       const unitPrice = pricing === 'W' ? parseFloat(item.cost || '0') * 1.15 : parseFloat(item.price || '0');
 
       const newLineItem: LineItem = {
@@ -314,6 +317,7 @@ export function InvoiceCreatePage() {
         isTaxable: item.isTaxable,
         amount: unitPrice,
         inventoryId: item.id,
+        isVariant,
       };
 
       setLineItems((prev) => [...prev, newLineItem]);
@@ -327,8 +331,13 @@ export function InvoiceCreatePage() {
   const handleVariantSelect = useCallback(
     (variant: any) => {
       if (pendingItem) {
-        // Use variant SKU and name, but pricing from parent item
-        addLineItemFromInventory(pendingItem, variant.variantSku, variant.variantName);
+        // Use variant SKU and name, but pricing from parent item (or variant price if available)
+        const variantPrice = variant.price ? parseFloat(variant.price) : null;
+        const useVariantPrice = variantPrice !== null && variantPrice > 0;
+        const itemForPricing = useVariantPrice
+          ? { ...pendingItem, price: variant.price, cost: variant.cost || pendingItem.cost }
+          : pendingItem;
+        addLineItemFromInventory(itemForPricing, variant.variantSku, variant.variantName || variant.description, true);
         setPendingItem(null);
         clearVariants();
       }
@@ -946,7 +955,7 @@ export function InvoiceCreatePage() {
         onClose={closeTargetTotalModal}
         onApply={handleApplyBulkDiscount}
         currentSubTotal={totals.subTotal}
-        taxRate={TAX_RATE}
+        taxRate={taxRate}
         isTaxable={isTaxable}
         formatCurrency={formatCurrency}
       />

@@ -1,5 +1,6 @@
 import { Box, Group, ScrollArea, Text, Indicator, ActionIcon } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
+import { useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -109,12 +110,13 @@ function TabItem({ id, title, isActive, hasUnsavedChanges, onSelect, onClose }: 
 }
 
 export function TabBar() {
-  const { tabs, activeTab, switchToTab, closeTab } = useTabContext();
+  const { tabs, activeTab, switchToTab, closeTab, isTabbed } = useTabContext();
   const { colorScheme } = useTheme();
+  const location = useLocation();
   const isDark = colorScheme === 'dark';
 
-  // Don't render if no tabs
-  if (tabs.length === 0) {
+  // Don't render if no tabs or if on a non-tabbed page
+  if (tabs.length === 0 || !isTabbed(location.pathname)) {
     return null;
   }
 

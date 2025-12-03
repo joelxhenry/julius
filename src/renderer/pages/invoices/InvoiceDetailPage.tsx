@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import {
@@ -105,11 +105,18 @@ const statusLabels: Record<string, string> = {
   archived: 'Archived',
 };
 
+// Cache for adjacent invoices to improve navigation performance
+interface InvoiceCache {
+  invoice: Invoice;
+  lineItems: LineItem[];
+  adjacentIds: { previousId: number | null; nextId: number | null };
+}
+
 export function InvoiceDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
-  const { updateTabTitle } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab } = useTabContext();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -120,6 +127,9 @@ export function InvoiceDetailPage() {
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
 
+  // Cache for adjacent invoices
+  const invoiceCacheRef = useRef<Map<number, InvoiceCache>>(new Map());
+
   // Update tab title when invoice loads
   useEffect(() => {
     if (invoice) {
@@ -127,40 +137,119 @@ export function InvoiceDetailPage() {
     }
   }, [invoice, location.pathname, updateTabTitle]);
 
+  // Helper function to load invoice data (used for both current and prefetching)
+  const loadInvoiceData = useCallback(async (invoiceId: number): Promise<InvoiceCache | null> => {
+    try {
+      // Load invoice
+      const invResult = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoiceId });
+      if (!invResult.success || !invResult.data) {
+        return null;
+      }
+
+      // Load line items
+      const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, {
+        invNumber: invResult.data.invNumber,
+      });
+
+      // Load adjacent invoices
+      const adjResult = await window.electron.invoke(IpcChannel.GET_ADJACENT_INVOICES, { id: invoiceId });
+
+      return {
+        invoice: invResult.data,
+        lineItems: itemsResult.success && itemsResult.data ? itemsResult.data : [],
+        adjacentIds: adjResult.success && adjResult.data ? adjResult.data : { previousId: null, nextId: null },
+      };
+    } catch (error) {
+      console.error('Failed to load invoice data:', error);
+      return null;
+    }
+  }, []);
+
+  // Prefetch adjacent invoices in background
+  const prefetchAdjacentInvoices = useCallback(
+    async (prevId: number | null, nextId: number | null) => {
+      const cache = invoiceCacheRef.current;
+
+      // Prefetch previous invoice if not cached
+      if (prevId && !cache.has(prevId)) {
+        loadInvoiceData(prevId).then((data) => {
+          if (data) {
+            cache.set(prevId, data);
+          }
+        });
+      }
+
+      // Prefetch next invoice if not cached
+      if (nextId && !cache.has(nextId)) {
+        loadInvoiceData(nextId).then((data) => {
+          if (data) {
+            cache.set(nextId, data);
+          }
+        });
+      }
+    },
+    [loadInvoiceData]
+  );
+
   // Load invoice data
   useEffect(() => {
     const loadInvoice = async () => {
       if (!id) return;
 
+      const invoiceId = parseInt(id, 10);
+      const cache = invoiceCacheRef.current;
+
+      // Check if we have this invoice cached
+      const cachedData = cache.get(invoiceId);
+      if (cachedData) {
+        // Use cached data immediately
+        setInvoice(cachedData.invoice);
+        setLineItems(cachedData.lineItems);
+        setAdjacentIds(cachedData.adjacentIds);
+        setIsLoading(false);
+
+        // Check credit if needed
+        if (cachedData.invoice.clientId && ['draft', 'active', 'partially_paid'].includes(cachedData.invoice.status)) {
+          const creditResult = await window.electron.invoke(IpcChannel.CHECK_CLIENT_CREDIT, {
+            clientId: cachedData.invoice.clientId,
+          });
+          if (creditResult.success && creditResult.data) {
+            setCreditCheck(creditResult.data);
+          }
+        } else {
+          setCreditCheck(null);
+        }
+
+        // Prefetch adjacent invoices
+        prefetchAdjacentInvoices(cachedData.adjacentIds.previousId, cachedData.adjacentIds.nextId);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        // Load invoice
-        const invResult = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: parseInt(id, 10) });
-        if (invResult.success && invResult.data) {
-          setInvoice(invResult.data);
+        const data = await loadInvoiceData(invoiceId);
 
-          // Load line items
-          const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, {
-            invNumber: invResult.data.invNumber,
-          });
-          if (itemsResult.success && itemsResult.data) {
-            setLineItems(itemsResult.data);
-          }
+        if (data) {
+          // Cache the loaded data
+          cache.set(invoiceId, data);
 
-          // Load adjacent invoices
-          const adjResult = await window.electron.invoke(IpcChannel.GET_ADJACENT_INVOICES, { id: parseInt(id, 10) });
-          if (adjResult.success && adjResult.data) {
-            setAdjacentIds(adjResult.data);
-          }
+          setInvoice(data.invoice);
+          setLineItems(data.lineItems);
+          setAdjacentIds(data.adjacentIds);
+
+          // Prefetch adjacent invoices in background
+          prefetchAdjacentInvoices(data.adjacentIds.previousId, data.adjacentIds.nextId);
 
           // Check credit if there's a client and invoice is not paid/archived
-          if (invResult.data.clientId && ['draft', 'active', 'partially_paid'].includes(invResult.data.status)) {
+          if (data.invoice.clientId && ['draft', 'active', 'partially_paid'].includes(data.invoice.status)) {
             const creditResult = await window.electron.invoke(IpcChannel.CHECK_CLIENT_CREDIT, {
-              clientId: invResult.data.clientId,
+              clientId: data.invoice.clientId,
             });
             if (creditResult.success && creditResult.data) {
               setCreditCheck(creditResult.data);
             }
+          } else {
+            setCreditCheck(null);
           }
         } else {
           notifications.show({
@@ -182,7 +271,7 @@ export function InvoiceDetailPage() {
       }
     };
     loadInvoice();
-  }, [id, navigate]);
+  }, [id, navigate, loadInvoiceData, prefetchAdjacentInvoices]);
 
   // Format currency
   const formatCurrency = (value: string | null) => {
@@ -204,14 +293,15 @@ export function InvoiceDetailPage() {
     });
   };
 
-  // Navigate to previous/next invoice
+  // Navigate to previous/next invoice (same tab)
   const handleNavigateAdjacent = useCallback(
     (targetId: number | null) => {
       if (targetId) {
-        navigate(`/invoices/${targetId}`);
+        // Use replaceCurrentTab to stay in the same tab
+        replaceCurrentTab(`/invoices/${targetId}`);
       }
     },
-    [navigate]
+    [replaceCurrentTab]
   );
 
   // Issue invoice (draft -> active)

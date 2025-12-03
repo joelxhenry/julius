@@ -9,6 +9,7 @@ import {
   EmployeeDetailPage,
   EmployeePermissionsPage,
 } from '../pages/employees';
+import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 
 /**
  * Maps a route path to its corresponding React component
@@ -59,6 +60,16 @@ export function getComponentForPath(path: string): React.ReactNode {
   }
   if (cleanPath.match(/^employees\/\d+\/permissions$/)) {
     return <EmployeePermissionsPage />;
+  }
+
+  // Clients
+  if (cleanPath === 'clients') return <ClientsPage />;
+  if (cleanPath === 'clients/new') return <ClientEditorPage />;
+  if (cleanPath.match(/^clients\/\d+$/)) {
+    return <ClientDetailPage />;
+  }
+  if (cleanPath.match(/^clients\/\d+\/edit$/)) {
+    return <ClientEditorPage />;
   }
 
   // Default fallback

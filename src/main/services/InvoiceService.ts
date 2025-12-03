@@ -47,7 +47,7 @@ export class InvoiceService extends BaseService<
     if (!data.invNumber) {
       const result = await this.db.execute(sql`SELECT nextval('seq_invoice_number') as next_num`);
       const nextNum = (result.rows[0] as any).next_num;
-      data.invNumber = "T" + nextNum.toString();
+      data.invNumber = nextNum.toString();
     }
 
     return super.create(data);

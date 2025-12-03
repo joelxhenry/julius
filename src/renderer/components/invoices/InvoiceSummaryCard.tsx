@@ -1,5 +1,6 @@
 import { Card, Stack, Text, Group, Divider, Button } from '@mantine/core';
 import { IconDeviceFloppy, IconCheck } from '@tabler/icons-react';
+import { useTaxRate } from '../../hooks/index';
 
 interface InvoiceTotals {
   subTotal: number;
@@ -28,6 +29,11 @@ export function InvoiceSummaryCard({
   onSaveDraft,
   onIssueInvoice,
 }: InvoiceSummaryCardProps) {
+
+
+  const { taxRate } = useTaxRate();
+
+
   return (
     <Card withBorder p="md" radius="md" pos="sticky" top={20}>
       <Stack gap="md">
@@ -47,7 +53,7 @@ export function InvoiceSummaryCard({
           </Group>
           <Group justify="space-between">
             <Text size="sm" c="dimmed">
-              Tax ({isTaxable ? '15%' : '0%'})
+              Tax ({isTaxable ? `${(taxRate * 100)}%` : '0%'})
             </Text>
             <Text size="sm">{formatCurrency(totals.tax)}</Text>
           </Group>

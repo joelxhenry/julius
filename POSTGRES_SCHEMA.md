@@ -4,7 +4,7 @@
 
 This document defines the **optimized** PostgreSQL database schema for migrating data from a legacy DBF/FoxPro system. The system is an **automotive parts retail and distribution business** with multi-location support, employee management, inventory control, and comprehensive sales tracking.
 
-**Optimization Summary:** Reduced from 30 tables to 20 tables by consolidating redundant structures (includes new variants table for part variants).
+**Optimization Summary:** Reduced from 30 tables to 22 tables by consolidating redundant structures (includes new variants table for part variants, system_settings table for configurable settings, and payment_methods table).
 
 ---
 
@@ -20,7 +20,7 @@ This document defines the **optimized** PostgreSQL database schema for migrating
 
 ---
 
-## Tables (20 Total)
+## Tables (22 Total)
 
 ### 1. Reference/Lookup Tables
 
@@ -436,20 +436,22 @@ CREATE INDEX idx_crnotes_archived ON credit_notes(is_archived);
 #### document_line_items
 ```sql
 -- Unified table for: invoice_details + quotation_details + credit_note_details
+-- Note: SKU can reference either inventory.sku or variants.variant_sku
+-- No foreign key constraint to allow both main inventory items and variants
 CREATE TABLE document_line_items (
     id SERIAL PRIMARY KEY,
     document_type VARCHAR(10) NOT NULL CHECK (document_type IN ('INVOICE', 'QUOTE', 'CREDIT')),
     document_number VARCHAR(20) NOT NULL,
     line_number INTEGER NOT NULL,
-    sku VARCHAR(50),
+    sku VARCHAR(50),                        -- Can be inventory SKU or variant SKU
+    is_variant BOOLEAN NOT NULL DEFAULT FALSE,  -- Flag to indicate if SKU is a variant
     description VARCHAR(200),
     quantity NUMERIC(15,4) DEFAULT 0,
     unit_price NUMERIC(15,2) DEFAULT 0,
     discount NUMERIC(10,2) DEFAULT 0,
     is_taxable BOOLEAN DEFAULT TRUE,
     amount NUMERIC(15,2) DEFAULT 0,
-    UNIQUE(document_type, document_number, line_number),
-    CONSTRAINT fk_doc_items_sku FOREIGN KEY (sku) REFERENCES inventory(sku) ON DELETE SET NULL
+    UNIQUE(document_type, document_number, line_number)
 );
 
 CREATE INDEX idx_doc_items_type_number ON document_line_items(document_type, document_number);
@@ -569,6 +571,36 @@ CREATE INDEX idx_attendance_name ON employee_attendance(last_name, first_name);
 
 ### 7. System Tables
 
+#### system_settings
+```sql
+-- Configurable system settings stored in the database
+-- Used for tax rates, company info, default values, etc.
+CREATE TABLE system_settings (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(100) UNIQUE NOT NULL,      -- Setting key (e.g., 'tax_rate', 'company_name')
+    value TEXT NOT NULL,                    -- Setting value (stored as text, parsed by application)
+    group VARCHAR(100) NOT NULL,            -- Logical grouping (e.g., 'tax', 'company', 'defaults')
+    description TEXT,                       -- Human-readable description of the setting
+    readonly BOOLEAN NOT NULL DEFAULT FALSE, -- If true, setting cannot be modified via UI
+    visible BOOLEAN NOT NULL DEFAULT TRUE    -- If false, setting is hidden from UI
+);
+
+CREATE INDEX idx_system_settings_key ON system_settings(key);
+CREATE INDEX idx_system_settings_group ON system_settings(group);
+```
+
+**Default settings:**
+| Key | Value | Group | Description |
+|-----|-------|-------|-------------|
+| tax_rate | 0.15 | tax | GCT tax rate (decimal) |
+| currency_code | JMD | currency | ISO 4217 currency code |
+| currency_symbol | $ | currency | Currency symbol |
+| default_credit_terms | NET30 | defaults | Default credit terms for new clients |
+| default_credit_limit | 50000 | defaults | Default credit limit for new clients |
+| invoice_prefix | INV | documents | Prefix for invoice numbers |
+| quotation_prefix | QUO | documents | Prefix for quotation numbers |
+| credit_note_prefix | CN | documents | Prefix for credit note numbers |
+
 #### gct_payments
 ```sql
 CREATE TABLE gct_payments (
@@ -579,6 +611,21 @@ CREATE TABLE gct_payments (
     amount NUMERIC(15,2),
     UNIQUE(month, year)
 );
+```
+
+#### payment_methods
+```sql
+-- Available payment methods for transactions
+CREATE TABLE payment_methods (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(20) UNIQUE NOT NULL,       -- e.g., 'CASH', 'CHEQUE', 'TRANSFER'
+    name VARCHAR(100) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_payment_methods_code ON payment_methods(code);
+CREATE INDEX idx_payment_methods_active ON payment_methods(active) WHERE active = TRUE;
 ```
 
 ---
@@ -666,7 +713,7 @@ CREATE SEQUENCE seq_transfer_number START WITH 6408;
 | credit_notes | invoices | inv_number | SET NULL |
 | credit_notes | employees | salesperson_id | SET NULL |
 | credit_notes | clients | client_id | SET NULL |
-| document_line_items | inventory | sku | SET NULL |
+| document_line_items | *(none)* | sku | *(no FK - allows inventory or variant SKUs)* |
 | payments | invoices | invoice_number | CASCADE |
 | payments | credit_notes | credit_note_number | CASCADE |
 | payments | bills | bill_number | CASCADE |
@@ -781,7 +828,7 @@ Set sequence values based on COUNTER.json max values.
 
 ---
 
-## Tables Summary (20 Total)
+## Tables Summary (22 Total)
 
 | # | Table Name | Records | Foreign Keys |
 |---|------------|---------|--------------|
@@ -795,7 +842,7 @@ Set sequence values based on COUNTER.json max values.
 | 8 | invoices | 157,216 | employees, clients |
 | 9 | quotations | 6,068 | employees, clients |
 | 10 | credit_notes | 15,077 | invoices, employees, clients |
-| 11 | document_line_items | 290,510 | inventory |
+| 11 | document_line_items | 290,510 | *(none - uses is_variant flag)* |
 | 12 | payments | 190,609 | invoices, credit_notes, bills |
 | 13 | bills | 16,961 | suppliers |
 | 14 | inventory_transactions | 125,026 | inventory |
@@ -805,15 +852,18 @@ Set sequence values based on COUNTER.json max values.
 | 18 | inventory_categories | ~15,284 | inventory, categories |
 | 19 | employee_attendance | 23,046 | employees |
 | 20 | gct_payments | 38 | - |
+| 21 | system_settings | ~10 | - |
+| 22 | payment_methods | ~5 | - |
 
 ---
 
 ## Benefits of Optimized Schema
 
-1. **Fewer tables** - 20 vs 30 (33% reduction)
+1. **Fewer tables** - 22 vs 30 (27% reduction)
 2. **Simpler queries** - Unified payments/line items tables
 3. **Better data integrity** - Employee data consolidated
 4. **Modern PostgreSQL features** - JSONB for permissions, sequences for counters
 5. **No legacy cruft** - Removed obsolete error logs
 6. **Easier maintenance** - Fewer tables to manage
 7. **Flexible permissions** - JSONB instead of 20+ boolean columns
+8. **Configurable settings** - Tax rates and system config stored in database

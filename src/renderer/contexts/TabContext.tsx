@@ -25,6 +25,7 @@ interface TabContextValue {
   openTab: (path: string, component: React.ReactNode) => void;
   closeTab: (tabId: string) => Promise<boolean>;
   switchToTab: (tabId: string) => void;
+  replaceCurrentTab: (path: string) => void;
 
   // Management
   updateTabTitle: (tabId: string, title: string) => void;
@@ -79,6 +80,10 @@ function generateTitleFromPath(path: string): string {
   if (path.includes('/employees/') && path.includes('/edit')) return 'Edit Employee';
   if (path.includes('/employees/') && path.includes('/permissions')) return 'Employee Permissions';
   if (path.includes('/employees/')) return 'Employee';
+  if (path.includes('/clients/new')) return 'New Client';
+  if (path.includes('/clients/') && path.includes('/edit')) return 'Edit Client';
+  if (path.includes('/clients/')) return 'Client Details';
+  if (path === '/clients') return 'Clients';
   if (path.includes('/payments')) return 'Payments';
   if (path.includes('/attendance')) return 'Attendance';
 
@@ -315,6 +320,31 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // Replace current tab's path and component (for same-tab navigation like next/prev invoice)
+  const replaceCurrentTab = useCallback(
+    (path: string) => {
+      if (!activeTabId) return;
+
+      // Generate new component for the path
+      const component = getComponentForPath(path);
+      const title = generateTitleFromPath(path);
+
+      // Update the current tab with new path and component
+      setTabs((prev) =>
+        prev.map((tab) =>
+          tab.id === activeTabId
+            ? { ...tab, path, component, title, lastAccessedAt: Date.now() }
+            : tab
+        )
+      );
+
+      // Update URL without triggering new tab creation
+      skipNextLocationChange.current = true;
+      navigate(path, { replace: true });
+    },
+    [activeTabId, navigate]
+  );
+
   // Keyboard navigation: close current tab
   const closeCurrentTab = useCallback(() => {
     if (activeTabId) {
@@ -407,6 +437,7 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
     openTab,
     closeTab,
     switchToTab,
+    replaceCurrentTab,
     updateTabTitle,
     markTabDirty,
     findTabByPath,

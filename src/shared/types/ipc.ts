@@ -77,6 +77,7 @@ export enum IpcChannel {
   GET_ACTIVE_INVENTORY = 'db:get-active-inventory',
   SEARCH_INVENTORY = 'db:search-inventory',
   SEARCH_INVENTORY_FOR_SELECT = 'db:search-inventory-for-select',
+  SEARCH_INVENTORY_WITH_VARIANTS = 'db:search-inventory-with-variants',
   GET_INVENTORY_VARIANTS = 'db:get-inventory-variants',
   CHECK_HAS_VARIANTS = 'db:check-has-variants',
   CREATE_INVENTORY = 'db:create-inventory',
@@ -259,4 +260,16 @@ export enum IpcChannel {
   TEST_DATABASE_CONNECTION = 'db:test-connection',
   RECONNECT_DATABASE = 'db:reconnect',
   CHECK_DATABASE_STATUS = 'db:check-status',
+
+  // System settings operations
+  GET_SYSTEM_SETTINGS = 'db:get-system-settings',
+  GET_SYSTEM_SETTINGS_VISIBLE = 'db:get-system-settings-visible',
+  GET_SYSTEM_SETTINGS_BY_GROUP = 'db:get-system-settings-by-group',
+  GET_SYSTEM_SETTING = 'db:get-system-setting',
+  GET_SYSTEM_SETTING_VALUE = 'db:get-system-setting-value',
+  GET_TAX_RATE = 'db:get-tax-rate',
+  SET_SYSTEM_SETTING = 'db:set-system-setting',
+  UPSERT_SYSTEM_SETTING = 'db:upsert-system-setting',
+  DELETE_SYSTEM_SETTING = 'db:delete-system-setting',
+  INITIALIZE_SYSTEM_SETTINGS = 'db:initialize-system-settings',
 }

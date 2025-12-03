@@ -31,3 +31,4 @@ export * from './EmployeeAttendanceController';
 
 // Settings Controllers
 export * from './DatabaseSettingsController';
+export * from './SystemSettingsController';

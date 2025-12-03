@@ -28,6 +28,7 @@ import {
   EmployeeAttendanceService,
   CreditCheckService,
   SpotlightService,
+  SystemSettingsService,
 } from '../services';
 
 // Import controllers
@@ -50,6 +51,7 @@ import {
   PaymentMethodController,
   GctPaymentController,
   EmployeeAttendanceController,
+  SystemSettingsController,
 } from '../controllers';
 
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
@@ -170,6 +172,7 @@ function registerDataHandlers() {
   const employeeAttendanceService = new EmployeeAttendanceService(db);
   const creditCheckService = new CreditCheckService(db);
   const spotlightService = new SpotlightService(db);
+  const systemSettingsService = new SystemSettingsService(db);
 
   // Initialize controllers
   const branchController = new BranchController(branchService);
@@ -190,6 +193,7 @@ function registerDataHandlers() {
   const paymentMethodController = new PaymentMethodController(paymentMethodService);
   const gctPaymentController = new GctPaymentController(gctPaymentService);
   const employeeAttendanceController = new EmployeeAttendanceController(employeeAttendanceService);
+  const systemSettingsController = new SystemSettingsController(systemSettingsService);
 
   // ===== BRANCH HANDLERS =====
   ipcMain.handle(IpcChannel.GET_BRANCHES, () => branchController.getAll());
@@ -269,6 +273,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_ACTIVE_INVENTORY, () => inventoryController.getActive());
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY, (_, { query }: { query: string }) => inventoryController.search(query));
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => inventoryController.searchForSelect(query, limit));
+  ipcMain.handle(IpcChannel.SEARCH_INVENTORY_WITH_VARIANTS, (_, { query, limit }: { query: string; limit?: number }) => inventoryController.searchWithVariants(query, limit));
   ipcMain.handle(IpcChannel.CREATE_INVENTORY, (_, data: any) => inventoryController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY, (_, { id, data }: any) => inventoryController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVENTORY, (_, { id }: { id: number }) => inventoryController.delete(id));
@@ -571,6 +576,18 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.CREATE_ATTENDANCE, (_, data: any) => employeeAttendanceController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_ATTENDANCE, (_, { id, data }: any) => employeeAttendanceController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_ATTENDANCE, (_, { id }: { id: number }) => employeeAttendanceController.delete(id));
+
+  // ===== SYSTEM SETTINGS HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_SYSTEM_SETTINGS, () => systemSettingsController.getAll());
+  ipcMain.handle(IpcChannel.GET_SYSTEM_SETTINGS_VISIBLE, () => systemSettingsController.getVisible());
+  ipcMain.handle(IpcChannel.GET_SYSTEM_SETTINGS_BY_GROUP, (_, { group }: { group: string }) => systemSettingsController.getByGroup(group));
+  ipcMain.handle(IpcChannel.GET_SYSTEM_SETTING, (_, { key }: { key: string }) => systemSettingsController.getByKey(key));
+  ipcMain.handle(IpcChannel.GET_SYSTEM_SETTING_VALUE, (_, { key }: { key: string }) => systemSettingsController.getValue(key));
+  ipcMain.handle(IpcChannel.GET_TAX_RATE, () => systemSettingsController.getTaxRate());
+  ipcMain.handle(IpcChannel.SET_SYSTEM_SETTING, (_, { key, value }: { key: string; value: string }) => systemSettingsController.setValue(key, value));
+  ipcMain.handle(IpcChannel.UPSERT_SYSTEM_SETTING, (_, { key, value, group, description, readonly, visible }: { key: string; value: string; group: string; description?: string; readonly?: boolean; visible?: boolean }) => systemSettingsController.upsert(key, value, group, description, readonly, visible));
+  ipcMain.handle(IpcChannel.DELETE_SYSTEM_SETTING, (_, { key }: { key: string }) => systemSettingsController.deleteByKey(key));
+  ipcMain.handle(IpcChannel.INITIALIZE_SYSTEM_SETTINGS, () => systemSettingsController.initializeDefaults());
 
   dataHandlersRegistered = true;
   console.log('Data handlers registered successfully');

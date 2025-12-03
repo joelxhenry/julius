@@ -1,15 +1,16 @@
 import { pgTable, varchar, integer, serial, numeric, boolean, index, unique, check } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { inventory } from './inventory';
 
 // DOCUMENT_LINE_ITEMS table - unified line items for invoices, quotations, credit notes
+// Note: SKU can reference either inventory.sku or variants.variant_sku
+// No foreign key constraint to allow both main inventory items and variants
 export const documentLineItems = pgTable('document_line_items', {
   id: serial('id').primaryKey(),
   documentType: varchar('document_type', { length: 10 }).notNull(), // 'INVOICE', 'QUOTE', 'CREDIT'
   documentNumber: varchar('document_number', { length: 20 }).notNull(),
   lineNumber: integer('line_number').notNull(),
-  sku: varchar('sku', { length: 50 })
-    .references(() => inventory.sku, { onDelete: 'set null' }),
+  sku: varchar('sku', { length: 50 }), // Can be inventory SKU or variant SKU
+  isVariant: boolean('is_variant').notNull().default(false), // Flag to indicate if SKU is a variant
   description: varchar('description', { length: 200 }),
   quantity: numeric('quantity', { precision: 15, scale: 4 }).notNull().default('0'),
   unitPrice: numeric('unit_price', { precision: 15, scale: 2 }).notNull().default('0'),

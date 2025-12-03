@@ -81,7 +81,7 @@ export function Spotlight() {
     isLoading,
     selectedIndex,
     setSelectedIndex,
-    navigateToSelected,
+    navigateToResult,
   } = useSpotlight();
 
   return (
@@ -114,6 +114,11 @@ export function Spotlight() {
               border: 'none',
               padding: 'var(--mantine-spacing-md)',
             },
+            section: {
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
           }}
         />
 
@@ -134,8 +139,9 @@ export function Spotlight() {
                     result={result}
                     isSelected={index === selectedIndex}
                     onClick={() => {
-                      setSelectedIndex(index);
-                      navigateToSelected();
+                      // Navigate directly using the clicked result
+                      // Don't rely on selectedIndex state which updates asynchronously
+                      navigateToResult(result);
                     }}
                   />
                 ))}

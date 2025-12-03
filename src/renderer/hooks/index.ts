@@ -31,3 +31,6 @@ export type {
   InventoryAlternate,
   CreateAlternateData,
 } from './useInventoryAlternates';
+
+// System settings hooks
+export { useTaxRate } from './useTaxRate';
