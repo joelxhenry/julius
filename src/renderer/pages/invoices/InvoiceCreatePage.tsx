@@ -174,8 +174,10 @@ export function InvoiceCreatePage() {
         setSalespersonId(inv.salespersonId);
         setOriginalInvNumber(inv.invNumber);
 
-        // Update tab title
-        updateTabTitle(location.pathname, `Edit Invoice ${inv.invNumber}`);
+        // Update tab title (only if this is the active tab)
+        if (location.pathname === `/invoices/${id}/edit`) {
+          updateTabTitle(location.pathname, `Edit Invoice ${inv.invNumber}`);
+        }
 
         // Load client
         if (inv.clientId) {

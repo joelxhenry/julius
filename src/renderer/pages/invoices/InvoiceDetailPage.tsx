@@ -135,12 +135,12 @@ export function InvoiceDetailPage() {
   // Cache for adjacent invoices
   const invoiceCacheRef = useRef<Map<number, InvoiceCache>>(new Map());
 
-  // Update tab title when invoice loads
+  // Update tab title when invoice loads (only when this tab is active)
   useEffect(() => {
-    if (invoice) {
+    if (invoice && location.pathname === `/invoices/${id}`) {
       updateTabTitle(location.pathname, `Invoice ${invoice.invNumber}`);
     }
-  }, [invoice, location.pathname, updateTabTitle]);
+  }, [invoice, id, location.pathname, updateTabTitle]);
 
   // Helper function to load invoice data (used for both current and prefetching)
   const loadInvoiceData = useCallback(async (invoiceId: number): Promise<InvoiceCache | null> => {

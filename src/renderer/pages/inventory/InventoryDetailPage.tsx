@@ -133,12 +133,12 @@ export function InventoryDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>('overview');
 
-  // Update tab title when item loads
+  // Update tab title when item loads (only when this tab is active)
   useEffect(() => {
-    if (item) {
+    if (item && location.pathname === `/inventory/${id}`) {
       updateTabTitle(location.pathname, `${item.sku} - ${item.description1 || 'Inventory Item'}`);
     }
-  }, [item, location.pathname, updateTabTitle]);
+  }, [item, id, location.pathname, updateTabTitle]);
 
   // Variants state
   const [variants, setVariants] = useState<Variant[]>([]);

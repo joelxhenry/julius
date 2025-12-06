@@ -28,7 +28,7 @@ import {
   IconReceipt,
   IconCash,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab } from '../../components/clients';
@@ -59,8 +59,8 @@ interface Client {
 
 export function ClientDetailPage() {
   const navigate = useNavigate();
-
-  const { updateTabTitle } = useTabContext()
+  const location = useLocation();
+  const { updateTabTitle } = useTabContext();
   const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -77,13 +77,16 @@ export function ClientDetailPage() {
   }, [clientId]);
 
 
+  // Update tab title (only when this tab is active)
   useEffect(() => {
-    if (client) {
-      updateTabTitle(location.pathname, `Client: ${client.clientName}`);
-    } else {
-      updateTabTitle(location.pathname, 'Client Detail');
+    if (location.pathname === `/clients/${id}`) {
+      if (client) {
+        updateTabTitle(location.pathname, `Client: ${client.clientName}`);
+      } else {
+        updateTabTitle(location.pathname, 'Client Detail');
+      }
     }
-  }, [client, updateTabTitle]);
+  }, [client, id, location.pathname, updateTabTitle]);
 
   const loadClient = async (cId: number) => {
     setLoading(true);

@@ -64,6 +64,7 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
         invoiceNumber,
       });
       if (result.success && result.data) {
+        console.log('PaymentHistoryCard: Loaded payments:', result.data);
         setPayments(result.data);
       }
     } catch (error) {
@@ -260,7 +261,12 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
               skeletonRows={3}
               stickyActionsColumn
               onRowClick={(payment) => {
-                openTab(`/payments/${payment.id}`);
+                console.log('PaymentHistoryCard: Clicking payment:', payment);
+                console.log('PaymentHistoryCard: Payment ID:', payment.id);
+                console.log('PaymentHistoryCard: Opening tab with path:', `/payments/${payment.id}`);
+                const paymentId = payment.id;
+                console.log('PaymentHistoryCard: Captured payment ID:', paymentId);
+                openTab(`/payments/${paymentId}`);
               }}
             />
 

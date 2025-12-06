@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Stack,
   Title,
@@ -7,11 +7,7 @@ import {
   Group,
   TextInput,
   Select,
-  Table,
   Badge,
-  Loader,
-  Center,
-  Pagination,
   ActionIcon,
   Menu,
   Modal,
@@ -24,6 +20,7 @@ import { IconSearch, IconCash, IconDotsVertical, IconX, IconFileInvoice, IconRec
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
+import { DataTable, Column } from '../../components/common/DataTable';
 
 interface Payment {
   id: number;
@@ -207,12 +204,169 @@ export function PaymentsPage() {
     openTab(`/payments/${payment.id}`);
   }, [openTab]);
 
-  const handleViewDocument = useCallback((payment: Payment) => {
+  const handleViewDocument = useCallback(async (payment: Payment) => {
     if (payment.documentType === 'INVOICE' && payment.invoiceNumber) {
-      // Need to find invoice ID - for now just search
-      openTab(`/invoices?search=${payment.invoiceNumber}`);
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, {
+          invNumber: payment.invoiceNumber
+        });
+
+        if (result.success && result.data) {
+          openTab(`/invoices/${result.data.id}`);
+        } else {
+          notifications.show({
+            title: 'Invoice Not Found',
+            message: `Invoice ${payment.invoiceNumber} could not be found.`,
+            color: 'red',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to find invoice:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to load invoice',
+          color: 'red',
+        });
+      }
+    } else if (payment.documentType === 'CREDIT' && payment.creditNoteNumber) {
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTE_BY_NUMBER, {
+          crNumber: payment.creditNoteNumber
+        });
+
+        if (result.success && result.data) {
+          openTab(`/credit-notes/${result.data.id}`);
+        } else {
+          notifications.show({
+            title: 'Credit Note Not Found',
+            message: `Credit note ${payment.creditNoteNumber} could not be found.`,
+            color: 'red',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to find credit note:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to load credit note',
+          color: 'red',
+        });
+      }
     }
   }, [openTab]);
+
+  // Define columns for DataTable
+  const columns: Column<Payment>[] = useMemo(
+    () => [
+      {
+        key: 'paymentDate',
+        header: 'Date',
+        width: 120,
+        render: (payment) => <Text size="sm">{formatDate(payment.paymentDate)}</Text>,
+      },
+      {
+        key: 'documentType',
+        header: 'Type',
+        width: 110,
+        render: (payment) => getDocumentTypeBadge(payment.documentType),
+      },
+      {
+        key: 'documentNumber',
+        header: 'Document',
+        width: 150,
+        render: (payment) => {
+          const amount = parseFloat(payment.amount);
+          const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
+
+          return (
+            <Group gap={4}>
+              <Text
+                size="sm"
+                fw={500}
+                c="blue"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleViewDocument(payment);
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                {payment.documentNumber}
+              </Text>
+              {isVoidEntry && (
+                <Badge size="xs" color="red" variant="light">VOID</Badge>
+              )}
+            </Group>
+          );
+        },
+      },
+      {
+        key: 'payerName',
+        header: 'Payer',
+        render: (payment) => (
+          <Text size="sm" truncate maw={150}>
+            {payment.payerName || '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'paymentDesc',
+        header: 'Method',
+        width: 150,
+        render: (payment) => (
+          <Text size="sm">
+            {payment.paymentDesc2 || payment.paymentDesc || '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'amount',
+        header: 'Amount',
+        width: 120,
+        render: (payment) => {
+          const amount = parseFloat(payment.amount);
+          const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
+
+          return (
+            <Text
+              size="sm"
+              fw={500}
+              c={isVoidEntry ? 'red' : 'green'}
+              ta="right"
+            >
+              {isVoidEntry ? '-' : '+'}{formatCurrency(Math.abs(amount))}
+            </Text>
+          );
+        },
+      },
+      {
+        key: 'actions',
+        header: '',
+        width: 50,
+        render: (payment) => {
+          if (!canVoidPayment(payment)) return null;
+
+          return (
+            <Menu shadow="md" width={150} position="bottom-end">
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="sm" color="gray">
+                  <IconDotsVertical size={14} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={<IconX size={14} />}
+                  color="red"
+                  onClick={() => handleVoidClick(payment)}
+                >
+                  Void Payment
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          );
+        },
+      },
+    ],
+    [handleViewDocument, handleVoidClick]
+  );
 
   return (
     <Stack gap="lg">
@@ -251,130 +405,19 @@ export function PaymentsPage() {
       </Paper>
 
       {/* Payments Table */}
-      <Paper withBorder radius="md">
-        {isLoading ? (
-          <Center py="xl">
-            <Loader />
-          </Center>
-        ) : payments.length === 0 ? (
-          <Center py="xl">
-            <Stack align="center" gap="xs">
-              <IconCash size={40} color="gray" />
-              <Text c="dimmed">No payments found</Text>
-            </Stack>
-          </Center>
-        ) : (
-          <>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Date</Table.Th>
-                  <Table.Th>Type</Table.Th>
-                  <Table.Th>Document</Table.Th>
-                  <Table.Th>Payer</Table.Th>
-                  <Table.Th>Method</Table.Th>
-                  <Table.Th ta="right">Amount</Table.Th>
-                  <Table.Th w={50}></Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {payments.map((payment) => {
-                  const amount = parseFloat(payment.amount);
-                  const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
-
-                  return (
-                    <Table.Tr
-                      key={payment.id}
-                      style={{
-                        ...(isVoidEntry ? { opacity: 0.6 } : {}),
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => handleViewPayment(payment)}
-                    >
-                      <Table.Td>
-                        <Text size="sm">{formatDate(payment.paymentDate)}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        {getDocumentTypeBadge(payment.documentType)}
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap={4}>
-                          <Text
-                            size="sm"
-                            fw={500}
-                            c="blue"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDocument(payment);
-                            }}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            {payment.documentNumber}
-                          </Text>
-                          {isVoidEntry && (
-                            <Badge size="xs" color="red" variant="light">VOID</Badge>
-                          )}
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" truncate maw={150}>
-                          {payment.payerName || '-'}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">
-                          {payment.paymentDesc2 || payment.paymentDesc || '-'}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text
-                          size="sm"
-                          fw={500}
-                          c={isVoidEntry ? 'red' : 'green'}
-                          ta="right"
-                        >
-                          {isVoidEntry ? '-' : '+'}{formatCurrency(Math.abs(amount))}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td onClick={(e) => e.stopPropagation()}>
-                        {canVoidPayment(payment) && (
-                          <Menu shadow="md" width={150} position="bottom-end">
-                            <Menu.Target>
-                              <ActionIcon variant="subtle" size="sm" color="gray">
-                                <IconDotsVertical size={14} />
-                              </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                              <Menu.Item
-                                leftSection={<IconX size={14} />}
-                                color="red"
-                                onClick={() => handleVoidClick(payment)}
-                              >
-                                Void Payment
-                              </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
-                        )}
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Group justify="center" p="md">
-                <Pagination
-                  value={page}
-                  onChange={setPage}
-                  total={totalPages}
-                  size="sm"
-                />
-              </Group>
-            )}
-          </>
-        )}
+      <Paper withBorder radius="md" p="md">
+        <DataTable
+          columns={columns}
+          data={payments}
+          loading={isLoading}
+          keyField="id"
+          onRowClick={handleViewPayment}
+          emptyMessage="No payments found"
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          stickyActionsColumn={true}
+        />
       </Paper>
 
       {/* Void Payment Modal */}

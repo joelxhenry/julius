@@ -69,7 +69,7 @@ export function TabContainer() {
           }}
         >
           <TabRouteProvider path={tab.path}>
-            <React.Fragment key={tab.path}>{tab.component}</React.Fragment>
+            {tab.component}
           </TabRouteProvider>
         </div>
       ))}

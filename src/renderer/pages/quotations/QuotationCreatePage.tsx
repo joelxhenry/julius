@@ -152,8 +152,10 @@ export function QuotationCreatePage() {
         setSalespersonId(quote.salespersonId);
         setOriginalQuoteNum(quote.quoteNum);
 
-        // Update tab title
-        updateTabTitle(location.pathname, `Edit Quotation ${quote.quoteNum}`);
+        // Update tab title (only if this is the active tab)
+        if (location.pathname === `/quotations/${id}/edit`) {
+          updateTabTitle(location.pathname, `Edit Quotation ${quote.quoteNum}`);
+        }
 
         // Load client
         if (quote.clientId) {

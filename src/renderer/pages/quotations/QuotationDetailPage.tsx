@@ -85,12 +85,12 @@ export function QuotationDetailPage() {
   const [convertModalOpen, { open: openConvertModal, close: closeConvertModal }] = useDisclosure(false);
   const [isConverting, setIsConverting] = useState(false);
 
-  // Update tab title when quotation loads
+  // Update tab title when quotation loads (only when this tab is active)
   useEffect(() => {
-    if (quotation) {
+    if (quotation && location.pathname === `/quotations/${id}`) {
       updateTabTitle(location.pathname, `Quotation ${quotation.quoteNum}`);
     }
-  }, [quotation, location.pathname, updateTabTitle]);
+  }, [quotation, id, location.pathname, updateTabTitle]);
 
   // Load quotation data
   useEffect(() => {

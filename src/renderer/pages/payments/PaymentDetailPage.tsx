@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import {
   Stack,
@@ -85,6 +85,7 @@ const formatDateTime = (dateStr: string | null) => {
 export function PaymentDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { openTab, updateTabTitle } = useTabContext();
   const [payment, setPayment] = useState<Payment | null>(null);
@@ -135,12 +136,12 @@ export function PaymentDetailPage() {
     loadPayment();
   }, [loadPayment]);
 
-  // Update tab title
+  // Update tab title (only when this tab is active)
   useEffect(() => {
-    if (payment) {
-      updateTabTitle(`/payments/${id}`, `Payment #${payment.id}`);
+    if (payment && location.pathname === `/payments/${id}`) {
+      updateTabTitle(location.pathname, `Payment #${payment.id}`);
     }
-  }, [payment, id, updateTabTitle]);
+  }, [payment, id, location.pathname, updateTabTitle]);
 
   const handleVoidConfirm = useCallback(async () => {
     if (!payment || !user) return;
@@ -474,7 +475,7 @@ export function PaymentDetailPage() {
                 <Stack gap="xs">
                   <Group justify="space-between">
                     <Text size="sm" c="dimmed">Currency</Text>
-                    <Text size="sm" fw={500}>{payment.currency || 'USD'}</Text>
+                    <Text size="sm" fw={500}>{payment.currency || 'JMD'}</Text>
                   </Group>
                   <Group justify="space-between">
                     <Text size="sm" c="dimmed">Created</Text>
