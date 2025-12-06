@@ -28,7 +28,8 @@ import {
   IconReceipt,
   IconCash,
 } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab } from '../../components/clients';
 import { useTabContext } from '../../contexts/TabContext'
@@ -60,7 +61,7 @@ export function ClientDetailPage() {
   const navigate = useNavigate();
 
   const { updateTabTitle } = useTabContext()
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<Client | null>(null);

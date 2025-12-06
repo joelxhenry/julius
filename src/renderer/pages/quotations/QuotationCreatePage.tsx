@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import {
   Stack,
   Title,
@@ -46,7 +47,7 @@ interface LocationState {
 export function QuotationCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const { user } = useAuth();
   const { markTabDirty, updateTabTitle } = useTabContext();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();

@@ -11,6 +11,7 @@ export interface PaymentQueryParams {
   pageSize?: number;
   search?: string;
   documentType?: PaymentDocumentType;
+  clientId?: number;
 }
 
 export class PaymentService extends BaseService<
@@ -23,7 +24,7 @@ export class PaymentService extends BaseService<
   }
 
   async findPaginated(params: PaymentQueryParams = {}): Promise<PaginatedResult<schema.Payment>> {
-    const { page = 1, pageSize = 50, search, documentType } = params;
+    const { page = 1, pageSize = 50, search, documentType, clientId } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -43,6 +44,48 @@ export class PaymentService extends BaseService<
       conditions.push(eq(schema.payments.documentType, documentType));
     }
 
+    // If clientId is provided, we need to join with invoices to filter by client
+    if (clientId) {
+      // Build where conditions for join query
+      const joinConditions = [eq(schema.invoices.clientId, clientId)];
+      if (conditions.length > 0) {
+        joinConditions.push(and(...conditions)!);
+      }
+
+      const finalWhereCondition = joinConditions.length > 1 ? and(...joinConditions) : joinConditions[0];
+
+      // Count with join
+      const countResult = await this.db
+        .select({ count: count() })
+        .from(schema.payments)
+        .leftJoin(schema.invoices, eq(schema.payments.invoiceNumber, schema.invoices.invNumber))
+        .where(finalWhereCondition);
+
+      const total = Number(countResult[0]?.count ?? 0);
+
+      // Data with join - select all payment fields
+      const data = await this.db
+        .select()
+        .from(schema.payments)
+        .leftJoin(schema.invoices, eq(schema.payments.invoiceNumber, schema.invoices.invNumber))
+        .where(finalWhereCondition)
+        .orderBy(desc(schema.payments.paymentDate))
+        .limit(pageSize)
+        .offset(offset);
+
+      // Extract just the payment data from the join result
+      const paymentData = data.map((row) => row.payments);
+
+      return {
+        data: paymentData,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      };
+    }
+
+    // Regular query without clientId filter
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countResult = await this.db

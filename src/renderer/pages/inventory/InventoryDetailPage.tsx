@@ -32,7 +32,8 @@ import {
   IconAlertTriangle,
   IconCheck,
 } from '@tabler/icons-react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
@@ -124,7 +125,7 @@ interface PaginatedResult<T> {
 export function InventoryDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle } = useTabContext();
 
   const [loading, setLoading] = useState(true);

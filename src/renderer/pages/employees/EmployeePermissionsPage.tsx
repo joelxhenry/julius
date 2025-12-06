@@ -23,7 +23,8 @@ import {
   IconShield,
   IconShieldCheck,
 } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   PERMISSION_CATEGORIES,
@@ -44,7 +45,7 @@ interface Employee {
 
 export function EmployeePermissionsPage() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

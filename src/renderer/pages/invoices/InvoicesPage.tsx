@@ -13,7 +13,6 @@ import {
   Loader,
   Center,
   ActionIcon,
-  Kbd,
   Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
@@ -29,7 +28,6 @@ import {
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import { SafeEmployee } from '../../contexts/AuthContext';
-import { useSpotlight } from '../../contexts/SpotlightContext';
 import { DataTable, Column } from '../../components/common/DataTable';
 
 interface Invoice {
@@ -82,7 +80,6 @@ const formatDate = (dateStr: string) => {
 
 export function InvoicesPage() {
   const navigate = useNavigate();
-  const { open: openSpotlight } = useSpotlight();
   const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [draftInvoices, setDraftInvoices] = useState<Invoice[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
@@ -315,17 +312,9 @@ export function InvoicesPage() {
               Manage and search invoices
             </Text>
           </Stack>
-          <Group gap="sm">
-            <Button variant="light" leftSection={<IconSearch size={16} />} onClick={openSpotlight}>
-              Quick Search
-              <Kbd ml="xs" size="xs">
-                Ctrl+K
-              </Kbd>
-            </Button>
-            <Button leftSection={<IconPlus size={16} />} onClick={handleNewInvoice}>
-              New Invoice
-            </Button>
-          </Group>
+          <Button leftSection={<IconPlus size={16} />} onClick={handleNewInvoice}>
+            New Invoice
+          </Button>
         </Group>
 
         {/* Search */}

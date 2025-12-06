@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import {
   Stack,
   Title,
@@ -82,7 +83,7 @@ const formatDateTime = (dateStr: string | null) => {
 };
 
 export function PaymentDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { openTab, updateTabTitle } = useTabContext();
@@ -219,15 +220,19 @@ export function PaymentDetailPage() {
     if (payment.documentType === 'INVOICE' && payment.invoiceNumber) {
       // Get invoice by number to find the ID
       try {
+        console.log('Looking up invoice with number:', payment.invoiceNumber);
         const result = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, {
           invNumber: payment.invoiceNumber
         });
+        console.log('Invoice lookup result:', result);
+
         if (result.success && result.data) {
           openTab(`/invoices/${result.data.id}`);
         } else {
+          console.error('Invoice not found for number:', payment.invoiceNumber);
           notifications.show({
-            title: 'Error',
-            message: 'Invoice not found',
+            title: 'Invoice Not Found',
+            message: `Invoice ${payment.invoiceNumber} could not be found. It may have been deleted or archived.`,
             color: 'red',
           });
         }
@@ -242,15 +247,19 @@ export function PaymentDetailPage() {
     } else if (payment.documentType === 'CREDIT' && payment.creditNoteNumber) {
       // Get credit note by number to find the ID
       try {
+        console.log('Looking up credit note with number:', payment.creditNoteNumber);
         const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTE_BY_NUMBER, {
           crNumber: payment.creditNoteNumber
         });
+        console.log('Credit note lookup result:', result);
+
         if (result.success && result.data) {
           openTab(`/credit-notes/${result.data.id}`);
         } else {
+          console.error('Credit note not found for number:', payment.creditNoteNumber);
           notifications.show({
-            title: 'Error',
-            message: 'Credit note not found',
+            title: 'Credit Note Not Found',
+            message: `Credit note ${payment.creditNoteNumber} could not be found. It may have been deleted or archived.`,
             color: 'red',
           });
         }
@@ -262,6 +271,14 @@ export function PaymentDetailPage() {
           color: 'red',
         });
       }
+    } else {
+      // Handle case where document number is missing
+      console.warn('Cannot view document - missing document number:', payment);
+      notifications.show({
+        title: 'Cannot View Document',
+        message: 'This payment does not have an associated document number.',
+        color: 'orange',
+      });
     }
   }, [payment, openTab]);
 

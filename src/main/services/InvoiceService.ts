@@ -194,7 +194,16 @@ export class InvoiceService extends BaseService<
     const currentPaid = parseFloat(invoice.totalPaid || '0');
     const newTotalPaid = currentPaid + parseFloat(amount);
     const total = parseFloat(invoice.total || '0');
-    const newStatus = newTotalPaid >= total ? 'P' : 'A'; // P = Paid, A = Active
+
+    // Determine new status based on payment
+    let newStatus: string;
+    if (newTotalPaid >= total) {
+      newStatus = 'paid';
+    } else if (newTotalPaid > 0) {
+      newStatus = 'partially_paid';
+    } else {
+      newStatus = 'active';
+    }
 
     return this.update(id, {
       totalPaid: newTotalPaid.toFixed(2),

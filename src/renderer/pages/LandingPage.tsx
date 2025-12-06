@@ -51,9 +51,9 @@ const actionItems = [
     color: 'cyan',
   },
   {
-    id: 'process-payments',
-    title: 'Process Payments',
-    description: 'Record customer payments',
+    id: 'search-payments',
+    title: 'Search Payments',
+    description: 'Find existing payments',
     icon: <IconCash size={24} />,
     shortcut: 'Alt+P',
     path: '/payments',

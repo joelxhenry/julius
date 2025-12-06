@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip } from '@mantine/core';
-import { IconLogout, IconUser, IconSun, IconMoon } from '@tabler/icons-react';
+import { IconLogout, IconUser, IconSun, IconMoon, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSpotlight } from '../../contexts/SpotlightContext';
 import { PasswordVerificationModal } from '../auth/PasswordVerificationModal';
 
 export function Header() {
   const { user, logout, updateUser } = useAuth();
   const { colorScheme, toggleColorScheme } = useTheme();
+  const { open: openSpotlight } = useSpotlight();
   const navigate = useNavigate();
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
@@ -42,6 +44,18 @@ export function Header() {
       </Group>
 
       <Group gap="sm">
+        {/* Quick Search Button */}
+        <Tooltip label="Quick Search (Ctrl+K)" position="bottom">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={openSpotlight}
+            aria-label="Quick search"
+          >
+            <IconSearch size={20} stroke={1.5} />
+          </ActionIcon>
+        </Tooltip>
+
         {/* Theme Toggle Button */}
         <Tooltip label={`Switch to ${colorScheme === 'light' ? 'dark' : 'light'} mode`} position="bottom">
           <ActionIcon

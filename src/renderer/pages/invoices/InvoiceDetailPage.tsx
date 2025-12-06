@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
+import { useTabParams } from '../../hooks/useTabParams';
 import {
   Stack,
   Title,
@@ -118,7 +119,7 @@ interface InvoiceCache {
 export function InvoiceDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, replaceCurrentTab } = useTabContext();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);

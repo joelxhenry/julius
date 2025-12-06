@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
+import { useTabParams } from '../../hooks/useTabParams';
 import {
   Stack,
   Title,
@@ -70,7 +71,7 @@ interface LineItem {
 export function QuotationDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, replaceCurrentTab } = useTabContext();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);

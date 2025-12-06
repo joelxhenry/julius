@@ -29,7 +29,8 @@ import {
   IconChartBar,
   IconUser,
 } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface Employee {
@@ -68,7 +69,7 @@ interface PaginatedResult<T> {
 
 export function EmployeeDetailPage() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
   const [employee, setEmployee] = useState<Employee | null>(null);

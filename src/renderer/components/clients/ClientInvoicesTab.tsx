@@ -57,18 +57,24 @@ export function ClientInvoicesTab({ clientId }: ClientInvoicesTabProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const pageSize = 10;
 
   useEffect(() => {
     loadInvoices();
-  }, [clientId]);
+  }, [clientId, page]);
 
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_INVOICES_BY_CLIENT, { clientId });
+      const result = await window.electron.invoke(IpcChannel.GET_INVOICES_PAGINATED, {
+        clientId,
+        page,
+        pageSize,
+      });
       if (result.success && result.data) {
-        setInvoices(result.data);
+        setInvoices(result.data.data);
+        setTotalPages(result.data.totalPages);
       }
     } catch (error) {
       console.error('Failed to load invoices:', error);
@@ -140,19 +146,11 @@ export function ClientInvoicesTab({ clientId }: ClientInvoicesTabProps) {
     [navigate]
   );
 
-  const paginatedInvoices = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return invoices.slice(start, end);
-  }, [invoices, page, pageSize]);
-
-  const totalPages = Math.ceil(invoices.length / pageSize);
-
   return (
     <Paper p="md" radius="md" withBorder>
       <DataTable
         columns={columns}
-        data={paginatedInvoices}
+        data={invoices}
         loading={loading}
         keyField="id"
         emptyMessage="No invoices found for this client"

@@ -31,7 +31,8 @@ import {
   IconRefresh,
   IconMapPin,
 } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface ClientFormValues {
@@ -54,7 +55,7 @@ interface ClientFormValues {
 
 export function ClientEditorPage() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const isEditing = Boolean(id);
 
   const [loading, setLoading] = useState(true);

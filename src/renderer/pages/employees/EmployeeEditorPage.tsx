@@ -30,7 +30,8 @@ import {
   IconBriefcase,
   IconRefresh,
 } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface EmployeeFormValues {
@@ -51,7 +52,7 @@ interface EmployeeFormValues {
 
 export function EmployeeEditorPage() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const isEditing = Boolean(id);
 
   const [loading, setLoading] = useState(true);
