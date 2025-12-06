@@ -174,7 +174,7 @@ export function InvoicesPage() {
       closeAccessModal();
       // Navigate to invoice editor with salesperson info
       const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.code;
-      navigate('/invoices/new', {
+      navigate('/invoices/form', {
         state: {
           salespersonId: employee.id,
           salespersonName: employeeName,
@@ -195,7 +195,7 @@ export function InvoicesPage() {
   // Edit draft invoice
   const handleEditDraft = useCallback(
     (id: number) => {
-      navigate(`/invoices/${id}/edit`);
+      navigate(`/invoices/form/${id}`);
     },
     [navigate]
   );

@@ -62,12 +62,12 @@ function isExcludedRoute(path: string): boolean {
 
 // Helper function to generate initial tab title from path
 function generateTitleFromPath(path: string): string {
-  if (path.includes('/invoices/new')) return 'New Invoice';
-  if (path.includes('/invoices/') && path.includes('/edit')) {
-    const id = path.split('/')[2];
+  if (path === '/invoices/form') return 'New Invoice';
+  if (path.startsWith('/invoices/form/')) {
+    const id = path.split('/')[3];
     return `Edit Invoice #${id}`;
   }
-  if (path.includes('/invoices/')) {
+  if (path.startsWith('/invoices/')) {
     const id = path.split('/')[2];
     return `Invoice #${id}`;
   }

@@ -39,16 +39,16 @@ export const router = createHashRouter([
         element: <InvoicesPage />,
       },
       {
-        path: 'invoices/new',
+        path: 'invoices/form',
+        element: <InvoiceCreatePage />,
+      },
+      {
+        path: 'invoices/form/:id',
         element: <InvoiceCreatePage />,
       },
       {
         path: 'invoices/:id',
         element: <InvoiceDetailPage />,
-      },
-      {
-        path: 'invoices/:id/edit',
-        element: <InvoiceCreatePage />,
       },
       {
         path: 'quotations',

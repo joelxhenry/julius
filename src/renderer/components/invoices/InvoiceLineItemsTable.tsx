@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   Stack,
   Text,
@@ -128,9 +128,8 @@ export function InvoiceLineItemsTable({
                 const warning = getWarningForSku(item.sku);
                 const isSelected = selectedLineItemId === item.id;
                 return (
-                  <>
+                  <React.Fragment key={`${item.id}-${idx}`}>
                     <Table.Tr
-                      key={`${item.id}-${idx}`}
                       onClick={() => onSelectLineItem?.(item.id)}
                       style={{
                         backgroundColor: isSelected
@@ -277,7 +276,7 @@ export function InvoiceLineItemsTable({
                         </Table.Td>
                       </Table.Tr>
                     )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </Table.Tbody>

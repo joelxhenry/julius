@@ -22,6 +22,7 @@ import {
   IconCheck,
   IconAlertTriangle,
   IconKeyboard,
+  IconCash,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,11 +38,13 @@ import {
   BulkDiscountModal,
   TargetTotalModal,
   KeyboardShortcutsModal,
+  PaymentEntryModal,
   Client,
   InventoryItem,
   LineItem,
   CreditCheckResult,
   AdminOverrideResult,
+  PaymentEntry,
   formatCurrency,
 } from '../../components/invoices';
 import { useInventoryCheck } from '../../hooks/useInventoryCheck';
@@ -63,6 +66,11 @@ export function InvoiceCreatePage() {
   const locationState = location.state as LocationState | null;
 
   const isEditing = !!id;
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[InvoiceCreatePage] id:', id, 'isEditing:', isEditing, 'location:', location.pathname);
+  }, [id, isEditing, location.pathname]);
 
   // Form state
   const [invDate, setInvDate] = useState<Date>(new Date());
@@ -104,6 +112,11 @@ export function InvoiceCreatePage() {
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
   const [issueModalOpen, { open: openIssueModal, close: closeIssueModal }] = useDisclosure(false);
+
+  // Payment entry modal for atomic transaction flow
+  const [paymentEntryModalOpen, { open: openPaymentEntryModal, close: closePaymentEntryModal }] = useDisclosure(false);
+  const [isPaymentFlow, setIsPaymentFlow] = useState(false);
+  const [adminOverride, setAdminOverride] = useState<AdminOverrideResult | undefined>(undefined);
 
   // Variant selection
   const [variantModalOpen, { open: openVariantModal, close: closeVariantModal }] = useDisclosure(false);
@@ -175,7 +188,7 @@ export function InvoiceCreatePage() {
         setOriginalInvNumber(inv.invNumber);
 
         // Update tab title (only if this is the active tab)
-        if (location.pathname === `/invoices/${id}/edit`) {
+        if (location.pathname === `/invoices/form/${id}`) {
           updateTabTitle(location.pathname, `Edit Invoice ${inv.invNumber}`);
         }
 
@@ -551,6 +564,135 @@ export function InvoiceCreatePage() {
     openIssueModal();
   }, [creditCheck, openOverrideModal, openIssueModal]);
 
+  // Handle save & process payment - initiates the flow
+  const handleSaveAndProcessPayment = useCallback(async () => {
+    if (creditCheck?.requiresAdminOverride) {
+      setIsPaymentFlow(true);
+      openOverrideModal();
+      return;
+    }
+
+    setIsPaymentFlow(true);
+    openIssueModal();
+  }, [creditCheck, openOverrideModal, openIssueModal]);
+
+  // Show payment entry modal (after verification)
+  const handleShowPaymentEntry = useCallback(
+    async (override?: AdminOverrideResult) => {
+      if (lineItems.length === 0) {
+        notifications.show({
+          title: 'Error',
+          message: 'Please add at least one line item',
+          color: 'red',
+        });
+        return;
+      }
+
+      // Store admin override for later use
+      setAdminOverride(override);
+
+      // Show payment entry modal
+      openPaymentEntryModal();
+    },
+    [lineItems, openPaymentEntryModal]
+  );
+
+  // Handle create invoice with payment (atomic transaction)
+  const handleCreateInvoiceWithPayment = useCallback(
+    async (paymentEntries: PaymentEntry[]) => {
+      setIsSaving(true);
+      try {
+        const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE_WITH_PAYMENT, {
+          invoiceData: {
+            invDate: invDate.toISOString().split('T')[0],
+            salespersonId,
+            clientId,
+            clientName: client?.clientName || null,
+            clientAddress1: client?.address1 || null,
+            clientAddress2: client?.address2 || null,
+            clientPhone: client?.phone || null,
+            reference: reference || null,
+            subTotal: totals.subTotal.toFixed(2),
+            tax: totals.tax.toFixed(2),
+            total: totals.total.toFixed(2),
+            isTaxable,
+            pricing,
+            creditTerms: creditTerms || null,
+            issuedAt: new Date(),
+            issuedById: salespersonId,
+            ...(adminOverride && {
+              adminOverrideById: adminOverride.adminId,
+              adminOverrideNotes: adminOverride.notes,
+              adminOverrideAt: new Date(),
+            }),
+          },
+          lineItems: lineItems.map((item, i) => ({
+            lineNumber: i + 1,
+            sku: item.sku || null,
+            description: item.description,
+            quantity: item.quantity.toString(),
+            unitPrice: item.unitPrice.toFixed(2),
+            discount: item.discount.toFixed(2),
+            isTaxable: item.isTaxable,
+            amount: item.amount.toFixed(2),
+          })),
+          paymentEntries,
+          processedById: salespersonId!,
+          payerName: client?.clientName || 'Cash Customer',
+        });
+
+        if (result.success) {
+          const { invoice, warnings } = result.data;
+
+          notifications.show({
+            title: 'Success',
+            message: `Invoice ${invoice.invNumber} created and ${invoice.status === 'paid' ? 'paid' : 'partially paid'}`,
+            color: 'green',
+          });
+
+          if (warnings.length > 0) {
+            warnings.forEach((w: string) =>
+              notifications.show({ message: w, color: 'yellow' })
+            );
+          }
+
+          navigate(`/invoices/${invoice.id}`);
+        } else {
+          // Transaction rolled back - no cleanup needed
+          notifications.show({
+            title: 'Error',
+            message: result.error,
+            color: 'red',
+          });
+        }
+      } catch (error) {
+        notifications.show({
+          title: 'Error',
+          message: error instanceof Error ? error.message : 'Failed to create invoice',
+          color: 'red',
+        });
+      } finally {
+        setIsSaving(false);
+        closePaymentEntryModal();
+      }
+    },
+    [
+      invDate,
+      salespersonId,
+      clientId,
+      client,
+      reference,
+      totals,
+      isTaxable,
+      pricing,
+      creditTerms,
+      lineItems,
+      navigate,
+      closePaymentEntryModal,
+      adminOverride,
+    ]
+  );
+
   // Register keyboard shortcuts for line items
   useEffect(() => {
     const shortcuts = [
@@ -639,6 +781,15 @@ export function InvoiceCreatePage() {
         description: 'Issue invoice',
       },
       {
+        key: 'p',
+        ctrl: true,
+        shift: true,
+        callback: () => {
+          handleSaveAndProcessPayment();
+        },
+        description: 'Save and process payment',
+      },
+      {
         key: 'ArrowUp',
         callback: () => {
           selectPreviousLineItem();
@@ -659,7 +810,7 @@ export function InvoiceCreatePage() {
     return () => {
       unregisterShortcuts('invoice-line-items');
     };
-  }, [selectedLineItemId, lineItems, removeLineItem, openBulkDiscountModal, openTargetTotalModal, handleSaveDraft, handleIssueInvoice, selectPreviousLineItem, selectNextLineItem, registerShortcuts, unregisterShortcuts]);
+  }, [selectedLineItemId, lineItems, removeLineItem, openBulkDiscountModal, openTargetTotalModal, handleSaveDraft, handleIssueInvoice, handleSaveAndProcessPayment, selectPreviousLineItem, selectNextLineItem, registerShortcuts, unregisterShortcuts]);
 
   // Handle issue after verification
   const handleIssueVerified = useCallback(
@@ -810,6 +961,15 @@ export function InvoiceCreatePage() {
             >
               Save & Issue
             </Button>
+            <Button
+              color="teal"
+              leftSection={<IconCash size={16} />}
+              onClick={handleSaveAndProcessPayment}
+              loading={isSaving}
+              disabled={lineItems.length === 0}
+            >
+              Save & Process Payment
+            </Button>
           </Group>
         </Group>
 
@@ -905,10 +1065,18 @@ export function InvoiceCreatePage() {
       {creditCheck && (
         <AdminOverrideModal
           opened={overrideModalOpen}
-          onClose={closeOverrideModal}
+          onClose={() => {
+            closeOverrideModal();
+            setIsPaymentFlow(false);
+          }}
           onApproved={(result) => {
             closeOverrideModal();
-            handleIssueVerified(result);
+            if (isPaymentFlow) {
+              handleShowPaymentEntry(result);
+              setIsPaymentFlow(false);
+            } else {
+              handleIssueVerified(result);
+            }
           }}
           clientName={client?.clientName || 'Unknown Client'}
           creditIssues={creditCheck.reasons}
@@ -918,10 +1086,18 @@ export function InvoiceCreatePage() {
       {/* Issue Verification Modal */}
       <PinVerificationModal
         opened={issueModalOpen}
-        onClose={closeIssueModal}
+        onClose={() => {
+          closeIssueModal();
+          setIsPaymentFlow(false);
+        }}
         onVerified={() => {
           closeIssueModal();
-          handleIssueVerified();
+          if (isPaymentFlow) {
+            handleShowPaymentEntry();
+            setIsPaymentFlow(false);
+          } else {
+            handleIssueVerified();
+          }
         }}
         title="Issue Invoice"
         description="Verify your access code to issue this invoice."
@@ -993,6 +1169,15 @@ export function InvoiceCreatePage() {
           </Group>
         </Stack>
       </Modal>
+
+      {/* Payment Entry Modal */}
+      <PaymentEntryModal
+        opened={paymentEntryModalOpen}
+        onClose={closePaymentEntryModal}
+        onSubmit={handleCreateInvoiceWithPayment}
+        invoiceTotal={totals.total}
+        clientId={clientId}
+      />
     </>
   );
 }

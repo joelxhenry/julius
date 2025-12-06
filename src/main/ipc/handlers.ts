@@ -162,12 +162,13 @@ function registerDataHandlers() {
   const variantService = new VariantService(db);
   const inventoryTransactionService = new InventoryTransactionService(db);
   const inventoryAlternateService = new InventoryAlternateService(db);
-  const invoiceService = new InvoiceService(db);
   const quotationService = new QuotationService(db);
   const creditNoteService = new CreditNoteService(db);
   const documentLineItemService = new DocumentLineItemService(db);
   const billService = new BillService(db);
   const paymentService = new PaymentService(db);
+  // Initialize InvoiceService with dependencies for atomic transactions
+  const invoiceService = new InvoiceService(db, paymentService, creditNoteService, documentLineItemService);
   const paymentMethodService = new PaymentMethodService(db);
   const gctPaymentService = new GctPaymentService(db);
   const employeeAttendanceService = new EmployeeAttendanceService(db);
@@ -391,6 +392,19 @@ function registerDataHandlers() {
       }: { invNumber: string; lineItems: Array<{ sku: string | null; quantity: number }>; invDate: string }
     ) => invoiceController.createInventoryTransactions(invNumber, lineItems, invDate)
   );
+
+  // Create invoice with payment (atomic transaction)
+  ipcMain.handle(IpcChannel.CREATE_INVOICE_WITH_PAYMENT, async (_, params) => {
+    try {
+      const result = await invoiceService.createInvoiceWithPayment(params);
+      return { success: true, data: result };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create invoice with payment',
+      };
+    }
+  });
 
   // ===== SPOTLIGHT SEARCH HANDLERS =====
   ipcMain.handle(IpcChannel.SPOTLIGHT_SEARCH, async (_, params: { query: string; limit?: number; types?: ('invoice' | 'client' | 'inventory' | 'quotation')[] }) => {

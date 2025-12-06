@@ -22,7 +22,7 @@ import { getComponentForPath } from '../utils/componentMapper';
 // Global navigation shortcuts
 const navigationShortcuts = [
   { key: 'h', path: '/', description: 'Home' },
-  { key: 'i', path: '/invoices/new', description: 'Create Invoice' },
+  { key: 'i', path: '/invoices/form', description: 'Create Invoice' },
   { key: 'q', path: '/quotations/new', description: 'Create Quotation' },
   { key: 's', path: '/inventory', description: 'Search Inventory' },
   { key: 'f', path: '/invoices', description: 'Search Invoices' },

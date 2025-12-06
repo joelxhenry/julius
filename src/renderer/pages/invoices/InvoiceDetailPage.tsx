@@ -587,7 +587,7 @@ export function InvoiceDetailPage() {
               <Button
                 variant="light"
                 leftSection={<IconEdit size={16} />}
-                onClick={() => navigate(`/invoices/${invoice.id}/edit`)}
+                onClick={() => navigate(`/invoices/form/${invoice.id}`)}
               >
                 Edit
               </Button>

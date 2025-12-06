@@ -33,13 +33,61 @@ export interface IssueInvoiceParams {
   adminOverrideNotes?: string;
 }
 
+export interface InvoiceLineItemInput {
+  lineNumber: number;
+  sku: string | null;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  discount: string;
+  isTaxable: boolean;
+  amount: string;
+}
+
+export interface PaymentEntryInput {
+  type: 'payment' | 'credit_note';
+  paymentMethodCode?: string;
+  creditNoteId?: number;
+  amount: string;
+  notes?: string;
+}
+
+export interface CreateInvoiceWithPaymentParams {
+  invoiceData: schema.InsertInvoice;
+  lineItems: InvoiceLineItemInput[];
+  paymentEntries: PaymentEntryInput[];
+  processedById: number;
+  payerName: string;
+}
+
+export interface CreateInvoiceWithPaymentResult {
+  invoice: schema.Invoice;
+  lineItems: schema.DocumentLineItem[];
+  payments: schema.Payment[];
+  inventoryTransactions: schema.InventoryTransaction[];
+  creditNotesUpdated: schema.CreditNote[];
+  warnings: string[];
+}
+
 export class InvoiceService extends BaseService<
   typeof schema.invoices,
   schema.Invoice,
   schema.InsertInvoice
 > {
-  constructor(db: NodePgDatabase<typeof schema>) {
+  private paymentService: any;
+  private creditNoteService: any;
+  private documentLineItemService: any;
+
+  constructor(
+    db: NodePgDatabase<typeof schema>,
+    paymentService?: any,
+    creditNoteService?: any,
+    documentLineItemService?: any
+  ) {
     super(db, schema.invoices);
+    this.paymentService = paymentService;
+    this.creditNoteService = creditNoteService;
+    this.documentLineItemService = documentLineItemService;
   }
 
   async create(data: schema.InsertInvoice): Promise<schema.Invoice> {
@@ -359,6 +407,218 @@ export class InvoiceService extends BaseService<
     }
 
     return this.update(invoiceId, updateData);
+  }
+
+  async createInvoiceWithPayment(
+    params: CreateInvoiceWithPaymentParams
+  ): Promise<CreateInvoiceWithPaymentResult> {
+    const { invoiceData, lineItems, paymentEntries, processedById, payerName } = params;
+
+    // Validation before transaction
+    if (lineItems.length === 0) {
+      throw new Error('At least one line item required');
+    }
+    if (paymentEntries.length === 0) {
+      throw new Error('At least one payment entry required');
+    }
+
+    const totalPayment = paymentEntries.reduce((sum, e) => sum + parseFloat(e.amount || '0'), 0);
+    const invoiceTotal = parseFloat(invoiceData.total || '0');
+
+    if (totalPayment <= 0) {
+      throw new Error('Payment must be greater than 0');
+    }
+    if (totalPayment > invoiceTotal + 0.01) {
+      throw new Error(`Payment ($${totalPayment.toFixed(2)}) exceeds total ($${invoiceTotal.toFixed(2)})`);
+    }
+
+    // Validate credit notes (before transaction to fail fast)
+    if (this.creditNoteService) {
+      for (const entry of paymentEntries) {
+        if (entry.type === 'credit_note' && entry.creditNoteId) {
+          const cn = await this.creditNoteService.findById(entry.creditNoteId);
+          if (!cn) {
+            throw new Error(`Credit note ${entry.creditNoteId} not found`);
+          }
+          if (cn.clientId !== invoiceData.clientId) {
+            throw new Error('Credit note belongs to different client');
+          }
+          const available = parseFloat(cn.total) - parseFloat(cn.totalUsed);
+          if (parseFloat(entry.amount) > available + 0.01) {
+            throw new Error(`Credit note ${cn.crNumber} has insufficient balance`);
+          }
+        }
+      }
+    }
+
+    // Start atomic transaction
+    return await this.db.transaction(async (tx) => {
+      const warnings: string[] = [];
+
+      // 1. Generate invoice number
+      let invNumber = invoiceData.invNumber;
+      if (!invNumber) {
+        const result = await tx.execute(sql`SELECT nextval('seq_invoice_number') as next_num`);
+        invNumber = (result.rows[0] as any).next_num.toString();
+      }
+
+      // 2. Determine status based on payment amount
+      let status: InvoiceStatus;
+      if (totalPayment >= invoiceTotal - 0.01) {
+        status = 'paid';
+      } else if (totalPayment > 0) {
+        status = 'partially_paid';
+      } else {
+        status = 'active';
+      }
+
+      // 3. Create invoice
+      const [invoice] = await tx
+        .insert(schema.invoices)
+        .values({
+          ...invoiceData,
+          invNumber,
+          status,
+          totalPaid: totalPayment.toFixed(2),
+        })
+        .returning();
+
+      // 4. Create line items (bulk insert)
+      const lineItemsData = lineItems.map((item) => ({
+        documentType: 'INVOICE' as const,
+        documentNumber: invNumber!,
+        lineNumber: item.lineNumber,
+        sku: item.sku,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+        isTaxable: item.isTaxable,
+        amount: item.amount,
+      }));
+
+      const createdLineItems = await tx.insert(schema.documentLineItems).values(lineItemsData).returning();
+
+      // 5. Create inventory transactions and reduce stock
+      const inventoryTransactions: schema.InventoryTransaction[] = [];
+      for (const item of lineItems) {
+        if (!item.sku || parseFloat(item.quantity) <= 0) continue;
+
+        // Check if SKU exists
+        const [inventoryItem] = await tx
+          .select()
+          .from(schema.inventory)
+          .where(eq(schema.inventory.sku, item.sku))
+          .limit(1);
+
+        if (!inventoryItem) {
+          warnings.push(`SKU ${item.sku} not found - inventory not reduced`);
+          continue;
+        }
+
+        // Create transaction record
+        const [invTrans] = await tx
+          .insert(schema.inventoryTransactions)
+          .values({
+            sku: item.sku,
+            activity: 'SALE',
+            reference: invNumber!,
+            quantity: -parseFloat(item.quantity),
+            activityDate: invoiceData.invDate,
+          })
+          .returning();
+
+        inventoryTransactions.push(invTrans);
+
+        // Update quantity
+        await tx.execute(sql`
+          UPDATE inventory
+          SET quantity = quantity - ${parseFloat(item.quantity)},
+              updated_at = NOW()
+          WHERE sku = ${item.sku}
+        `);
+      }
+
+      // 6. Create payment records
+      const paymentDate = new Date().toISOString().split('T')[0];
+      const createdPayments: schema.Payment[] = [];
+      const updatedCreditNotes: schema.CreditNote[] = [];
+
+      for (const entry of paymentEntries) {
+        if (entry.type === 'payment') {
+          // Regular payment (cash/card)
+          const [payment] = await tx
+            .insert(schema.payments)
+            .values({
+              documentType: 'INVOICE',
+              documentNumber: invNumber!,
+              invoiceNumber: invNumber!,
+              amount: entry.amount,
+              payerName,
+              paymentDesc: entry.notes || entry.paymentMethodCode,
+              paymentDesc2: entry.paymentMethodCode,
+              paymentDate,
+              processedById,
+            })
+            .returning();
+
+          createdPayments.push(payment);
+        } else if (entry.type === 'credit_note' && entry.creditNoteId) {
+          // Credit note application
+          const [cn] = await tx
+            .select()
+            .from(schema.creditNotes)
+            .where(eq(schema.creditNotes.id, entry.creditNoteId))
+            .limit(1);
+
+          if (!cn) continue; // Already validated
+
+          // Create payment record
+          const [payment] = await tx
+            .insert(schema.payments)
+            .values({
+              documentType: 'CREDIT',
+              documentNumber: invNumber!,
+              invoiceNumber: invNumber!,
+              creditNoteNumber: cn.crNumber,
+              amount: entry.amount,
+              payerName,
+              paymentDesc: `Applied credit note ${cn.crNumber}`,
+              paymentDate,
+              processedById,
+            })
+            .returning();
+
+          createdPayments.push(payment);
+
+          // Update credit note usage
+          const currentUsed = parseFloat(cn.totalUsed || '0');
+          const newTotalUsed = currentUsed + parseFloat(entry.amount);
+          const total = parseFloat(cn.total || '0');
+          const newStatus = newTotalUsed >= total - 0.01 ? 'U' : 'A';
+
+          const [updatedCN] = await tx
+            .update(schema.creditNotes)
+            .set({
+              totalUsed: newTotalUsed.toFixed(2),
+              status: newStatus,
+            })
+            .where(eq(schema.creditNotes.id, entry.creditNoteId))
+            .returning();
+
+          updatedCreditNotes.push(updatedCN);
+        }
+      }
+
+      return {
+        invoice,
+        lineItems: createdLineItems,
+        payments: createdPayments,
+        inventoryTransactions,
+        creditNotesUpdated: updatedCreditNotes,
+        warnings,
+      };
+    });
   }
 
   async searchInvoices(query: string, limit: number = 20): Promise<schema.Invoice[]> {

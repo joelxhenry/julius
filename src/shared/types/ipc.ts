@@ -125,6 +125,7 @@ export enum IpcChannel {
   SEARCH_INVOICES = 'db:search-invoices',
   CHECK_INVOICE_INVENTORY = 'db:check-invoice-inventory',
   CREATE_INVOICE_TRANSACTIONS = 'db:create-invoice-transactions',
+  CREATE_INVOICE_WITH_PAYMENT = 'db:create-invoice-with-payment',
 
   // Spotlight search
   SPOTLIGHT_SEARCH = 'db:spotlight-search',

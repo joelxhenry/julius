@@ -20,7 +20,7 @@ const actionItems = [
     description: 'Create a new sales invoice',
     icon: <IconFileInvoice size={24} />,
     shortcut: 'Alt+I',
-    path: '/invoices/new',
+    path: '/invoices/form',
     color: 'blue',
   },
   {

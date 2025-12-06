@@ -16,7 +16,8 @@ export interface RoutePermission {
 // Just need a valid PIN/session
 export const authenticatedRoutes: RoutePermission[] = [
   { path: '/invoices', description: 'Search Invoices' },
-  { path: '/invoices/new', description: 'Create Invoice' },
+  { path: '/invoices/form', description: 'Create Invoice' },
+  { path: '/invoices/form/:id', description: 'Edit Invoice' },
   { path: '/invoices/:id', description: 'View Invoice' },
   { path: '/quotations', description: 'Search Quotations' },
   { path: '/quotations/new', description: 'Create Quotation' },
