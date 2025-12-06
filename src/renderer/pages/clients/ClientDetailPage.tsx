@@ -30,6 +30,8 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab } from '../../components/clients';
+import { useTabContext } from '../../contexts/TabContext'
 
 interface Client {
   id: number;
@@ -56,6 +58,8 @@ interface Client {
 
 export function ClientDetailPage() {
   const navigate = useNavigate();
+
+  const { updateTabTitle } = useTabContext()
   const { id } = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -70,6 +74,15 @@ export function ClientDetailPage() {
       loadClient(clientId);
     }
   }, [clientId]);
+
+
+  useEffect(() => {
+    if (client) {
+      updateTabTitle(location.pathname, `Client: ${client.clientName}`);
+    } else {
+      updateTabTitle(location.pathname, 'Client Detail');
+    }
+  }, [client, updateTabTitle]);
 
   const loadClient = async (cId: number) => {
     setLoading(true);
@@ -131,13 +144,6 @@ export function ClientDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="center">
         <Group>
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/clients')}
-          >
-            Back
-          </Button>
           <Stack gap={0}>
             <Title order={2}>{client.clientName}</Title>
             {client.clNumber && (
@@ -407,23 +413,13 @@ export function ClientDetailPage() {
           </SimpleGrid>
         </Tabs.Panel>
 
-        {/* Other Tabs - Placeholder */}
+        {/* Other Tabs */}
         <Tabs.Panel value="invoices" pt="md">
-          <Card withBorder>
-            <Stack align="center" gap="md" py="xl">
-              <IconFileInvoice size={48} stroke={1} color="gray" />
-              <Text c="dimmed">Invoices list will be displayed here</Text>
-            </Stack>
-          </Card>
+          <ClientInvoicesTab clientId={client.id} />
         </Tabs.Panel>
 
         <Tabs.Panel value="quotations" pt="md">
-          <Card withBorder>
-            <Stack align="center" gap="md" py="xl">
-              <IconFileDescription size={48} stroke={1} color="gray" />
-              <Text c="dimmed">Quotations list will be displayed here</Text>
-            </Stack>
-          </Card>
+          <ClientQuotationsTab clientId={client.id} />
         </Tabs.Panel>
 
         <Tabs.Panel value="creditNotes" pt="md">
@@ -436,12 +432,7 @@ export function ClientDetailPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="payments" pt="md">
-          <Card withBorder>
-            <Stack align="center" gap="md" py="xl">
-              <IconCash size={48} stroke={1} color="gray" />
-              <Text c="dimmed">Payments list will be displayed here</Text>
-            </Stack>
-          </Card>
+          <ClientPaymentsTab clientId={client.id} />
         </Tabs.Panel>
       </Tabs>
     </Stack>

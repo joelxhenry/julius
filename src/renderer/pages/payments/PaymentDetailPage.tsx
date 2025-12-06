@@ -95,23 +95,31 @@ export function PaymentDetailPage() {
   const [isVoiding, setIsVoiding] = useState(false);
 
   const loadPayment = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      console.error('PaymentDetailPage: No ID provided');
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     try {
+      console.log('PaymentDetailPage: Loading payment with ID:', id);
       const result = await window.electron.invoke(IpcChannel.GET_PAYMENT, { id: parseInt(id, 10) });
+      console.log('PaymentDetailPage: Result:', result);
+
       if (result.success && result.data) {
         setPayment(result.data);
       } else {
+        console.error('PaymentDetailPage: Payment not found or error:', result.error);
         notifications.show({
           title: 'Error',
-          message: 'Payment not found',
+          message: result.error || 'Payment not found',
           color: 'red',
         });
-        navigate('/payments');
+        // Don't navigate away immediately, let the user see the error state
       }
     } catch (error) {
-      console.error('Failed to load payment:', error);
+      console.error('PaymentDetailPage: Failed to load payment:', error);
       notifications.show({
         title: 'Error',
         message: 'Failed to load payment',
@@ -120,7 +128,7 @@ export function PaymentDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [id, navigate]);
+  }, [id]);
 
   useEffect(() => {
     loadPayment();
@@ -205,14 +213,55 @@ export function PaymentDetailPage() {
     return colors[type] || 'gray';
   };
 
-  const handleViewDocument = useCallback(() => {
+  const handleViewDocument = useCallback(async () => {
     if (!payment) return;
 
     if (payment.documentType === 'INVOICE' && payment.invoiceNumber) {
-      // Navigate to invoice search
-      openTab(`/invoices?search=${payment.invoiceNumber}`);
+      // Get invoice by number to find the ID
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, {
+          invNumber: payment.invoiceNumber
+        });
+        if (result.success && result.data) {
+          openTab(`/invoices/${result.data.id}`);
+        } else {
+          notifications.show({
+            title: 'Error',
+            message: 'Invoice not found',
+            color: 'red',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to find invoice:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to load invoice',
+          color: 'red',
+        });
+      }
     } else if (payment.documentType === 'CREDIT' && payment.creditNoteNumber) {
-      openTab(`/credit-notes?search=${payment.creditNoteNumber}`);
+      // Get credit note by number to find the ID
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTE_BY_NUMBER, {
+          crNumber: payment.creditNoteNumber
+        });
+        if (result.success && result.data) {
+          openTab(`/credit-notes/${result.data.id}`);
+        } else {
+          notifications.show({
+            title: 'Error',
+            message: 'Credit note not found',
+            color: 'red',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to find credit note:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to load credit note',
+          color: 'red',
+        });
+      }
     }
   }, [payment, openTab]);
 
@@ -225,7 +274,18 @@ export function PaymentDetailPage() {
   }
 
   if (!payment) {
-    return null;
+    return (
+      <Stack p="xl" gap="lg" align="center" justify="center" h="60vh">
+        <IconX size={48} color="var(--mantine-color-red-6)" />
+        <Stack gap="xs" align="center">
+          <Title order={3}>Payment Not Found</Title>
+          <Text c="dimmed">The payment you're looking for doesn't exist or has been deleted.</Text>
+        </Stack>
+        <Button leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/payments')}>
+          Back to Payments
+        </Button>
+      </Stack>
+    );
   }
 
   const amount = parseFloat(payment.amount);
@@ -237,9 +297,6 @@ export function PaymentDetailPage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="md">
-            <ActionIcon variant="subtle" size="lg" onClick={() => navigate('/payments')}>
-              <IconArrowLeft size={20} />
-            </ActionIcon>
             <Stack gap={4}>
               <Group gap="sm">
                 <Title order={2}>Payment #{payment.id}</Title>

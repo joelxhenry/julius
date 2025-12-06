@@ -375,13 +375,6 @@ export function InventoryEditorPage() {
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="center">
         <Group>
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate(isEditing && id ? `/inventory/${id}` : '/inventory')}
-          >
-            Back
-          </Button>
           <Title order={2}>{isEditing ? 'Edit Inventory Item' : 'Add Inventory Item'}</Title>
         </Group>
       </Group>
@@ -697,21 +690,21 @@ export function InventoryEditorPage() {
           variant={
             editingVariant
               ? {
-                  id: 0,
-                  parentSku: form.values.sku,
-                  variantSku: editingVariant.variantSku,
-                  variantName: editingVariant.variantName,
-                  variantType: editingVariant.variantType,
-                  attributes: {},
-                  description: editingVariant.description,
-                  quantity: editingVariant.quantity,
-                  cost: editingVariant.cost,
-                  costCurrency: editingVariant.costCurrency,
-                  price: editingVariant.price,
-                  priceCurrency: editingVariant.priceCurrency,
-                  wholesalePrice: editingVariant.wholesalePrice,
-                  isActive: editingVariant.isActive,
-                }
+                id: 0,
+                parentSku: form.values.sku,
+                variantSku: editingVariant.variantSku,
+                variantName: editingVariant.variantName,
+                variantType: editingVariant.variantType,
+                attributes: {},
+                description: editingVariant.description,
+                quantity: editingVariant.quantity,
+                cost: editingVariant.cost,
+                costCurrency: editingVariant.costCurrency,
+                price: editingVariant.price,
+                priceCurrency: editingVariant.priceCurrency,
+                wholesalePrice: editingVariant.wholesalePrice,
+                isActive: editingVariant.isActive,
+              }
               : null
           }
           onSubmit={handleVariantSubmit}

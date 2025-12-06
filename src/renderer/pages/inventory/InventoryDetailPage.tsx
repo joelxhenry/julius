@@ -591,13 +591,6 @@ export function InventoryDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="flex-start">
         <Group>
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/inventory')}
-          >
-            Back
-          </Button>
           <Stack gap={4}>
             <Group gap="sm">
               <Title order={2}>{item.sku}</Title>

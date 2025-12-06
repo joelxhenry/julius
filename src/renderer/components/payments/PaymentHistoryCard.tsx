@@ -5,6 +5,7 @@ import { notifications } from '@mantine/notifications';
 import { IconCash, IconReceipt, IconDotsVertical, IconX } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTabContext } from '../../contexts/TabContext';
 import { DataTable, Column } from '../common/DataTable';
 
 interface Payment {
@@ -48,6 +49,7 @@ const formatDate = (dateStr: string | null) => {
 
 export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onPaymentVoided }: PaymentHistoryCardProps) {
   const { user } = useAuth();
+  const { openTab } = useTabContext();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [voidModalOpen, { open: openVoidModal, close: closeVoidModal }] = useDisclosure(false);
@@ -257,6 +259,9 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
               minWidth={400}
               skeletonRows={3}
               stickyActionsColumn
+              onRowClick={(payment) => {
+                openTab(`/payments/${payment.id}`);
+              }}
             />
 
             {payments.length > 0 && (

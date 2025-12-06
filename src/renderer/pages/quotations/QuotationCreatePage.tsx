@@ -610,9 +610,6 @@ export function QuotationCreatePage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="md">
-            <ActionIcon variant="subtle" size="lg" onClick={() => navigate('/quotations')}>
-              <IconArrowLeft size={20} />
-            </ActionIcon>
             <Stack gap={4}>
               <Title order={2}>{isEditing ? 'Edit Quotation' : 'New Quotation'}</Title>
               {salespersonName && (

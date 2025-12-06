@@ -22,7 +22,7 @@ interface TabContextValue {
   maxTabs: number;
 
   // Navigation
-  openTab: (path: string, component: React.ReactNode) => void;
+  openTab: (path: string, component?: React.ReactNode) => void;
   closeTab: (tabId: string) => Promise<boolean>;
   switchToTab: (tabId: string) => void;
   replaceCurrentTab: (path: string) => void;
@@ -163,7 +163,7 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
 
   // Open or switch to tab (SYNCHRONOUS, NO NAVIGATION)
   const openTab = useCallback(
-    (path: string, component: React.ReactNode) => {
+    (path: string, component?: React.ReactNode) => {
       // Check if route should be tabbed
       if (!isTabbed(path)) {
         console.warn('Attempted to open excluded route in tab:', path);
@@ -196,12 +196,15 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Use componentMapper if no component provided
+      const tabComponent = component || getComponentForPath(path);
+
       // Create new tab
       const newTab: Tab = {
         id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         path,
         title: generateTitleFromPath(path),
-        component,
+        component: tabComponent,
         hasUnsavedChanges: false,
         createdAt: Date.now(),
         lastAccessedAt: Date.now(),
@@ -238,8 +241,10 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
               // Handle active tab change
               if (activeTabId === tabId) {
                 if (newTabs.length === 0) {
-                  // No tabs left
+                  // No tabs left - navigate to dashboard
                   setActiveTabId(null);
+                  skipNextLocationChange.current = true;
+                  navigate('/', { replace: true });
                 } else {
                   // Switch to adjacent tab
                   const currentIndex = tabs.findIndex((t) => t.id === tabId);
@@ -267,7 +272,10 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
       // Handle active tab change
       if (activeTabId === tabId) {
         if (newTabs.length === 0) {
+          // No tabs left - navigate to dashboard
           setActiveTabId(null);
+          skipNextLocationChange.current = true;
+          navigate('/', { replace: true });
         } else {
           const currentIndex = tabs.findIndex((t) => t.id === tabId);
           const nextIndex = Math.max(0, currentIndex - 1);

@@ -98,7 +98,7 @@ export function Spotlight() {
       <Paper>
         <TextInput
           placeholder="Search invoices, clients, inventory..."
-          leftSection={isLoading ? <Loader size={16} /> : <IconSearch size={16} />}
+           leftSection={isLoading ? <Loader size={16} /> : <IconSearch size={16} />}
           rightSection={
             <Group gap={4}>
               <Kbd size="xs">Esc</Kbd>
@@ -107,12 +107,10 @@ export function Spotlight() {
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
           size="lg"
-          variant="unstyled"
           autoFocus
           styles={{
             input: {
-              border: 'none',
-              padding: 'var(--mantine-spacing-md)',
+              border: 'none'
             },
             section: {
               display: 'flex',

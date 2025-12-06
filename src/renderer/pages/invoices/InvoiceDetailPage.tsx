@@ -543,9 +543,6 @@ export function InvoiceDetailPage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="md">
-            <ActionIcon variant="subtle" size="lg" onClick={() => navigate('/invoices')}>
-              <IconArrowLeft size={20} />
-            </ActionIcon>
             <Stack gap={4}>
               <Group gap="sm">
                 <Title order={2}>Invoice {invoice.invNumber}</Title>
@@ -814,11 +811,6 @@ export function InvoiceDetailPage() {
                 {['active', 'partially_paid'].includes(invoice.status) && (
                   <Button fullWidth variant="light" leftSection={<IconCash size={16} />} onClick={handleRecordPayment}>
                     Record Payment
-                  </Button>
-                )}
-                {['active', 'partially_paid', 'paid'].includes(invoice.status) && (
-                  <Button fullWidth variant="light" color="orange" leftSection={<IconReceipt size={16} />} onClick={handleCreateCreditNote}>
-                    Create Credit Note
                   </Button>
                 )}
                 {invoice.clientId && (
