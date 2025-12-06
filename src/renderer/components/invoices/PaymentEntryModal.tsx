@@ -19,9 +19,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 
 export interface PaymentEntry {
-  type: 'payment' | 'credit_note';
-  paymentMethodCode?: string;
-  creditNoteId?: number;
+  paymentMethodCode: string;
   amount: string;
   notes?: string;
 }
@@ -31,14 +29,6 @@ interface PaymentMethod {
   code: string;
   name: string;
   active: boolean;
-}
-
-interface CreditNote {
-  id: number;
-  crNumber: string;
-  total: string;
-  totalUsed: string;
-  crDate: string;
 }
 
 interface PaymentEntryModalProps {
@@ -58,12 +48,10 @@ export function PaymentEntryModal({
 }: PaymentEntryModalProps) {
   const { user } = useAuth();
   const [paymentEntries, setPaymentEntries] = useState<PaymentEntry[]>([
-    { type: 'payment', paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) },
+    { paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) },
   ]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [availableCreditNotes, setAvailableCreditNotes] = useState<CreditNote[]>([]);
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
-  const [isLoadingCreditNotes, setIsLoadingCreditNotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,34 +79,6 @@ export function PaymentEntryModal({
     }
   }, [opened]);
 
-  // Load available credit notes for client
-  useEffect(() => {
-    const loadCreditNotes = async () => {
-      if (!clientId) return;
-
-      setIsLoadingCreditNotes(true);
-      try {
-        const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTES_PAGINATED, {
-          page: 1,
-          pageSize: 100,
-          clientId,
-          status: 'A', // Only active credit notes
-        });
-        if (result.success && result.data) {
-          setAvailableCreditNotes(result.data.data);
-        }
-      } catch (err) {
-        console.error('Failed to load credit notes:', err);
-      } finally {
-        setIsLoadingCreditNotes(false);
-      }
-    };
-
-    if (opened && clientId) {
-      loadCreditNotes();
-    }
-  }, [opened, clientId]);
-
   // Auto-focus amount input when modal opens
   useEffect(() => {
     if (opened && amountInputRef.current) {
@@ -132,7 +92,7 @@ export function PaymentEntryModal({
   // Reset form when modal closes
   useEffect(() => {
     if (!opened) {
-      setPaymentEntries([{ type: 'payment', paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) }]);
+      setPaymentEntries([{ paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) }]);
       setError(null);
     }
   }, [opened, invoiceTotal]);
@@ -141,7 +101,7 @@ export function PaymentEntryModal({
     const remainingBalance = invoiceTotal - totalPayment;
     setPaymentEntries((prev) => [
       ...prev,
-      { type: 'payment', paymentMethodCode: 'CASH', amount: Math.max(0, remainingBalance).toFixed(2) },
+      { paymentMethodCode: 'CASH', amount: Math.max(0, remainingBalance).toFixed(2) },
     ]);
   }, [invoiceTotal, totalPayment]);
 
@@ -186,13 +146,8 @@ export function PaymentEntryModal({
         return;
       }
 
-      if (entry.type === 'payment' && !entry.paymentMethodCode) {
+      if (!entry.paymentMethodCode) {
         setError('Please select a payment method for all entries');
-        return;
-      }
-
-      if (entry.type === 'credit_note' && !entry.creditNoteId) {
-        setError('Please select a credit note');
         return;
       }
     }
@@ -204,14 +159,6 @@ export function PaymentEntryModal({
     value: pm.code,
     label: pm.name,
   }));
-
-  const creditNoteOptions = availableCreditNotes.map((cn) => {
-    const available = parseFloat(cn.total) - parseFloat(cn.totalUsed);
-    return {
-      value: cn.id.toString(),
-      label: `${cn.crNumber} - Available: $${available.toFixed(2)}`,
-    };
-  });
 
   const balanceRemaining = invoiceTotal - totalPayment;
   const isPaid = totalPayment >= invoiceTotal - 0.01;
@@ -266,19 +213,8 @@ export function PaymentEntryModal({
           <Text fw={500}>Payment Entries</Text>
 
           {paymentEntries.map((entry, index) => (
-            <Group key={index} align="flex-start" gap="sm">
-              <Select
-                label="Type"
-                value={entry.type}
-                onChange={(value) => handleUpdateEntry(index, 'type', value)}
-                data={[
-                  { value: 'payment', label: 'Payment' },
-                  ...(clientId ? [{ value: 'credit_note', label: 'Credit Note' }] : []),
-                ]}
-                style={{ width: 150 }}
-              />
-
-              {entry.type === 'payment' && (
+            <Stack key={index} gap="xs">
+              <Group align="flex-start" gap="sm">
                 <Select
                   label="Payment Method"
                   value={entry.paymentMethodCode || null}
@@ -286,45 +222,43 @@ export function PaymentEntryModal({
                   data={paymentMethodOptions}
                   disabled={isLoadingMethods}
                   style={{ flex: 1 }}
+                  required
                 />
-              )}
 
-              {entry.type === 'credit_note' && (
-                <Select
-                  label="Credit Note"
-                  value={entry.creditNoteId?.toString() || null}
-                  onChange={(value) => handleUpdateEntry(index, 'creditNoteId', value ? parseInt(value) : undefined)}
-                  data={creditNoteOptions}
-                  disabled={isLoadingCreditNotes}
-                  style={{ flex: 1 }}
-                  searchable
+                <NumberInput
+                  label="Amount"
+                  value={entry.amount}
+                  onChange={(value) => handleUpdateEntry(index, 'amount', typeof value === 'number' ? value.toFixed(2) : value)}
+                  min={0}
+                  decimalScale={2}
+                  fixedDecimalScale
+                  prefix="$"
+                  ref={index === 0 ? amountInputRef : undefined}
+                  style={{ width: 150 }}
+                  required
                 />
-              )}
 
-              <NumberInput
-                label="Amount"
-                value={entry.amount}
-                onChange={(value) => handleUpdateEntry(index, 'amount', typeof value === 'number' ? value.toFixed(2) : value)}
-                min={0}
-                decimalScale={2}
-                fixedDecimalScale
-                prefix="$"
-                ref={index === 0 ? amountInputRef : undefined}
-                style={{ width: 150 }}
+                {paymentEntries.length > 1 && (
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    size="xs"
+                    onClick={() => handleRemovePaymentEntry(index)}
+                    style={{ marginTop: 24 }}
+                  >
+                    <IconTrash size={16} />
+                  </Button>
+                )}
+              </Group>
+
+              <Textarea
+                label="Notes (optional)"
+                placeholder="Add payment notes..."
+                value={entry.notes || ''}
+                onChange={(event) => handleUpdateEntry(index, 'notes', event.currentTarget.value)}
+                rows={2}
               />
-
-              {paymentEntries.length > 1 && (
-                <Button
-                  variant="subtle"
-                  color="red"
-                  size="xs"
-                  onClick={() => handleRemovePaymentEntry(index)}
-                  style={{ marginTop: 24 }}
-                >
-                  <IconTrash size={16} />
-                </Button>
-              )}
-            </Group>
+            </Stack>
           ))}
 
           <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddPaymentEntry} fullWidth>

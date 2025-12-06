@@ -45,9 +45,7 @@ export interface InvoiceLineItemInput {
 }
 
 export interface PaymentEntryInput {
-  type: 'payment' | 'credit_note';
-  paymentMethodCode?: string;
-  creditNoteId?: number;
+  paymentMethodCode: string;
   amount: string;
   notes?: string;
 }
@@ -65,7 +63,6 @@ export interface CreateInvoiceWithPaymentResult {
   lineItems: schema.DocumentLineItem[];
   payments: schema.Payment[];
   inventoryTransactions: schema.InventoryTransaction[];
-  creditNotesUpdated: schema.CreditNote[];
   warnings: string[];
 }
 
@@ -432,22 +429,10 @@ export class InvoiceService extends BaseService<
       throw new Error(`Payment ($${totalPayment.toFixed(2)}) exceeds total ($${invoiceTotal.toFixed(2)})`);
     }
 
-    // Validate credit notes (before transaction to fail fast)
-    if (this.creditNoteService) {
-      for (const entry of paymentEntries) {
-        if (entry.type === 'credit_note' && entry.creditNoteId) {
-          const cn = await this.creditNoteService.findById(entry.creditNoteId);
-          if (!cn) {
-            throw new Error(`Credit note ${entry.creditNoteId} not found`);
-          }
-          if (cn.clientId !== invoiceData.clientId) {
-            throw new Error('Credit note belongs to different client');
-          }
-          const available = parseFloat(cn.total) - parseFloat(cn.totalUsed);
-          if (parseFloat(entry.amount) > available + 0.01) {
-            throw new Error(`Credit note ${cn.crNumber} has insufficient balance`);
-          }
-        }
+    // Validate payment methods
+    for (const entry of paymentEntries) {
+      if (!entry.paymentMethodCode) {
+        throw new Error('Payment method is required for all entries');
       }
     }
 
@@ -542,72 +527,25 @@ export class InvoiceService extends BaseService<
       // 6. Create payment records
       const paymentDate = new Date().toISOString().split('T')[0];
       const createdPayments: schema.Payment[] = [];
-      const updatedCreditNotes: schema.CreditNote[] = [];
 
       for (const entry of paymentEntries) {
-        if (entry.type === 'payment') {
-          // Regular payment (cash/card)
-          const [payment] = await tx
-            .insert(schema.payments)
-            .values({
-              documentType: 'INVOICE',
-              documentNumber: invNumber!,
-              invoiceNumber: invNumber!,
-              amount: entry.amount,
-              payerName,
-              paymentDesc: entry.notes || entry.paymentMethodCode,
-              paymentDesc2: entry.paymentMethodCode,
-              paymentDate,
-              processedById,
-            })
-            .returning();
+        // Create payment record with payment method in paymentDesc and notes in paymentDesc2
+        const [payment] = await tx
+          .insert(schema.payments)
+          .values({
+            documentType: 'INVOICE',
+            documentNumber: invNumber!,
+            invoiceNumber: invNumber!,
+            amount: entry.amount,
+            payerName,
+            paymentDesc: entry.paymentMethodCode,
+            paymentDesc2: entry.notes || null,
+            paymentDate,
+            processedById,
+          })
+          .returning();
 
-          createdPayments.push(payment);
-        } else if (entry.type === 'credit_note' && entry.creditNoteId) {
-          // Credit note application
-          const [cn] = await tx
-            .select()
-            .from(schema.creditNotes)
-            .where(eq(schema.creditNotes.id, entry.creditNoteId))
-            .limit(1);
-
-          if (!cn) continue; // Already validated
-
-          // Create payment record
-          const [payment] = await tx
-            .insert(schema.payments)
-            .values({
-              documentType: 'CREDIT',
-              documentNumber: invNumber!,
-              invoiceNumber: invNumber!,
-              creditNoteNumber: cn.crNumber,
-              amount: entry.amount,
-              payerName,
-              paymentDesc: `Applied credit note ${cn.crNumber}`,
-              paymentDate,
-              processedById,
-            })
-            .returning();
-
-          createdPayments.push(payment);
-
-          // Update credit note usage
-          const currentUsed = parseFloat(cn.totalUsed || '0');
-          const newTotalUsed = currentUsed + parseFloat(entry.amount);
-          const total = parseFloat(cn.total || '0');
-          const newStatus = newTotalUsed >= total - 0.01 ? 'U' : 'A';
-
-          const [updatedCN] = await tx
-            .update(schema.creditNotes)
-            .set({
-              totalUsed: newTotalUsed.toFixed(2),
-              status: newStatus,
-            })
-            .where(eq(schema.creditNotes.id, entry.creditNoteId))
-            .returning();
-
-          updatedCreditNotes.push(updatedCN);
-        }
+        createdPayments.push(payment);
       }
 
       return {
@@ -615,7 +553,6 @@ export class InvoiceService extends BaseService<
         lineItems: createdLineItems,
         payments: createdPayments,
         inventoryTransactions,
-        creditNotesUpdated: updatedCreditNotes,
         warnings,
       };
     });
