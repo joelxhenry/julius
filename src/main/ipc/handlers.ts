@@ -30,6 +30,7 @@ import {
   SpotlightService,
   SystemSettingsService,
 } from '../services';
+import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams } from '../services/PaymentTransactionService';
 
 // Import controllers
 import {
@@ -173,6 +174,7 @@ function registerDataHandlers() {
   const creditCheckService = new CreditCheckService(db);
   const spotlightService = new SpotlightService(db);
   const systemSettingsService = new SystemSettingsService(db);
+  const paymentTransactionService = new PaymentTransactionService(db, paymentService, invoiceService, creditNoteService);
 
   // Initialize controllers
   const branchController = new BranchController(branchService);
@@ -544,6 +546,34 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.CREATE_BILL_PAYMENT, (_, { billNumber, amount, payerName, paymentDesc }: any) => paymentController.createBillPayment(billNumber, amount, payerName, paymentDesc));
   ipcMain.handle(IpcChannel.UPDATE_PAYMENT, (_, { id, data }: any) => paymentController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_PAYMENT, (_, { id }: { id: number }) => paymentController.delete(id));
+
+  // Payment transaction handlers (split payments, voiding)
+  ipcMain.handle(IpcChannel.PROCESS_INVOICE_PAYMENT, async (_, params: ProcessInvoicePaymentParams) => {
+    try {
+      const result = await paymentTransactionService.processInvoicePayment(params);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Payment processing failed' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.VOID_PAYMENT, async (_, params: VoidPaymentParams) => {
+    try {
+      const result = await paymentTransactionService.voidPayment(params);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Payment voiding failed' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_CLIENT_AVAILABLE_CREDIT_NOTES, async (_, { clientId }: { clientId: number }) => {
+    try {
+      const creditNotes = await paymentTransactionService.getAvailableCreditNotes(clientId);
+      return { success: true, data: creditNotes };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get available credit notes' };
+    }
+  });
 
   // ===== PAYMENT METHOD HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PAYMENT_METHODS, () => paymentMethodController.getAll());

@@ -1,7 +1,7 @@
 import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
 import { QuotationsPage, QuotationCreatePage, QuotationDetailPage } from '../pages/quotations';
 import { InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
-import { PaymentsPage } from '../pages/payments';
+import { PaymentsPage, PaymentDetailPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import {
   EmployeesPage,
@@ -51,6 +51,9 @@ export function getComponentForPath(path: string): React.ReactNode {
 
   // Payments
   if (cleanPath === 'payments') return <PaymentsPage />;
+  if (cleanPath.match(/^payments\/\d+$/)) {
+    return <PaymentDetailPage />;
+  }
 
   // Attendance
   if (cleanPath === 'attendance') return <AttendancePage />;

@@ -83,7 +83,7 @@ const formatDate = (dateStr: string) => {
 export function InvoicesPage() {
   const navigate = useNavigate();
   const { open: openSpotlight } = useSpotlight();
-  const [activeTab, setActiveTab] = useState<string | null>('drafts');
+  const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [draftInvoices, setDraftInvoices] = useState<Invoice[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [searchResults, setSearchResults] = useState<Invoice[]>([]);
@@ -341,14 +341,6 @@ export function InvoicesPage() {
         <Paper withBorder radius="md" p={0}>
           <Tabs value={activeTab} onChange={setActiveTab}>
             <Tabs.List>
-              <Tabs.Tab value="drafts" leftSection={<IconFileInvoice size={16} />}>
-                Drafts
-                {draftInvoices.length > 0 && (
-                  <Badge ml="xs" size="sm" variant="light" color="gray">
-                    {draftInvoices.length}
-                  </Badge>
-                )}
-              </Tabs.Tab>
               <Tabs.Tab value="recent" leftSection={<IconClock size={16} />}>
                 Recent
               </Tabs.Tab>
@@ -360,22 +352,17 @@ export function InvoicesPage() {
                   </Badge>
                 )}
               </Tabs.Tab>
+              <Tabs.Tab value="drafts" leftSection={<IconFileInvoice size={16} />}>
+                Drafts
+                {draftInvoices.length > 0 && (
+                  <Badge ml="xs" size="sm" variant="light" color="gray">
+                    {draftInvoices.length}
+                  </Badge>
+                )}
+              </Tabs.Tab>
             </Tabs.List>
 
-            {/* Drafts Tab */}
-            <Tabs.Panel value="drafts" p="md">
-              <DataTable
-                columns={draftsColumns}
-                data={draftInvoices}
-                loading={isLoadingDrafts}
-                keyField="id"
-                onRowClick={handleViewInvoice}
-                emptyMessage="No draft invoices"
-                stickyActionsColumn
-              />
-            </Tabs.Panel>
-
-            {/* Recent Tab */}
+      {/* Recent Tab */}
             <Tabs.Panel value="recent" p="md">
               <DataTable
                 columns={viewOnlyColumns}
@@ -411,6 +398,21 @@ export function InvoicesPage() {
                 />
               )}
             </Tabs.Panel>
+
+            {/* Drafts Tab */}
+            <Tabs.Panel value="drafts" p="md">
+              <DataTable
+                columns={draftsColumns}
+                data={draftInvoices}
+                loading={isLoadingDrafts}
+                keyField="id"
+                onRowClick={handleViewInvoice}
+                emptyMessage="No draft invoices"
+                stickyActionsColumn
+              />
+            </Tabs.Panel>
+
+      
           </Tabs>
         </Paper>
       </Stack>

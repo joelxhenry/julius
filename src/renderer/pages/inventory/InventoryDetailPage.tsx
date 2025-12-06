@@ -2,26 +2,20 @@ import { useState, useEffect } from 'react';
 import {
   Stack,
   Title,
-  Paper,
   Group,
   Text,
   Badge,
   Button,
   Tabs,
-  Table,
   Loader,
   Alert,
   Card,
   SimpleGrid,
-  Pagination,
-  Skeleton,
   NumberFormatter,
   Modal,
   TextInput,
   NumberInput,
   Select,
-  ActionIcon,
-  Menu,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -36,16 +30,14 @@ import {
   IconHistory,
   IconChartLine,
   IconAlertTriangle,
-  IconPlus,
-  IconTrash,
   IconCheck,
-  IconDotsVertical,
 } from '@tabler/icons-react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
+import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab } from '../../components/inventory';
 
 interface Inventory {
   id: number;
@@ -128,22 +120,6 @@ interface PaginatedResult<T> {
   pageSize: number;
   totalPages: number;
 }
-
-const ACTIVITY_LABELS: Record<string, string> = {
-  'IN': 'Received',
-  'OUT': 'Sold',
-  'ADJ': 'Adjustment',
-  'RET': 'Return',
-  'TRF': 'Transfer',
-};
-
-const ACTIVITY_COLORS: Record<string, string> = {
-  'IN': 'green',
-  'OUT': 'red',
-  'ADJ': 'blue',
-  'RET': 'orange',
-  'TRF': 'violet',
-};
 
 export function InventoryDetailPage() {
   const navigate = useNavigate();
@@ -564,6 +540,24 @@ export function InventoryDetailPage() {
     }).format(numAmount);
   };
 
+  // Handler for navigating to alternate SKU
+  const handleNavigateToAlternate = async (alternateSku: string) => {
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_BY_SKU, { sku: alternateSku });
+      if (result.success && result.data) {
+        navigate(`/inventory/${result.data.id}`);
+      } else {
+        notifications.show({
+          title: 'Item Not Found',
+          message: `Could not find inventory item with SKU: ${alternateSku}`,
+          color: 'orange',
+        });
+      }
+    } catch (err) {
+      console.error('Failed to navigate to alternate:', err);
+    }
+  };
+
   const isLowStock = item && item.quantity <= item.minLevel;
 
   if (loading) {
@@ -705,403 +699,61 @@ export function InventoryDetailPage() {
 
         {/* Overview Tab */}
         <Tabs.Panel value="overview" pt="md">
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Title order={4}>Product Details</Title>
-                <SimpleGrid cols={2}>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">SKU</Text>
-                    <Text fw={500}>{item.sku}</Text>
-                  </Stack>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Category</Text>
-                    <Text fw={500}>{item.category || '-'}</Text>
-                  </Stack>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Model</Text>
-                    <Text fw={500}>{item.model || '-'}</Text>
-                  </Stack>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Unit</Text>
-                    <Text fw={500}>{item.unit}</Text>
-                  </Stack>
-                </SimpleGrid>
-                {item.description2 && (
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Additional Description</Text>
-                    <Text>{item.description2}</Text>
-                  </Stack>
-                )}
-              </Stack>
-            </Paper>
-
-            <Paper p="lg" radius="md" withBorder>
-              <Stack gap="md">
-                <Title order={4}>Pricing Information</Title>
-                <SimpleGrid cols={2}>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Cost</Text>
-                    <Text fw={500}>{formatCurrency(item.cost, item.costCurrency)}</Text>
-                  </Stack>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Selling Price</Text>
-                    <Text fw={500}>{formatCurrency(item.price, item.priceCurrency)}</Text>
-                  </Stack>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Wholesale Price</Text>
-                    <Text fw={500}>{item.wholesalePrice ? formatCurrency(item.wholesalePrice, item.priceCurrency) : '-'}</Text>
-                  </Stack>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Margin</Text>
-                    <Text fw={500}>{item.margin ? `${parseFloat(item.margin).toFixed(2)}%` : '-'}</Text>
-                  </Stack>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">Taxable</Text>
-                    <Badge color={item.isTaxable ? 'green' : 'gray'} variant="light" size="sm">
-                      {item.isTaxable ? 'Yes' : 'No'}
-                    </Badge>
-                  </Stack>
-                </SimpleGrid>
-              </Stack>
-            </Paper>
-          </SimpleGrid>
+          <OverviewTab item={item} formatCurrency={formatCurrency} />
         </Tabs.Panel>
 
         {/* Variants Tab */}
         <Tabs.Panel value="variants" pt="md">
-          <Paper p="md" radius="md" withBorder>
-            <Stack gap="md">
-              <Group justify="space-between">
-                <Text fw={500}>Product Variants</Text>
-                <Button
-                  leftSection={<IconPlus size={16} />}
-                  size="sm"
-                  variant="light"
-                  onClick={() => {
-                    setEditingVariant(null);
-                    setAddVariantOpen(true);
-                  }}
-                >
-                  Add Variant
-                </Button>
-              </Group>
-              <Table.ScrollContainer minWidth={600}>
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Variant SKU</Table.Th>
-                      <Table.Th>Name</Table.Th>
-                      <Table.Th>Type</Table.Th>
-                      <Table.Th>Quantity</Table.Th>
-                      <Table.Th>Price</Table.Th>
-                      <Table.Th>Status</Table.Th>
-                      <Table.Th>Actions</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {variantsLoading ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <Table.Tr key={i}>
-                          {Array.from({ length: 7 }).map((_, j) => (
-                            <Table.Td key={j}><Skeleton height={20} /></Table.Td>
-                          ))}
-                        </Table.Tr>
-                      ))
-                    ) : variants.length === 0 ? (
-                      <Table.Tr>
-                        <Table.Td colSpan={7}>
-                          <Text c="dimmed" ta="center" py="xl">No variants found</Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ) : (
-                      variants.map((variant) => (
-                        <Table.Tr key={variant.id}>
-                          <Table.Td><Text fw={500}>{variant.variantSku}</Text></Table.Td>
-                          <Table.Td>{variant.variantName || '-'}</Table.Td>
-                          <Table.Td>
-                            {variant.variantType && (
-                              <Badge variant="light" size="sm">{variant.variantType}</Badge>
-                            )}
-                          </Table.Td>
-                          <Table.Td>{variant.quantity}</Table.Td>
-                          <Table.Td>
-                            {variant.price ? (
-                              <NumberFormatter value={variant.price} prefix="$" thousandSeparator decimalScale={2} />
-                            ) : '-'}
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge color={variant.isActive ? 'green' : 'gray'} variant="light" size="sm">
-                              {variant.isActive ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Menu position="bottom-end" shadow="md">
-                              <Menu.Target>
-                                <ActionIcon variant="subtle">
-                                  <IconDotsVertical size={16} />
-                                </ActionIcon>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                <Menu.Item
-                                  leftSection={<IconEdit size={14} />}
-                                  onClick={() => {
-                                    setEditingVariant(variant);
-                                    setAddVariantOpen(true);
-                                  }}
-                                >
-                                  Edit
-                                </Menu.Item>
-                                <Menu.Item
-                                  leftSection={<IconTrash size={14} />}
-                                  color="red"
-                                  onClick={() => handleDeleteVariant(variant.id)}
-                                >
-                                  Delete
-                                </Menu.Item>
-                              </Menu.Dropdown>
-                            </Menu>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))
-                    )}
-                  </Table.Tbody>
-                </Table>
-              </Table.ScrollContainer>
-            </Stack>
-          </Paper>
+          <VariantsTab
+            variants={variants}
+            loading={variantsLoading}
+            onAddVariant={() => {
+              setEditingVariant(null);
+              setAddVariantOpen(true);
+            }}
+            onEditVariant={(variant) => {
+              setEditingVariant(variant);
+              setAddVariantOpen(true);
+            }}
+            onDeleteVariant={handleDeleteVariant}
+          />
         </Tabs.Panel>
 
         {/* Alternates Tab */}
         <Tabs.Panel value="alternates" pt="md">
-          <Paper p="md" radius="md" withBorder>
-            <Stack gap="md">
-              <Group justify="space-between">
-                <Text fw={500}>Alternative Part Numbers</Text>
-                <Button leftSection={<IconPlus size={16} />} size="sm" variant="light" onClick={() => setAddAlternateOpen(true)}>
-                  Add Alternate
-                </Button>
-              </Group>
-              <Table.ScrollContainer minWidth={400}>
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Alternate SKU</Table.Th>
-                      <Table.Th>Supplier</Table.Th>
-                      <Table.Th>Actions</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {alternatesLoading ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <Table.Tr key={i}>
-                          {Array.from({ length: 3 }).map((_, j) => (
-                            <Table.Td key={j}><Skeleton height={20} /></Table.Td>
-                          ))}
-                        </Table.Tr>
-                      ))
-                    ) : alternates.length === 0 ? (
-                      <Table.Tr>
-                        <Table.Td colSpan={3}>
-                          <Text c="dimmed" ta="center" py="xl">No alternates found</Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ) : (
-                      alternates.map((alt) => {
-                      const alternateSku = alt.partNo === item.sku ? alt.alternateNo : alt.partNo;
-                      return (
-                        <Table.Tr key={alt.id}>
-                          <Table.Td>
-                            <Text
-                              fw={500}
-                              c="blue"
-                              style={{ cursor: 'pointer' }}
-                              onClick={async () => {
-                                try {
-                                  const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_BY_SKU, { sku: alternateSku });
-                                  if (result.success && result.data) {
-                                    navigate(`/inventory/${result.data.id}`);
-                                  } else {
-                                    notifications.show({
-                                      title: 'Item Not Found',
-                                      message: `Could not find inventory item with SKU: ${alternateSku}`,
-                                      color: 'orange',
-                                    });
-                                  }
-                                } catch (err) {
-                                  console.error('Failed to navigate to alternate:', err);
-                                }
-                              }}
-                            >
-                              {alternateSku}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td>{alt.supplier || '-'}</Table.Td>
-                          <Table.Td>
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              onClick={() => handleDeleteAlternate(alternateSku)}
-                              title="Remove alternate"
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Table.Td>
-                        </Table.Tr>
-                      );
-                    })
-                    )}
-                  </Table.Tbody>
-                </Table>
-              </Table.ScrollContainer>
-            </Stack>
-          </Paper>
+          <AlternatesTab
+            alternates={alternates}
+            loading={alternatesLoading}
+            currentSku={item.sku}
+            onAddAlternate={() => setAddAlternateOpen(true)}
+            onDeleteAlternate={handleDeleteAlternate}
+            onNavigateToAlternate={handleNavigateToAlternate}
+          />
         </Tabs.Panel>
 
         {/* Transactions Tab */}
         <Tabs.Panel value="transactions" pt="md">
-          <Paper p="md" radius="md" withBorder>
-            <Table.ScrollContainer minWidth={600}>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Date</Table.Th>
-                    <Table.Th>Activity</Table.Th>
-                    <Table.Th>Quantity</Table.Th>
-                    <Table.Th>Reference</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {transactionsLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <Table.Tr key={i}>
-                        {Array.from({ length: 4 }).map((_, j) => (
-                          <Table.Td key={j}><Skeleton height={20} /></Table.Td>
-                        ))}
-                      </Table.Tr>
-                    ))
-                  ) : transactions.length === 0 ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={4}>
-                        <Text c="dimmed" ta="center" py="xl">No transactions found</Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : (
-                    transactions.map((trans) => (
-                      <Table.Tr key={trans.id}>
-                        <Table.Td>{trans.activityDate}</Table.Td>
-                        <Table.Td>
-                          <Badge color={ACTIVITY_COLORS[trans.activity] || 'gray'} variant="light" size="sm">
-                            {ACTIVITY_LABELS[trans.activity] || trans.activity}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text c={trans.quantity > 0 ? 'green' : trans.quantity < 0 ? 'red' : undefined}>
-                            {trans.quantity > 0 ? '+' : ''}{trans.quantity}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>{trans.reference || '-'}</Table.Td>
-                      </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-            {transactionsTotalPages > 1 && (
-              <Group justify="center" mt="md">
-                <Pagination total={transactionsTotalPages} value={transactionsPage} onChange={setTransactionsPage} size="sm" />
-              </Group>
-            )}
-          </Paper>
+          <TransactionsTab
+            transactions={transactions}
+            loading={transactionsLoading}
+            page={transactionsPage}
+            totalPages={transactionsTotalPages}
+            onPageChange={setTransactionsPage}
+          />
         </Tabs.Panel>
 
         {/* Sales Tab */}
         <Tabs.Panel value="sales" pt="md">
-          <Stack gap="md">
-            {/* Sales Summary */}
-            {salesSummary && (
-              <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
-                <Card withBorder radius="md" p="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Total Sold</Text>
-                  <Text size="xl" fw={700}>{salesSummary.totalQuantitySold} {item.unit}</Text>
-                </Card>
-                <Card withBorder radius="md" p="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Total Revenue</Text>
-                  <Text size="xl" fw={700}>{formatCurrency(salesSummary.totalRevenue)}</Text>
-                </Card>
-                <Card withBorder radius="md" p="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Avg. Price</Text>
-                  <Text size="xl" fw={700}>{formatCurrency(salesSummary.averagePrice)}</Text>
-                </Card>
-                <Card withBorder radius="md" p="md">
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Transactions</Text>
-                  <Text size="xl" fw={700}>{salesSummary.transactionCount}</Text>
-                </Card>
-              </SimpleGrid>
-            )}
-
-            {/* Sales List */}
-            <Paper p="md" radius="md" withBorder>
-              <Table.ScrollContainer minWidth={700}>
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Date</Table.Th>
-                      <Table.Th>Document</Table.Th>
-                      <Table.Th>Customer</Table.Th>
-                      <Table.Th>Quantity</Table.Th>
-                      <Table.Th>Unit Price</Table.Th>
-                      <Table.Th>Total</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {salesLoading ? (
-                      Array.from({ length: 5 }).map((_, i) => (
-                        <Table.Tr key={i}>
-                          {Array.from({ length: 6 }).map((_, j) => (
-                            <Table.Td key={j}><Skeleton height={20} /></Table.Td>
-                          ))}
-                        </Table.Tr>
-                      ))
-                    ) : sales.length === 0 ? (
-                      <Table.Tr>
-                        <Table.Td colSpan={6}>
-                          <Text c="dimmed" ta="center" py="xl">No sales records found</Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ) : (
-                      sales.map((sale) => (
-                        <Table.Tr key={sale.id}>
-                          <Table.Td>{sale.documentDate}</Table.Td>
-                          <Table.Td>
-                            <Group gap="xs">
-                              <Badge variant="light" size="sm">{sale.documentType}</Badge>
-                              <Text size="sm">{sale.documentNumber}</Text>
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>{sale.clientName || '-'}</Table.Td>
-                          <Table.Td>{sale.quantity}</Table.Td>
-                          <Table.Td>
-                            <NumberFormatter value={sale.unitPrice} prefix="$" thousandSeparator decimalScale={2} />
-                          </Table.Td>
-                          <Table.Td>
-                            <Text fw={500}>
-                              <NumberFormatter value={sale.lineTotal} prefix="$" thousandSeparator decimalScale={2} />
-                            </Text>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))
-                    )}
-                  </Table.Tbody>
-                </Table>
-              </Table.ScrollContainer>
-              {salesTotalPages > 1 && (
-                <Group justify="center" mt="md">
-                  <Pagination total={salesTotalPages} value={salesPage} onChange={setSalesPage} size="sm" />
-                </Group>
-              )}
-            </Paper>
-          </Stack>
+          <SalesTab
+            sales={sales}
+            salesSummary={salesSummary}
+            loading={salesLoading}
+            page={salesPage}
+            totalPages={salesTotalPages}
+            unit={item.unit}
+            onPageChange={setSalesPage}
+            formatCurrency={formatCurrency}
+          />
         </Tabs.Panel>
       </Tabs>
 

@@ -204,6 +204,9 @@ export enum IpcChannel {
   CREATE_BILL_PAYMENT = 'db:create-bill-payment',
   UPDATE_PAYMENT = 'db:update-payment',
   DELETE_PAYMENT = 'db:delete-payment',
+  PROCESS_INVOICE_PAYMENT = 'db:process-invoice-payment',
+  VOID_PAYMENT = 'db:void-payment',
+  GET_CLIENT_AVAILABLE_CREDIT_NOTES = 'db:get-client-available-credit-notes',
 
   // Payment method operations
   GET_PAYMENT_METHODS = 'db:get-payment-methods',

@@ -28,7 +28,7 @@ interface TabContextValue {
   replaceCurrentTab: (path: string) => void;
 
   // Management
-  updateTabTitle: (tabId: string, title: string) => void;
+  updateTabTitle: (tabIdOrPath: string, title: string) => void;
   markTabDirty: (tabId: string, isDirty: boolean) => void;
 
   // Utility
@@ -75,7 +75,7 @@ function generateTitleFromPath(path: string): string {
   if (path.includes('/quotations/')) return 'Quotation';
   if (path.includes('/inventory/new')) return 'New Item';
   if (path.includes('/inventory/') && path.includes('/edit')) return 'Edit Item';
-  if (path.includes('/inventory/')) return 'Inventory Item';
+  // if (path.includes('/inventory/')) return 'Inventory Item';
   if (path.includes('/employees/new')) return 'New Employee';
   if (path.includes('/employees/') && path.includes('/edit')) return 'Edit Employee';
   if (path.includes('/employees/') && path.includes('/permissions')) return 'Employee Permissions';
@@ -304,10 +304,16 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
     [tabs, navigate]
   );
 
-  // Update tab title
-  const updateTabTitle = useCallback((tabId: string, title: string) => {
+  // Update tab title (accepts either tabId or path)
+  const updateTabTitle = useCallback((tabIdOrPath: string, title: string) => {
     setTabs((prev) =>
-      prev.map((tab) => (tab.id === tabId ? { ...tab, title } : tab))
+      prev.map((tab) => {
+        // Check if it's a tab ID or a path
+        if (tab.id === tabIdOrPath || tab.path === tabIdOrPath) {
+          return { ...tab, title };
+        }
+        return tab;
+      })
     );
   }, []);
 

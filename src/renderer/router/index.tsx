@@ -6,7 +6,7 @@ import { LandingPage } from '../pages/LandingPage';
 import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
 import { QuotationsPage, QuotationCreatePage, QuotationDetailPage } from '../pages/quotations';
 import { InventoryPage, InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
-import { PaymentsPage } from '../pages/payments';
+import { PaymentsPage, PaymentDetailPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import { DashboardPage } from '../pages/dashboard';
 import { ProfilePage } from '../pages/profile';
@@ -85,6 +85,10 @@ export const router = createHashRouter([
       {
         path: 'payments',
         element: <PaymentsPage />,
+      },
+      {
+        path: 'payments/:id',
+        element: <PaymentDetailPage />,
       },
       {
         path: 'attendance',

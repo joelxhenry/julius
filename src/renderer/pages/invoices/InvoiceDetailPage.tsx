@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import {
@@ -12,12 +12,12 @@ import {
   Loader,
   Center,
   Grid,
-  Table,
   ActionIcon,
   Menu,
   Divider,
   Alert,
   Card,
+  Tabs,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -35,9 +35,12 @@ import {
   IconCheck,
   IconPackage,
   IconReceipt,
+  IconList,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { AdminOverrideModal, AdminOverrideResult, CreditIssue } from '../../components/invoices';
+import { AdminOverrideModal, AdminOverrideResult, CreditIssue, RecordPaymentModal } from '../../components/invoices';
+import { PaymentHistoryCard } from '../../components/payments';
+import { DataTable, Column } from '../../components/common/DataTable';
 
 interface Invoice {
   id: number;
@@ -126,6 +129,7 @@ export function InvoiceDetailPage() {
   });
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
+  const [paymentModalOpen, { open: openPaymentModal, close: closePaymentModal }] = useDisclosure(false);
 
   // Cache for adjacent invoices
   const invoiceCacheRef = useRef<Map<number, InvoiceCache>>(new Map());
@@ -413,12 +417,27 @@ export function InvoiceDetailPage() {
     }
   }, [invoice, navigate]);
 
-  // Navigate to payment recording
+  // Open payment modal
   const handleRecordPayment = useCallback(() => {
-    if (invoice) {
-      navigate(`/payments/new?invoiceId=${invoice.id}`);
+    openPaymentModal();
+  }, [openPaymentModal]);
+
+  // Handle payment recorded - refresh invoice data
+  const handlePaymentRecorded = useCallback(async () => {
+    if (!invoice) return;
+
+    // Reload invoice to get updated totalPaid and status
+    const updatedResult = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoice.id });
+    if (updatedResult.success && updatedResult.data) {
+      setInvoice(updatedResult.data);
+      // Also update the cache
+      const cache = invoiceCacheRef.current;
+      const cached = cache.get(invoice.id);
+      if (cached) {
+        cache.set(invoice.id, { ...cached, invoice: updatedResult.data });
+      }
     }
-  }, [invoice, navigate]);
+  }, [invoice]);
 
   // Navigate to create credit note
   const handleCreateCreditNote = useCallback(() => {
@@ -436,6 +455,73 @@ export function InvoiceDetailPage() {
 
   // View inventory item (removed navigation to prevent leaving invoice page)
   // Users can use spotlight search (Cmd/Ctrl+K) to quickly find inventory items if needed
+
+  // Line items table columns
+  const lineItemColumns: Column<LineItem>[] = useMemo(
+    () => [
+      {
+        key: 'sku',
+        header: 'SKU',
+        width: 150,
+        render: (item) => (
+          <Group gap="xs">
+            <Text size="sm" fw={500}>
+              {item.sku}
+            </Text>
+            <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+          </Group>
+        ),
+      },
+      {
+        key: 'description',
+        header: 'Description',
+        render: (item) => (
+          <Text size="sm" truncate maw={250}>
+            {item.description || '-'}
+          </Text>
+        ),
+      },
+      {
+        key: 'quantity',
+        header: 'Qty',
+        width: 80,
+        render: (item) => <Text ta="center">{item.quantity}</Text>,
+      },
+      {
+        key: 'unitPrice',
+        header: 'Unit Price',
+        width: 120,
+        render: (item) => <Text ta="right">{formatCurrency(item.unitPrice)}</Text>,
+      },
+      {
+        key: 'discount',
+        header: 'Discount',
+        width: 120,
+        render: (item) =>
+          parseFloat(item.discount) > 0 ? (
+            <Stack gap={0} align="flex-end">
+              <Text size="sm" c="red">
+                -{formatCurrency((parseFloat(item.unitPrice) * item.quantity * parseFloat(item.discount) / 100).toFixed(2))}
+              </Text>
+              <Text size="xs" c="dimmed">
+                ({item.discount}%)
+              </Text>
+            </Stack>
+          ) : (
+            <Text size="sm" c="dimmed" ta="right">
+              -
+            </Text>
+          ),
+      },
+      {
+        key: 'amount',
+        header: 'Amount',
+        width: 120,
+        render: (item) => <Text ta="right" fw={500}>{formatCurrency(item.amount)}</Text>,
+      },
+    ],
+    []
+  );
 
   if (isLoading) {
     return (
@@ -633,44 +719,42 @@ export function InvoiceDetailPage() {
               </Stack>
             </Paper>
 
-            {/* Line Items */}
-            <Paper withBorder p="md" radius="md" mt="md">
-              <Stack gap="md">
-                <Text fw={600}>Line Items</Text>
-                <Table>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>SKU</Table.Th>
-                      <Table.Th>Description</Table.Th>
-                      <Table.Th ta="center">Qty</Table.Th>
-                      <Table.Th ta="right">Unit Price</Table.Th>
-                      <Table.Th ta="right">Amount</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {lineItems.map((item) => (
-                      <Table.Tr key={item.id}>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <Text size="sm" fw={500}>
-                              {item.sku}
-                            </Text>
-                            <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" truncate maw={200}>
-                            {item.description || '-'}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td ta="center">{item.quantity}</Table.Td>
-                        <Table.Td ta="right">{formatCurrency(item.unitPrice)}</Table.Td>
-                        <Table.Td ta="right">{formatCurrency(item.amount)}</Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Stack>
+            {/* Tabs for Line Items and Payments */}
+            <Paper withBorder radius="md" mt="md">
+              <Tabs defaultValue="items">
+                <Tabs.List>
+                  <Tabs.Tab value="items" leftSection={<IconList size={14} />}>
+                    Line Items ({lineItems.length})
+                  </Tabs.Tab>
+                  {invoice.status !== 'draft' && (
+                    <Tabs.Tab value="payments" leftSection={<IconCash size={14} />}>
+                      Payments
+                    </Tabs.Tab>
+                  )}
+                </Tabs.List>
+
+                <Tabs.Panel value="items" p="md">
+                  <DataTable
+                    columns={lineItemColumns}
+                    data={lineItems}
+                    keyField="id"
+                    emptyMessage="No line items found"
+                    minWidth={700}
+                  />
+                </Tabs.Panel>
+
+                {invoice.status !== 'draft' && (
+                  <Tabs.Panel value="payments" p="md">
+                    <PaymentHistoryCard
+                      key={invoice.totalPaid}
+                      invoiceNumber={invoice.invNumber}
+                      invoiceTotal={parseFloat(invoice.total)}
+                      totalPaid={parseFloat(invoice.totalPaid)}
+                      onPaymentVoided={handlePaymentRecorded}
+                    />
+                  </Tabs.Panel>
+                )}
+              </Tabs>
             </Paper>
           </Grid.Col>
 
@@ -758,6 +842,14 @@ export function InvoiceDetailPage() {
           creditIssues={creditCheck.reasons}
         />
       )}
+
+      {/* Record Payment Modal */}
+      <RecordPaymentModal
+        opened={paymentModalOpen}
+        onClose={closePaymentModal}
+        onPaymentRecorded={handlePaymentRecorded}
+        invoice={invoice}
+      />
     </>
   );
 }
