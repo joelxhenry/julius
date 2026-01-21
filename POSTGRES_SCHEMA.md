@@ -474,14 +474,17 @@ CREATE TABLE payments (
     bill_number VARCHAR(50),         -- FK to bills (when document_type = 'BILL')
     payer_name VARCHAR(100),  -- client_name or supplier
     payment_date DATE,
-    payment_desc VARCHAR(100),
-    payment_desc2 VARCHAR(100),
+    payment_desc VARCHAR(100),       -- Notes
+    payment_desc2 VARCHAR(100),      -- Payment method code
+    transaction_reference VARCHAR(100),  -- Transaction reference (e.g., credit card trace #, auth code)
     amount NUMERIC(15,2) DEFAULT 0,
     currency VARCHAR(10),
+    processed_by_id INTEGER,         -- FK to employees (who processed the payment)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_payments_invoice FOREIGN KEY (invoice_number) REFERENCES invoices(inv_number) ON DELETE CASCADE,
     CONSTRAINT fk_payments_credit_note FOREIGN KEY (credit_note_number) REFERENCES credit_notes(cr_number) ON DELETE CASCADE,
     CONSTRAINT fk_payments_bill FOREIGN KEY (bill_number) REFERENCES bills(bill_no) ON DELETE CASCADE,
+    CONSTRAINT fk_payments_processed_by FOREIGN KEY (processed_by_id) REFERENCES employees(id) ON DELETE SET NULL,
     -- Ensure the appropriate FK is set based on document_type
     CONSTRAINT chk_payment_fk CHECK (
         (document_type = 'INVOICE' AND invoice_number IS NOT NULL AND credit_note_number IS NULL AND bill_number IS NULL) OR
@@ -495,6 +498,7 @@ CREATE INDEX idx_payments_date ON payments(payment_date);
 CREATE INDEX idx_payments_invoice ON payments(invoice_number) WHERE invoice_number IS NOT NULL;
 CREATE INDEX idx_payments_credit ON payments(credit_note_number) WHERE credit_note_number IS NOT NULL;
 CREATE INDEX idx_payments_bill ON payments(bill_number) WHERE bill_number IS NOT NULL;
+CREATE INDEX idx_payments_processed_by ON payments(processed_by_id) WHERE processed_by_id IS NOT NULL;
 ```
 
 ---
@@ -717,6 +721,7 @@ CREATE SEQUENCE seq_transfer_number START WITH 6408;
 | payments | invoices | invoice_number | CASCADE |
 | payments | credit_notes | credit_note_number | CASCADE |
 | payments | bills | bill_number | CASCADE |
+| payments | employees | processed_by_id | SET NULL |
 | bills | suppliers | supplier | SET NULL |
 | inventory_transactions | inventory | sku | CASCADE |
 | inventory_receiving | inventory | sku | CASCADE |

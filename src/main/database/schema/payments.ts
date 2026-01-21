@@ -31,6 +31,7 @@ export const payments = pgTable('payments', {
   paymentDate: date('payment_date'),
   paymentDesc: varchar('payment_desc', { length: 100 }),
   paymentDesc2: varchar('payment_desc2', { length: 100 }),
+  transactionReference: varchar('transaction_reference', { length: 100 }),
   amount: numeric('amount', { precision: 15, scale: 2 }).notNull().default('0'),
   currency: varchar('currency', { length: 10 }),
 

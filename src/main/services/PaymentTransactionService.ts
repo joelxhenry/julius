@@ -11,6 +11,7 @@ export interface PaymentEntry {
   creditNoteId?: number;
   amount: string;
   notes?: string;
+  transactionReference?: string;
 }
 
 export interface ProcessInvoicePaymentParams {
@@ -111,6 +112,7 @@ export class PaymentTransactionService {
           payerName,
           paymentDesc: entry.notes || entry.paymentMethodCode || undefined,
           paymentDesc2: entry.paymentMethodCode || undefined,
+          transactionReference: entry.transactionReference || undefined,
           paymentDate,
           processedById,
         });

@@ -8,6 +8,7 @@ import {
   NumberInput,
   Select,
   Textarea,
+  TextInput,
   Alert,
   Checkbox,
   Badge,
@@ -21,6 +22,7 @@ import { useAuth } from '../../contexts/AuthContext';
 export interface PaymentEntry {
   paymentMethodCode: string;
   amount: string;
+  transactionReference?: string;
   notes?: string;
 }
 
@@ -264,6 +266,13 @@ export function PaymentEntryModal({
                   </Button>
                 )}
               </Group>
+
+              <TextInput
+                label="Reference #"
+                placeholder="e.g., Trace #, Auth code"
+                value={entry.transactionReference || ''}
+                onChange={(event) => handleUpdateEntry(index, 'transactionReference', event.currentTarget.value)}
+              />
 
               <Textarea
                 label="Notes (optional)"

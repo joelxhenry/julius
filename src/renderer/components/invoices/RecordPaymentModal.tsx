@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Modal, Stack, Text, Button, Group, Loader, NumberInput, Select, Textarea, Alert, Checkbox, Badge, Divider } from '@mantine/core';
+import { Modal, Stack, Text, Button, Group, Loader, NumberInput, Select, Textarea, TextInput, Alert, Checkbox, Badge, Divider } from '@mantine/core';
 import { IconCash, IconAlertCircle, IconReceipt } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
@@ -45,6 +45,7 @@ export function RecordPaymentModal({
   const { user } = useAuth();
   const [amount, setAmount] = useState<number | string>('');
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+  const [transactionReference, setTransactionReference] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -121,6 +122,7 @@ export function RecordPaymentModal({
   useEffect(() => {
     if (opened && invoice) {
       setAmount(balanceDue > 0 ? balanceDue : '');
+      setTransactionReference('');
       setNotes('');
       setError(null);
       setUseCreditNote(false);
@@ -203,6 +205,7 @@ export function RecordPaymentModal({
         paymentMethodCode?: string;
         creditNoteId?: number;
         amount: string;
+        transactionReference?: string;
         notes?: string;
       }> = [];
 
@@ -222,6 +225,7 @@ export function RecordPaymentModal({
           type: 'payment',
           paymentMethodCode: selectedMethod.code,
           amount: cashPayment.toFixed(2),
+          transactionReference: transactionReference || undefined,
           notes: notes || undefined,
         });
       }
@@ -425,6 +429,14 @@ export function RecordPaymentModal({
           disabled={isLoading || isLoadingMethods || (useCreditNote && cashPayment === 0)}
           rightSection={isLoadingMethods ? <Loader size={14} /> : undefined}
           required={!useCreditNote || cashPayment > 0}
+        />
+
+        <TextInput
+          label="Reference #"
+          placeholder="e.g., Trace #, Auth code"
+          value={transactionReference}
+          onChange={(e) => setTransactionReference(e.currentTarget.value)}
+          disabled={isLoading || (useCreditNote && cashPayment === 0)}
         />
 
         <Textarea

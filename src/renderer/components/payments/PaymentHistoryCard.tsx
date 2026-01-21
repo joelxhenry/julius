@@ -17,6 +17,7 @@ interface Payment {
   paymentDate: string | null;
   paymentDesc: string | null;
   paymentDesc2: string | null;
+  transactionReference: string | null;
   amount: string;
   processedById: number | null;
   createdAt: string;
@@ -189,12 +190,21 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
     },
     {
       key: 'notes',
-      header: 'Notes',
-      render: (payment) => (
-        <Text size="sm" c="dimmed" truncate maw={120}>
-          {payment.paymentDesc || '-'}
-        </Text>
-      ),
+      header: 'Notes/Ref',
+      render: (payment) => {
+        const parts: string[] = [];
+        if (payment.transactionReference) {
+          parts.push(`Ref: ${payment.transactionReference}`);
+        }
+        if (payment.paymentDesc && !payment.paymentDesc.includes('VOID')) {
+          parts.push(payment.paymentDesc);
+        }
+        return (
+          <Text size="sm" c="dimmed" truncate maw={150}>
+            {parts.length > 0 ? parts.join(' | ') : '-'}
+          </Text>
+        );
+      },
     },
     {
       key: 'actions',

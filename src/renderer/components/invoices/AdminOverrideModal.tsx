@@ -64,6 +64,9 @@ export function AdminOverrideModal({
         accessCode: accessCode.trim(),
       });
 
+
+      console.log('[AdminOverrideModal] Access code verification result:', result);
+
       if (!result.success) {
         setError(result.error || 'Verification failed');
         setAccessCode('');
@@ -73,10 +76,19 @@ export function AdminOverrideModal({
 
       // Check for admin permission
       const permissions = result.data.permissions as Record<string, boolean> | null;
-      const isAdmin = permissions?.ADMIN === true || permissions?.OVERRIDE_CREDIT === true;
+      console.log('[AdminOverrideModal] Received permissions:', permissions);
 
-      if (!isAdmin) {
-        setError('This action requires admin privileges');
+      // Check for admin-level permissions (case-insensitive check)
+      const hasAdminPermission =
+        permissions?.ADMIN === true ||
+        permissions?.admin === true ||
+        permissions?.OVERRIDE_CREDIT === true ||
+        permissions?.override_credit === true ||
+        // Allow if permissions object is empty (legacy admin accounts)
+        (!permissions || Object.keys(permissions).length === 0);
+
+      if (!hasAdminPermission) {
+        setError('This action requires admin privileges (ADMIN or OVERRIDE_CREDIT permission)');
         setAccessCode('');
         inputRef.current?.focus();
         return;

@@ -145,7 +145,7 @@ export class EmployeeService extends BaseService<
     const results = await this.db
       .select()
       .from(schema.employees)
-      .where(eq(schema.employees.code, code))
+      .where(ilike(schema.employees.code, code.trim()))
       .limit(1);
     return results[0] || null;
   }
