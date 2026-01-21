@@ -1,33 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
-import {
-  Stack,
-  Title,
-  Text,
-  Group,
-  Button,
-  Loader,
-  Center,
-  ActionIcon,
-  Modal,
-  Paper,
-} from '@mantine/core';
+import { Box, Stack, Loader, Center, Modal, Text, Group, Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import {
-  IconCheck,
-  IconKeyboard,
-  IconCash,
-} from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
-import { useKeyboardShortcutContext } from '../../contexts/KeyboardShortcutContext';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import {
   AdminOverrideModal,
-  InvoiceFormHeader,
+  CompactInvoiceToolbar,
+  CompactFormBar,
   InvoiceLineItemsTable,
   VariantSelectorModal,
   BulkDiscountModal,
@@ -44,7 +27,13 @@ import {
 import { useInventoryCheck } from '../../hooks/useInventoryCheck';
 import { useVariants } from '../../hooks/useVariants';
 import { useTaxRate } from '../../hooks/useTaxRate';
-import { useClientSearch, Client, useInventorySearch, useLineItems, LineItem } from '../../hooks';
+import {
+  useClientSearch,
+  useInventorySearch,
+  useLineItems,
+  useInvoiceForm,
+  useInvoiceKeyboardShortcuts,
+} from '../../hooks';
 
 interface LocationState {
   salespersonId?: number;
@@ -52,40 +41,30 @@ interface LocationState {
 }
 
 export function InvoiceCreatePage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { user } = useAuth();
-  const { markTabDirty, updateTabTitle } = useTabContext();
-  const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
+  const { markTabDirty, updateTabTitle, replaceCurrentTab } = useTabContext();
   const locationState = location.state as LocationState | null;
 
-  const isEditing = !!id;
+  const isEditing = !!id && /^\d+$/.test(id);
 
   // Debug logging
   useEffect(() => {
     console.log('[InvoiceCreatePage] id:', id, 'isEditing:', isEditing, 'location:', location.pathname);
   }, [id, isEditing, location.pathname]);
 
-  // Form state
-  const [invDate, setInvDate] = useState<Date>(new Date());
-  const [reference, setReference] = useState('');
-  const [clientId, setClientId] = useState<number | null>(null);
-  const [isTaxable, setIsTaxable] = useState(true);
-  const [pricing, setPricing] = useState('R'); // R = Retail, W = Wholesale
-  const [creditTerms, setCreditTerms] = useState('');
-  const [salespersonId, setSalespersonId] = useState<number | null>(locationState?.salespersonId ?? null);
-  const [salespersonName, setSalespersonName] = useState<string>(locationState?.salespersonName ?? '');
-  const [originalInvNumber, setOriginalInvNumber] = useState<string | null>(null);
-
   // Tax rate from system settings
   const { taxRate } = useTaxRate();
 
-  // Line items hook - handles CRUD, selection, and totals calculation
+  // Form state hook
+  const [formState, formActions] = useInvoiceForm({ locationState });
+
+  // Line items hook
   const {
     items: lineItems,
     selectedId: selectedLineItemId,
     totals,
+    editingCell,
     setSelectedId: setSelectedLineItemId,
     addItem: addLineItem,
     updateItem: updateLineItem,
@@ -94,13 +73,9 @@ export function InvoiceCreatePage() {
     selectNext: selectNextLineItem,
     selectPrevious: selectPreviousLineItem,
     setItems: setLineItems,
-  } = useLineItems({ taxRate, isTaxable });
-
-  // Focus trigger for keyboard shortcuts
-  const [focusTrigger, setFocusTrigger] = useState<{ field: 'quantity' | 'discount' | null; timestamp: number }>({
-    field: null,
-    timestamp: 0,
-  });
+    startEditing,
+    stopEditing,
+  } = useLineItems({ taxRate, isTaxable: formState.isTaxable });
 
   // Refs for auto-focus
   const referenceInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +84,10 @@ export function InvoiceCreatePage() {
 
   // Credit check
   const [creditCheck, setCreditCheck] = useState<CreditCheckResult | null>(null);
+
+  // Loading/saving state
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Check client credit
   const checkClientCredit = useCallback(async (checkClientId: number) => {
@@ -134,11 +113,10 @@ export function InvoiceCreatePage() {
     setClient,
   } = useClientSearch({
     onSelect: (selectedClient) => {
-      setClientId(selectedClient.id);
-      setIsTaxable(selectedClient.isTaxable);
-      setCreditTerms(selectedClient.creditTerms || '');
+      formActions.setClientId(selectedClient.id);
+      formActions.setIsTaxable(selectedClient.isTaxable);
+      formActions.setCreditTerms(selectedClient.creditTerms || '');
       checkClientCredit(selectedClient.id);
-      // Auto-focus pricing field after client selection
       setTimeout(() => {
         pricingSelectRef.current?.focus();
       }, 100);
@@ -155,41 +133,55 @@ export function InvoiceCreatePage() {
     clearSearch: clearItemSearch,
   } = useInventorySearch();
 
-  // Loading state
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
   // Modals
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
   const [issueModalOpen, { open: openIssueModal, close: closeIssueModal }] = useDisclosure(false);
-
-  // Payment entry modal for atomic transaction flow
   const [paymentEntryModalOpen, { open: openPaymentEntryModal, close: closePaymentEntryModal }] = useDisclosure(false);
   const [isPaymentFlow, setIsPaymentFlow] = useState(false);
   const [adminOverride, setAdminOverride] = useState<AdminOverrideResult | undefined>(undefined);
 
   // Variant selection
-  const [variantModalOpen, { open: openVariantModal, close: closeVariantModal }] = useDisclosure(false);
+  const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [pendingItem, setPendingItem] = useState<InventoryItem | null>(null);
   const { variants, isLoading: isLoadingVariants, checkHasVariants, loadVariants, clearVariants } = useVariants();
 
-  // Bulk discount modal
-  const [bulkDiscountModalOpen, { open: openBulkDiscountModal, close: closeBulkDiscountModal }] = useDisclosure(false);
-
-  // Target total modal
-  const [targetTotalModalOpen, { open: openTargetTotalModal, close: closeTargetTotalModal }] = useDisclosure(false);
-
-  // Keyboard shortcuts help modal
-  const [shortcutsModalOpen, { open: openShortcutsModal, close: closeShortcutsModal }] = useDisclosure(false);
-
-  // Delete confirmation modal
-  const [deleteConfirmOpen, { open: openDeleteConfirm, close: closeDeleteConfirm }] = useDisclosure(false);
-  const [itemToDelete, setItemToDelete] = useState<LineItem | null>(null);
-
-  // Inventory check hook - checks inventory in real-time as quantities change
-  const { inventoryWarnings, isChecking: isCheckingInventory, hasWarnings } = useInventoryCheck(
+  // Inventory check hook
+  const { inventoryWarnings, isChecking: isCheckingInventory } = useInventoryCheck(
     lineItems.map(item => ({ sku: item.sku, quantity: item.quantity }))
   );
+
+  // Issue invoice handler
+  const handleIssueInvoice = useCallback(() => {
+    if (creditCheck?.requiresAdminOverride) {
+      openOverrideModal();
+      return;
+    }
+    openIssueModal();
+  }, [creditCheck, openOverrideModal, openIssueModal]);
+
+  // Save & pay handler
+  const handleSaveAndProcessPayment = useCallback(() => {
+    if (creditCheck?.requiresAdminOverride) {
+      setIsPaymentFlow(true);
+      openOverrideModal();
+      return;
+    }
+    setIsPaymentFlow(true);
+    openIssueModal();
+  }, [creditCheck, openOverrideModal, openIssueModal]);
+
+  // Keyboard shortcuts hook
+  const shortcutsHook = useInvoiceKeyboardShortcuts({
+    lineItems,
+    selectedLineItemId,
+    selectNextLineItem,
+    selectPreviousLineItem,
+    onIssueInvoice: handleIssueInvoice,
+    onSaveAndPay: handleSaveAndProcessPayment,
+    onStartEditing: startEditing,
+    onStopEditing: stopEditing,
+    editingCell,
+  });
 
   // Load existing invoice if editing
   useEffect(() => {
@@ -204,21 +196,12 @@ export function InvoiceCreatePage() {
       const result = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoiceId });
       if (result.success && result.data) {
         const inv = result.data;
-        setInvDate(new Date(inv.invDate));
-        setReference(inv.reference || '');
-        setClientId(inv.clientId);
-        setIsTaxable(inv.isTaxable);
-        setPricing(inv.pricing);
-        setCreditTerms(inv.creditTerms || '');
-        setSalespersonId(inv.salespersonId);
-        setOriginalInvNumber(inv.invNumber);
+        formActions.loadFromInvoice(inv);
 
-        // Update tab title (only if this is the active tab)
         if (location.pathname === `/invoices/form/${id}`) {
           updateTabTitle(location.pathname, `Edit Invoice ${inv.invNumber}`);
         }
 
-        // Load client
         if (inv.clientId) {
           const clientResult = await window.electron.invoke(IpcChannel.GET_CLIENT, { id: inv.clientId });
           if (clientResult.success && clientResult.data) {
@@ -227,7 +210,6 @@ export function InvoiceCreatePage() {
           }
         }
 
-        // Load line items
         const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, {
           invNumber: inv.invNumber,
         });
@@ -258,17 +240,16 @@ export function InvoiceCreatePage() {
     }
   };
 
-  // Track dirty state - mark tab as dirty when there are changes
+  // Track dirty state
   useEffect(() => {
-    const hasChanges = lineItems.length > 0 || clientId !== null || reference !== '';
+    const hasChanges = lineItems.length > 0 || formState.clientId !== null || formState.reference !== '';
     markTabDirty(location.pathname, hasChanges);
-  }, [lineItems, clientId, reference, location.pathname, markTabDirty]);
+  }, [lineItems, formState.clientId, formState.reference, location.pathname, markTabDirty]);
 
-
-  // Add line item from inventory item (used after variant selection or for non-variant items)
+  // Add line item from inventory
   const addLineItemFromInventory = useCallback(
-    (item: InventoryItem, sku?: string, description?: string, isVariant: boolean = false) => {
-      const unitPrice = pricing === 'W' ? parseFloat(item.cost || '0') * 1.15 : parseFloat(item.price || '0');
+    (item: InventoryItem, sku?: string, description?: string, isVariant = false) => {
+      const unitPrice = formState.pricing === 'W' ? parseFloat(item.cost || '0') * 1.15 : parseFloat(item.price || '0');
 
       addLineItem({
         sku: sku || item.sku,
@@ -282,19 +263,17 @@ export function InvoiceCreatePage() {
       });
       clearItemSearch();
 
-      // Auto-focus inventory search field after adding item
       setTimeout(() => {
         inventorySearchRef.current?.focus();
       }, 100);
     },
-    [pricing, addLineItem, clearItemSearch]
+    [formState.pricing, addLineItem, clearItemSearch]
   );
 
   // Handle variant selection
   const handleVariantSelect = useCallback(
     (variant: any) => {
       if (pendingItem) {
-        // Use variant SKU and name, but pricing from parent item (or variant price if available)
         const variantPrice = variant.price ? parseFloat(variant.price) : null;
         const useVariantPrice = variantPrice !== null && variantPrice > 0;
         const itemForPricing = useVariantPrice
@@ -308,31 +287,27 @@ export function InvoiceCreatePage() {
     [pendingItem, addLineItemFromInventory, clearVariants]
   );
 
-  // Handle item selection - check for variants first
+  // Handle item selection
   const handleItemSelect = useCallback(
     async (value: string) => {
       const option = itemOptions.find((o) => o.value === value);
       if (option) {
         const item = option.item;
-
-        // Check if item has variants
         const hasVariants = await checkHasVariants(item.sku);
 
         if (hasVariants) {
-          // Load variants and show selector modal
           setPendingItem(item);
           await loadVariants(item.sku);
-          openVariantModal();
+          setVariantModalOpen(true);
         } else {
-          // No variants, add item directly
           addLineItemFromInventory(item);
         }
       }
     },
-    [itemOptions, checkHasVariants, loadVariants, addLineItemFromInventory, openVariantModal]
+    [itemOptions, checkHasVariants, loadVariants, addLineItemFromInventory]
   );
 
-  // Apply bulk discount with notification
+  // Apply bulk discount
   const handleApplyBulkDiscount = useCallback((discountPercent: number) => {
     applyBulkDiscount(discountPercent);
     notifications.show({
@@ -342,32 +317,9 @@ export function InvoiceCreatePage() {
     });
   }, [applyBulkDiscount]);
 
-  // Issue invoice directly
-  const handleIssueInvoice = useCallback(async () => {
-    if (creditCheck?.requiresAdminOverride) {
-      openOverrideModal();
-      return;
-    }
-
-    // Need to verify salesperson first
-    openIssueModal();
-  }, [creditCheck, openOverrideModal, openIssueModal]);
-
-  // Handle save & process payment - initiates the flow
-  const handleSaveAndProcessPayment = useCallback(async () => {
-    if (creditCheck?.requiresAdminOverride) {
-      setIsPaymentFlow(true);
-      openOverrideModal();
-      return;
-    }
-
-    setIsPaymentFlow(true);
-    openIssueModal();
-  }, [creditCheck, openOverrideModal, openIssueModal]);
-
-  // Show payment entry modal (after verification)
+  // Show payment entry modal
   const handleShowPaymentEntry = useCallback(
-    async (override?: AdminOverrideResult) => {
+    (override?: AdminOverrideResult) => {
       if (lineItems.length === 0) {
         notifications.show({
           title: 'Error',
@@ -376,39 +328,35 @@ export function InvoiceCreatePage() {
         });
         return;
       }
-
-      // Store admin override for later use
       setAdminOverride(override);
-
-      // Show payment entry modal
       openPaymentEntryModal();
     },
     [lineItems, openPaymentEntryModal]
   );
 
-  // Handle create invoice with payment (atomic transaction)
+  // Create invoice with payment
   const handleCreateInvoiceWithPayment = useCallback(
     async (paymentEntries: PaymentEntry[]) => {
       setIsSaving(true);
       try {
         const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE_WITH_PAYMENT, {
           invoiceData: {
-            invDate: invDate.toISOString().split('T')[0],
-            salespersonId,
-            clientId,
+            invDate: formState.invDate.toISOString().split('T')[0],
+            salespersonId: formState.salespersonId,
+            clientId: formState.clientId,
             clientName: client?.clientName || null,
             clientAddress1: client?.address1 || null,
             clientAddress2: client?.address2 || null,
             clientPhone: client?.phone || null,
-            reference: reference || null,
+            reference: formState.reference || null,
             subTotal: totals.subTotal.toFixed(2),
             tax: totals.tax.toFixed(2),
             total: totals.total.toFixed(2),
-            isTaxable,
-            pricing,
-            creditTerms: creditTerms || null,
+            isTaxable: formState.isTaxable,
+            pricing: formState.pricing,
+            creditTerms: formState.creditTerms || null,
             issuedAt: new Date(),
-            issuedById: salespersonId,
+            issuedById: formState.salespersonId,
             ...(adminOverride && {
               adminOverrideById: adminOverride.adminId,
               adminOverrideNotes: adminOverride.notes,
@@ -426,33 +374,23 @@ export function InvoiceCreatePage() {
             amount: item.amount.toFixed(2),
           })),
           paymentEntries,
-          processedById: salespersonId!,
+          processedById: formState.salespersonId!,
           payerName: client?.clientName || 'Cash Customer',
         });
 
         if (result.success) {
           const { invoice, warnings } = result.data;
-
           notifications.show({
             title: 'Success',
             message: `Invoice ${invoice.invNumber} created and ${invoice.status === 'paid' ? 'paid' : 'partially paid'}`,
             color: 'green',
           });
-
           if (warnings.length > 0) {
-            warnings.forEach((w: string) =>
-              notifications.show({ message: w, color: 'yellow' })
-            );
+            warnings.forEach((w: string) => notifications.show({ message: w, color: 'yellow' }));
           }
-
-          navigate(`/invoices/${invoice.id}`);
+          replaceCurrentTab(`/invoices/${invoice.id}`);
         } else {
-          // Transaction rolled back - no cleanup needed
-          notifications.show({
-            title: 'Error',
-            message: result.error,
-            color: 'red',
-          });
+          notifications.show({ title: 'Error', message: result.error, color: 'red' });
         }
       } catch (error) {
         notifications.show({
@@ -465,177 +403,47 @@ export function InvoiceCreatePage() {
         closePaymentEntryModal();
       }
     },
-    [
-      invDate,
-      salespersonId,
-      clientId,
-      client,
-      reference,
-      totals,
-      isTaxable,
-      pricing,
-      creditTerms,
-      lineItems,
-      navigate,
-      closePaymentEntryModal,
-      adminOverride,
-    ]
+    [formState, client, totals, lineItems, replaceCurrentTab, closePaymentEntryModal, adminOverride]
   );
 
-  // Register keyboard shortcuts for line items
-  useEffect(() => {
-    const shortcuts = [
-      {
-        key: 'q',
-        ctrl: true,
-        callback: () => {
-          if (selectedLineItemId) {
-            setFocusTrigger({ field: 'quantity', timestamp: Date.now() });
-          }
-        },
-        description: 'Focus quantity field of selected line item',
-      },
-      {
-        key: 'd',
-        ctrl: true,
-        shift: true,
-        callback: () => {
-          if (selectedLineItemId) {
-            setFocusTrigger({ field: 'discount', timestamp: Date.now() });
-          }
-        },
-        description: 'Focus discount field of selected line item',
-      },
-      {
-        key: 'Delete',
-        callback: () => {
-          if (!selectedLineItemId) return;
-
-          const item = lineItems.find((item) => item.id === selectedLineItemId);
-          if (!item) return;
-
-          setItemToDelete(item);
-          openDeleteConfirm();
-        },
-        description: 'Delete selected line item',
-      },
-      {
-        key: 'd',
-        ctrl: true,
-        alt: true,
-        callback: () => {
-          if (lineItems.length === 0) {
-            notifications.show({
-              title: 'No Line Items',
-              message: 'Add line items before applying bulk discount',
-              color: 'orange',
-            });
-            return;
-          }
-          openBulkDiscountModal();
-        },
-        description: 'Apply bulk discount to all line items',
-      },
-      {
-        key: 't',
-        ctrl: true,
-        callback: () => {
-          if (lineItems.length === 0) {
-            notifications.show({
-              title: 'No Line Items',
-              message: 'Add line items before calculating target total',
-              color: 'orange',
-            });
-            return;
-          }
-          openTargetTotalModal();
-        },
-        description: 'Calculate discount for target total',
-      },
-      {
-        key: 's',
-        ctrl: true,
-        callback: () => {
-          handleIssueInvoice();
-        },
-        description: 'Save and issue invoice',
-      },
-      {
-        key: 'p',
-        ctrl: true,
-        shift: true,
-        callback: () => {
-          handleSaveAndProcessPayment();
-        },
-        description: 'Save and process payment',
-      },
-      {
-        key: 'ArrowUp',
-        callback: () => {
-          selectPreviousLineItem();
-        },
-        description: 'Select previous line item',
-      },
-      {
-        key: 'ArrowDown',
-        callback: () => {
-          selectNextLineItem();
-        },
-        description: 'Select next line item',
-      },
-    ];
-
-    registerShortcuts('invoice-line-items', shortcuts);
-
-    return () => {
-      unregisterShortcuts('invoice-line-items');
-    };
-  }, [selectedLineItemId, lineItems, removeLineItem, openBulkDiscountModal, openTargetTotalModal, handleIssueInvoice, handleSaveAndProcessPayment, selectPreviousLineItem, selectNextLineItem, registerShortcuts, unregisterShortcuts]);
-
-  // Handle issue after verification
+  // Issue invoice after verification
   const handleIssueVerified = useCallback(
-    async (adminOverride?: AdminOverrideResult) => {
+    async (override?: AdminOverrideResult) => {
       if (lineItems.length === 0) {
-        notifications.show({
-          title: 'Error',
-          message: 'Please add at least one line item',
-          color: 'red',
-        });
+        notifications.show({ title: 'Error', message: 'Please add at least one line item', color: 'red' });
         return;
       }
 
       setIsSaving(true);
       try {
         const invoiceData = {
-          invDate: invDate.toISOString().split('T')[0],
-          salespersonId,
-          clientId,
+          invDate: formState.invDate.toISOString().split('T')[0],
+          salespersonId: formState.salespersonId,
+          clientId: formState.clientId,
           clientName: client?.clientName || null,
           clientAddress1: client?.address1 || null,
           clientAddress2: client?.address2 || null,
           clientPhone: client?.phone || null,
-          reference: reference || null,
+          reference: formState.reference || null,
           subTotal: totals.subTotal.toFixed(2),
           tax: totals.tax.toFixed(2),
           total: totals.total.toFixed(2),
           totalPaid: '0',
           status: 'active',
-          isTaxable,
-          pricing,
-          creditTerms: creditTerms || null,
+          isTaxable: formState.isTaxable,
+          pricing: formState.pricing,
+          creditTerms: formState.creditTerms || null,
           issuedAt: new Date(),
-          issuedById: salespersonId,
-          ...(adminOverride && {
-            adminOverrideById: adminOverride.adminId,
-            adminOverrideNotes: adminOverride.notes,
+          issuedById: formState.salespersonId,
+          ...(override && {
+            adminOverrideById: override.adminId,
+            adminOverrideNotes: override.notes,
             adminOverrideAt: new Date(),
           }),
         };
 
         const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE, invoiceData);
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to create invoice');
-        }
+        if (!result.success) throw new Error(result.error || 'Failed to create invoice');
 
         const invoiceId = result.data.id;
         const invNumber = result.data.invNumber;
@@ -657,30 +465,20 @@ export function InvoiceCreatePage() {
           });
         }
 
-        // Create inventory transactions (reduce stock)
+        // Create inventory transactions
         const transactionResult = await window.electron.invoke(IpcChannel.CREATE_INVOICE_TRANSACTIONS, {
           invNumber,
           lineItems: lineItems.map(item => ({ sku: item.sku, quantity: item.quantity })),
-          invDate: invDate.toISOString().split('T')[0],
+          invDate: formState.invDate.toISOString().split('T')[0],
         });
 
         if (!transactionResult.success) {
           console.error('Warning: Failed to create inventory transactions:', transactionResult.error);
-          // Don't fail the entire operation, just warn
-          notifications.show({
-            title: 'Warning',
-            message: 'Invoice created but inventory may not have been updated',
-            color: 'yellow',
-          });
+          notifications.show({ title: 'Warning', message: 'Invoice created but inventory may not have been updated', color: 'yellow' });
         }
 
-        notifications.show({
-          title: 'Success',
-          message: `Invoice ${invNumber} created and issued`,
-          color: 'green',
-        });
-
-        navigate(`/invoices/${invoiceId}`);
+        notifications.show({ title: 'Success', message: `Invoice ${invNumber} created and issued`, color: 'green' });
+        replaceCurrentTab(`/invoices/${invoiceId}`);
       } catch (error) {
         console.error('Failed to issue invoice:', error);
         notifications.show({
@@ -692,7 +490,7 @@ export function InvoiceCreatePage() {
         setIsSaving(false);
       }
     },
-    [invDate, salespersonId, clientId, client, reference, totals, isTaxable, pricing, creditTerms, lineItems, navigate]
+    [formState, client, totals, lineItems, replaceCurrentTab]
   );
 
   if (isLoading) {
@@ -705,88 +503,26 @@ export function InvoiceCreatePage() {
 
   return (
     <>
-      <Stack gap="md" pb={10}>
-        {/* Compact Header with Summary */}
-        <Paper withBorder p="md" radius="md">
-          <Group justify="space-between" wrap="nowrap">
-            {/* Left: Invoice Info */}
-            <Group gap="lg" wrap="nowrap">
-              <Stack gap={2}>
-                <Title order={3}>{isEditing ? `Edit Invoice ${originalInvNumber || ''}` : 'New Invoice'}</Title>
-                <Group gap="xs">
-                  {salespersonName && (
-                    <Text size="sm" c="dimmed">Salesperson: {salespersonName}</Text>
-                  )}
-                  {client && (
-                    <>
-                      {salespersonName && <Text size="sm" c="dimmed">•</Text>}
-                      <Text size="sm" c="dimmed">{client.clientName}</Text>
-                    </>
-                  )}
-                </Group>
-              </Stack>
-            </Group>
+      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
+        {/* Compact Toolbar with Actions and Totals */}
+        <CompactInvoiceToolbar
+          isEditing={isEditing}
+          originalInvNumber={formState.originalInvNumber}
+          totals={totals}
+          isTaxable={formState.isTaxable}
+          isSaving={isSaving}
+          hasLineItems={lineItems.length > 0}
+          onOpenShortcuts={shortcutsHook.openShortcutsModal}
+          onIssueInvoice={handleIssueInvoice}
+          onSaveAndPay={handleSaveAndProcessPayment}
+        />
 
-            {/* Center: Summary Totals */}
-            <Group gap="xl" wrap="nowrap">
-              <Stack gap={0} align="center">
-                <Text size="xs" c="dimmed" tt="uppercase">Subtotal</Text>
-                <Text size="lg" fw={600}>{formatCurrency(totals.subTotal)}</Text>
-              </Stack>
-              {isTaxable && (
-                <Stack gap={0} align="center">
-                  <Text size="xs" c="dimmed" tt="uppercase">Tax</Text>
-                  <Text size="lg" fw={600}>{formatCurrency(totals.tax)}</Text>
-                </Stack>
-              )}
-              <Stack gap={0} align="center">
-                <Text size="xs" c="dimmed" tt="uppercase">Total</Text>
-                <Text size="xl" fw={700} c="blue">{formatCurrency(totals.total)}</Text>
-              </Stack>
-            </Group>
-
-            {/* Right: Actions */}
-            <Group gap="sm" wrap="nowrap">
-              <ActionIcon
-                variant="subtle"
-                color="gray"
-                size="lg"
-                onClick={openShortcutsModal}
-                title="Keyboard Shortcuts"
-              >
-                <IconKeyboard size={20} />
-              </ActionIcon>
-              <Button
-                size="sm"
-                color="green"
-                leftSection={<IconCheck size={16} />}
-                onClick={handleIssueInvoice}
-                loading={isSaving}
-                disabled={lineItems.length === 0}
-              >
-                Save & Issue
-              </Button>
-              <Button
-                size="sm"
-                color="teal"
-                leftSection={<IconCash size={16} />}
-                onClick={handleSaveAndProcessPayment}
-                loading={isSaving}
-                disabled={lineItems.length === 0}
-              >
-                Save & Pay
-              </Button>
-            </Group>
-          </Group>
-        </Paper>
-
-
-        {/* Client & Invoice Details - Full Width */}
-        <InvoiceFormHeader
-          invDate={invDate}
-          setInvDate={setInvDate}
-          reference={reference}
-          setReference={setReference}
+        {/* Compact Form Bar */}
+        <CompactFormBar
+          invDate={formState.invDate}
+          setInvDate={formActions.setInvDate}
+          reference={formState.reference}
+          setReference={formActions.setReference}
           client={client}
           clientSearch={clientSearch}
           setClientSearch={setClientSearch}
@@ -794,18 +530,18 @@ export function InvoiceCreatePage() {
           isSearchingClients={isSearchingClients}
           onClientSearchChange={searchClients}
           onClientSelect={handleClientSelectInternal}
-          pricing={pricing}
-          setPricing={setPricing}
-          creditTerms={creditTerms}
-          setCreditTerms={setCreditTerms}
-          isTaxable={isTaxable}
-          setIsTaxable={setIsTaxable}
+          pricing={formState.pricing}
+          setPricing={formActions.setPricing}
+          creditTerms={formState.creditTerms}
+          setCreditTerms={formActions.setCreditTerms}
+          isTaxable={formState.isTaxable}
+          setIsTaxable={formActions.setIsTaxable}
+          taxRate={taxRate}
           referenceInputRef={referenceInputRef}
-          inventorySearchRef={inventorySearchRef}
           pricingSelectRef={pricingSelectRef}
         />
 
-        {/* Line Items - Full Width, Prominent */}
+        {/* Line Items - Primary Focus */}
         <InvoiceLineItemsTable
           lineItems={lineItems}
           itemSearch={itemSearch}
@@ -821,19 +557,19 @@ export function InvoiceCreatePage() {
           isCheckingInventory={isCheckingInventory}
           selectedLineItemId={selectedLineItemId}
           onSelectLineItem={setSelectedLineItemId}
-          focusTrigger={focusTrigger}
+          focusTrigger={shortcutsHook.focusTrigger}
           inventorySearchRef={inventorySearchRef}
+          editingCell={editingCell}
+          onStartEditing={startEditing}
+          onStopEditing={stopEditing}
         />
-      </Stack>
+      </Box>
 
       {/* Admin Override Modal */}
       {creditCheck && (
         <AdminOverrideModal
           opened={overrideModalOpen}
-          onClose={() => {
-            closeOverrideModal();
-            setIsPaymentFlow(false);
-          }}
+          onClose={() => { closeOverrideModal(); setIsPaymentFlow(false); }}
           onApproved={(result) => {
             closeOverrideModal();
             if (isPaymentFlow) {
@@ -851,10 +587,7 @@ export function InvoiceCreatePage() {
       {/* Issue Verification Modal */}
       <PinVerificationModal
         opened={issueModalOpen}
-        onClose={() => {
-          closeIssueModal();
-          setIsPaymentFlow(false);
-        }}
+        onClose={() => { closeIssueModal(); setIsPaymentFlow(false); }}
         onVerified={() => {
           closeIssueModal();
           if (isPaymentFlow) {
@@ -872,11 +605,7 @@ export function InvoiceCreatePage() {
       {/* Variant Selector Modal */}
       <VariantSelectorModal
         opened={variantModalOpen}
-        onClose={() => {
-          closeVariantModal();
-          setPendingItem(null);
-          clearVariants();
-        }}
+        onClose={() => { setVariantModalOpen(false); setPendingItem(null); clearVariants(); }}
         parentSku={pendingItem?.sku || ''}
         variants={variants}
         isLoading={isLoadingVariants}
@@ -885,52 +614,34 @@ export function InvoiceCreatePage() {
 
       {/* Bulk Discount Modal */}
       <BulkDiscountModal
-        opened={bulkDiscountModalOpen}
-        onClose={closeBulkDiscountModal}
+        opened={shortcutsHook.bulkDiscountModalOpen}
+        onClose={shortcutsHook.closeBulkDiscountModal}
         onApply={handleApplyBulkDiscount}
       />
 
       {/* Target Total Modal */}
       <TargetTotalModal
-        opened={targetTotalModalOpen}
-        onClose={closeTargetTotalModal}
+        opened={shortcutsHook.targetTotalModalOpen}
+        onClose={shortcutsHook.closeTargetTotalModal}
         onApply={handleApplyBulkDiscount}
         currentSubTotal={totals.subTotal}
         taxRate={taxRate}
-        isTaxable={isTaxable}
+        isTaxable={formState.isTaxable}
         formatCurrency={formatCurrency}
       />
 
       {/* Keyboard Shortcuts Help Modal */}
-      <KeyboardShortcutsModal opened={shortcutsModalOpen} onClose={closeShortcutsModal} />
+      <KeyboardShortcutsModal opened={shortcutsHook.shortcutsModalOpen} onClose={shortcutsHook.closeShortcutsModal} />
 
       {/* Delete Confirmation Modal */}
-      <Modal
-        opened={deleteConfirmOpen}
-        onClose={closeDeleteConfirm}
-        title="Delete Line Item"
-        centered
-      >
+      <Modal opened={shortcutsHook.deleteConfirmOpen} onClose={shortcutsHook.closeDeleteConfirm} title="Delete Line Item" centered>
         <Stack gap="md">
           <Text>
-            Are you sure you want to delete "{itemToDelete?.description || itemToDelete?.sku}"?
+            Are you sure you want to delete &quot;{shortcutsHook.itemToDelete?.description || shortcutsHook.itemToDelete?.sku}&quot;?
           </Text>
           <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={closeDeleteConfirm}>
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              onClick={() => {
-                if (itemToDelete) {
-                  removeLineItem(itemToDelete.id);
-                  closeDeleteConfirm();
-                  setItemToDelete(null);
-                }
-              }}
-            >
-              Delete
-            </Button>
+            <Button variant="default" onClick={shortcutsHook.closeDeleteConfirm}>Cancel</Button>
+            <Button color="red" onClick={() => shortcutsHook.handleConfirmDelete(removeLineItem)}>Delete</Button>
           </Group>
         </Stack>
       </Modal>
@@ -941,14 +652,11 @@ export function InvoiceCreatePage() {
         onClose={closePaymentEntryModal}
         onSubmit={handleCreateInvoiceWithPayment}
         invoiceTotal={totals.total}
-        clientId={clientId}
+        clientId={formState.clientId}
       />
 
       {/* Floating Alerts */}
-      <FloatingAlerts
-        creditCheck={creditCheck}
-        inventoryWarnings={inventoryWarnings}
-      />
+      <FloatingAlerts creditCheck={creditCheck} inventoryWarnings={inventoryWarnings} />
     </>
   );
 }

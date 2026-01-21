@@ -1,4 +1,4 @@
-import { Paper, Box, Group, Text, Badge, Table } from '@mantine/core';
+import { Paper, Box, Group, Text, Badge, Table, useMantineTheme, useMantineColorScheme } from '@mantine/core';
 import { IconPackage } from '@tabler/icons-react';
 
 interface LineItem {
@@ -17,6 +17,9 @@ interface InvoiceLineItemsReadOnlyProps {
   subTotal: string;
   tax: string;
   total: string;
+  selectedId?: number | null;
+  onSelectItem?: (id: number) => void;
+  compact?: boolean;
 }
 
 const formatCurrency = (value: string | null) => {
@@ -32,31 +35,38 @@ export function InvoiceLineItemsReadOnly({
   subTotal,
   tax,
   total,
+  selectedId,
+  onSelectItem,
+  compact = false,
 }: InvoiceLineItemsReadOnlyProps) {
+  const theme = useMantineTheme();
+  const { colorScheme } = useMantineColorScheme();
   const hasTax = parseFloat(tax) > 0;
+  const rowHeight = compact ? 40 : 52;
 
   return (
-    <Paper withBorder radius="md">
-      <Box p="md" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-        <Group justify="space-between">
-          <Group gap="xs">
-            <IconPackage size={20} style={{ color: 'var(--mantine-color-blue-6)' }} />
-            <Text fw={600} size="lg">Line Items</Text>
-            <Badge variant="light" size="sm">{lineItems.length} items</Badge>
+    <Box style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <Paper withBorder radius="md" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <Box p="sm" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+          <Group justify="space-between">
+            <Group gap="xs">
+              <IconPackage size={18} style={{ color: 'var(--mantine-color-blue-6)' }} />
+              <Text fw={600} size="md">Line Items</Text>
+              <Badge variant="light" size="sm">{lineItems.length} items</Badge>
+            </Group>
+            <Group gap="xs">
+              <Text size="sm" c="dimmed">
+                Subtotal: {formatCurrency(subTotal)}
+              </Text>
+              {hasTax && (
+                <>
+                  <Text size="sm" c="dimmed">•</Text>
+                  <Text size="sm" c="dimmed">Tax: {formatCurrency(tax)}</Text>
+                </>
+              )}
+            </Group>
           </Group>
-          <Group gap="xs">
-            <Text size="sm" c="dimmed">
-              Subtotal: {formatCurrency(subTotal)}
-            </Text>
-            {hasTax && (
-              <>
-                <Text size="sm" c="dimmed">•</Text>
-                <Text size="sm" c="dimmed">Tax: {formatCurrency(tax)}</Text>
-              </>
-            )}
-          </Group>
-        </Group>
-      </Box>
+        </Box>
 
       <Table.ScrollContainer minWidth={600}>
         <Table striped highlightOnHover>
@@ -78,37 +88,55 @@ export function InvoiceLineItemsReadOnly({
                 </Table.Td>
               </Table.Tr>
             ) : (
-              lineItems.map((item) => (
-                <Table.Tr key={item.id}>
-                  <Table.Td>
-                    <Group gap="xs">
-                      <Text size="sm" fw={500}>{item.sku}</Text>
-                      <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" lineClamp={1}>{item.description || '-'}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" ta="center" fw={500}>{item.quantity}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" ta="right">{formatCurrency(item.unitPrice)}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    {parseFloat(item.discount) > 0 ? (
-                      <Text size="sm" ta="right" c="red">
-                        {item.discount}%
+              lineItems.map((item) => {
+                const isSelected = selectedId === item.id;
+                return (
+                  <Table.Tr
+                    key={item.id}
+                    onClick={() => onSelectItem?.(item.id)}
+                    style={{
+                      height: rowHeight,
+                      backgroundColor: isSelected
+                        ? colorScheme === 'dark'
+                          ? theme.colors.blue[9]
+                          : theme.colors.blue[1]
+                        : undefined,
+                      cursor: onSelectItem ? 'pointer' : 'default',
+                      transition: 'background-color 0.1s ease',
+                    }}
+                  >
+                    <Table.Td style={{ height: rowHeight }}>
+                      <Group gap="xs">
+                        <Text size={compact ? 'sm' : 'md'} fw={500}>{item.sku}</Text>
+                        <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                      </Group>
+                    </Table.Td>
+                    <Table.Td style={{ height: rowHeight }}>
+                      <Text size={compact ? 'sm' : 'md'} fw={compact ? 400 : 500} lineClamp={1}>
+                        {item.description || '-'}
                       </Text>
-                    ) : (
-                      <Text size="sm" ta="right" c="dimmed">-</Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" ta="right" fw={600}>{formatCurrency(item.amount)}</Text>
-                  </Table.Td>
+                    </Table.Td>
+                    <Table.Td style={{ height: rowHeight }}>
+                      <Text size={compact ? 'sm' : 'md'} ta="center" fw={600}>{item.quantity}</Text>
+                    </Table.Td>
+                    <Table.Td style={{ height: rowHeight }}>
+                      <Text size={compact ? 'sm' : 'md'} ta="right">{formatCurrency(item.unitPrice)}</Text>
+                    </Table.Td>
+                    <Table.Td style={{ height: rowHeight }}>
+                      {parseFloat(item.discount) > 0 ? (
+                        <Text size={compact ? 'sm' : 'md'} ta="right" c="red">
+                          {item.discount}%
+                        </Text>
+                      ) : (
+                        <Text size={compact ? 'sm' : 'md'} ta="right" c="dimmed">-</Text>
+                      )}
+                    </Table.Td>
+                    <Table.Td style={{ height: rowHeight }}>
+                      <Text size={compact ? 'sm' : 'md'} ta="right" fw={600}>{formatCurrency(item.amount)}</Text>
+                    </Table.Td>
                 </Table.Tr>
-              ))
+                );
+              })
             )}
           </Table.Tbody>
           {lineItems.length > 0 && (
@@ -142,7 +170,8 @@ export function InvoiceLineItemsReadOnly({
             </Table.Tfoot>
           )}
         </Table>
-      </Table.ScrollContainer>
-    </Paper>
+        </Table.ScrollContainer>
+      </Paper>
+    </Box>
   );
 }

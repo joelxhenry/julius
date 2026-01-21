@@ -44,3 +44,10 @@ export type { InventorySearchItem, InventoryOption } from './useInventorySearch'
 
 export { useLineItems } from './useLineItems';
 export type { LineItem } from './useLineItems';
+
+export { useInvoiceForm } from './useInvoiceForm';
+export type { InvoiceFormState, InvoiceFormActions } from './useInvoiceForm';
+
+export { useInvoiceSubmit } from './useInvoiceSubmit';
+
+export { useInvoiceKeyboardShortcuts } from './useInvoiceKeyboardShortcuts';

@@ -13,6 +13,13 @@ export interface LineItem {
   isVariant?: boolean;
 }
 
+export type EditableField = 'quantity' | 'unitPrice' | 'discount';
+
+export interface EditingCell {
+  rowId: string | null;
+  field: EditableField | null;
+}
+
 interface UseLineItemsOptions {
   taxRate?: number;
   isTaxable?: boolean;
@@ -23,6 +30,7 @@ export function useLineItems(options: UseLineItemsOptions = {}) {
 
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<EditingCell>({ rowId: null, field: null });
 
   // Auto-select first line item when items are added
   useEffect(() => {
@@ -119,10 +127,63 @@ export function useLineItems(options: UseLineItemsOptions = {}) {
     return lineItems.find((item) => item.id === selectedId) || null;
   }, [lineItems, selectedId]);
 
+  const startEditing = useCallback((rowId: string, field: EditableField) => {
+    setSelectedId(rowId);
+    setEditingCell({ rowId, field });
+  }, []);
+
+  const stopEditing = useCallback(() => {
+    setEditingCell({ rowId: null, field: null });
+  }, []);
+
+  const editNextField = useCallback(() => {
+    if (!editingCell.rowId || !editingCell.field) return;
+
+    const fields: EditableField[] = ['quantity', 'unitPrice', 'discount'];
+    const currentIndex = fields.indexOf(editingCell.field);
+    const nextIndex = (currentIndex + 1) % fields.length;
+
+    if (nextIndex === 0) {
+      // Wrapped around - move to next row
+      const currentRowIndex = lineItems.findIndex((item) => item.id === editingCell.rowId);
+      if (currentRowIndex < lineItems.length - 1) {
+        const nextRowId = lineItems[currentRowIndex + 1].id;
+        setSelectedId(nextRowId);
+        setEditingCell({ rowId: nextRowId, field: 'quantity' });
+      } else {
+        stopEditing();
+      }
+    } else {
+      setEditingCell({ rowId: editingCell.rowId, field: fields[nextIndex] });
+    }
+  }, [editingCell, lineItems, stopEditing]);
+
+  const editPreviousField = useCallback(() => {
+    if (!editingCell.rowId || !editingCell.field) return;
+
+    const fields: EditableField[] = ['quantity', 'unitPrice', 'discount'];
+    const currentIndex = fields.indexOf(editingCell.field);
+
+    if (currentIndex === 0) {
+      // At first field - move to previous row's last field
+      const currentRowIndex = lineItems.findIndex((item) => item.id === editingCell.rowId);
+      if (currentRowIndex > 0) {
+        const prevRowId = lineItems[currentRowIndex - 1].id;
+        setSelectedId(prevRowId);
+        setEditingCell({ rowId: prevRowId, field: 'discount' });
+      } else {
+        stopEditing();
+      }
+    } else {
+      setEditingCell({ rowId: editingCell.rowId, field: fields[currentIndex - 1] });
+    }
+  }, [editingCell, lineItems, stopEditing]);
+
   return {
     items: lineItems,
     selectedId,
     totals,
+    editingCell,
     setSelectedId,
     addItem,
     updateItem,
@@ -133,5 +194,9 @@ export function useLineItems(options: UseLineItemsOptions = {}) {
     setItems,
     clear,
     getSelectedItem,
+    startEditing,
+    stopEditing,
+    editNextField,
+    editPreviousField,
   };
 }

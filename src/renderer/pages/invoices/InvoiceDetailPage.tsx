@@ -2,16 +2,16 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabParams } from '../../hooks/useTabParams';
-import { Stack, Loader, Center, Alert, Badge, Text } from '@mantine/core';
+import { Box, Loader, Center, Alert, Badge, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconFileText, IconAlertTriangle } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
-  InvoiceDetailHeader,
+  CompactDetailHeader,
+  CompactDetailInfoBar,
   InvoiceLineItemsReadOnly,
-  InvoiceClientDetailsSection,
 } from '../../components/invoices';
 import { PaymentHistoryCard } from '../../components/payments';
 import { CollapsibleSection } from '../../components/common';
@@ -291,9 +291,9 @@ export function InvoiceDetailPage() {
 
   return (
     <>
-      <Stack gap="md">
-        {/* Compact Header with Summary */}
-        <InvoiceDetailHeader
+      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
+        {/* Compact Header with Status, Totals, and Actions */}
+        <CompactDetailHeader
           invoice={invoice}
           adjacentIds={adjacentIds}
           onNavigateAdjacent={handleNavigateAdjacent}
@@ -303,9 +303,12 @@ export function InvoiceDetailPage() {
           onArchive={handleArchive}
         />
 
+        {/* Compact Info Bar */}
+        <CompactDetailInfoBar invoice={invoice} onViewClient={handleViewClient} />
+
         {/* Admin Override Info */}
         {invoice.adminOverrideById && (
-          <Alert icon={<IconAlertTriangle size={16} />} color="yellow" variant="light" title="Admin Override Applied">
+          <Alert icon={<IconAlertTriangle size={16} />} color="yellow" variant="light" title="Admin Override Applied" p="xs">
             <Text size="sm">
               This invoice was issued with an admin override.
               {invoice.adminOverrideNotes && ` Notes: ${invoice.adminOverrideNotes}`}
@@ -313,21 +316,13 @@ export function InvoiceDetailPage() {
           </Alert>
         )}
 
-        {/* Main Content: Line Items Table - Full Width, Prominent */}
+        {/* Main Content: Line Items Table - Primary Focus */}
         <InvoiceLineItemsReadOnly
           lineItems={lineItems}
           subTotal={invoice.subTotal}
           tax={invoice.tax}
           total={invoice.total}
         />
-
-        {/* Collapsible: Invoice & Client Details */}
-        <CollapsibleSection
-          title="Invoice & Client Details"
-          icon={<IconFileText size={18} style={{ color: 'var(--mantine-color-dimmed)' }} />}
-        >
-          <InvoiceClientDetailsSection invoice={invoice} onViewClient={handleViewClient} />
-        </CollapsibleSection>
 
         {/* Collapsible: Payment History */}
         <CollapsibleSection
@@ -349,7 +344,7 @@ export function InvoiceDetailPage() {
             onPaymentVoided={handlePaymentRecorded}
           />
         </CollapsibleSection>
-      </Stack>
+      </Box>
 
       {/* Record Payment Modal */}
       <RecordPaymentModal
