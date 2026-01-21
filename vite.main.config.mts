@@ -25,6 +25,7 @@ export default defineConfig({
       'drizzle-orm',
       'drizzle-orm/node-postgres',
       'drizzle-orm/node-postgres/migrator',
+      'sharp',
     ],
   },
   build: {
@@ -44,6 +45,7 @@ export default defineConfig({
         'pgpass',
         'drizzle-orm',
         /^drizzle-orm\/.*/,
+        'sharp',
         ...builtinModules,
         ...builtinModules.map(m => `node:${m}`),
       ],

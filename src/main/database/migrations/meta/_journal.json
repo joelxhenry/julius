@@ -43,6 +43,13 @@
       "when": 1769023400966,
       "tag": "0005_large_hobgoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769025843901,
+      "tag": "0006_large_shadow_king",
+      "breakpoints": true
     }
   ]
 }

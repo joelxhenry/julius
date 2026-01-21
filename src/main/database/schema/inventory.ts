@@ -134,12 +134,34 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   index('idx_inv_rec_supplier').on(table.supplier),
 ]);
 
+// INVENTORY_IMAGES table - product gallery images
+export const inventoryImages = pgTable('inventory_images', {
+  id: serial('id').primaryKey(),
+  sku: varchar('sku', { length: 50 }).notNull(), // inventory SKU or variant SKU
+  isVariant: boolean('is_variant').notNull().default(false), // TRUE = variant, FALSE = inventory
+  filePath: varchar('file_path', { length: 500 }).notNull(), // relative path from userData
+  thumbnailPath: varchar('thumbnail_path', { length: 500 }), // thumbnail relative path
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileSize: integer('file_size'),
+  mimeType: varchar('mime_type', { length: 50 }),
+  isPrimary: boolean('is_primary').notNull().default(false), // primary/cover image
+  sortOrder: integer('sort_order').notNull().default(0),
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
+}, (table) => [
+  index('idx_inventory_images_sku').on(table.sku),
+  index('idx_inventory_images_variant').on(table.isVariant),
+  index('idx_inventory_images_primary').on(table.sku, table.isPrimary),
+]);
+
 // Export types
 export type Inventory = typeof inventory.$inferSelect;
 export type InsertInventory = typeof inventory.$inferInsert;
 
 export type Variant = typeof variants.$inferSelect;
 export type InsertVariant = typeof variants.$inferInsert;
+
+export type InventoryImage = typeof inventoryImages.$inferSelect;
+export type InsertInventoryImage = typeof inventoryImages.$inferInsert;
 
 export type InventoryAlternate = typeof inventoryAlternates.$inferSelect;
 export type InsertInventoryAlternate = typeof inventoryAlternates.$inferInsert;

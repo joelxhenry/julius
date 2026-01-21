@@ -13,6 +13,7 @@ import {
   Select,
   NumberFormatter,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
   IconSearch,
   IconPlus,
@@ -25,7 +26,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
-import { DataTable, Column } from '../../components/common/DataTable';
+import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader } from '../../components/common';
+import { usePreloadThumbnails } from '../../hooks';
 
 interface Inventory {
   id: number;
@@ -68,6 +70,13 @@ export function InventoryListPage() {
   const [debouncedSearch] = useDebouncedValue(search,500);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
+  // Gallery modal state
+  const [galleryOpened, { open: openGallery, close: closeGallery }] = useDisclosure(false);
+  const [uploaderOpened, { open: openUploader, close: closeUploader }] = useDisclosure(false);
+  const [selectedSku, setSelectedSku] = useState<string | null>(null);
+
+  // Thumbnail preloading
+  const { preload, getThumbnail } = usePreloadThumbnails();
 
   const pageSize = 20;
 
@@ -107,12 +116,51 @@ export function InventoryListPage() {
     setPage(1);
   }, [debouncedSearch, categoryFilter]);
 
+  // Preload thumbnails when inventory data changes
+  useEffect(() => {
+    if (inventory.length > 0) {
+      preload(inventory.map(item => ({ sku: item.sku, isVariant: false })));
+    }
+  }, [inventory, preload]);
+
+  // Handlers for gallery modal
+  const handleThumbnailClick = useCallback((sku: string) => {
+    setSelectedSku(sku);
+    openGallery();
+  }, [openGallery]);
+
+  const handleUploadClick = useCallback(() => {
+    closeGallery();
+    openUploader();
+  }, [closeGallery, openUploader]);
+
+  const handleImagesChange = useCallback(() => {
+    // Refresh thumbnails after image changes
+    if (inventory.length > 0) {
+      preload(inventory.map(item => ({ sku: item.sku, isVariant: false })));
+    }
+  }, [inventory, preload]);
+
   const isLowStock = (item: Inventory) => {
     return item.quantity <= item.minLevel;
   };
 
   const columns: Column<Inventory>[] = useMemo(
     () => [
+      {
+        key: 'image',
+        header: '',
+        width: 50,
+        render: (item) => (
+          <ProductThumbnail
+            sku={item.sku}
+            isVariant={false}
+            size={40}
+            preloadedImage={getThumbnail(item.sku, false)}
+            onClick={() => handleThumbnailClick(item.sku)}
+          />
+        ),
+      },
       {
         key: 'sku',
         header: 'SKU',
@@ -211,7 +259,7 @@ export function InventoryListPage() {
         ),
       },
     ],
-    [navigate]
+    [navigate, getThumbnail, handleThumbnailClick]
   );
 
   return (
@@ -271,6 +319,33 @@ export function InventoryListPage() {
           />
         </Stack>
       </Paper>
+
+      {/* Image Gallery Modal */}
+      {selectedSku && (
+        <ImageGalleryModal
+          opened={galleryOpened}
+          onClose={closeGallery}
+          sku={selectedSku}
+          isVariant={false}
+          onUploadClick={handleUploadClick}
+          onImagesChange={handleImagesChange}
+        />
+      )}
+
+      {/* Image Uploader Modal */}
+      {selectedSku && (
+        <ImageUploader
+          opened={uploaderOpened}
+          onClose={closeUploader}
+          sku={selectedSku}
+          isVariant={false}
+          onUploadComplete={() => {
+            handleImagesChange();
+            closeUploader();
+            openGallery();
+          }}
+        />
+      )}
     </Stack>
   );
 }

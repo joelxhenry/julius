@@ -14,7 +14,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:reset": "if exist dev.db del dev.db && drizzle-kit generate && drizzle-kit migrate",
-    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "rebuild": "electron-rebuild -f -w better-sqlite3 && electron-rebuild -f -w sharp",
     "migrate:dbf": "tsx src/main/database/migration/cli.ts migrate",
     "migrate:dbf:dry-run": "tsx src/main/database/migration/cli.ts migrate --dry-run",
     "migrate:dbf:analyze": "tsx src/main/database/migration/cli.ts analyze"
@@ -65,6 +65,7 @@
   "dependencies": {
     "@mantine/core": "^8.3.9",
     "@mantine/dates": "^8.3.9",
+    "@mantine/dropzone": "^8.3.9",
     "@mantine/form": "^8.3.9",
     "@mantine/hooks": "^8.3.9",
     "@mantine/modals": "^8.3.9",
@@ -83,6 +84,7 @@
     "react-dom": "^19.2.0",
     "react-router": "^7.9.6",
     "react-router-dom": "^7.9.6",
+    "sharp": "^0.34.5",
     "zod": "^4.1.13"
   }
 }

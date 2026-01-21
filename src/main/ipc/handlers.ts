@@ -31,6 +31,8 @@ import {
   SystemSettingsService,
 } from '../services';
 import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams } from '../services/PaymentTransactionService';
+import { ImageStorageService } from '../services/ImageStorageService';
+import { InventoryImageService, UploadImageParams } from '../services/InventoryImageService';
 
 // Import controllers
 import {
@@ -176,6 +178,8 @@ function registerDataHandlers() {
   const spotlightService = new SpotlightService(db);
   const systemSettingsService = new SystemSettingsService(db);
   const paymentTransactionService = new PaymentTransactionService(db, paymentService, invoiceService, creditNoteService);
+  const imageStorageService = new ImageStorageService();
+  const inventoryImageService = new InventoryImageService(db, imageStorageService);
 
   // Initialize controllers
   const branchController = new BranchController(branchService);
@@ -617,6 +621,111 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.UPSERT_SYSTEM_SETTING, (_, { key, value, group, description, readonly, visible }: { key: string; value: string; group: string; description?: string; readonly?: boolean; visible?: boolean }) => systemSettingsController.upsert(key, value, group, description, readonly, visible));
   ipcMain.handle(IpcChannel.DELETE_SYSTEM_SETTING, (_, { key }: { key: string }) => systemSettingsController.deleteByKey(key));
   ipcMain.handle(IpcChannel.INITIALIZE_SYSTEM_SETTINGS, () => systemSettingsController.initializeDefaults());
+
+  // ===== INVENTORY IMAGE HANDLERS =====
+  ipcMain.handle(IpcChannel.UPLOAD_INVENTORY_IMAGE, async (_, params: { sku: string; isVariant: boolean; fileData: string; fileName: string; mimeType: string; isPrimary?: boolean }) => {
+    try {
+      // Convert base64 to buffer
+      const buffer = Buffer.from(params.fileData, 'base64');
+      const result = await inventoryImageService.uploadImage({
+        sku: params.sku,
+        isVariant: params.isVariant,
+        buffer,
+        originalFileName: params.fileName,
+        mimeType: params.mimeType,
+        isPrimary: params.isPrimary,
+      });
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to upload image' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.DELETE_INVENTORY_IMAGE, async (_, { imageId }: { imageId: number }) => {
+    try {
+      const result = await inventoryImageService.deleteImage(imageId);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete image' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_INVENTORY_IMAGES, async (_, { sku, isVariant }: { sku: string; isVariant: boolean }) => {
+    try {
+      const images = await inventoryImageService.getImagesForSku(sku, isVariant);
+      return { success: true, data: images };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get images' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_INVENTORY_IMAGES_WITH_DATA, async (_, { sku, isVariant }: { sku: string; isVariant: boolean }) => {
+    try {
+      const images = await inventoryImageService.getImagesWithBase64(sku, isVariant);
+      return { success: true, data: images };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get images with data' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_PRIMARY_THUMBNAIL, async (_, { sku, isVariant }: { sku: string; isVariant: boolean }) => {
+    try {
+      const thumbnail = await inventoryImageService.getPrimaryThumbnail(sku, isVariant);
+      return { success: true, data: thumbnail };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get primary thumbnail' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_PRIMARY_THUMBNAILS_BATCH, async (_, { items }: { items: Array<{ sku: string; isVariant: boolean }> }) => {
+    try {
+      const thumbnails = await inventoryImageService.getPrimaryThumbnailsBatch(items);
+      // Convert Map to object for IPC serialization
+      const result: Record<string, string> = {};
+      thumbnails.forEach((value, key) => {
+        result[key] = value;
+      });
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get thumbnails batch' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.SET_PRIMARY_IMAGE, async (_, { imageId }: { imageId: number }) => {
+    try {
+      const result = await inventoryImageService.setPrimaryImage(imageId);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to set primary image' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.REORDER_IMAGES, async (_, { imageIds }: { imageIds: number[] }) => {
+    try {
+      await inventoryImageService.reorderImages(imageIds);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to reorder images' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_IMAGE_FILE, async (_, { relativePath }: { relativePath: string }) => {
+    try {
+      const base64 = inventoryImageService.getImageBase64(relativePath);
+      return { success: true, data: base64 };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get image file' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_ALL_PRODUCT_IMAGES, async (_, { mainSku, variantSkus }: { mainSku: string; variantSkus: string[] }) => {
+    try {
+      const result = await inventoryImageService.getAllProductImages(mainSku, variantSkus);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get all product images' };
+    }
+  });
 
   dataHandlersRegistered = true;
   console.log('Data handlers registered successfully');

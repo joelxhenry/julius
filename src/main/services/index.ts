@@ -16,6 +16,8 @@ export { VariantService, type VariantQueryParams, type VariantWithInventory } fr
 export { InventoryAlternateService } from './InventoryAlternateService';
 export { InventoryTransactionService, type InventoryTransactionQueryParams } from './InventoryTransactionService';
 export { InventoryReceivingService } from './InventoryReceivingService';
+export { ImageStorageService, type SaveImageResult } from './ImageStorageService';
+export { InventoryImageService, type UploadImageParams, type UploadImageResult, type ImageWithBase64 } from './InventoryImageService';
 
 // Document Services
 export { InvoiceService, type InvoiceQueryParams, type IssueInvoiceParams } from './InvoiceService';

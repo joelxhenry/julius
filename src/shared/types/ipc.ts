@@ -275,4 +275,16 @@ export enum IpcChannel {
   UPSERT_SYSTEM_SETTING = 'db:upsert-system-setting',
   DELETE_SYSTEM_SETTING = 'db:delete-system-setting',
   INITIALIZE_SYSTEM_SETTINGS = 'db:initialize-system-settings',
+
+  // Inventory image operations
+  UPLOAD_INVENTORY_IMAGE = 'db:upload-inventory-image',
+  DELETE_INVENTORY_IMAGE = 'db:delete-inventory-image',
+  GET_INVENTORY_IMAGES = 'db:get-inventory-images',
+  GET_INVENTORY_IMAGES_WITH_DATA = 'db:get-inventory-images-with-data',
+  GET_PRIMARY_THUMBNAIL = 'db:get-primary-thumbnail',
+  GET_PRIMARY_THUMBNAILS_BATCH = 'db:get-primary-thumbnails-batch',
+  SET_PRIMARY_IMAGE = 'db:set-primary-image',
+  REORDER_IMAGES = 'db:reorder-images',
+  GET_IMAGE_FILE = 'db:get-image-file',
+  GET_ALL_PRODUCT_IMAGES = 'db:get-all-product-images',
 }

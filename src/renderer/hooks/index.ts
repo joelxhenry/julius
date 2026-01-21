@@ -32,6 +32,21 @@ export type {
   CreateAlternateData,
 } from './useInventoryAlternates';
 
+export { useInventoryImages, usePreloadThumbnails } from './useInventoryImages';
+export type {
+  InventoryImage,
+  InventoryImageWithData,
+  UseInventoryImagesOptions,
+  UseInventoryImagesReturn,
+} from './useInventoryImages';
+
+export { useAllInventoryImages } from './useAllInventoryImages';
+export type {
+  AllProductImagesResult,
+  UseAllInventoryImagesOptions,
+  UseAllInventoryImagesReturn,
+} from './useAllInventoryImages';
+
 // System settings hooks
 export { useTaxRate } from './useTaxRate';
 

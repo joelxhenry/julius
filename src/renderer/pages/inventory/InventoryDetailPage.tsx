@@ -31,6 +31,7 @@ import {
   IconChartLine,
   IconAlertTriangle,
   IconCheck,
+  IconPhoto,
 } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
@@ -38,7 +39,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
-import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab } from '../../components/inventory';
+import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab } from '../../components/inventory';
 
 interface Inventory {
   id: number;
@@ -187,7 +188,7 @@ export function InventoryDetailPage() {
   }, [itemId]);
 
   useEffect(() => {
-    if (item?.id && activeTab === 'variants') {
+    if (item?.id && (activeTab === 'variants' || activeTab === 'gallery')) {
       loadVariants(item.id);
     }
   }, [item?.id, activeTab]);
@@ -689,6 +690,9 @@ export function InventoryDetailPage() {
           <Tabs.Tab value="sales" leftSection={<IconChartLine size={16} />}>
             Sales
           </Tabs.Tab>
+          <Tabs.Tab value="gallery" leftSection={<IconPhoto size={16} />}>
+            Gallery
+          </Tabs.Tab>
         </Tabs.List>
 
         {/* Overview Tab */}
@@ -747,6 +751,14 @@ export function InventoryDetailPage() {
             unit={item.unit}
             onPageChange={setSalesPage}
             formatCurrency={formatCurrency}
+          />
+        </Tabs.Panel>
+
+        {/* Gallery Tab */}
+        <Tabs.Panel value="gallery" pt="md">
+          <GalleryTab
+            item={item}
+            variants={variants}
           />
         </Tabs.Panel>
       </Tabs>
