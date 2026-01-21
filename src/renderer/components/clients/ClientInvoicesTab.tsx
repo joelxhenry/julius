@@ -20,7 +20,6 @@ interface ClientInvoicesTabProps {
 }
 
 const statusColors: Record<string, string> = {
-  draft: 'gray',
   active: 'blue',
   partially_paid: 'yellow',
   paid: 'green',
@@ -28,7 +27,6 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  draft: 'Draft',
   active: 'Active',
   partially_paid: 'Partial',
   paid: 'Paid',

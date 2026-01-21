@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, RefObject } from 'react';
 import {
   Stack,
   Text,
@@ -20,7 +20,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
 import type { InventoryWarning } from './InventoryWarningModal';
-import type { LineItem, InventoryItem } from '../../../shared/types/inventory';
+import type { LineItem } from '../../../shared/types/inventory';
 
 // Re-export LineItem for backwards compatibility
 export type { LineItem };
@@ -29,7 +29,7 @@ interface InvoiceLineItemsTableProps {
   lineItems: LineItem[];
   itemSearch: string;
   setItemSearch: (value: string) => void;
-  itemOptions: { value: string; label: string; item: InventoryItem }[];
+  itemOptions: { value: string; label: string; item: unknown }[];
   isSearchingItems: boolean;
   onItemSearchChange: (value: string) => void;
   onItemSelect: (value: string) => void;
@@ -41,6 +41,7 @@ interface InvoiceLineItemsTableProps {
   selectedLineItemId?: string | null;
   onSelectLineItem?: (itemId: string | null) => void;
   focusTrigger?: { field: 'quantity' | 'discount' | null; timestamp: number };
+  inventorySearchRef?: RefObject<HTMLInputElement | null>;
 }
 
 export function InvoiceLineItemsTable({
@@ -59,6 +60,7 @@ export function InvoiceLineItemsTable({
   selectedLineItemId,
   onSelectLineItem,
   focusTrigger,
+  inventorySearchRef,
 }: InvoiceLineItemsTableProps) {
   const theme = useMantineTheme();
   const { colorScheme } = useMantineColorScheme();
@@ -100,6 +102,7 @@ export function InvoiceLineItemsTable({
           data={itemOptions.map((o) => ({ value: o.value, label: o.label }))}
           leftSection={<IconPlus size={16} />}
           rightSection={isSearchingItems ? <Loader size={16} /> : null}
+          ref={inventorySearchRef}
         />
 
         {lineItems.length > 0 ? (
@@ -183,17 +186,8 @@ export function InvoiceLineItemsTable({
                           ta="center"
                         />
                       </Table.Td>
-                      <Table.Td>
-                        <NumberInput
-                          size="xs"
-                          variant="unstyled"
-                          value={item.unitPrice}
-                          onChange={(value) => onUpdateLineItem(item.id, 'unitPrice', value || 0)}
-                          min={0}
-                          decimalScale={2}
-                          fixedDecimalScale
-                          ta="right"
-                        />
+                      <Table.Td ta="right">
+                        <Text size="sm">{formatCurrency(item.unitPrice)}</Text>
                       </Table.Td>
                       <Table.Td>
                         <NumberInput

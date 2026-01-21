@@ -19,11 +19,9 @@ import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import {
   IconSearch,
   IconPlus,
-  IconFileInvoice,
   IconClock,
   IconArchive,
   IconEye,
-  IconEdit,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
@@ -44,7 +42,6 @@ interface Invoice {
 }
 
 const statusColors: Record<string, string> = {
-  draft: 'gray',
   active: 'blue',
   partially_paid: 'yellow',
   paid: 'green',
@@ -52,7 +49,6 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  draft: 'Draft',
   active: 'Active',
   partially_paid: 'Partial',
   paid: 'Paid',
@@ -81,32 +77,12 @@ const formatDate = (dateStr: string) => {
 export function InvoicesPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string | null>('recent');
-  const [draftInvoices, setDraftInvoices] = useState<Invoice[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [searchResults, setSearchResults] = useState<Invoice[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoadingDrafts, setIsLoadingDrafts] = useState(true);
   const [isLoadingRecent, setIsLoadingRecent] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [accessModalOpen, { open: openAccessModal, close: closeAccessModal }] = useDisclosure(false);
-
-  // Load draft invoices
-  useEffect(() => {
-    const loadDrafts = async () => {
-      setIsLoadingDrafts(true);
-      try {
-        const result = await window.electron.invoke(IpcChannel.GET_DRAFT_INVOICES, {});
-        if (result.success && result.data) {
-          setDraftInvoices(result.data);
-        }
-      } catch (error) {
-        console.error('Failed to load drafts:', error);
-      } finally {
-        setIsLoadingDrafts(false);
-      }
-    };
-    loadDrafts();
-  }, []);
 
   // Load recent invoices
   useEffect(() => {
@@ -192,14 +168,6 @@ export function InvoicesPage() {
     [navigate]
   );
 
-  // Edit draft invoice
-  const handleEditDraft = useCallback(
-    (id: number) => {
-      navigate(`/invoices/form/${id}`);
-    },
-    [navigate]
-  );
-
   // Base columns for all invoice tables
   const baseColumns: Column<Invoice>[] = useMemo(
     () => [
@@ -250,36 +218,7 @@ export function InvoicesPage() {
     []
   );
 
-  // Columns with actions for drafts (includes Edit button)
-  const draftsColumns: Column<Invoice>[] = useMemo(
-    () => [
-      ...baseColumns,
-      {
-        key: 'actions',
-        header: '',
-        width: 80,
-        render: (invoice) => (
-          <Group gap="xs" justify="flex-end">
-            <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => navigate(`/invoices/${invoice.id}`)}>
-                <IconEye size={16} />
-              </ActionIcon>
-            </Tooltip>
-            {invoice.status === 'draft' && (
-              <Tooltip label="Edit">
-                <ActionIcon variant="subtle" color="blue" onClick={() => handleEditDraft(invoice.id)}>
-                  <IconEdit size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
-          </Group>
-        ),
-      },
-    ],
-    [baseColumns, navigate, handleEditDraft]
-  );
-
-  // Columns without edit for non-draft tables
+  // Columns for invoice tables
   const viewOnlyColumns: Column<Invoice>[] = useMemo(
     () => [
       ...baseColumns,
@@ -341,14 +280,6 @@ export function InvoicesPage() {
                   </Badge>
                 )}
               </Tabs.Tab>
-              <Tabs.Tab value="drafts" leftSection={<IconFileInvoice size={16} />}>
-                Drafts
-                {draftInvoices.length > 0 && (
-                  <Badge ml="xs" size="sm" variant="light" color="gray">
-                    {draftInvoices.length}
-                  </Badge>
-                )}
-              </Tabs.Tab>
             </Tabs.List>
 
       {/* Recent Tab */}
@@ -388,20 +319,6 @@ export function InvoicesPage() {
               )}
             </Tabs.Panel>
 
-            {/* Drafts Tab */}
-            <Tabs.Panel value="drafts" p="md">
-              <DataTable
-                columns={draftsColumns}
-                data={draftInvoices}
-                loading={isLoadingDrafts}
-                keyField="id"
-                onRowClick={handleViewInvoice}
-                emptyMessage="No draft invoices"
-                stickyActionsColumn
-              />
-            </Tabs.Panel>
-
-      
           </Tabs>
         </Paper>
       </Stack>

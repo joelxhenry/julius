@@ -1,5 +1,5 @@
 import { Card, Stack, Text, Group, Divider, Button } from '@mantine/core';
-import { IconDeviceFloppy, IconCheck } from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import { useTaxRate } from '../../hooks/index';
 
 interface InvoiceTotals {
@@ -15,7 +15,6 @@ interface InvoiceSummaryCardProps {
   isSaving: boolean;
   hasLineItems: boolean;
   formatCurrency: (value: number) => string;
-  onSaveDraft: () => void;
   onIssueInvoice: () => void;
 }
 
@@ -26,7 +25,6 @@ export function InvoiceSummaryCard({
   isSaving,
   hasLineItems,
   formatCurrency,
-  onSaveDraft,
   onIssueInvoice,
 }: InvoiceSummaryCardProps) {
 
@@ -68,27 +66,16 @@ export function InvoiceSummaryCard({
 
         <Divider />
 
-        <Stack gap="xs">
-          <Button
-            fullWidth
-            variant="light"
-            leftSection={<IconDeviceFloppy size={16} />}
-            onClick={onSaveDraft}
-            loading={isSaving}
-          >
-            Save as Draft
-          </Button>
-          <Button
-            fullWidth
-            color="green"
-            leftSection={<IconCheck size={16} />}
-            onClick={onIssueInvoice}
-            loading={isSaving}
-            disabled={!hasLineItems}
-          >
-            Save & Issue
-          </Button>
-        </Stack>
+        <Button
+          fullWidth
+          color="green"
+          leftSection={<IconCheck size={16} />}
+          onClick={onIssueInvoice}
+          loading={isSaving}
+          disabled={!hasLineItems}
+        >
+          Create Invoice
+        </Button>
       </Stack>
     </Card>
   );

@@ -334,14 +334,6 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.ARCHIVE_INVOICE, (_, { id }: { id: number }) => invoiceController.archive(id));
 
   // ===== INVOICE STATUS HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_DRAFT_INVOICES, async () => {
-    try {
-      const data = await invoiceService.findDraftInvoices();
-      return { success: true, data };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  });
   ipcMain.handle(IpcChannel.GET_RECENT_INVOICES, async (_, { limit }: { limit?: number } = {}) => {
     try {
       const data = await invoiceService.findRecentInvoices(limit);
@@ -353,14 +345,6 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_OVERDUE_INVOICES, async (_, { creditTermsDays }: { creditTermsDays?: number } = {}) => {
     try {
       const data = await invoiceService.findOverdueInvoices(creditTermsDays);
-      return { success: true, data };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  });
-  ipcMain.handle(IpcChannel.ISSUE_INVOICE, async (_, params: { invoiceId: number; issuedById: number; adminOverrideById?: number; adminOverrideNotes?: string }) => {
-    try {
-      const data = await invoiceService.issueInvoice(params);
       return { success: true, data };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };

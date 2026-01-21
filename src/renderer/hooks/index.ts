@@ -34,3 +34,13 @@ export type {
 
 // System settings hooks
 export { useTaxRate } from './useTaxRate';
+
+// Invoice/Form hooks
+export { useClientSearch } from './useClientSearch';
+export type { Client, ClientOption } from './useClientSearch';
+
+export { useInventorySearch } from './useInventorySearch';
+export type { InventorySearchItem, InventoryOption } from './useInventorySearch';
+
+export { useLineItems } from './useLineItems';
+export type { LineItem } from './useLineItems';

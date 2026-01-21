@@ -24,8 +24,7 @@ const bulkOperations: ShortcutInfo[] = [
 ];
 
 const invoiceActions: ShortcutInfo[] = [
-  { keys: ['Ctrl', 'S'], description: 'Save invoice as draft' },
-  { keys: ['Ctrl', 'Shift', 'S'], description: 'Issue invoice' },
+  { keys: ['Ctrl', 'S'], description: 'Create invoice' },
 ];
 
 export function KeyboardShortcutsModal({ opened, onClose }: KeyboardShortcutsModalProps) {

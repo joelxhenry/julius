@@ -134,8 +134,8 @@ export class QuotationService extends BaseService<
   }
 
   /**
-   * Convert a quotation to an invoice draft
-   * Creates a new invoice with status 'draft' and copies all line items
+   * Convert a quotation to an invoice
+   * Creates a new invoice with status 'active' and copies all line items
    */
   async convertToInvoice(id: number): Promise<ConvertToInvoiceResult | null> {
     const quotation = await this.findById(id);
@@ -145,7 +145,7 @@ export class QuotationService extends BaseService<
     const invNumResult = await this.db.execute(sql`SELECT nextval('seq_invoice_number') as next_num`);
     const invNumber = (invNumResult.rows[0] as { next_num: string }).next_num.toString();
 
-    // Create invoice draft from quotation data
+    // Create invoice from quotation data
     const [invoice] = await this.db
       .insert(schema.invoices)
       .values({
@@ -160,7 +160,7 @@ export class QuotationService extends BaseService<
         tax: quotation.tax,
         total: quotation.total,
         totalPaid: '0.00',
-        status: 'draft',
+        status: 'active',
         isArchived: false,
       })
       .returning();

@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction, RefObject } from 'react';
 import {
   Stack,
   Text,
@@ -23,8 +23,8 @@ interface Client {
   address1: string | null;
   address2: string | null;
   isTaxable: boolean;
-  discountPct: string;
-  creditLimit: string;
+  discountPct: string | null;
+  creditLimit: string | null;
   creditTerms: string | null;
   isBadCredit: boolean;
 }
@@ -47,6 +47,9 @@ interface InvoiceFormHeaderProps {
   setCreditTerms: Dispatch<SetStateAction<string>>;
   isTaxable: boolean;
   setIsTaxable: Dispatch<SetStateAction<boolean>>;
+  referenceInputRef?: RefObject<HTMLInputElement | null>;
+  inventorySearchRef?: RefObject<HTMLInputElement | null>;
+  pricingSelectRef?: RefObject<HTMLInputElement | null>;
 }
 
 export function InvoiceFormHeader({
@@ -67,6 +70,9 @@ export function InvoiceFormHeader({
   setCreditTerms,
   isTaxable,
   setIsTaxable,
+  referenceInputRef,
+  inventorySearchRef,
+  pricingSelectRef,
 }: InvoiceFormHeaderProps) {
 
 
@@ -90,6 +96,7 @@ export function InvoiceFormHeader({
               value={reference}
               onChange={(e) => setReference(e.currentTarget.value)}
               placeholder="PO number, job ref, etc."
+              ref={referenceInputRef}
             />
           </Grid.Col>
           <Grid.Col span={12}>
@@ -139,6 +146,7 @@ export function InvoiceFormHeader({
                 { value: 'R', label: 'Retail' },
                 { value: 'W', label: 'Wholesale' },
               ]}
+              ref={pricingSelectRef}
             />
           </Grid.Col>
           <Grid.Col span={4}>

@@ -2,8 +2,8 @@ import { pgTable, varchar, text, integer, serial, numeric, boolean, timestamp, d
 import { clients } from './clients';
 import { employees } from './employees';
 
-// Invoice status flow: draft -> active -> partially_paid -> paid -> archived
-export type InvoiceStatus = 'draft' | 'active' | 'partially_paid' | 'paid' | 'archived';
+// Invoice status flow: active -> partially_paid -> paid -> archived
+export type InvoiceStatus = 'active' | 'partially_paid' | 'paid' | 'archived';
 
 // INVOICE table - sales invoices
 export const invoices = pgTable('invoices', {
@@ -28,15 +28,15 @@ export const invoices = pgTable('invoices', {
   total: numeric('total', { precision: 15, scale: 2 }).notNull().default('0'),
   totalPaid: numeric('total_paid', { precision: 15, scale: 2 }).notNull().default('0'),
 
-  // Status: draft -> active -> partially_paid -> paid -> archived
-  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  // Status: active -> partially_paid -> paid -> archived
+  status: varchar('status', { length: 20 }).notNull().default('active'),
 
   isTaxable: boolean('is_taxable').notNull().default(true),
   pricing: varchar('pricing', { length: 10 }).notNull().default('R'),
   creditTerms: varchar('credit_terms', { length: 50 }),
   isArchived: boolean('is_archived').notNull().default(false),
 
-  // Issued tracking (when invoice moves from draft to active)
+  // Issued tracking (when invoice is created)
   issuedAt: timestamp('issued_at'),
   issuedById: integer('issued_by_id')
     .references(() => employees.id, { onDelete: 'set null' }),

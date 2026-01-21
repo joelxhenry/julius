@@ -54,6 +54,7 @@ export function PaymentEntryModal({
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
+  const amountInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // Calculate total payment from all entries
   const totalPayment = paymentEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || '0'), 0);
@@ -116,6 +117,14 @@ export function PaymentEntryModal({
         return { ...entry, [field]: value };
       })
     );
+
+    // Auto-focus amount field after selecting payment method
+    if (field === 'paymentMethodCode' && value) {
+      setTimeout(() => {
+        amountInputRefs.current[index]?.focus();
+        amountInputRefs.current[index]?.select();
+      }, 100);
+    }
   }, []);
 
   const handleSubmit = useCallback(() => {
@@ -233,7 +242,12 @@ export function PaymentEntryModal({
                   decimalScale={2}
                   fixedDecimalScale
                   prefix="$"
-                  ref={index === 0 ? amountInputRef : undefined}
+                  ref={(el) => {
+                    amountInputRefs.current[index] = el;
+                    if (index === 0 && amountInputRef) {
+                      (amountInputRef as any).current = el;
+                    }
+                  }}
                   style={{ width: 150 }}
                   required
                 />

@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc, asc, count, or, ilike, ne, gt, lt, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, count, or, ilike, gt, lt, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { InvoiceStatus } from '../database/schema/invoices';
 import { BaseService } from './BaseService';
@@ -24,13 +24,6 @@ export interface InvoiceQueryParams {
   search?: string;
   status?: string;
   clientId?: number;
-}
-
-export interface IssueInvoiceParams {
-  invoiceId: number;
-  issuedById: number;
-  adminOverrideById?: number;
-  adminOverrideNotes?: string;
 }
 
 export interface InvoiceLineItemInput {
@@ -267,24 +260,14 @@ export class InvoiceService extends BaseService<
     const previousResult = await this.db
       .select({ id: schema.invoices.id })
       .from(schema.invoices)
-      .where(
-        and(
-          ne(schema.invoices.status, 'DRAFT'),
-          gt(schema.invoices.createdAt, currentCreatedAt)
-        )
-      )
+      .where(gt(schema.invoices.createdAt, currentCreatedAt))
       .orderBy(asc(schema.invoices.createdAt))
       .limit(1);
 
     const nextResult = await this.db
       .select({ id: schema.invoices.id })
       .from(schema.invoices)
-      .where(
-        and(
-          ne(schema.invoices.status, 'DRAFT'),
-          lt(schema.invoices.createdAt, currentCreatedAt)
-        )
-      )
+      .where(lt(schema.invoices.createdAt, currentCreatedAt))
       .orderBy(desc(schema.invoices.createdAt))
       .limit(1);
 
@@ -305,24 +288,14 @@ export class InvoiceService extends BaseService<
     const previousResult = await this.db
       .select()
       .from(schema.invoices)
-      .where(
-        and(
-          ne(schema.invoices.status, 'DRAFT'),
-          gt(schema.invoices.createdAt, currentCreatedAt)
-        )
-      )
+      .where(gt(schema.invoices.createdAt, currentCreatedAt))
       .orderBy(asc(schema.invoices.createdAt))
       .limit(1);
 
     const nextResult = await this.db
       .select()
       .from(schema.invoices)
-      .where(
-        and(
-          ne(schema.invoices.status, 'DRAFT'),
-          lt(schema.invoices.createdAt, currentCreatedAt)
-        )
-      )
+      .where(lt(schema.invoices.createdAt, currentCreatedAt))
       .orderBy(desc(schema.invoices.createdAt))
       .limit(1);
 
@@ -337,24 +310,11 @@ export class InvoiceService extends BaseService<
     };
   }
 
-  async findDraftInvoices(): Promise<schema.Invoice[]> {
-    return this.db
-      .select()
-      .from(schema.invoices)
-      .where(eq(schema.invoices.status, 'draft'))
-      .orderBy(desc(schema.invoices.createdAt));
-  }
-
   async findRecentInvoices(limit: number = 20): Promise<schema.Invoice[]> {
     return this.db
       .select()
       .from(schema.invoices)
-      .where(
-        and(
-          ne(schema.invoices.status, 'draft'),
-          eq(schema.invoices.isArchived, false)
-        )
-      )
+      .where(eq(schema.invoices.isArchived, false))
       .orderBy(desc(schema.invoices.createdAt))
       .limit(limit);
   }
@@ -378,32 +338,6 @@ export class InvoiceService extends BaseService<
         )
       )
       .orderBy(asc(schema.invoices.invDate));
-  }
-
-  async issueInvoice(params: IssueInvoiceParams): Promise<schema.Invoice | null> {
-    const { invoiceId, issuedById, adminOverrideById, adminOverrideNotes } = params;
-
-    const invoice = await this.findById(invoiceId);
-    if (!invoice) return null;
-
-    if (invoice.status !== 'draft') {
-      throw new Error('Only draft invoices can be issued');
-    }
-
-    const updateData: Partial<schema.InsertInvoice> = {
-      status: 'active',
-      issuedAt: new Date(),
-      issuedById,
-      updatedAt: new Date(),
-    };
-
-    if (adminOverrideById) {
-      updateData.adminOverrideById = adminOverrideById;
-      updateData.adminOverrideNotes = adminOverrideNotes ?? null;
-      updateData.adminOverrideAt = new Date();
-    }
-
-    return this.update(invoiceId, updateData);
   }
 
   async createInvoiceWithPayment(

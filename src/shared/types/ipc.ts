@@ -118,10 +118,8 @@ export enum IpcChannel {
   ARCHIVE_INVOICE = 'db:archive-invoice',
 
   // Invoice status operations
-  GET_DRAFT_INVOICES = 'db:get-draft-invoices',
   GET_RECENT_INVOICES = 'db:get-recent-invoices',
   GET_OVERDUE_INVOICES = 'db:get-overdue-invoices',
-  ISSUE_INVOICE = 'db:issue-invoice',
   SEARCH_INVOICES = 'db:search-invoices',
   CHECK_INVOICE_INVENTORY = 'db:check-invoice-inventory',
   CREATE_INVOICE_TRANSACTIONS = 'db:create-invoice-transactions',

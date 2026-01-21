@@ -9,4 +9,8 @@ export { VariantSelectorModal, type Variant } from './VariantSelectorModal';
 export { BulkDiscountModal } from './BulkDiscountModal';
 export { TargetTotalModal } from './TargetTotalModal';
 export { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
+export { FloatingAlerts } from './FloatingAlerts';
+export { InvoiceDetailHeader } from './InvoiceDetailHeader';
+export { InvoiceLineItemsReadOnly } from './InvoiceLineItemsReadOnly';
+export { InvoiceClientDetailsSection } from './InvoiceClientDetailsSection';
 export * from './types';
