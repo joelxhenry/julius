@@ -53,6 +53,7 @@ interface Quotation {
   isTaxable: boolean;
   pricing: string;
   isArchived: boolean;
+  notes: string | null;
   createdAt: string;
 }
 
@@ -491,6 +492,18 @@ export function QuotationDetailPage() {
                 </Grid>
               </Stack>
             </Paper>
+
+            {/* Notes */}
+            {quotation.notes && (
+              <Paper withBorder p="md" radius="md" mt="md">
+                <Stack gap="xs">
+                  <Text fw={500} size="sm">Notes</Text>
+                  <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                    {quotation.notes}
+                  </Text>
+                </Stack>
+              </Paper>
+            )}
 
             {/* Line Items */}
             <Paper withBorder p="md" radius="md" mt="md">

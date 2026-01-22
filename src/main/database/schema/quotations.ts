@@ -1,4 +1,4 @@
-import { pgTable, varchar, integer, serial, numeric, boolean, timestamp, date, index } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, text, integer, serial, numeric, boolean, timestamp, date, index } from 'drizzle-orm/pg-core';
 import { clients } from './clients';
 import { employees } from './employees';
 
@@ -25,6 +25,10 @@ export const quotations = pgTable('quotations', {
   isTaxable: boolean('is_taxable').notNull().default(true),
   pricing: varchar('pricing', { length: 10 }).notNull().default('R'),
   isArchived: boolean('is_archived').notNull().default(false),
+
+  // General notes
+  notes: text('notes'),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_quotes_number').on(table.quoteNum),

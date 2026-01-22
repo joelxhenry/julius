@@ -15,6 +15,7 @@ export interface InvoiceFormState {
   salespersonId: number | null;
   salespersonName: string;
   originalInvNumber: string | null;
+  notes: string;
 }
 
 export interface InvoiceFormActions {
@@ -27,6 +28,7 @@ export interface InvoiceFormActions {
   setSalespersonId: (id: number | null) => void;
   setSalespersonName: (name: string) => void;
   setOriginalInvNumber: (num: string | null) => void;
+  setNotes: (notes: string) => void;
   resetForm: () => void;
   loadFromInvoice: (invoice: any) => void;
 }
@@ -47,6 +49,7 @@ export function useInvoiceForm(options: UseInvoiceFormOptions = {}): [InvoiceFor
   const [salespersonId, setSalespersonId] = useState<number | null>(locationState?.salespersonId ?? null);
   const [salespersonName, setSalespersonName] = useState<string>(locationState?.salespersonName ?? '');
   const [originalInvNumber, setOriginalInvNumber] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
 
   const resetForm = useCallback(() => {
     setInvDate(new Date());
@@ -58,6 +61,7 @@ export function useInvoiceForm(options: UseInvoiceFormOptions = {}): [InvoiceFor
     setSalespersonId(locationState?.salespersonId ?? null);
     setSalespersonName(locationState?.salespersonName ?? '');
     setOriginalInvNumber(null);
+    setNotes('');
   }, [locationState]);
 
   const loadFromInvoice = useCallback((invoice: any) => {
@@ -69,6 +73,7 @@ export function useInvoiceForm(options: UseInvoiceFormOptions = {}): [InvoiceFor
     setCreditTerms(invoice.creditTerms || '');
     setSalespersonId(invoice.salespersonId);
     setOriginalInvNumber(invoice.invNumber);
+    setNotes(invoice.notes || '');
   }, []);
 
   const state: InvoiceFormState = {
@@ -81,6 +86,7 @@ export function useInvoiceForm(options: UseInvoiceFormOptions = {}): [InvoiceFor
     salespersonId,
     salespersonName,
     originalInvNumber,
+    notes,
   };
 
   const actions: InvoiceFormActions = {
@@ -93,6 +99,7 @@ export function useInvoiceForm(options: UseInvoiceFormOptions = {}): [InvoiceFor
     setSalespersonId,
     setSalespersonName,
     setOriginalInvNumber,
+    setNotes,
     resetForm,
     loadFromInvoice,
   };

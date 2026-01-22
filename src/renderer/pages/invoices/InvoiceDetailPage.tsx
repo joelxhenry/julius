@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabParams } from '../../hooks/useTabParams';
-import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group } from '@mantine/core';
+import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconCash, IconAlertTriangle, IconArrowLeft } from '@tabler/icons-react';
@@ -27,6 +27,7 @@ interface Invoice {
   clientAddress2: string | null;
   clientPhone: string | null;
   reference: string | null;
+  notes: string | null;
   subTotal: string;
   tax: string;
   total: string;
@@ -327,6 +328,18 @@ export function InvoiceDetailPage() {
               {invoice.adminOverrideNotes && ` Notes: ${invoice.adminOverrideNotes}`}
             </Text>
           </Alert>
+        )}
+
+        {/* Notes */}
+        {invoice.notes && (
+          <Paper withBorder p="md" radius="md">
+            <Stack gap="xs">
+              <Text fw={500} size="sm">Notes</Text>
+              <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                {invoice.notes}
+              </Text>
+            </Stack>
+          </Paper>
         )}
 
         {/* Main Content: Line Items Table - Primary Focus */}

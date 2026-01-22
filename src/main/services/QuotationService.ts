@@ -156,6 +156,7 @@ export class QuotationService extends BaseService<
         salespersonId: quotation.salespersonId,
         salespersonName: quotation.salespersonName,
         reference: `Quote #${quotation.quoteNum}`,
+        notes: quotation.notes,
         subTotal: quotation.subTotal,
         tax: quotation.tax,
         total: quotation.total,

@@ -12,6 +12,10 @@ import {
   Center,
   ActionIcon,
   Modal,
+  Paper,
+  Textarea,
+  Collapse,
+  UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -19,6 +23,8 @@ import {
   IconArrowLeft,
   IconDeviceFloppy,
   IconKeyboard,
+  IconChevronDown,
+  IconChevronRight,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
@@ -58,6 +64,7 @@ export function QuotationCreatePage() {
   // Form state
   const [quoteDate, setQuoteDate] = useState<Date>(new Date());
   const [reference, setReference] = useState('');
+  const [notes, setNotes] = useState('');
   const [clientId, setClientId] = useState<number | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -104,6 +111,9 @@ export function QuotationCreatePage() {
   // Keyboard shortcuts help modal
   const [shortcutsModalOpen, { open: openShortcutsModal, close: closeShortcutsModal }] = useDisclosure(false);
 
+  // Notes collapsible
+  const [notesOpen, { toggle: toggleNotes }] = useDisclosure(false);
+
   // Delete confirmation modal
   const [deleteConfirmOpen, { open: openDeleteConfirm, close: closeDeleteConfirm }] = useDisclosure(false);
   const [itemToDelete, setItemToDelete] = useState<LineItem | null>(null);
@@ -146,6 +156,7 @@ export function QuotationCreatePage() {
         const quote = result.data;
         setQuoteDate(new Date(quote.quoteDate));
         setReference(quote.reference || '');
+        setNotes(quote.notes || '');
         setClientId(quote.clientId);
         setIsTaxable(quote.isTaxable);
         setPricing(quote.pricing);
@@ -414,6 +425,7 @@ export function QuotationCreatePage() {
         clientAddress2: client?.address2 || null,
         clientPhone: client?.phone || null,
         reference: reference || null,
+        notes: notes || null,
         subTotal: totals.subTotal.toFixed(2),
         tax: totals.tax.toFixed(2),
         total: totals.total.toFixed(2),
@@ -667,6 +679,30 @@ export function QuotationCreatePage() {
               isTaxable={isTaxable}
               setIsTaxable={setIsTaxable}
             />
+
+            {/* Notes */}
+            <Paper withBorder p="xs" radius="md">
+              <UnstyledButton onClick={toggleNotes} w="100%">
+                <Group gap="xs">
+                  {notesOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                  <Text size="sm" c={notes ? "blue" : "dimmed"}>
+                    {notes ? "Notes" : "Add Notes"}
+                  </Text>
+                </Group>
+              </UnstyledButton>
+              <Collapse in={notesOpen}>
+                <Textarea
+                  placeholder="Add notes for this quotation..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.currentTarget.value)}
+                  size="sm"
+                  autosize
+                  minRows={2}
+                  maxRows={4}
+                  mt="xs"
+                />
+              </Collapse>
+            </Paper>
 
             {/* Line Items */}
             <InvoiceLineItemsTable

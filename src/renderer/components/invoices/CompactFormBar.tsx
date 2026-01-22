@@ -2,6 +2,7 @@ import { RefObject } from "react";
 import {
   Group,
   TextInput,
+  Textarea,
   Select,
   Switch,
   Autocomplete,
@@ -10,9 +11,12 @@ import {
   ActionIcon,
   Text,
   Stack,
+  Collapse,
+  UnstyledButton,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { DateInput } from "@mantine/dates";
-import { IconSearch, IconX } from "@tabler/icons-react";
+import { IconSearch, IconX, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 
 interface Client {
   id: number;
@@ -48,6 +52,8 @@ interface CompactFormBarProps {
   isTaxable: boolean;
   setIsTaxable: (taxable: boolean) => void;
   taxRate: number;
+  notes?: string;
+  setNotes?: (notes: string) => void;
   referenceInputRef?: RefObject<HTMLInputElement | null>;
   pricingSelectRef?: RefObject<HTMLInputElement | null>;
 }
@@ -72,9 +78,12 @@ export function CompactFormBar({
   isTaxable,
   setIsTaxable,
   taxRate,
+  notes,
+  setNotes,
   referenceInputRef,
   pricingSelectRef,
 }: CompactFormBarProps) {
+  const [notesOpen, { toggle: toggleNotes }] = useDisclosure(false);
   return (
     <Paper withBorder p="xs" radius="md">
       <Stack gap="sm"  h="100%" align="left">
@@ -169,7 +178,34 @@ export function CompactFormBar({
               {isTaxable ? `GCT ${(taxRate * 100).toFixed(0)}%` : "No Tax"}
             </Text>
           </Group>
+
+          {/* Notes Toggle */}
+          {setNotes && (
+            <UnstyledButton onClick={toggleNotes}>
+              <Group gap={4}>
+                {notesOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                <Text size="xs" c={notes ? "blue" : "dimmed"}>
+                  {notes ? "Notes" : "Add Notes"}
+                </Text>
+              </Group>
+            </UnstyledButton>
+          )}
         </Group>
+
+        {/* Notes Collapse */}
+        {setNotes && (
+          <Collapse in={notesOpen}>
+            <Textarea
+              placeholder="Add notes for this invoice..."
+              value={notes || ""}
+              onChange={(e) => setNotes(e.currentTarget.value)}
+              size="xs"
+              autosize
+              minRows={2}
+              maxRows={4}
+            />
+          </Collapse>
+        )}
       </Stack>
     </Paper>
   );

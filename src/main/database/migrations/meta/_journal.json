@@ -50,6 +50,13 @@
       "when": 1769025843901,
       "tag": "0006_large_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769055125313,
+      "tag": "0007_adorable_legion",
+      "breakpoints": true
     }
   ]
 }

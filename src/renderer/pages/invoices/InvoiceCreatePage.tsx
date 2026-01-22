@@ -349,6 +349,7 @@ export function InvoiceCreatePage() {
             clientAddress2: client?.address2 || null,
             clientPhone: client?.phone || null,
             reference: formState.reference || null,
+            notes: formState.notes || null,
             subTotal: totals.subTotal.toFixed(2),
             tax: totals.tax.toFixed(2),
             total: totals.total.toFixed(2),
@@ -425,6 +426,7 @@ export function InvoiceCreatePage() {
           clientAddress2: client?.address2 || null,
           clientPhone: client?.phone || null,
           reference: formState.reference || null,
+          notes: formState.notes || null,
           subTotal: totals.subTotal.toFixed(2),
           tax: totals.tax.toFixed(2),
           total: totals.total.toFixed(2),
@@ -537,6 +539,8 @@ export function InvoiceCreatePage() {
           isTaxable={formState.isTaxable}
           setIsTaxable={formActions.setIsTaxable}
           taxRate={taxRate}
+          notes={formState.notes}
+          setNotes={formActions.setNotes}
           referenceInputRef={referenceInputRef}
           pricingSelectRef={pricingSelectRef}
         />

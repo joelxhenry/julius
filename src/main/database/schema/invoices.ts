@@ -47,6 +47,9 @@ export const invoices = pgTable('invoices', {
   adminOverrideNotes: text('admin_override_notes'),
   adminOverrideAt: timestamp('admin_override_at'),
 
+  // General notes
+  notes: text('notes'),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
