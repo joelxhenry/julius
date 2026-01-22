@@ -329,6 +329,14 @@ export function QuotationCreatePage() {
       const option = itemOptions.find((o) => o.value === value);
       if (option) {
         const item = option.item;
+
+        // If the item is already a variant (from unified search), add it directly
+        if ((item as any).isVariant) {
+          addLineItemFromInventory(item, item.sku, (item as any).variantName || item.description1 || '', true);
+          return;
+        }
+
+        // Otherwise check if inventory item has variants
         const hasVariants = await checkHasVariants(item.sku);
 
         if (hasVariants) {

@@ -5,6 +5,7 @@ import { DataTable, Column } from '../common/DataTable';
 interface InventoryTransaction {
   id: number;
   sku: string;
+  variantSku: string | null;
   activity: string;
   reference: string | null;
   quantity: number;
@@ -56,6 +57,19 @@ export function TransactionsTab({ transactions, loading, page, totalPages, onPag
         ),
       },
       {
+        key: 'variantSku',
+        header: 'Variant',
+        width: 150,
+        render: (trans) =>
+          trans.variantSku ? (
+            <Badge color="grape" variant="light" size="sm">
+              {trans.variantSku}
+            </Badge>
+          ) : (
+            <Text size="sm" c="dimmed">-</Text>
+          ),
+      },
+      {
         key: 'quantity',
         header: 'Quantity',
         width: 100,
@@ -83,7 +97,7 @@ export function TransactionsTab({ transactions, loading, page, totalPages, onPag
         loading={loading}
         keyField="id"
         emptyMessage="No transactions found"
-        minWidth={600}
+        minWidth={750}
         page={page}
         totalPages={totalPages}
         onPageChange={onPageChange}

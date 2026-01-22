@@ -419,43 +419,76 @@ export class InvoiceService extends BaseService<
       const createdLineItems = await tx.insert(schema.documentLineItems).values(lineItemsData).returning();
 
       // 5. Create inventory transactions and reduce stock
+      // Handles both inventory items and variants
       const inventoryTransactions: schema.InventoryTransaction[] = [];
       for (const item of lineItems) {
         if (!item.sku || parseFloat(item.quantity) <= 0) continue;
 
-        // Check if SKU exists
-        const [inventoryItem] = await tx
-          .select()
-          .from(schema.inventory)
-          .where(eq(schema.inventory.sku, item.sku))
+        // First check if SKU is a variant
+        const [variant] = await tx
+          .select({ id: schema.variants.id, parentSku: schema.variants.parentSku })
+          .from(schema.variants)
+          .where(eq(schema.variants.variantSku, item.sku))
           .limit(1);
 
-        if (!inventoryItem) {
-          warnings.push(`SKU ${item.sku} not found - inventory not reduced`);
-          continue;
+        if (variant) {
+          // Variant transaction - use parent SKU for FK, variant SKU in new column
+          const [invTrans] = await tx
+            .insert(schema.inventoryTransactions)
+            .values({
+              sku: variant.parentSku,
+              variantSku: item.sku,
+              activity: 'SALE',
+              reference: invNumber!,
+              quantity: -parseFloat(item.quantity),
+              activityDate: invoiceData.invDate,
+            })
+            .returning();
+
+          inventoryTransactions.push(invTrans);
+
+          // Update variant quantity
+          await tx.execute(sql`
+            UPDATE variants
+            SET quantity = quantity - ${parseFloat(item.quantity)},
+                updated_at = NOW()
+            WHERE variant_sku = ${item.sku}
+          `);
+        } else {
+          // Check if SKU exists in inventory
+          const [inventoryItem] = await tx
+            .select()
+            .from(schema.inventory)
+            .where(eq(schema.inventory.sku, item.sku))
+            .limit(1);
+
+          if (!inventoryItem) {
+            warnings.push(`SKU ${item.sku} not found - inventory not reduced`);
+            continue;
+          }
+
+          // Inventory transaction
+          const [invTrans] = await tx
+            .insert(schema.inventoryTransactions)
+            .values({
+              sku: item.sku,
+              activity: 'SALE',
+              reference: invNumber!,
+              quantity: -parseFloat(item.quantity),
+              activityDate: invoiceData.invDate,
+            })
+            .returning();
+
+          inventoryTransactions.push(invTrans);
+
+          // Update inventory quantity
+          await tx.execute(sql`
+            UPDATE inventory
+            SET quantity = quantity - ${parseFloat(item.quantity)},
+                updated_at = NOW()
+            WHERE sku = ${item.sku}
+          `);
         }
-
-        // Create transaction record
-        const [invTrans] = await tx
-          .insert(schema.inventoryTransactions)
-          .values({
-            sku: item.sku,
-            activity: 'SALE',
-            reference: invNumber!,
-            quantity: -parseFloat(item.quantity),
-            activityDate: invoiceData.invDate,
-          })
-          .returning();
-
-        inventoryTransactions.push(invTrans);
-
-        // Update quantity
-        await tx.execute(sql`
-          UPDATE inventory
-          SET quantity = quantity - ${parseFloat(item.quantity)},
-              updated_at = NOW()
-          WHERE sku = ${item.sku}
-        `);
       }
 
       // 6. Create payment records
@@ -588,6 +621,9 @@ export class InvoiceService extends BaseService<
   /**
    * Create inventory transactions when invoice is issued
    * Reduces inventory quantities and creates transaction records
+   * Handles both inventory items and variants
+   * For variants: sku = parent SKU (for FK), variantSku = variant SKU
+   * For inventory: sku = inventory SKU, variantSku = null
    */
   async createInventoryTransactions(
     invNumber: string,
@@ -597,19 +633,41 @@ export class InvoiceService extends BaseService<
     for (const item of lineItems) {
       if (!item.sku || item.quantity <= 0) continue;
 
-      // Create transaction record
-      await this.db.insert(schema.inventoryTransactions).values({
-        sku: item.sku,
-        activity: 'SALE',
-        reference: invNumber,
-        quantity: -item.quantity, // Negative for sales
-        activityDate: invDate,
-      });
+      // Check if this SKU is a variant
+      const variant = await this.db
+        .select({ id: schema.variants.id, parentSku: schema.variants.parentSku })
+        .from(schema.variants)
+        .where(eq(schema.variants.variantSku, item.sku))
+        .limit(1);
 
-      // Update inventory quantity
-      await this.db.execute(
-        sql`UPDATE inventory SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE sku = ${item.sku}`
-      );
+      if (variant.length > 0) {
+        // Variant transaction - use parent SKU for FK, variant SKU in new column
+        await this.db.insert(schema.inventoryTransactions).values({
+          sku: variant[0].parentSku,
+          variantSku: item.sku,
+          activity: 'SALE',
+          reference: invNumber,
+          quantity: -item.quantity,
+          activityDate: invDate,
+        });
+        // Update variant quantity
+        await this.db.execute(
+          sql`UPDATE variants SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE variant_sku = ${item.sku}`
+        );
+      } else {
+        // Inventory transaction
+        await this.db.insert(schema.inventoryTransactions).values({
+          sku: item.sku,
+          activity: 'SALE',
+          reference: invNumber,
+          quantity: -item.quantity,
+          activityDate: invDate,
+        });
+        // Update inventory quantity
+        await this.db.execute(
+          sql`UPDATE inventory SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE sku = ${item.sku}`
+        );
+      }
     }
   }
 }

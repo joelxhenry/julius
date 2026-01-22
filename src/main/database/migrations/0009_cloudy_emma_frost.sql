@@ -1,0 +1,3 @@
+ALTER TABLE "inventory_transactions" ADD COLUMN "variant_sku" varchar(50);--> statement-breakpoint
+ALTER TABLE "inventory_transactions" ADD CONSTRAINT "inventory_transactions_variant_sku_variants_variant_sku_fk" FOREIGN KEY ("variant_sku") REFERENCES "public"."variants"("variant_sku") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_inv_trans_variant_sku" ON "inventory_transactions" USING btree ("variant_sku");

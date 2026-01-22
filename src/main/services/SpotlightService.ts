@@ -104,6 +104,7 @@ export class SpotlightService {
     // Search inventory
     if (searchTypes.includes('inventory')) {
       try {
+        // Search main inventory items
         const inventory = await this.db
           .select()
           .from(schema.inventory)
@@ -124,6 +125,34 @@ export class SpotlightService {
             title: item.sku,
             subtitle: item.description1 || 'No description',
             url: `/inventory/${item.id}`,
+          });
+        }
+
+        // Search variants (linked to parent inventory)
+        const variantsWithParent = await this.db
+          .select({
+            variant: schema.variants,
+            parent: schema.inventory,
+          })
+          .from(schema.variants)
+          .innerJoin(schema.inventory, eq(schema.variants.parentSku, schema.inventory.sku))
+          .where(
+            or(
+              ilike(schema.variants.variantSku, searchTerm),
+              ilike(schema.variants.variantName, searchTerm),
+              ilike(schema.variants.description, searchTerm)
+            )
+          )
+          .orderBy(desc(schema.variants.createdAt))
+          .limit(limitPerType);
+
+        for (const { variant, parent } of variantsWithParent) {
+          results.push({
+            id: parent.id,
+            type: 'inventory',
+            title: `[V] ${variant.variantSku}`,
+            subtitle: variant.variantName || variant.description || `Variant of ${parent.sku}`,
+            url: `/inventory/${parent.id}`,
           });
         }
       } catch (err) {

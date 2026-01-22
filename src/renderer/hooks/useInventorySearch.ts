@@ -6,9 +6,14 @@ export interface InventorySearchItem {
   id: number;
   sku: string;
   description1: string | null;
+  description2: string | null;
   price: string | null;
   cost: string | null;
+  quantity: number;
   isTaxable: boolean;
+  isVariant: boolean;
+  parentSku: string | null;
+  variantName: string | null;
 }
 
 export interface InventoryOption {
@@ -37,12 +42,14 @@ export function useInventorySearch(config: UseInventorySearchOptions = {}) {
 
     setIsSearching(true);
     try {
-      const result = await window.electron.invoke(IpcChannel.SEARCH_INVENTORY_FOR_SELECT, { query, limit });
+      const result = await window.electron.invoke(IpcChannel.SEARCH_INVENTORY_WITH_VARIANTS, { query, limit });
       if (result.success && result.data) {
         setItemOptions(
           result.data.map((item: InventorySearchItem) => ({
             value: item.sku,
-            label: `${item.sku} - ${item.description1 || 'No description'}`,
+            label: item.isVariant
+              ? `[V] ${item.sku} - ${item.variantName || item.description1 || 'No name'}`
+              : `${item.sku} - ${item.description1 || 'No description'}`,
             item,
           }))
         );

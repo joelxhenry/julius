@@ -94,10 +94,14 @@ export const inventoryMarkup = pgTable('inventory_markup', {
 ]);
 
 // INVENTORY_TRANSACTIONS table - inventory movement tracking
+// For variants: sku = parent SKU, variantSku = variant SKU
+// For inventory items: sku = inventory SKU, variantSku = null
 export const inventoryTransactions = pgTable('inventory_transactions', {
   id: serial('id').primaryKey(),
   sku: varchar('sku', { length: 50 }).notNull()
     .references(() => inventory.sku, { onDelete: 'cascade' }),
+  variantSku: varchar('variant_sku', { length: 50 })
+    .references(() => variants.variantSku, { onDelete: 'cascade' }),
   activity: varchar('activity', { length: 20 }).notNull(),
   reference: varchar('reference', { length: 50 }),
   quantity: integer('quantity').notNull(),
@@ -105,6 +109,7 @@ export const inventoryTransactions = pgTable('inventory_transactions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_inv_trans_sku').on(table.sku),
+  index('idx_inv_trans_variant_sku').on(table.variantSku),
   index('idx_inv_trans_date').on(table.activityDate),
   index('idx_inv_trans_reference').on(table.reference),
 ]);
