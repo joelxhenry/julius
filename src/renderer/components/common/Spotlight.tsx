@@ -1,6 +1,7 @@
 import { Modal, TextInput, Stack, Group, Text, Badge, Loader, Kbd, Paper, UnstyledButton, Box, Center } from '@mantine/core';
 import { IconSearch, IconFileInvoice, IconUser, IconPackage, IconFileText } from '@tabler/icons-react';
 import { useSpotlight, SpotlightResult } from '../../contexts/SpotlightContext';
+import { CopyButton } from './CopyButton';
 
 const typeIcons: Record<SpotlightResult['type'], React.ReactNode> = {
   invoice: <IconFileInvoice size={20} />,
@@ -53,6 +54,9 @@ function SpotlightResultItem({ result, isSelected, onClick }: SpotlightResultIte
             <Text size="sm" fw={500} truncate>
               {result.title}
             </Text>
+            {result.type === 'inventory' && (
+              <CopyButton value={result.title} tooltip="Copy SKU" />
+            )}
             {result.status && (
               <Badge size="xs" variant="light" color={statusColors[result.status] || 'gray'}>
                 {result.status.replace('_', ' ')}

@@ -43,6 +43,7 @@ import { AlternateForm } from '../../components/forms/AlternateForm';
 import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, InventoryEditModal } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
 import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
+import { CopyButton } from '../../components/common';
 
 interface Inventory {
   id: number;
@@ -620,6 +621,7 @@ export function InventoryDetailPage() {
           <Stack gap={4}>
             <Group gap="sm">
               <Title order={2}>{item.sku}</Title>
+              <CopyButton value={item.sku} size="sm" />
               {isLowStock && (
                 <Badge color="orange" variant="light" leftSection={<IconAlertTriangle size={12} />}>
                   Low Stock

@@ -27,7 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
-import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader } from '../../components/common';
+import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader, CopyButton } from '../../components/common';
 import { usePreloadThumbnails } from '../../hooks';
 
 interface Inventory {
@@ -166,10 +166,11 @@ export function InventoryListPage() {
       {
         key: 'sku',
         header: 'SKU',
-        width: 250,
+        width: 280,
         render: (item) => (
           <Group gap="xs">
             <Text fw={500} size="sm">{item.sku}</Text>
+            <CopyButton value={item.sku} />
             {isLowStock(item) && (
               <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
             )}

@@ -35,6 +35,7 @@ import {
   IconClock,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { CopyButton } from '../../components/common';
 
 interface Quotation {
   id: number;
@@ -528,6 +529,7 @@ export function QuotationDetailPage() {
                             <Text size="sm" fw={500}>
                               {item.sku}
                             </Text>
+                            <CopyButton value={item.sku} />
                             <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
                           </Group>
                         </Table.Td>

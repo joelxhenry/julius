@@ -1,4 +1,5 @@
-import { Paper, Stack, Title, SimpleGrid, Text, Badge } from '@mantine/core';
+import { Paper, Stack, Title, SimpleGrid, Text, Badge, Group } from '@mantine/core';
+import { CopyButton } from '../common';
 
 interface Inventory {
   id: number;
@@ -38,7 +39,10 @@ export function OverviewTab({ item, formatCurrency }: OverviewTabProps) {
               <Text size="xs" c="dimmed">
                 SKU
               </Text>
-              <Text fw={500}>{item.sku}</Text>
+              <Group gap="xs">
+                <Text fw={500}>{item.sku}</Text>
+                <CopyButton value={item.sku} />
+              </Group>
             </Stack>
             <Stack gap={2}>
               <Text size="xs" c="dimmed">

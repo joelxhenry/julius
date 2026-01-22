@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Paper, Stack, Group, Text, Button, Badge, ActionIcon, Menu, NumberFormatter } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconEdit, IconTrash, IconDotsVertical } from '@tabler/icons-react';
-import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader } from '../common';
+import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader, CopyButton } from '../common';
 import { usePreloadThumbnails } from '../../hooks';
 
 interface Variant {
@@ -83,8 +83,13 @@ export function VariantsTab({ variants, loading, onAddVariant, onEditVariant, on
       {
         key: 'variantSku',
         header: 'Variant SKU',
-        width: 150,
-        render: (variant) => <Text fw={500}>{variant.variantSku}</Text>,
+        width: 180,
+        render: (variant) => (
+          <Group gap="xs">
+            <Text fw={500}>{variant.variantSku}</Text>
+            <CopyButton value={variant.variantSku} />
+          </Group>
+        ),
       },
       {
         key: 'variantName',

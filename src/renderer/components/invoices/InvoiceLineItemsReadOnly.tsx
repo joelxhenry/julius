@@ -1,5 +1,6 @@
 import { Paper, Box, Group, Text, Badge, Table, useMantineTheme, useMantineColorScheme } from '@mantine/core';
 import { IconPackage } from '@tabler/icons-react';
+import { CopyButton } from '../common';
 
 interface LineItem {
   id: number;
@@ -108,6 +109,7 @@ export function InvoiceLineItemsReadOnly({
                     <Table.Td style={{ height: rowHeight }}>
                       <Group gap="xs">
                         <Text size={compact ? 'sm' : 'md'} fw={500}>{item.sku}</Text>
+                        <CopyButton value={item.sku} />
                         <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
                       </Group>
                     </Table.Td>

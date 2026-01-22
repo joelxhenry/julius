@@ -20,6 +20,7 @@ import {
   Box,
 } from '@mantine/core';
 import { IconPlus, IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
+import { CopyButton } from '../common';
 import type { InventoryWarning } from './InventoryWarningModal';
 import type { LineItem } from '../../../shared/types/inventory';
 import type { EditingCell, EditableField } from '../../hooks/useLineItems';
@@ -208,6 +209,7 @@ export function InvoiceLineItemsTable({
                             placeholder="SKU"
                             styles={{ input: { minWidth: 80, fontSize: compact ? 12 : 14 } }}
                           />
+                          {item.sku && <CopyButton value={item.sku} />}
                           {warning && (
                             <Tooltip label={`Low stock: ${warning.availableQty} available`}>
                               <Badge color="orange" variant="light" size="sm" leftSection={<IconAlertTriangle size={12} />}>

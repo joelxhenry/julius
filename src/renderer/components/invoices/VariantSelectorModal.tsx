@@ -1,5 +1,6 @@
 import { Modal, Stack, Text, Table, Badge, Button, Group, Loader, Alert } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { CopyButton } from '../common';
 
 export interface Variant {
   id: number;
@@ -92,9 +93,12 @@ export function VariantSelectorModal({
                         <Text size="sm" fw={500}>
                           {variant.variantName}
                         </Text>
-                        <Text size="xs" c="dimmed">
-                          {variant.variantSku}
-                        </Text>
+                        <Group gap="xs">
+                          <Text size="xs" c="dimmed">
+                            {variant.variantSku}
+                          </Text>
+                          <CopyButton value={variant.variantSku} />
+                        </Group>
                       </Stack>
                     </Table.Td>
                     <Table.Td>

@@ -1,6 +1,7 @@
 export { ActionCard } from './ActionCard';
 export { CollapsibleSection } from './CollapsibleSection';
 export { ConfirmDialog } from './ConfirmDialog';
+export { CopyButton } from './CopyButton';
 export { DataTable, type Column } from './DataTable';
 export { EmptyState } from './EmptyState';
 export { ErrorBoundary } from './ErrorBoundary';

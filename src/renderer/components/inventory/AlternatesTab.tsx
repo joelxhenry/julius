@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Paper, Stack, Group, Text, Button, ActionIcon } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
+import { CopyButton } from '../common';
 
 interface InventoryAlternate {
   id: number;
@@ -35,14 +36,17 @@ export function AlternatesTab({
         render: (alt) => {
           const alternateSku = alt.partNo === currentSku ? alt.alternateNo : alt.partNo;
           return (
-            <Text
-              fw={500}
-              c="blue"
-              style={{ cursor: 'pointer' }}
-              onClick={() => onNavigateToAlternate(alternateSku)}
-            >
-              {alternateSku}
-            </Text>
+            <Group gap="xs">
+              <Text
+                fw={500}
+                c="blue"
+                style={{ cursor: 'pointer' }}
+                onClick={() => onNavigateToAlternate(alternateSku)}
+              >
+                {alternateSku}
+              </Text>
+              <CopyButton value={alternateSku} />
+            </Group>
           );
         },
       },
