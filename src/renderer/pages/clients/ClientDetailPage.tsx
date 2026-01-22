@@ -13,6 +13,7 @@ import {
   Card,
   SimpleGrid,
   Divider,
+  ActionIcon,
 } from '@mantine/core';
 import {
   IconArrowLeft,
@@ -28,11 +29,11 @@ import {
   IconReceipt,
   IconCash,
 } from '@tabler/icons-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab } from '../../components/clients';
-import { useTabContext } from '../../contexts/TabContext'
+import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientEditModal } from '../../components/clients';
+import { useTabContext } from '../../contexts/TabContext';
 
 interface Client {
   id: number;
@@ -58,15 +59,15 @@ interface Client {
 }
 
 export function ClientDetailPage() {
-  const navigate = useNavigate();
   const location = useLocation();
-  const { updateTabTitle } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab } = useTabContext();
   const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<Client | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>('summary');
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const clientId = id ? parseInt(id, 10) : null;
 
@@ -136,7 +137,7 @@ export function ClientDetailPage() {
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Client not found'}
         </Alert>
-        <Button leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/clients')}>
+        <Button leftSection={<IconArrowLeft size={16} />} onClick={() => replaceCurrentTab('/clients')}>
           Back to Clients
         </Button>
       </Stack>
@@ -148,6 +149,14 @@ export function ClientDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="center">
         <Group>
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => replaceCurrentTab('/clients')}
+            title="Back to Clients"
+          >
+            <IconArrowLeft size={20} />
+          </ActionIcon>
           <Stack gap={0}>
             <Title order={2}>{client.clientName}</Title>
             {client.clNumber && (
@@ -160,7 +169,7 @@ export function ClientDetailPage() {
         <Group>
           <Button
             leftSection={<IconEdit size={16} />}
-            onClick={() => navigate(`/clients/${client.id}/edit`)}
+            onClick={() => setEditModalOpen(true)}
           >
             Edit Client
           </Button>
@@ -439,6 +448,14 @@ export function ClientDetailPage() {
           <ClientPaymentsTab clientId={client.id} />
         </Tabs.Panel>
       </Tabs>
+
+      {/* Edit Modal */}
+      <ClientEditModal
+        opened={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        client={client}
+        onSave={() => loadClient(client.id)}
+      />
     </Stack>
   );
 }

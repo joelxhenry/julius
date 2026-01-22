@@ -66,7 +66,7 @@ const formatDate = (dateStr: string | null) => {
 
 export function PaymentsPage() {
   const { user } = useAuth();
-  const { openTab } = useTabContext();
+  const { openTab, replaceCurrentTab } = useTabContext();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -201,8 +201,8 @@ export function PaymentsPage() {
   };
 
   const handleViewPayment = useCallback((payment: Payment) => {
-    openTab(`/payments/${payment.id}`);
-  }, [openTab]);
+    replaceCurrentTab(`/payments/${payment.id}`);
+  }, [replaceCurrentTab]);
 
   const handleViewDocument = useCallback(async (payment: Payment) => {
     if (payment.documentType === 'INVOICE' && payment.invoiceNumber) {

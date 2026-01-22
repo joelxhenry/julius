@@ -2,10 +2,10 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabParams } from '../../hooks/useTabParams';
-import { Box, Loader, Center, Alert, Badge, Text } from '@mantine/core';
+import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconAlertTriangle } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle, IconArrowLeft } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
@@ -292,16 +292,29 @@ export function InvoiceDetailPage() {
   return (
     <>
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
-        {/* Compact Header with Status, Totals, and Actions */}
-        <CompactDetailHeader
-          invoice={invoice}
-          adjacentIds={adjacentIds}
-          onNavigateAdjacent={handleNavigateAdjacent}
-          onRecordPayment={handleRecordPayment}
-          onCreateCreditNote={handleCreateCreditNote}
-          onViewClient={handleViewClient}
-          onArchive={handleArchive}
-        />
+        {/* Back Button and Header */}
+        <Group gap="sm" align="flex-start">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => replaceCurrentTab('/invoices')}
+            title="Back to Invoices"
+          >
+            <IconArrowLeft size={20} />
+          </ActionIcon>
+          <Box style={{ flex: 1 }}>
+            {/* Compact Header with Status, Totals, and Actions */}
+            <CompactDetailHeader
+              invoice={invoice}
+              adjacentIds={adjacentIds}
+              onNavigateAdjacent={handleNavigateAdjacent}
+              onRecordPayment={handleRecordPayment}
+              onCreateCreditNote={handleCreateCreditNote}
+              onViewClient={handleViewClient}
+              onArchive={handleArchive}
+            />
+          </Box>
+        </Group>
 
         {/* Compact Info Bar */}
         <CompactDetailInfoBar invoice={invoice} onViewClient={handleViewClient} />

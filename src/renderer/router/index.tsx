@@ -132,10 +132,6 @@ export const router = createHashRouter([
         path: 'clients/:id',
         element: <ClientDetailPage />,
       },
-      {
-        path: 'clients/:id/edit',
-        element: <ClientEditorPage />,
-      },
       // Settings
       {
         path: 'settings',

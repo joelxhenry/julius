@@ -34,6 +34,7 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { VariantForm } from '../../components/forms';
 
@@ -96,6 +97,7 @@ const UNIT_OPTIONS = [
 
 export function InventoryEditorPage() {
   const navigate = useNavigate();
+  const { replaceCurrentTab } = useTabContext();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -297,7 +299,7 @@ export function InventoryEditorPage() {
 
         // Navigate to detail page for the created item
         const itemId = result.data?.id;
-        navigate(itemId ? `/inventory/${itemId}` : '/inventory');
+        replaceCurrentTab(itemId ? `/inventory/${itemId}` : '/inventory');
       } else {
         setError(result.error || 'Failed to create inventory item');
       }

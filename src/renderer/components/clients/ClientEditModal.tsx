@@ -1,0 +1,414 @@
+import { useState, useEffect } from "react";
+import {
+  Modal,
+  Stack,
+  Paper,
+  Group,
+  TextInput,
+  Textarea,
+  Button,
+  Select,
+  Checkbox,
+  NumberInput,
+  Text,
+  Alert,
+  Title,
+  ScrollArea,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
+import {
+  IconDeviceFloppy,
+  IconAlertCircle,
+  IconCheck,
+  IconUser,
+  IconPhone,
+  IconCreditCard,
+  IconMapPin,
+  IconBuildingStore,
+} from "@tabler/icons-react";
+import { IpcChannel } from "../../../shared/types/ipc";
+
+interface Client {
+  id: number;
+  clNumber: string | null;
+  clientName: string;
+  contact: string | null;
+  phone: string | null;
+  address1: string | null;
+  address2: string | null;
+  notes: string | null;
+  isTaxable: boolean;
+  discountPct: string;
+  creditLimit: string;
+  creditTerms: string | null;
+  isBadCredit: boolean;
+  custom1: string | null;
+  custom2: string | null;
+  lbDisc: string | null;
+}
+
+interface ClientFormValues {
+  clNumber: string;
+  clientName: string;
+  contact: string;
+  phone: string;
+  address1: string;
+  address2: string;
+  notes: string;
+  isTaxable: boolean;
+  discountPct: number;
+  creditLimit: number;
+  creditTerms: string;
+  isBadCredit: boolean;
+  custom1: string;
+  custom2: string;
+  lbDisc: number | null;
+}
+
+interface ClientEditModalProps {
+  opened: boolean;
+  onClose: () => void;
+  client: Client;
+  onSave: () => void;
+}
+
+export function ClientEditModal({
+  opened,
+  onClose,
+  client,
+  onSave,
+}: ClientEditModalProps) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const form = useForm<ClientFormValues>({
+    initialValues: {
+      clNumber: "",
+      clientName: "",
+      contact: "",
+      phone: "",
+      address1: "",
+      address2: "",
+      notes: "",
+      isTaxable: true,
+      discountPct: 0,
+      creditLimit: 0,
+      creditTerms: "",
+      isBadCredit: false,
+      custom1: "",
+      custom2: "",
+      lbDisc: null,
+    },
+    validate: {
+      clientName: (value) => (!value ? "Client name is required" : null),
+      discountPct: (value) =>
+        value < 0 || value > 100 ? "Must be between 0 and 100" : null,
+      creditLimit: (value) => (value < 0 ? "Cannot be negative" : null),
+    },
+  });
+
+  // Set form values when client changes or modal opens
+  useEffect(() => {
+    if (opened && client) {
+      form.setValues({
+        clNumber: client.clNumber || "",
+        clientName: client.clientName || "",
+        contact: client.contact || "",
+        phone: client.phone || "",
+        address1: client.address1 || "",
+        address2: client.address2 || "",
+        notes: client.notes || "",
+        isTaxable: client.isTaxable ?? true,
+        discountPct: client.discountPct ? parseFloat(client.discountPct) : 0,
+        creditLimit: client.creditLimit ? parseFloat(client.creditLimit) : 0,
+        creditTerms: client.creditTerms || "",
+        isBadCredit: client.isBadCredit || false,
+        custom1: client.custom1 || "",
+        custom2: client.custom2 || "",
+        lbDisc: client.lbDisc ? parseFloat(client.lbDisc) : null,
+      });
+      setError(null);
+    }
+  }, [opened, client]);
+
+  const handleSubmit = async (values: ClientFormValues) => {
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const data = {
+        clNumber: values.clNumber || null,
+        clientName: values.clientName,
+        contact: values.contact || null,
+        phone: values.phone || null,
+        address1: values.address1 || null,
+        address2: values.address2 || null,
+        notes: values.notes || null,
+        isTaxable: values.isTaxable,
+        discountPct: values.discountPct.toString(),
+        creditLimit: values.creditLimit.toString(),
+        creditTerms: values.creditTerms || null,
+        isBadCredit: values.isBadCredit,
+        custom1: values.custom1 || null,
+        custom2: values.custom2 || null,
+        lbDisc: values.lbDisc?.toString() || null,
+      };
+
+      const result = await window.electron.invoke(IpcChannel.UPDATE_CLIENT, {
+        id: client.id,
+        data,
+      });
+
+      if (result.success) {
+        notifications.show({
+          title: "Client Updated",
+          message: `${values.clientName} has been updated successfully`,
+          color: "green",
+          icon: <IconCheck size={16} />,
+        });
+
+        onSave();
+        onClose();
+      } else {
+        setError(result.error || "Failed to save client");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    form.reset();
+    setError(null);
+    onClose();
+  };
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={handleClose}
+      title={
+        <Group gap="xs">
+          <IconUser size={20} />
+          <Text fw={600}>Edit Client: {client.clientName}</Text>
+        </Group>
+      }
+      size="xl"
+      centered
+    >
+      <form onSubmit={form.onSubmit(handleSubmit)}>
+        <ScrollArea.Autosize mah="70vh">
+          <Stack gap="lg" pr="xs">
+            {error && (
+              <Alert
+                icon={<IconAlertCircle size={16} />}
+                color="red"
+                variant="light"
+              >
+                {error}
+              </Alert>
+            )}
+
+            {/* Basic Information */}
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="md">
+                <Group gap="xs">
+                  <IconUser size={18} />
+                  <Title order={5}>Basic Information</Title>
+                </Group>
+
+                <TextInput
+                  label="Client Name"
+                  placeholder="Enter client name"
+                  required
+                  {...form.getInputProps("clientName")}
+                />
+
+                <Group grow>
+                  <TextInput
+                    label="Client Number"
+                    placeholder="e.g., CL-123456"
+                    {...form.getInputProps("clNumber")}
+                  />
+                  <TextInput
+                    label="Contact Person"
+                    placeholder="Enter contact person"
+                    {...form.getInputProps("contact")}
+                  />
+                </Group>
+              </Stack>
+            </Paper>
+
+            {/* Contact Information */}
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="md">
+                <Group gap="xs">
+                  <IconPhone size={18} />
+                  <Title order={5}>Contact Information</Title>
+                </Group>
+
+                <TextInput
+                  label="Phone"
+                  placeholder="Enter phone number"
+                  {...form.getInputProps("phone")}
+                />
+              </Stack>
+            </Paper>
+
+            {/* Address */}
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="md">
+                <Group gap="xs">
+                  <IconMapPin size={18} />
+                  <Title order={5}>Address</Title>
+                </Group>
+
+                <TextInput
+                  label="Address Line 1"
+                  placeholder="Enter street address"
+                  {...form.getInputProps("address1")}
+                />
+
+                <TextInput
+                  label="Address Line 2"
+                  placeholder="Enter apartment, suite, etc."
+                  {...form.getInputProps("address2")}
+                />
+              </Stack>
+            </Paper>
+
+            {/* Credit & Pricing */}
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="md">
+                <Group gap="xs">
+                  <IconCreditCard size={18} />
+                  <Title order={5}>Credit & Pricing</Title>
+                </Group>
+
+                <Group grow>
+                  <NumberInput
+                    label="Credit Limit"
+                    placeholder="0.00"
+                    prefix="$"
+                    min={0}
+                    decimalScale={2}
+                    fixedDecimalScale
+                    thousandSeparator=","
+                    {...form.getInputProps("creditLimit")}
+                  />
+                  <Select
+                    label="Credit Terms"
+                    placeholder="Select credit terms"
+                    data={[
+                      { value: "", label: "None" },
+                      { value: "Net 30", label: "Net 30" },
+                      { value: "Net 60", label: "Net 60" },
+                      { value: "COD", label: "COD (Cash on Delivery)" },
+                      { value: "Custom", label: "Custom" },
+                    ]}
+                    {...form.getInputProps("creditTerms")}
+                  />
+                </Group>
+
+                <Group grow>
+                  <NumberInput
+                    label="Discount Percentage"
+                    placeholder="0.00"
+                    suffix="%"
+                    min={0}
+                    max={100}
+                    decimalScale={2}
+                    {...form.getInputProps("discountPct")}
+                  />
+                  <Stack gap="xs" justify="flex-end">
+                    <Checkbox
+                      label="Bad Credit"
+                      description="Mark client as bad credit"
+                      {...form.getInputProps("isBadCredit", { type: "checkbox" })}
+                    />
+                  </Stack>
+                </Group>
+              </Stack>
+            </Paper>
+
+            {/* Tax & Settings */}
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="md">
+                <Group gap="xs">
+                  <IconBuildingStore size={18} />
+                  <Title order={5}>Tax & Settings</Title>
+                </Group>
+
+                <Checkbox
+                  label="Taxable"
+                  description="Check if this client is taxable"
+                  {...form.getInputProps("isTaxable", { type: "checkbox" })}
+                />
+              </Stack>
+            </Paper>
+
+            {/* Additional Information */}
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="md">
+                <Title order={5}>Additional Information</Title>
+
+                <Group grow>
+                  <TextInput
+                    label="Custom Field 1"
+                    placeholder="Custom field 1"
+                    {...form.getInputProps("custom1")}
+                  />
+                  <TextInput
+                    label="Custom Field 2"
+                    placeholder="Custom field 2"
+                    {...form.getInputProps("custom2")}
+                  />
+                </Group>
+
+                <NumberInput
+                  label="LB Disc"
+                  placeholder="0.00"
+                  suffix="%"
+                  min={0}
+                  max={100}
+                  decimalScale={2}
+                  {...form.getInputProps("lbDisc")}
+                />
+              </Stack>
+            </Paper>
+
+            {/* Notes */}
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="md">
+                <Title order={5}>Notes</Title>
+
+                <Textarea
+                  label="Notes"
+                  placeholder="Enter any additional notes about this client"
+                  rows={3}
+                  {...form.getInputProps("notes")}
+                />
+              </Stack>
+            </Paper>
+          </Stack>
+        </ScrollArea.Autosize>
+        {/* Actions */}
+        <Group justify="flex-end" pt={10}>
+          <Button variant="subtle" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            leftSection={<IconDeviceFloppy size={16} />}
+            loading={submitting}
+          >
+            Save Changes
+          </Button>
+        </Group>
+      </form>
+    </Modal>
+  );
+}

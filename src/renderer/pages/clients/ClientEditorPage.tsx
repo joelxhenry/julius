@@ -10,7 +10,6 @@ import {
   Select,
   Checkbox,
   NumberInput,
-  Divider,
   Text,
   Loader,
   Alert,
@@ -31,8 +30,7 @@ import {
   IconRefresh,
   IconMapPin,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
-import { useTabParams } from '../../hooks/useTabParams';
+import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface ClientFormValues {
@@ -54,9 +52,7 @@ interface ClientFormValues {
 }
 
 export function ClientEditorPage() {
-  const navigate = useNavigate();
-  const { id } = useTabParams<{ id: string }>();
-  const isEditing = Boolean(id);
+  const { replaceCurrentTab, closeCurrentTab } = useTabContext();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -90,13 +86,8 @@ export function ClientEditorPage() {
   });
 
   useEffect(() => {
-    if (isEditing && id) {
-      loadClient(parseInt(id, 10));
-    } else {
-      // Generate a new client code for new clients
-      generateClientCode();
-    }
-  }, [id, isEditing]);
+    generateClientCode();
+  }, []);
 
   const generateClientCode = async (isInitialLoad = true) => {
     if (isInitialLoad) {
@@ -106,7 +97,6 @@ export function ClientEditorPage() {
     }
     setError(null);
     try {
-      // Generate client code with pattern: CL-{timestamp}
       const code = `CL-${Date.now()}`;
       form.setFieldValue('clNumber', code);
     } catch (err) {
@@ -118,40 +108,6 @@ export function ClientEditorPage() {
       } else {
         setGeneratingCode(false);
       }
-    }
-  };
-
-  const loadClient = async (clientId: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await window.electron.invoke(IpcChannel.GET_CLIENT, { id: clientId });
-      if (result.success && result.data) {
-        const client = result.data;
-        form.setValues({
-          clNumber: client.clNumber || '',
-          clientName: client.clientName || '',
-          contact: client.contact || '',
-          phone: client.phone || '',
-          address1: client.address1 || '',
-          address2: client.address2 || '',
-          notes: client.notes || '',
-          isTaxable: client.isTaxable ?? true,
-          discountPct: client.discountPct ? parseFloat(client.discountPct) : 0,
-          creditLimit: client.creditLimit ? parseFloat(client.creditLimit) : 0,
-          creditTerms: client.creditTerms || '',
-          isBadCredit: client.isBadCredit || false,
-          custom1: client.custom1 || '',
-          custom2: client.custom2 || '',
-          lbDisc: client.lbDisc ? parseFloat(client.lbDisc) : null,
-        });
-      } else {
-        setError(result.error || 'Failed to load client');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -178,26 +134,19 @@ export function ClientEditorPage() {
         lbDisc: values.lbDisc?.toString() || null,
       };
 
-      let result;
-      if (isEditing && id) {
-        result = await window.electron.invoke(IpcChannel.UPDATE_CLIENT, {
-          id: parseInt(id, 10),
-          data,
-        });
-      } else {
-        result = await window.electron.invoke(IpcChannel.CREATE_CLIENT, data);
-      }
+      const result = await window.electron.invoke(IpcChannel.CREATE_CLIENT, data);
 
       if (result.success) {
         notifications.show({
-          title: isEditing ? 'Client Updated' : 'Client Created',
-          message: `${values.clientName} has been ${isEditing ? 'updated' : 'created'} successfully`,
+          title: 'Client Created',
+          message: `${values.clientName} has been created successfully`,
           color: 'green',
           icon: <IconCheck size={16} />,
         });
-        navigate('/clients');
+        const clientId = result.data?.id;
+        replaceCurrentTab(clientId ? `/clients/${clientId}` : '/clients');
       } else {
-        setError(result.error || 'Failed to save client');
+        setError(result.error || 'Failed to create client');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -210,7 +159,7 @@ export function ClientEditorPage() {
     return (
       <Stack p="xl" align="center" justify="center" h={400}>
         <Loader size="lg" />
-        <Text c="dimmed">Loading client...</Text>
+        <Text c="dimmed">Loading...</Text>
       </Stack>
     );
   }
@@ -222,11 +171,11 @@ export function ClientEditorPage() {
           <Button
             variant="subtle"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/clients')}
+            onClick={() => closeCurrentTab()}
           >
             Back
           </Button>
-          <Title order={2}>{isEditing ? 'Edit Client' : 'Add Client'}</Title>
+          <Title order={2}>Add Client</Title>
         </Group>
       </Group>
 
@@ -257,19 +206,17 @@ export function ClientEditorPage() {
                 <TextInput
                   label="Client Number"
                   placeholder="e.g., CL-123456"
-                  description={isEditing ? undefined : 'Auto-generated'}
+                  description="Auto-generated"
                   rightSection={
-                    !isEditing && (
-                      <Tooltip label="Generate new code">
-                        <ActionIcon
-                          variant="subtle"
-                          onClick={() => generateClientCode(false)}
-                          loading={generatingCode}
-                        >
-                          <IconRefresh size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    )
+                    <Tooltip label="Generate new code">
+                      <ActionIcon
+                        variant="subtle"
+                        onClick={() => generateClientCode(false)}
+                        loading={generatingCode}
+                      >
+                        <IconRefresh size={16} />
+                      </ActionIcon>
+                    </Tooltip>
                   }
                   {...form.getInputProps('clNumber')}
                 />
@@ -436,11 +383,11 @@ export function ClientEditorPage() {
 
           {/* Actions */}
           <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => navigate('/clients')}>
+            <Button variant="subtle" onClick={() => replaceCurrentTab('/clients')}>
               Cancel
             </Button>
             <Button type="submit" leftSection={<IconDeviceFloppy size={16} />} loading={submitting}>
-              {isEditing ? 'Save Changes' : 'Create Client'}
+              Create Client
             </Button>
           </Group>
         </Stack>

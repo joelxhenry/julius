@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTabContext } from '../../contexts/TabContext';
 import {
   Stack,
   Title,
@@ -83,6 +84,7 @@ const formatDate = (dateStr: string) => {
 
 export function QuotationsPage() {
   const navigate = useNavigate();
+  const { replaceCurrentTab } = useTabContext();
   const { open: openSpotlight } = useSpotlight();
   const [activeTab, setActiveTab] = useState<string | null>('drafts');
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -184,9 +186,9 @@ export function QuotationsPage() {
   // View quotation
   const handleViewQuotation = useCallback(
     (quotation: Quotation) => {
-      navigate(`/quotations/${quotation.id}`);
+      replaceCurrentTab(`/quotations/${quotation.id}`);
     },
-    [navigate]
+    [replaceCurrentTab]
   );
 
   // Edit draft quotation
@@ -262,7 +264,7 @@ export function QuotationsPage() {
         render: (quotation) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => navigate(`/quotations/${quotation.id}`)}>
+              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`)}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>
@@ -277,7 +279,7 @@ export function QuotationsPage() {
         ),
       },
     ],
-    [baseColumns, navigate, handleEditDraft]
+    [baseColumns, replaceCurrentTab, handleEditDraft]
   );
 
   // Columns with convert action for non-draft quotations
@@ -291,7 +293,7 @@ export function QuotationsPage() {
         render: (quotation) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => navigate(`/quotations/${quotation.id}`)}>
+              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`)}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>
@@ -300,7 +302,7 @@ export function QuotationsPage() {
                 <ActionIcon
                   variant="subtle"
                   color="violet"
-                  onClick={() => navigate(`/quotations/${quotation.id}`)}
+                  onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`)}
                 >
                   <IconFileInvoice size={16} />
                 </ActionIcon>
@@ -310,7 +312,7 @@ export function QuotationsPage() {
         ),
       },
     ],
-    [baseColumns, navigate]
+    [baseColumns, replaceCurrentTab]
   );
 
   // Filter for drafts tab

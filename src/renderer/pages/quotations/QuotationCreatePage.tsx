@@ -49,7 +49,7 @@ export function QuotationCreatePage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { user } = useAuth();
-  const { markTabDirty, updateTabTitle } = useTabContext();
+  const { markTabDirty, updateTabTitle, replaceCurrentTab } = useTabContext();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
   const locationState = location.state as LocationState | null;
 
@@ -473,7 +473,7 @@ export function QuotationCreatePage() {
         color: 'green',
       });
 
-      navigate(`/quotations/${quotationId}`);
+      replaceCurrentTab(`/quotations/${quotationId}`);
     } catch (error) {
       console.error('Failed to save quotation:', error);
       notifications.show({
@@ -497,7 +497,7 @@ export function QuotationCreatePage() {
     isTaxable,
     pricing,
     lineItems,
-    navigate,
+    replaceCurrentTab,
   ]);
 
   // Register keyboard shortcuts

@@ -24,7 +24,6 @@ function TabRouteProvider({ path, children }: { path: string; children: React.Re
     '/employees/:id/edit',
     '/employees/:id/permissions',
     '/employees/:id',
-    '/clients/:id/edit',
     '/clients/:id',
   ];
 

@@ -16,6 +16,7 @@ import {
   TextInput,
   NumberInput,
   Select,
+  ActionIcon,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -129,7 +130,7 @@ export function InventoryDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab } = useTabContext();
 
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState<Inventory | null>(null);
@@ -601,6 +602,14 @@ export function InventoryDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="flex-start">
         <Group gap="md">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => replaceCurrentTab('/inventory')}
+            title="Back to Inventory"
+          >
+            <IconArrowLeft size={20} />
+          </ActionIcon>
           <ProductThumbnail
             sku={item.sku}
             isVariant={false}

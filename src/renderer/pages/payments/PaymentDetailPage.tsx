@@ -87,7 +87,7 @@ export function PaymentDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { openTab, updateTabTitle } = useTabContext();
+  const { openTab, updateTabTitle, replaceCurrentTab } = useTabContext();
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -315,6 +315,14 @@ export function PaymentDetailPage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="md">
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => replaceCurrentTab('/payments')}
+              title="Back to Payments"
+            >
+              <IconArrowLeft size={20} />
+            </ActionIcon>
             <Stack gap={4}>
               <Group gap="sm">
                 <Title order={2}>Payment #{payment.id}</Title>

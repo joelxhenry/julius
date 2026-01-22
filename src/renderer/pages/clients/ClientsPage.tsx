@@ -22,6 +22,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import { useTabContext } from '../../contexts/TabContext';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
@@ -50,6 +51,7 @@ interface PaginatedResult {
 
 export function ClientsPage() {
   const navigate = useNavigate();
+  const { replaceCurrentTab } = useTabContext();
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [total, setTotal] = useState(0);
@@ -201,7 +203,7 @@ export function ClientsPage() {
               color="blue"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate(`/clients/${client.id}`);
+                replaceCurrentTab(`/clients/${client.id}`);
               }}
               title="View details"
             >
@@ -237,7 +239,7 @@ export function ClientsPage() {
         ),
       },
     ],
-    [navigate]
+    [navigate, replaceCurrentTab]
   );
 
   return (
@@ -286,7 +288,7 @@ export function ClientsPage() {
             data={clients}
             loading={loading}
             keyField="id"
-            onRowClick={(client) => navigate(`/clients/${client.id}`)}
+            onRowClick={(client) => replaceCurrentTab(`/clients/${client.id}`)}
             emptyMessage="No clients found"
             page={page}
             totalPages={totalPages}

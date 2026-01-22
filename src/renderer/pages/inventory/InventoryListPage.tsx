@@ -24,6 +24,7 @@ import {
   IconAlertTriangle,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader } from '../../components/common';
@@ -61,6 +62,7 @@ interface PaginatedResult {
 
 export function InventoryListPage() {
   const navigate = useNavigate();
+  const { replaceCurrentTab } = useTabContext();
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [total, setTotal] = useState(0);
@@ -308,7 +310,7 @@ export function InventoryListPage() {
             data={inventory}
             loading={loading}
             keyField="id"
-            onRowClick={(item) => navigate(`/inventory/${item.id}`)}
+            onRowClick={(item) => replaceCurrentTab(`/inventory/${item.id}`)}
             emptyMessage="No inventory items found"
             page={page}
             totalPages={totalPages}

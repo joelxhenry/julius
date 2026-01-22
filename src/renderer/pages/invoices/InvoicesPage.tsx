@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTabContext } from '../../contexts/TabContext';
 import {
   Stack,
   Title,
@@ -76,6 +77,7 @@ const formatDate = (dateStr: string) => {
 
 export function InvoicesPage() {
   const navigate = useNavigate();
+  const { replaceCurrentTab } = useTabContext();
   const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [searchResults, setSearchResults] = useState<Invoice[]>([]);
@@ -163,9 +165,9 @@ export function InvoicesPage() {
   // View invoice
   const handleViewInvoice = useCallback(
     (invoice: Invoice) => {
-      navigate(`/invoices/${invoice.id}`);
+      replaceCurrentTab(`/invoices/${invoice.id}`);
     },
-    [navigate]
+    [replaceCurrentTab]
   );
 
   // Base columns for all invoice tables
@@ -229,7 +231,7 @@ export function InvoicesPage() {
         render: (invoice) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => navigate(`/invoices/${invoice.id}`)}>
+              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/invoices/${invoice.id}`)}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>
@@ -237,7 +239,7 @@ export function InvoicesPage() {
         ),
       },
     ],
-    [baseColumns, navigate]
+    [baseColumns, replaceCurrentTab]
   );
 
   return (

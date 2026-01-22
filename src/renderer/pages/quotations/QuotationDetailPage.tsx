@@ -332,6 +332,14 @@ export function QuotationDetailPage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="md">
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => replaceCurrentTab('/quotations')}
+              title="Back to Quotations"
+            >
+              <IconArrowLeft size={20} />
+            </ActionIcon>
             <Stack gap={4}>
               <Group gap="sm">
                 <Title order={2}>Quotation {quotation.quoteNum}</Title>
