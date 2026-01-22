@@ -15,7 +15,6 @@ import { useForm } from '@mantine/form';
 interface VariantFormValues {
   variantSku: string;
   variantName: string;
-  variantType: string;
   description: string;
   quantity: number;
   cost: string;
@@ -31,7 +30,6 @@ interface Variant {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
-  variantType: string | null;
   attributes: Record<string, any>;
   description: string | null;
   quantity: number;
@@ -51,15 +49,6 @@ interface VariantFormProps {
   loading?: boolean;
 }
 
-const VARIANT_TYPES = [
-  { value: 'size', label: 'Size' },
-  { value: 'color', label: 'Color' },
-  { value: 'specification', label: 'Specification' },
-  { value: 'material', label: 'Material' },
-  { value: 'model', label: 'Model' },
-  { value: 'other', label: 'Other' },
-];
-
 const CURRENCIES = [
   { value: 'JA', label: 'JMD' },
   { value: 'US', label: 'USD' },
@@ -78,7 +67,6 @@ export function VariantForm({
     initialValues: {
       variantSku: '',
       variantName: '',
-      variantType: '',
       description: '',
       quantity: 0,
       cost: '0',
@@ -104,7 +92,6 @@ export function VariantForm({
       form.setValues({
         variantSku: variant.variantSku,
         variantName: variant.variantName || '',
-        variantType: variant.variantType || '',
         description: variant.description || '',
         quantity: variant.quantity,
         cost: variant.cost || '0',
@@ -143,20 +130,11 @@ export function VariantForm({
           />
         </SimpleGrid>
 
-        <SimpleGrid cols={{ base: 1, sm: 2 }}>
-          <Select
-            label="Variant Type"
-            placeholder="Select type"
-            data={VARIANT_TYPES}
-            clearable
-            {...form.getInputProps('variantType')}
-          />
-          <NumberInput
-            label="Initial Quantity"
-            min={0}
-            {...form.getInputProps('quantity')}
-          />
-        </SimpleGrid>
+        <NumberInput
+          label="Initial Quantity"
+          min={0}
+          {...form.getInputProps('quantity')}
+        />
 
         <Textarea
           label="Description"

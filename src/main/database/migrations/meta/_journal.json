@@ -57,6 +57,13 @@
       "when": 1769055125313,
       "tag": "0007_adorable_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769056848649,
+      "tag": "0008_old_albert_cleary",
+      "breakpoints": true
     }
   ]
 }

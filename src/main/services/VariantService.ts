@@ -9,7 +9,6 @@ export interface VariantQueryParams {
   pageSize?: number;
   search?: string;
   parentSku?: string;
-  variantType?: string;
   activeOnly?: boolean;
 }
 
@@ -30,7 +29,7 @@ export class VariantService extends BaseService<
   }
 
   async findPaginated(params: VariantQueryParams = {}): Promise<PaginatedResult<schema.Variant>> {
-    const { page = 1, pageSize = 50, search, parentSku, variantType, activeOnly = false } = params;
+    const { page = 1, pageSize = 50, search, parentSku, activeOnly = false } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -49,10 +48,6 @@ export class VariantService extends BaseService<
 
     if (parentSku) {
       conditions.push(eq(schema.variants.parentSku, parentSku));
-    }
-
-    if (variantType && variantType !== 'all') {
-      conditions.push(eq(schema.variants.variantType, variantType));
     }
 
     if (activeOnly) {
@@ -165,7 +160,6 @@ export class VariantService extends BaseService<
         parentSku: schema.variants.parentSku,
         variantSku: schema.variants.variantSku,
         variantName: schema.variants.variantName,
-        variantType: schema.variants.variantType,
         attributes: schema.variants.attributes,
         description: schema.variants.description,
         quantity: schema.variants.quantity,

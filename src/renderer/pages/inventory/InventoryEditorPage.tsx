@@ -47,7 +47,6 @@ interface PendingVariant {
   tempId: string;
   variantSku: string;
   variantName: string;
-  variantType: string;
   description: string;
   quantity: number;
   cost: string;
@@ -184,7 +183,6 @@ export function InventoryEditorPage() {
   const handleVariantSubmit = (values: {
     variantSku: string;
     variantName: string;
-    variantType: string;
     description: string;
     quantity: number;
     cost: string;
@@ -252,7 +250,6 @@ export function InventoryEditorPage() {
                 parentSku: createdSku,
                 variantSku: variant.variantSku,
                 variantName: variant.variantName || null,
-                variantType: variant.variantType || null,
                 description: variant.description || null,
                 quantity: variant.quantity,
                 cost: variant.cost || null,
@@ -518,7 +515,6 @@ export function InventoryEditorPage() {
                       <Table.Tr>
                         <Table.Th>SKU</Table.Th>
                         <Table.Th>Name</Table.Th>
-                        <Table.Th>Type</Table.Th>
                         <Table.Th>Qty</Table.Th>
                         <Table.Th>Price</Table.Th>
                         <Table.Th>Status</Table.Th>
@@ -535,11 +531,6 @@ export function InventoryEditorPage() {
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm">{variant.variantName || '-'}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" tt="capitalize">
-                              {variant.variantType || '-'}
-                            </Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm">{variant.quantity}</Text>
@@ -629,7 +620,6 @@ export function InventoryEditorPage() {
                 parentSku: form.values.sku,
                 variantSku: editingVariant.variantSku,
                 variantName: editingVariant.variantName,
-                variantType: editingVariant.variantType,
                 attributes: {},
                 description: editingVariant.description,
                 quantity: editingVariant.quantity,

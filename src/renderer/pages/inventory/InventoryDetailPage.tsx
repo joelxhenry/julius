@@ -72,7 +72,6 @@ interface Variant {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
-  variantType: string | null;
   attributes: Record<string, any>;
   description: string | null;
   quantity: number;
@@ -373,7 +372,6 @@ export function InventoryDetailPage() {
   const handleAddVariant = async (values: {
     variantSku: string;
     variantName: string;
-    variantType: string;
     description: string;
     quantity: number;
     cost: string;
@@ -391,7 +389,6 @@ export function InventoryDetailPage() {
         parentSku: item.sku,
         variantSku: values.variantSku,
         variantName: values.variantName || null,
-        variantType: values.variantType || null,
         description: values.description || null,
         quantity: values.quantity,
         cost: values.cost || null,

@@ -31,7 +31,6 @@ interface Variant {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
-  variantType: string | null;
 }
 
 interface GalleryTabProps {

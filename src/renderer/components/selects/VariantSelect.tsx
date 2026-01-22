@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Select, Loader, Text, Group, Stack, Badge } from '@mantine/core';
+import { Select, Loader, Text, Group, Stack } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IpcChannel } from '../../../shared/types/ipc';
 
@@ -8,7 +8,6 @@ interface VariantItem {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
-  variantType: string | null;
   description: string | null;
   quantity: number;
   price: string | null;
@@ -134,12 +133,7 @@ export function VariantSelect({
       <Stack gap={2}>
         <Group justify="space-between">
           <Text size="sm" fw={500}>{item.variantSku}</Text>
-          <Group gap="xs">
-            {item.variantType && (
-              <Badge size="xs" variant="light">{item.variantType}</Badge>
-            )}
-            <Text size="xs" c="dimmed">Qty: {item.quantity}</Text>
-          </Group>
+          <Text size="xs" c="dimmed">Qty: {item.quantity}</Text>
         </Group>
         <Text size="xs" c="dimmed" lineClamp={1}>
           {item.variantName || item.description || item.parentDescription1 || 'No description'}

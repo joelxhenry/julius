@@ -30,7 +30,6 @@ export interface VariantItem {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
-  variantType: string | null;
   attributes: Record<string, unknown>;
   description: string | null;
   quantity: number;

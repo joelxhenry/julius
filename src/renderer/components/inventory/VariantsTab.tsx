@@ -10,7 +10,6 @@ interface Variant {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
-  variantType: string | null;
   attributes: Record<string, any>;
   description: string | null;
   quantity: number;
@@ -95,13 +94,6 @@ export function VariantsTab({ variants, loading, onAddVariant, onEditVariant, on
         key: 'variantName',
         header: 'Name',
         render: (variant) => variant.variantName || '-',
-      },
-      {
-        key: 'variantType',
-        header: 'Type',
-        width: 120,
-        render: (variant) =>
-          variant.variantType ? <Badge variant="light" size="sm">{variant.variantType}</Badge> : null,
       },
       {
         key: 'quantity',
