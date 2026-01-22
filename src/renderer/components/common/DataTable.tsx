@@ -8,7 +8,12 @@ import {
   Stack,
   Paper,
   Center,
+  UnstyledButton,
+  rem,
 } from '@mantine/core';
+import { IconChevronUp, IconChevronDown, IconSelector } from '@tabler/icons-react';
+
+export type SortDirection = 'asc' | 'desc';
 
 export interface Column<T> {
   key: string;
@@ -16,6 +21,8 @@ export interface Column<T> {
   width?: number | string;
   render?: (row: T) => ReactNode;
   accessor?: keyof T;
+  sortable?: boolean;
+  sortKey?: string;
 }
 
 export interface DataTableProps<T> {
@@ -34,6 +41,10 @@ export interface DataTableProps<T> {
   skeletonRows?: number;
   // Sticky actions column
   stickyActionsColumn?: boolean;
+  // Sorting
+  sortField?: string;
+  sortDirection?: SortDirection;
+  onSort?: (field: string, direction: SortDirection) => void;
 }
 
 export function DataTable<T>({
@@ -49,7 +60,31 @@ export function DataTable<T>({
   onPageChange,
   skeletonRows = 5,
   stickyActionsColumn = false,
+  sortField,
+  sortDirection,
+  onSort,
 }: DataTableProps<T>) {
+  const handleSort = (column: Column<T>) => {
+    if (!column.sortable || !onSort) return;
+    const key = column.sortKey || column.key;
+    const newDirection: SortDirection =
+      sortField === key && sortDirection === 'desc' ? 'asc' : 'desc';
+    onSort(key, newDirection);
+  };
+
+  const renderSortIcon = (column: Column<T>) => {
+    if (!column.sortable) return null;
+    const key = column.sortKey || column.key;
+    const isActive = sortField === key;
+
+    if (!isActive) {
+      return <IconSelector size={14} style={{ opacity: 0.5 }} />;
+    }
+
+    return sortDirection === 'asc'
+      ? <IconChevronUp size={14} />
+      : <IconChevronDown size={14} />;
+  };
   const renderCellContent = (column: Column<T>, row: T): ReactNode => {
     if (column.render) {
       return column.render(row);
@@ -126,7 +161,23 @@ export function DataTable<T>({
                   key={column.key}
                   style={column.width ? { width: column.width } : undefined}
                 >
-                  {column.header}
+                  {column.sortable ? (
+                    <UnstyledButton
+                      onClick={() => handleSort(column)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: rem(4),
+                        fontWeight: 'inherit',
+                        fontSize: 'inherit',
+                      }}
+                    >
+                      {column.header}
+                      {renderSortIcon(column)}
+                    </UnstyledButton>
+                  ) : (
+                    column.header
+                  )}
                 </Table.Th>
               ))}
             </Table.Tr>

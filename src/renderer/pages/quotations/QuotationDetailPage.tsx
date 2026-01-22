@@ -1,41 +1,14 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabParams } from '../../hooks/useTabParams';
-import {
-  Stack,
-  Title,
-  Text,
-  Paper,
-  Group,
-  Button,
-  Badge,
-  Loader,
-  Center,
-  Grid,
-  Table,
-  ActionIcon,
-  Menu,
-  Divider,
-  Card,
-  Modal,
-} from '@mantine/core';
+import { Box, Loader, Center, Paper, Stack, Text, ActionIcon, Group, Button, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import {
-  IconArrowLeft,
-  IconEdit,
-  IconFileInvoice,
-  IconUser,
-  IconChevronLeft,
-  IconChevronRight,
-  IconDotsVertical,
-  IconArchive,
-  IconPackage,
-  IconClock,
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconFileInvoice } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { CopyButton } from '../../components/common';
+import { QuotationDetailHeader, QuotationDetailInfoBar } from '../../components/quotations';
+import { InvoiceLineItemsReadOnly } from '../../components/invoices';
 
 interface Quotation {
   id: number;
@@ -70,6 +43,21 @@ interface LineItem {
   isVariant: boolean;
 }
 
+// Cache for adjacent quotations to improve navigation performance
+interface QuotationCache {
+  quotation: Quotation;
+  lineItems: LineItem[];
+  adjacentIds: { previousId: number | null; nextId: number | null };
+}
+
+const formatCurrency = (value: string | null) => {
+  const num = parseFloat(value || '0');
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(num);
+};
+
 export function QuotationDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,57 +75,113 @@ export function QuotationDetailPage() {
   const [convertModalOpen, { open: openConvertModal, close: closeConvertModal }] = useDisclosure(false);
   const [isConverting, setIsConverting] = useState(false);
 
+  // Cache for adjacent quotations
+  const quotationCacheRef = useRef<Map<number, QuotationCache>>(new Map());
+
   // Update tab title when quotation loads (only when this tab is active)
   useEffect(() => {
     if (quotation && location.pathname === `/quotations/${id}`) {
-      updateTabTitle(location.pathname, `Quotation ${quotation.quoteNum}`);
+      updateTabTitle(location.pathname, `Quote ${quotation.quoteNum}`);
     }
   }, [quotation, id, location.pathname, updateTabTitle]);
+
+  // Helper function to load quotation data (used for both current and prefetching)
+  const loadQuotationData = useCallback(async (quotationId: number): Promise<QuotationCache | null> => {
+    try {
+      // Load quotation
+      const quoteResult = await window.electron.invoke(IpcChannel.GET_QUOTATION, { id: quotationId });
+      if (!quoteResult.success || !quoteResult.data) {
+        return null;
+      }
+
+      // Load line items
+      const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_QUOTATION, {
+        quoteNum: quoteResult.data.quoteNum,
+      });
+
+      // Load adjacent quotations
+      const adjResult = await window.electron.invoke(IpcChannel.GET_ADJACENT_QUOTATIONS, { id: quotationId });
+
+      return {
+        quotation: quoteResult.data,
+        lineItems: itemsResult.success && itemsResult.data ? itemsResult.data : [],
+        adjacentIds: adjResult.success && adjResult.data ? adjResult.data : { previousId: null, nextId: null },
+      };
+    } catch (error) {
+      console.error('Failed to load quotation data:', error);
+      return null;
+    }
+  }, []);
+
+  // Prefetch adjacent quotations in background
+  const prefetchAdjacentQuotations = useCallback(
+    async (prevId: number | null, nextId: number | null) => {
+      const cache = quotationCacheRef.current;
+
+      // Prefetch previous quotation if not cached
+      if (prevId && !cache.has(prevId)) {
+        loadQuotationData(prevId).then((data) => {
+          if (data) {
+            cache.set(prevId, data);
+          }
+        });
+      }
+
+      // Prefetch next quotation if not cached
+      if (nextId && !cache.has(nextId)) {
+        loadQuotationData(nextId).then((data) => {
+          if (data) {
+            cache.set(nextId, data);
+          }
+        });
+      }
+    },
+    [loadQuotationData]
+  );
 
   // Load quotation data
   useEffect(() => {
     const loadQuotation = async () => {
       if (!id) return;
 
+      const quotationId = parseInt(id, 10);
+      const cache = quotationCacheRef.current;
+
+      // Check if we have this quotation cached
+      const cachedData = cache.get(quotationId);
+      if (cachedData) {
+        // Use cached data immediately
+        setQuotation(cachedData.quotation);
+        setLineItems(cachedData.lineItems);
+        setAdjacentIds(cachedData.adjacentIds);
+        setIsLoading(false);
+
+        // Prefetch adjacent quotations
+        prefetchAdjacentQuotations(cachedData.adjacentIds.previousId, cachedData.adjacentIds.nextId);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        // Load quotation
-        const quoteResult = await window.electron.invoke(IpcChannel.GET_QUOTATION, { id: parseInt(id, 10) });
-        if (!quoteResult.success || !quoteResult.data) {
+        const data = await loadQuotationData(quotationId);
+
+        if (data) {
+          // Cache the loaded data
+          cache.set(quotationId, data);
+
+          setQuotation(data.quotation);
+          setLineItems(data.lineItems);
+          setAdjacentIds(data.adjacentIds);
+
+          // Prefetch adjacent quotations in background
+          prefetchAdjacentQuotations(data.adjacentIds.previousId, data.adjacentIds.nextId);
+        } else {
           notifications.show({
             title: 'Error',
             message: 'Quotation not found',
             color: 'red',
           });
           navigate('/quotations');
-          return;
-        }
-
-        setQuotation(quoteResult.data);
-
-        // Load line items
-        const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_QUOTATION, {
-          quoteNum: quoteResult.data.quoteNum,
-        });
-        if (itemsResult.success && itemsResult.data) {
-          setLineItems(itemsResult.data);
-        }
-
-        // Load adjacent quotations (for navigation)
-        // Note: Using paginated query to get surrounding quotations
-        const paginatedResult = await window.electron.invoke(IpcChannel.GET_QUOTATIONS_PAGINATED, {
-          page: 1,
-          limit: 100,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
-        });
-        if (paginatedResult.success && paginatedResult.data?.data) {
-          const quotes = paginatedResult.data.data;
-          const currentIndex = quotes.findIndex((q: any) => q.id === parseInt(id, 10));
-          setAdjacentIds({
-            previousId: currentIndex > 0 ? quotes[currentIndex - 1].id : null,
-            nextId: currentIndex < quotes.length - 1 ? quotes[currentIndex + 1].id : null,
-          });
         }
       } catch (error) {
         console.error('Failed to load quotation:', error);
@@ -151,27 +195,7 @@ export function QuotationDetailPage() {
       }
     };
     loadQuotation();
-  }, [id, navigate]);
-
-  // Format currency
-  const formatCurrency = (value: string | null) => {
-    const num = parseFloat(value || '0');
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(num);
-  };
-
-  // Format date
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  }, [id, navigate, loadQuotationData, prefetchAdjacentQuotations]);
 
   // Navigate to previous/next quotation
   const handleNavigateAdjacent = useCallback(
@@ -183,13 +207,13 @@ export function QuotationDetailPage() {
     [replaceCurrentTab]
   );
 
-  // Convert quotation to invoice draft
+  // Convert quotation to active invoice
   const handleConvertToInvoice = useCallback(async () => {
     if (!quotation) return;
 
     setIsConverting(true);
     try {
-      // Create a new invoice as draft with quotation data
+      // Create a new invoice as active with quotation data
       const invoiceData = {
         invDate: new Date().toISOString().split('T')[0],
         salespersonId: quotation.salespersonId,
@@ -203,7 +227,7 @@ export function QuotationDetailPage() {
         tax: quotation.tax,
         total: quotation.total,
         totalPaid: '0',
-        status: 'draft',
+        status: 'active',
         isTaxable: quotation.isTaxable,
         pricing: quotation.pricing,
       };
@@ -246,7 +270,7 @@ export function QuotationDetailPage() {
       closeConvertModal();
 
       // Navigate to the new invoice
-      navigate(`/invoices/${newInvoice.id}`);
+      replaceCurrentTab(`/invoices/${newInvoice.id}`);
     } catch (error) {
       console.error('Failed to convert quotation:', error);
       notifications.show({
@@ -258,6 +282,13 @@ export function QuotationDetailPage() {
       setIsConverting(false);
     }
   }, [quotation, lineItems, navigate, closeConvertModal]);
+
+  // Edit quotation
+  const handleEdit = useCallback(() => {
+    if (quotation) {
+      navigate(`/quotations/${quotation.id}/edit`);
+    }
+  }, [quotation, navigate]);
 
   // Archive quotation
   const handleArchive = useCallback(async () => {
@@ -298,6 +329,12 @@ export function QuotationDetailPage() {
         const updatedResult = await window.electron.invoke(IpcChannel.GET_QUOTATION, { id: quotation.id });
         if (updatedResult.success && updatedResult.data) {
           setQuotation(updatedResult.data);
+          // Update cache
+          const cache = quotationCacheRef.current;
+          const cached = cache.get(quotation.id);
+          if (cached) {
+            cache.set(quotation.id, { ...cached, quotation: updatedResult.data });
+          }
         }
       }
     } catch (error) {
@@ -330,289 +367,55 @@ export function QuotationDetailPage() {
 
   return (
     <>
-      <Stack gap="lg">
-        {/* Header */}
-        <Group justify="space-between" align="flex-start">
-          <Group gap="md">
-            <ActionIcon
-              variant="subtle"
-              size="lg"
-              onClick={() => replaceCurrentTab('/quotations')}
-              title="Back to Quotations"
-            >
-              <IconArrowLeft size={20} />
-            </ActionIcon>
-            <Stack gap={4}>
-              <Group gap="sm">
-                <Title order={2}>Quotation {quotation.quoteNum}</Title>
-                <Badge color={quotation.isArchived ? 'gray' : 'violet'} variant="light" size="lg">
-                  {quotation.isArchived ? 'Archived' : 'Active'}
-                </Badge>
-              </Group>
-              <Text c="dimmed" size="sm">
-                Created {formatDate(quotation.createdAt)}
-              </Text>
-            </Stack>
-          </Group>
-
-          <Group gap="sm">
-            {/* Navigation */}
-            <Group gap={4}>
-              <ActionIcon
-                variant="subtle"
-                disabled={!adjacentIds.previousId}
-                onClick={() => handleNavigateAdjacent(adjacentIds.previousId)}
-              >
-                <IconChevronLeft size={16} />
-              </ActionIcon>
-              <ActionIcon
-                variant="subtle"
-                disabled={!adjacentIds.nextId}
-                onClick={() => handleNavigateAdjacent(adjacentIds.nextId)}
-              >
-                <IconChevronRight size={16} />
-              </ActionIcon>
-            </Group>
-
-            {/* Quick Actions */}
-            {!quotation.isArchived && (
-              <>
-                <Button
-                  leftSection={<IconFileInvoice size={16} />}
-                  color="green"
-                  onClick={openConvertModal}
-                >
-                  Convert to Invoice
-                </Button>
-                <Button
-                  variant="light"
-                  leftSection={<IconEdit size={16} />}
-                  onClick={() => navigate(`/quotations/${quotation.id}/edit`)}
-                >
-                  Edit
-                </Button>
-              </>
-            )}
-
-            <Menu shadow="md" width={200}>
-              <Menu.Target>
-                <ActionIcon variant="subtle" size="lg">
-                  <IconDotsVertical size={20} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                {quotation.clientId && (
-                  <Menu.Item leftSection={<IconUser size={16} />} onClick={handleViewClient}>
-                    View Client
-                  </Menu.Item>
-                )}
-                {!quotation.isArchived && (
-                  <>
-                    <Menu.Item leftSection={<IconClock size={16} />} color="orange" onClick={handleExpire}>
-                      Mark as Expired
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item leftSection={<IconArchive size={16} />} color="red" onClick={handleArchive}>
-                      Archive Quotation
-                    </Menu.Item>
-                  </>
-                )}
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
+      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
+        {/* Back Button and Header */}
+        <Group gap="sm" align="flex-start">
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => replaceCurrentTab('/quotations')}
+            title="Back to Quotations"
+          >
+            <IconArrowLeft size={20} />
+          </ActionIcon>
+          <Box style={{ flex: 1 }}>
+            {/* Compact Header with Status, Total, and Actions */}
+            <QuotationDetailHeader
+              quotation={quotation}
+              adjacentIds={adjacentIds}
+              onNavigateAdjacent={handleNavigateAdjacent}
+              onConvertToInvoice={openConvertModal}
+              onEdit={handleEdit}
+              onViewClient={handleViewClient}
+              onExpire={handleExpire}
+              onArchive={handleArchive}
+            />
+          </Box>
         </Group>
 
-        <Grid>
-          {/* Quotation Details */}
-          <Grid.Col span={{ base: 12, md: 8 }}>
-            <Paper withBorder p="md" radius="md">
-              <Stack gap="md">
-                <Text fw={600}>Quotation Details</Text>
-                <Grid>
-                  <Grid.Col span={6}>
-                    <Text size="sm" c="dimmed">
-                      Quotation Number
-                    </Text>
-                    <Text fw={500}>{quotation.quoteNum}</Text>
-                  </Grid.Col>
-                  <Grid.Col span={6}>
-                    <Text size="sm" c="dimmed">
-                      Quotation Date
-                    </Text>
-                    <Text fw={500}>{formatDate(quotation.quoteDate)}</Text>
-                  </Grid.Col>
-                  <Grid.Col span={6}>
-                    <Text size="sm" c="dimmed">
-                      Reference
-                    </Text>
-                    <Text fw={500}>{quotation.reference || '-'}</Text>
-                  </Grid.Col>
-                  <Grid.Col span={6}>
-                    <Text size="sm" c="dimmed">
-                      Pricing Type
-                    </Text>
-                    <Text fw={500}>{quotation.pricing === 'W' ? 'Wholesale' : 'Retail'}</Text>
-                  </Grid.Col>
-                </Grid>
+        {/* Compact Info Bar */}
+        <QuotationDetailInfoBar quotation={quotation} onViewClient={handleViewClient} />
 
-                <Divider />
+        {/* Notes */}
+        {quotation.notes && (
+          <Paper withBorder p="md" radius="md">
+            <Stack gap="xs">
+              <Text fw={500} size="sm">Notes</Text>
+              <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
+                {quotation.notes}
+              </Text>
+            </Stack>
+          </Paper>
+        )}
 
-                <Text fw={600}>Client Information</Text>
-                <Grid>
-                  <Grid.Col span={12}>
-                    <Text size="sm" c="dimmed">
-                      Client Name
-                    </Text>
-                    <Group gap="xs">
-                      <Text fw={500}>{quotation.clientName || 'Walk-in Customer'}</Text>
-                      {quotation.clientId && (
-                        <ActionIcon variant="subtle" size="sm" onClick={handleViewClient}>
-                          <IconUser size={14} />
-                        </ActionIcon>
-                      )}
-                    </Group>
-                  </Grid.Col>
-                  {(quotation.clientAddress1 || quotation.clientAddress2) && (
-                    <Grid.Col span={12}>
-                      <Text size="sm" c="dimmed">
-                        Address
-                      </Text>
-                      <Text fw={500}>
-                        {[quotation.clientAddress1, quotation.clientAddress2].filter(Boolean).join(', ')}
-                      </Text>
-                    </Grid.Col>
-                  )}
-                  {quotation.clientPhone && (
-                    <Grid.Col span={6}>
-                      <Text size="sm" c="dimmed">
-                        Phone
-                      </Text>
-                      <Text fw={500}>{quotation.clientPhone}</Text>
-                    </Grid.Col>
-                  )}
-                </Grid>
-              </Stack>
-            </Paper>
-
-            {/* Notes */}
-            {quotation.notes && (
-              <Paper withBorder p="md" radius="md" mt="md">
-                <Stack gap="xs">
-                  <Text fw={500} size="sm">Notes</Text>
-                  <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>
-                    {quotation.notes}
-                  </Text>
-                </Stack>
-              </Paper>
-            )}
-
-            {/* Line Items */}
-            <Paper withBorder p="md" radius="md" mt="md">
-              <Stack gap="md">
-                <Text fw={600}>Line Items</Text>
-                <Table>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>SKU</Table.Th>
-                      <Table.Th>Description</Table.Th>
-                      <Table.Th ta="center">Qty</Table.Th>
-                      <Table.Th ta="right">Unit Price</Table.Th>
-                      <Table.Th ta="right">Discount</Table.Th>
-                      <Table.Th ta="right">Amount</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {lineItems.map((item) => (
-                      <Table.Tr key={item.id}>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <Text size="sm" fw={500}>
-                              {item.sku}
-                            </Text>
-                            <CopyButton value={item.sku} />
-                            <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" truncate maw={200}>
-                            {item.description || '-'}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td ta="center">{item.quantity}</Table.Td>
-                        <Table.Td ta="right">{formatCurrency(item.unitPrice)}</Table.Td>
-                        <Table.Td ta="right">{parseFloat(item.discount || '0').toFixed(1)}%</Table.Td>
-                        <Table.Td ta="right">{formatCurrency(item.amount)}</Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Stack>
-            </Paper>
-          </Grid.Col>
-
-          {/* Summary */}
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <Card withBorder p="md" radius="md">
-              <Stack gap="md">
-                <Text fw={600}>Summary</Text>
-                <Stack gap="xs">
-                  <Group justify="space-between">
-                    <Text size="sm" c="dimmed">
-                      Subtotal
-                    </Text>
-                    <Text size="sm">{formatCurrency(quotation.subTotal)}</Text>
-                  </Group>
-                  {quotation.isTaxable && (
-                    <Group justify="space-between">
-                      <Text size="sm" c="dimmed">
-                        Tax
-                      </Text>
-                      <Text size="sm">{formatCurrency(quotation.tax)}</Text>
-                    </Group>
-                  )}
-                  <Divider />
-                  <Group justify="space-between">
-                    <Text fw={600}>Total</Text>
-                    <Text fw={600} size="lg">
-                      {formatCurrency(quotation.total)}
-                    </Text>
-                  </Group>
-                </Stack>
-              </Stack>
-            </Card>
-
-            {/* Quick Actions Card */}
-            {!quotation.isArchived && (
-              <Card withBorder p="md" radius="md" mt="md">
-                <Stack gap="sm">
-                  <Text fw={600}>Quick Actions</Text>
-                  <Button
-                    fullWidth
-                    color="green"
-                    leftSection={<IconFileInvoice size={16} />}
-                    onClick={openConvertModal}
-                  >
-                    Convert to Invoice
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="light"
-                    leftSection={<IconEdit size={16} />}
-                    onClick={() => navigate(`/quotations/${quotation.id}/edit`)}
-                  >
-                    Edit Quotation
-                  </Button>
-                  {quotation.clientId && (
-                    <Button fullWidth variant="subtle" leftSection={<IconUser size={16} />} onClick={handleViewClient}>
-                      View Client
-                    </Button>
-                  )}
-                </Stack>
-              </Card>
-            )}
-          </Grid.Col>
-        </Grid>
-      </Stack>
+        {/* Main Content: Line Items Table - Primary Focus */}
+        <InvoiceLineItemsReadOnly
+          lineItems={lineItems}
+          subTotal={quotation.subTotal}
+          tax={quotation.tax}
+          total={quotation.total}
+        />
+      </Box>
 
       {/* Convert to Invoice Modal */}
       <Modal
@@ -623,7 +426,7 @@ export function QuotationDetailPage() {
       >
         <Stack gap="md">
           <Text>
-            This will create a new <strong>draft invoice</strong> from this quotation with:
+            This will create a new <strong>active invoice</strong> from this quotation with:
           </Text>
           <Stack gap="xs">
             <Text size="sm">• Client: {quotation.clientName || 'Walk-in Customer'}</Text>
@@ -631,7 +434,7 @@ export function QuotationDetailPage() {
             <Text size="sm">• Total: {formatCurrency(quotation.total)}</Text>
           </Stack>
           <Text size="sm" c="dimmed">
-            The quotation will be archived after conversion. You can edit the invoice before issuing it.
+            The quotation will be archived after conversion.
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="default" onClick={closeConvertModal}>
@@ -643,7 +446,7 @@ export function QuotationDetailPage() {
               onClick={handleConvertToInvoice}
               loading={isConverting}
             >
-              Create Invoice Draft
+              Create Invoice
             </Button>
           </Group>
         </Stack>

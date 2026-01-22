@@ -21,6 +21,8 @@ export interface QuotationQueryParams {
   status?: string;
   clientId?: number;
   includeArchived?: boolean;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export class QuotationService extends BaseService<
@@ -33,7 +35,16 @@ export class QuotationService extends BaseService<
   }
 
   async findPaginated(params: QuotationQueryParams = {}): Promise<PaginatedResult<schema.Quotation>> {
-    const { page = 1, pageSize = 50, search, status, clientId, includeArchived = false } = params;
+    const {
+      page = 1,
+      pageSize = 50,
+      search,
+      status,
+      clientId,
+      includeArchived = false,
+      sortField = 'quoteDate',
+      sortDirection = 'desc',
+    } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -70,11 +81,14 @@ export class QuotationService extends BaseService<
 
     const total = Number(countResult[0]?.count ?? 0);
 
+    const sortColumn = this.getSortColumn(sortField);
+    const orderFn = sortDirection === 'asc' ? asc : desc;
+
     const data = await this.db
       .select()
       .from(schema.quotations)
       .where(whereCondition)
-      .orderBy(desc(schema.quotations.createdAt))
+      .orderBy(orderFn(sortColumn))
       .limit(pageSize)
       .offset(offset);
 
@@ -85,6 +99,20 @@ export class QuotationService extends BaseService<
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  private getSortColumn(field: string) {
+    switch (field) {
+      case 'quoteDate':
+        return schema.quotations.quoteDate;
+      case 'total':
+        return schema.quotations.total;
+      case 'status':
+        // Status column doesn't exist in quotations schema, fall back to createdAt
+        return schema.quotations.createdAt;
+      default:
+        return schema.quotations.quoteDate;
+    }
   }
 
   async findByQuoteNum(quoteNum: string): Promise<schema.Quotation | null> {

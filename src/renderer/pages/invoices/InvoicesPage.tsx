@@ -27,7 +27,7 @@ import {
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import { SafeEmployee } from '../../contexts/AuthContext';
-import { DataTable, Column } from '../../components/common/DataTable';
+import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
 
 interface Invoice {
   id: number;
@@ -85,13 +85,25 @@ export function InvoicesPage() {
   const [isLoadingRecent, setIsLoadingRecent] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [accessModalOpen, { open: openAccessModal, close: closeAccessModal }] = useDisclosure(false);
+  const [sortField, setSortField] = useState<string>('invDate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  // Handle sort change
+  const handleSort = useCallback((field: string, direction: SortDirection) => {
+    setSortField(field);
+    setSortDirection(direction);
+  }, []);
 
   // Load recent invoices
   useEffect(() => {
     const loadRecent = async () => {
       setIsLoadingRecent(true);
       try {
-        const result = await window.electron.invoke(IpcChannel.GET_RECENT_INVOICES, { limit: 20 });
+        const result = await window.electron.invoke(IpcChannel.GET_RECENT_INVOICES, {
+          limit: 20,
+          sortField,
+          sortDirection,
+        });
         if (result.success && result.data) {
           setRecentInvoices(result.data);
         }
@@ -102,7 +114,7 @@ export function InvoicesPage() {
       }
     };
     loadRecent();
-  }, []);
+  }, [sortField, sortDirection]);
 
   // Search invoices
   const searchInvoices = useCallback(async (query: string) => {
@@ -117,6 +129,8 @@ export function InvoicesPage() {
       const result = await window.electron.invoke(IpcChannel.SEARCH_INVOICES, {
         query,
         limit: 50,
+        sortField,
+        sortDirection,
       });
       if (result.success && result.data) {
         setSearchResults(result.data);
@@ -126,9 +140,16 @@ export function InvoicesPage() {
     } finally {
       setIsSearching(false);
     }
-  }, []);
+  }, [sortField, sortDirection]);
 
   const debouncedSearch = useDebouncedCallback(searchInvoices, 400);
+
+  // Re-search when sort changes
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      searchInvoices(searchQuery);
+    }
+  }, [sortField, sortDirection, searchInvoices, searchQuery]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -183,6 +204,7 @@ export function InvoicesPage() {
         key: 'invDate',
         header: 'Date',
         width: 120,
+        sortable: true,
         render: (invoice) => formatDate(invoice.invDate),
       },
       {
@@ -198,6 +220,7 @@ export function InvoicesPage() {
         key: 'total',
         header: 'Total',
         width: 100,
+        sortable: true,
         render: (invoice) => <Text ta="right">{formatCurrency(invoice.total)}</Text>,
       },
       {
@@ -210,6 +233,7 @@ export function InvoicesPage() {
         key: 'status',
         header: 'Status',
         width: 100,
+        sortable: true,
         render: (invoice) => (
           <Badge color={statusColors[invoice.status] || 'gray'} variant="light">
             {statusLabels[invoice.status] || invoice.status}
@@ -294,6 +318,9 @@ export function InvoicesPage() {
                 onRowClick={handleViewInvoice}
                 emptyMessage="No recent invoices"
                 stickyActionsColumn
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
               />
             </Tabs.Panel>
 
@@ -317,6 +344,9 @@ export function InvoicesPage() {
                   onRowClick={handleViewInvoice}
                   emptyMessage={`No invoices found for "${searchQuery}"`}
                   stickyActionsColumn
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
                 />
               )}
             </Tabs.Panel>

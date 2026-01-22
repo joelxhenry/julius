@@ -310,13 +310,33 @@ export class InvoiceService extends BaseService<
     };
   }
 
-  async findRecentInvoices(limit: number = 20): Promise<schema.Invoice[]> {
+  async findRecentInvoices(
+    limit: number = 20,
+    sortField: string = 'invDate',
+    sortDirection: 'asc' | 'desc' = 'desc'
+  ): Promise<schema.Invoice[]> {
+    const sortColumn = this.getSortColumn(sortField);
+    const orderFn = sortDirection === 'asc' ? asc : desc;
+
     return this.db
       .select()
       .from(schema.invoices)
       .where(eq(schema.invoices.isArchived, false))
-      .orderBy(desc(schema.invoices.createdAt))
+      .orderBy(orderFn(sortColumn))
       .limit(limit);
+  }
+
+  private getSortColumn(field: string) {
+    switch (field) {
+      case 'invDate':
+        return schema.invoices.invDate;
+      case 'total':
+        return schema.invoices.total;
+      case 'status':
+        return schema.invoices.status;
+      default:
+        return schema.invoices.invDate;
+    }
   }
 
   async findOverdueInvoices(creditTermsDays: number = 30): Promise<schema.Invoice[]> {
@@ -525,12 +545,19 @@ export class InvoiceService extends BaseService<
     });
   }
 
-  async searchInvoices(query: string, limit: number = 20): Promise<schema.Invoice[]> {
+  async searchInvoices(
+    query: string,
+    limit: number = 20,
+    sortField: string = 'invDate',
+    sortDirection: 'asc' | 'desc' = 'desc'
+  ): Promise<schema.Invoice[]> {
     if (!query || query.trim().length < 2) {
       return [];
     }
 
     const searchTerm = `%${query.trim()}%`;
+    const sortColumn = this.getSortColumn(sortField);
+    const orderFn = sortDirection === 'asc' ? asc : desc;
 
     return this.db
       .select()
@@ -542,7 +569,7 @@ export class InvoiceService extends BaseService<
           ilike(schema.invoices.reference, searchTerm)
         )
       )
-      .orderBy(desc(schema.invoices.createdAt))
+      .orderBy(orderFn(sortColumn))
       .limit(limit);
   }
 

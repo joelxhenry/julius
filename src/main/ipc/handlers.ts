@@ -344,14 +344,17 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.ARCHIVE_INVOICE, (_, { id }: { id: number }) => invoiceController.archive(id));
 
   // ===== INVOICE STATUS HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_RECENT_INVOICES, async (_, { limit }: { limit?: number } = {}) => {
-    try {
-      const data = await invoiceService.findRecentInvoices(limit);
-      return { success: true, data };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  ipcMain.handle(
+    IpcChannel.GET_RECENT_INVOICES,
+    async (_, { limit, sortField, sortDirection }: { limit?: number; sortField?: string; sortDirection?: 'asc' | 'desc' } = {}) => {
+      try {
+        const data = await invoiceService.findRecentInvoices(limit, sortField, sortDirection);
+        return { success: true, data };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
     }
-  });
+  );
   ipcMain.handle(IpcChannel.GET_OVERDUE_INVOICES, async (_, { creditTermsDays }: { creditTermsDays?: number } = {}) => {
     try {
       const data = await invoiceService.findOverdueInvoices(creditTermsDays);
@@ -360,14 +363,17 @@ function registerDataHandlers() {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   });
-  ipcMain.handle(IpcChannel.SEARCH_INVOICES, async (_, { query, limit }: { query: string; limit?: number }) => {
-    try {
-      const data = await invoiceService.searchInvoices(query, limit);
-      return { success: true, data };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  ipcMain.handle(
+    IpcChannel.SEARCH_INVOICES,
+    async (_, { query, limit, sortField, sortDirection }: { query: string; limit?: number; sortField?: string; sortDirection?: 'asc' | 'desc' }) => {
+      try {
+        const data = await invoiceService.searchInvoices(query, limit, sortField, sortDirection);
+        return { success: true, data };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      }
     }
-  });
+  );
 
   ipcMain.handle(
     IpcChannel.CHECK_INVOICE_INVENTORY,

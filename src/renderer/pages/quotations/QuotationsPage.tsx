@@ -21,7 +21,6 @@ import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import {
   IconSearch,
   IconPlus,
-  IconFileText,
   IconClock,
   IconArchive,
   IconEye,
@@ -32,7 +31,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import { SafeEmployee } from '../../contexts/AuthContext';
 import { useSpotlight } from '../../contexts/SpotlightContext';
-import { DataTable, Column } from '../../components/common/DataTable';
+import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
 
 interface Quotation {
   id: number;
@@ -86,7 +85,7 @@ export function QuotationsPage() {
   const navigate = useNavigate();
   const { replaceCurrentTab } = useTabContext();
   const { open: openSpotlight } = useSpotlight();
-  const [activeTab, setActiveTab] = useState<string | null>('drafts');
+  const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>('all');
@@ -94,6 +93,14 @@ export function QuotationsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [accessModalOpen, { open: openAccessModal, close: closeAccessModal }] = useDisclosure(false);
+  const [sortField, setSortField] = useState<string>('quoteDate');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  // Handle sort change
+  const handleSort = useCallback((field: string, direction: SortDirection) => {
+    setSortField(field);
+    setSortDirection(direction);
+  }, []);
 
   // Load quotations based on active tab and filters
   const loadQuotations = useCallback(async (params: {
@@ -101,6 +108,8 @@ export function QuotationsPage() {
     status?: string;
     includeArchived?: boolean;
     page?: number;
+    sortField?: string;
+    sortDirection?: 'asc' | 'desc';
   } = {}) => {
     setIsLoading(true);
     try {
@@ -110,6 +119,8 @@ export function QuotationsPage() {
         includeArchived: params.includeArchived || false,
         page: params.page || 1,
         pageSize: 50,
+        sortField: params.sortField,
+        sortDirection: params.sortDirection,
       });
       if (result.success && result.data) {
         setQuotations(result.data.data || []);
@@ -128,9 +139,6 @@ export function QuotationsPage() {
     let includeArchived = false;
 
     switch (activeTab) {
-      case 'drafts':
-        status = 'draft';
-        break;
       case 'recent':
         status = undefined;
         break;
@@ -145,8 +153,10 @@ export function QuotationsPage() {
       status,
       includeArchived,
       page,
+      sortField,
+      sortDirection,
     });
-  }, [activeTab, statusFilter, page, loadQuotations, searchQuery]);
+  }, [activeTab, statusFilter, page, loadQuotations, searchQuery, sortField, sortDirection]);
 
   // Debounced search
   const debouncedSearch = useDebouncedCallback((query: string) => {
@@ -212,6 +222,7 @@ export function QuotationsPage() {
         key: 'quoteDate',
         header: 'Date',
         width: 120,
+        sortable: true,
         render: (quotation) => formatDate(quotation.quoteDate),
       },
       {
@@ -237,6 +248,7 @@ export function QuotationsPage() {
         key: 'total',
         header: 'Total',
         width: 100,
+        sortable: true,
         render: (quotation) => <Text ta="right">{formatCurrency(quotation.total)}</Text>,
       },
       {
@@ -253,14 +265,14 @@ export function QuotationsPage() {
     []
   );
 
-  // Columns with actions for drafts (includes Edit button)
-  const draftsColumns: Column<Quotation>[] = useMemo(
+  // Columns with actions
+  const viewColumns: Column<Quotation>[] = useMemo(
     () => [
       ...baseColumns,
       {
         key: 'actions',
         header: '',
-        width: 80,
+        width: 120,
         render: (quotation) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
@@ -275,28 +287,6 @@ export function QuotationsPage() {
                 </ActionIcon>
               </Tooltip>
             )}
-          </Group>
-        ),
-      },
-    ],
-    [baseColumns, replaceCurrentTab, handleEditDraft]
-  );
-
-  // Columns with convert action for non-draft quotations
-  const viewColumns: Column<Quotation>[] = useMemo(
-    () => [
-      ...baseColumns,
-      {
-        key: 'actions',
-        header: '',
-        width: 80,
-        render: (quotation) => (
-          <Group gap="xs" justify="flex-end">
-            <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`)}>
-                <IconEye size={16} />
-              </ActionIcon>
-            </Tooltip>
             {(quotation.status === 'draft' || quotation.status === 'sent' || quotation.status === 'accepted') && (
               <Tooltip label="Convert to Invoice">
                 <ActionIcon
@@ -312,13 +302,7 @@ export function QuotationsPage() {
         ),
       },
     ],
-    [baseColumns, replaceCurrentTab]
-  );
-
-  // Filter for drafts tab
-  const draftQuotations = useMemo(
-    () => quotations.filter((q) => q.status === 'draft'),
-    [quotations]
+    [baseColumns, replaceCurrentTab, handleEditDraft]
   );
 
   return (
@@ -378,14 +362,6 @@ export function QuotationsPage() {
         <Paper withBorder radius="md" p={0}>
           <Tabs value={activeTab} onChange={setActiveTab}>
             <Tabs.List>
-              <Tabs.Tab value="drafts" leftSection={<IconFileText size={16} />}>
-                Drafts
-                {activeTab === 'drafts' && draftQuotations.length > 0 && (
-                  <Badge ml="xs" size="sm" variant="light" color="gray">
-                    {draftQuotations.length}
-                  </Badge>
-                )}
-              </Tabs.Tab>
               <Tabs.Tab value="recent" leftSection={<IconClock size={16} />}>
                 Recent
               </Tabs.Tab>
@@ -399,19 +375,6 @@ export function QuotationsPage() {
               </Tabs.Tab>
             </Tabs.List>
 
-            {/* Drafts Tab */}
-            <Tabs.Panel value="drafts" p="md">
-              <DataTable
-                columns={draftsColumns}
-                data={activeTab === 'drafts' ? quotations : []}
-                loading={isLoading && activeTab === 'drafts'}
-                keyField="id"
-                onRowClick={handleViewQuotation}
-                emptyMessage="No draft quotations"
-                stickyActionsColumn
-              />
-            </Tabs.Panel>
-
             {/* Recent Tab */}
             <Tabs.Panel value="recent" p="md">
               <DataTable
@@ -422,6 +385,9 @@ export function QuotationsPage() {
                 onRowClick={handleViewQuotation}
                 emptyMessage="No recent quotations"
                 stickyActionsColumn
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
               />
             </Tabs.Panel>
 
@@ -436,6 +402,9 @@ export function QuotationsPage() {
                   onRowClick={handleViewQuotation}
                   emptyMessage="No quotations found"
                   stickyActionsColumn
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
                 />
               ) : (
                 <DataTable
@@ -450,6 +419,9 @@ export function QuotationsPage() {
                       : 'No quotations found'
                   }
                   stickyActionsColumn
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
                 />
               )}
             </Tabs.Panel>
