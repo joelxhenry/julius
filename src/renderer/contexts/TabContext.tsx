@@ -131,14 +131,17 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tabs]);
 
-  // Clear tabs on logout
+  // Clear tabs and navigate to dashboard on logout
   useEffect(() => {
     if (!isAuthenticated && tabs.length > 0) {
       setTabs([]);
       setActiveTabId(null);
       localStorage.removeItem(TABS_STORAGE_KEY);
+      // Navigate to dashboard after clearing tabs
+      skipNextLocationChange.current = true;
+      navigate('/', { replace: true });
     }
-  }, [isAuthenticated, tabs.length]);
+  }, [isAuthenticated, tabs.length, navigate]);
 
   // Find tab by path
   const findTabByPath = useCallback(
