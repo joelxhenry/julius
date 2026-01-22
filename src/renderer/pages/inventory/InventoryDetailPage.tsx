@@ -39,7 +39,9 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
-import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab } from '../../components/inventory';
+import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, InventoryEditModal } from '../../components/inventory';
+import { ProductThumbnail } from '../../components/common/ProductThumbnail';
+import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
 
 interface Inventory {
   id: number;
@@ -170,6 +172,12 @@ export function InventoryDetailPage() {
   // Stock adjustment modal
   const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
   const [adjustSubmitting, setAdjustSubmitting] = useState(false);
+
+  // Edit modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // Gallery modal for header image
+  const [headerGalleryOpen, setHeaderGalleryOpen] = useState(false);
 
   const itemId = id ? parseInt(id, 10) : null;
 
@@ -592,7 +600,14 @@ export function InventoryDetailPage() {
     <Stack p="xl" gap="lg">
       {/* Header */}
       <Group justify="space-between" align="flex-start">
-        <Group>
+        <Group gap="md">
+          <ProductThumbnail
+            sku={item.sku}
+            isVariant={false}
+            size={100}
+            onClick={() => setHeaderGalleryOpen(true)}
+            showTooltip
+          />
           <Stack gap={4}>
             <Group gap="sm">
               <Title order={2}>{item.sku}</Title>
@@ -622,7 +637,7 @@ export function InventoryDetailPage() {
           </Button>
           <Button
             leftSection={<IconEdit size={16} />}
-            onClick={() => navigate(`/inventory/${item.id}/edit`)}
+            onClick={() => setEditModalOpen(true)}
           >
             Edit
           </Button>
@@ -847,6 +862,27 @@ export function InventoryDetailPage() {
           loading={alternateSubmitting}
         />
       </Modal>
+
+      {/* Edit Inventory Modal */}
+      <InventoryEditModal
+        opened={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        item={item}
+        onSave={() => {
+          if (itemId) {
+            loadInventoryItem(itemId);
+          }
+        }}
+      />
+
+      {/* Header Image Gallery Modal */}
+      <ImageGalleryModal
+        opened={headerGalleryOpen}
+        onClose={() => setHeaderGalleryOpen(false)}
+        sku={item.sku}
+        isVariant={false}
+        title={`${item.sku} - Images`}
+      />
     </Stack>
   );
 }

@@ -79,10 +79,6 @@ export const router = createHashRouter([
         element: <InventoryDetailPage />,
       },
       {
-        path: 'inventory/:id/edit',
-        element: <InventoryEditorPage />,
-      },
-      {
         path: 'payments',
         element: <PaymentsPage />,
       },

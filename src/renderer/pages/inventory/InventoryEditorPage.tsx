@@ -10,9 +10,7 @@ import {
   Select,
   Checkbox,
   NumberInput,
-  Divider,
   Text,
-  Loader,
   Alert,
   SimpleGrid,
   Table,
@@ -24,7 +22,6 @@ import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft,
   IconDeviceFloppy,
   IconAlertCircle,
   IconCheck,
@@ -37,7 +34,6 @@ import {
   IconTags,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
-import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { VariantForm } from '../../components/forms';
 
@@ -100,10 +96,7 @@ const UNIT_OPTIONS = [
 
 export function InventoryEditorPage() {
   const navigate = useNavigate();
-  const { id } = useTabParams<{ id: string }>();
-  const isEditing = Boolean(id);
 
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
@@ -142,12 +135,7 @@ export function InventoryEditorPage() {
 
   useEffect(() => {
     loadCategories();
-    if (isEditing && id) {
-      loadInventoryItem(parseInt(id, 10));
-    } else {
-      setLoading(false);
-    }
-  }, [id, isEditing]);
+  }, []);
 
   // Calculate margin when cost or price changes
   useEffect(() => {
@@ -173,41 +161,6 @@ export function InventoryEditorPage() {
       }
     } catch (err) {
       console.error('Failed to load categories:', err);
-    }
-  };
-
-  const loadInventoryItem = async (itemId: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_ITEM, { id: itemId });
-      if (result.success && result.data) {
-        const item = result.data;
-        form.setValues({
-          sku: item.sku || '',
-          description1: item.description1 || '',
-          description2: item.description2 || '',
-          category: item.category || '',
-          model: item.model || '',
-          location: item.location || '',
-          unit: item.unit || 'EA',
-          quantity: item.quantity || 0,
-          minLevel: item.minLevel || 0,
-          cost: parseFloat(item.cost) || 0,
-          costCurrency: item.costCurrency || 'JA',
-          price: parseFloat(item.price) || 0,
-          priceCurrency: item.priceCurrency || 'JA',
-          wholesalePrice: item.wholesalePrice ? parseFloat(item.wholesalePrice) : null,
-          margin: item.margin ? parseFloat(item.margin) : null,
-          isTaxable: item.isTaxable ?? true,
-        });
-      } else {
-        setError(result.error || 'Failed to load inventory item');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -282,19 +235,11 @@ export function InventoryEditorPage() {
         isTaxable: values.isTaxable,
       };
 
-      let result;
-      if (isEditing && id) {
-        result = await window.electron.invoke(IpcChannel.UPDATE_INVENTORY, {
-          id: parseInt(id, 10),
-          data,
-        });
-      } else {
-        result = await window.electron.invoke(IpcChannel.CREATE_INVENTORY, data);
-      }
+      const result = await window.electron.invoke(IpcChannel.CREATE_INVENTORY, data);
 
       if (result.success) {
-        // If creating new item and there are pending variants, create them
-        if (!isEditing && pendingVariants.length > 0) {
+        // If there are pending variants, create them
+        if (pendingVariants.length > 0) {
           const createdSku = result.data?.sku || values.sku;
           let variantsCreated = 0;
           let variantsFailed = 0;
@@ -343,18 +288,18 @@ export function InventoryEditorPage() {
           }
         } else {
           notifications.show({
-            title: isEditing ? 'Item Updated' : 'Item Created',
-            message: `${values.sku} has been ${isEditing ? 'updated' : 'created'} successfully`,
+            title: 'Item Created',
+            message: `${values.sku} has been created successfully`,
             color: 'green',
             icon: <IconCheck size={16} />,
           });
         }
 
-        // Navigate to detail page for the saved item
-        const itemId = isEditing ? id : result.data?.id;
+        // Navigate to detail page for the created item
+        const itemId = result.data?.id;
         navigate(itemId ? `/inventory/${itemId}` : '/inventory');
       } else {
-        setError(result.error || 'Failed to save inventory item');
+        setError(result.error || 'Failed to create inventory item');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -363,20 +308,11 @@ export function InventoryEditorPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <Stack p="xl" align="center" justify="center" h={400}>
-        <Loader size="lg" />
-        <Text c="dimmed">Loading inventory item...</Text>
-      </Stack>
-    );
-  }
-
   return (
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="center">
         <Group>
-          <Title order={2}>{isEditing ? 'Edit Inventory Item' : 'Add Inventory Item'}</Title>
+          <Title order={2}>Add Inventory Item</Title>
         </Group>
       </Group>
 
@@ -401,8 +337,6 @@ export function InventoryEditorPage() {
                   label="SKU"
                   placeholder="Enter SKU code"
                   required
-                  disabled={isEditing}
-                  description={isEditing ? 'SKU cannot be changed' : undefined}
                   {...form.getInputProps('sku')}
                 />
                 <Select
@@ -547,9 +481,8 @@ export function InventoryEditorPage() {
             </Stack>
           </Paper>
 
-          {/* Variants - Only show when creating new item */}
-          {!isEditing && (
-            <Paper p="lg" radius="md" withBorder>
+          {/* Variants */}
+          <Paper p="lg" radius="md" withBorder>
               <Stack gap="md">
                 <Group justify="space-between" align="center">
                   <Group gap="xs">
@@ -655,13 +588,12 @@ export function InventoryEditorPage() {
                 )}
               </Stack>
             </Paper>
-          )}
 
           {/* Actions */}
           <Group justify="flex-end">
             <Button
               variant="subtle"
-              onClick={() => navigate(isEditing && id ? `/inventory/${id}` : '/inventory')}
+              onClick={() => navigate('/inventory')}
             >
               Cancel
             </Button>
@@ -670,7 +602,7 @@ export function InventoryEditorPage() {
               leftSection={<IconDeviceFloppy size={16} />}
               loading={submitting}
             >
-              {isEditing ? 'Save Changes' : 'Create Item'}
+              Create Item
             </Button>
           </Group>
         </Stack>
