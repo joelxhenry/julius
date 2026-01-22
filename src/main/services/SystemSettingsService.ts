@@ -19,6 +19,9 @@ export const SystemSettingKeys = {
   INVOICE_PREFIX: 'invoice_prefix',
   QUOTATION_PREFIX: 'quotation_prefix',
   CREDIT_NOTE_PREFIX: 'credit_note_prefix',
+  // File storage settings
+  FILE_STORAGE_TYPE: 'file_storage_type',
+  FILE_STORAGE_PATH: 'file_storage_path',
 } as const;
 
 export type SystemSettingKey = (typeof SystemSettingKeys)[keyof typeof SystemSettingKeys];
@@ -32,6 +35,7 @@ export const SystemSettingGroups = {
   CURRENCY: 'currency',
   DEFAULTS: 'defaults',
   DOCUMENTS: 'documents',
+  STORAGE: 'storage',
 } as const;
 
 export type SystemSettingGroup = (typeof SystemSettingGroups)[keyof typeof SystemSettingGroups];
@@ -253,6 +257,23 @@ export class SystemSettingsService {
         value: 'CN',
         group: SystemSettingGroups.DOCUMENTS,
         description: 'Prefix for credit note numbers',
+        readonly: false,
+        visible: true,
+      },
+      // File storage settings
+      {
+        key: SystemSettingKeys.FILE_STORAGE_TYPE,
+        value: 'local',
+        group: SystemSettingGroups.STORAGE,
+        description: 'File storage type: local or lan',
+        readonly: false,
+        visible: true,
+      },
+      {
+        key: SystemSettingKeys.FILE_STORAGE_PATH,
+        value: '',
+        group: SystemSettingGroups.STORAGE,
+        description: 'Network path for LAN storage (e.g., \\\\SERVER\\share)',
         readonly: false,
         visible: true,
       },

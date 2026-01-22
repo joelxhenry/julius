@@ -87,9 +87,20 @@ export function ImageUploader({
       );
 
       try {
-        // Read file as base64
-        const buffer = await previewFile.file.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
+        // Read file as base64 using FileReader (browser-compatible)
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Remove the data URL prefix (e.g., "data:image/png;base64,")
+            const base64Data = result.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(previewFile.file);
+        });
+
+        console.log(`[ImageUploader] Uploading: ${previewFile.file.name}, size: ${previewFile.file.size}, type: ${previewFile.file.type}`);
 
         const result = await window.electron.invoke(IpcChannel.UPLOAD_INVENTORY_IMAGE, {
           sku,
@@ -100,6 +111,8 @@ export function ImageUploader({
           isPrimary: i === 0 && successCount === 0, // First successful upload is primary
         });
 
+        console.log(`[ImageUploader] Upload result:`, result);
+
         if (result.success) {
           successCount++;
           setFiles((prev) =>
@@ -108,6 +121,7 @@ export function ImageUploader({
             )
           );
         } else {
+          console.error(`[ImageUploader] Upload failed:`, result.error);
           errorCount++;
           setFiles((prev) =>
             prev.map((f, idx) =>
@@ -118,6 +132,7 @@ export function ImageUploader({
           );
         }
       } catch (error) {
+        console.error(`[ImageUploader] Upload exception:`, error);
         errorCount++;
         setFiles((prev) =>
           prev.map((f, idx) =>

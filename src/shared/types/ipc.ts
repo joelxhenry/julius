@@ -276,6 +276,11 @@ export enum IpcChannel {
   DELETE_SYSTEM_SETTING = 'db:delete-system-setting',
   INITIALIZE_SYSTEM_SETTINGS = 'db:initialize-system-settings',
 
+  // File storage operations
+  VALIDATE_STORAGE_PATH = 'db:validate-storage-path',
+  REINITIALIZE_STORAGE = 'db:reinitialize-storage',
+  GET_STORAGE_INFO = 'db:get-storage-info',
+
   // Inventory image operations
   UPLOAD_INVENTORY_IMAGE = 'db:upload-inventory-image',
   DELETE_INVENTORY_IMAGE = 'db:delete-inventory-image',

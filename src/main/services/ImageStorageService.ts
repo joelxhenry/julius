@@ -3,11 +3,14 @@ import path from 'node:path';
 import fs from 'node:fs';
 import sharp from 'sharp';
 import crypto from 'node:crypto';
+import { SystemSettingsService, SystemSettingKeys } from './SystemSettingsService';
 
 const THUMBNAIL_SIZE = 150;
 const IMAGES_DIR = 'inventory-images';
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+export type StorageType = 'local' | 'lan';
 
 export interface SaveImageResult {
   filePath: string;
@@ -17,16 +20,55 @@ export interface SaveImageResult {
   mimeType: string;
 }
 
+export interface StorageInfo {
+  type: StorageType;
+  path: string;
+  accessible: boolean;
+}
+
+export interface ValidateStorageResult {
+  valid: boolean;
+  error?: string;
+}
+
 export class ImageStorageService {
   private basePath: string;
+  private storageType: StorageType = 'local';
 
   constructor() {
-    // Get base path for image storage
+    // Get default base path for image storage (local)
+    this.basePath = this.getDefaultLocalPath();
+
+    // Ensure base directory exists
+    this.ensureDirectory(this.basePath);
+  }
+
+  /**
+   * Get the default local storage path
+   */
+  private getDefaultLocalPath(): string {
     if (app && app.isReady && app.isReady()) {
-      this.basePath = path.join(app.getPath('userData'), IMAGES_DIR);
+      return path.join(app.getPath('userData'), IMAGES_DIR);
     } else {
       // CLI/test mode - use local directory
-      this.basePath = path.join(process.cwd(), IMAGES_DIR);
+      return path.join(process.cwd(), IMAGES_DIR);
+    }
+  }
+
+  /**
+   * Initialize storage from system settings
+   */
+  public async initializeFromSettings(settingsService: SystemSettingsService): Promise<void> {
+    const type = await settingsService.getValue(SystemSettingKeys.FILE_STORAGE_TYPE);
+    const customPath = await settingsService.getValue(SystemSettingKeys.FILE_STORAGE_PATH);
+
+    this.storageType = (type as StorageType) || 'local';
+
+    if (this.storageType === 'lan' && customPath) {
+      this.basePath = path.join(customPath, IMAGES_DIR);
+    } else {
+      // Default to local
+      this.basePath = this.getDefaultLocalPath();
     }
 
     // Ensure base directory exists
@@ -34,11 +76,92 @@ export class ImageStorageService {
   }
 
   /**
+   * Validate a storage path before saving settings
+   */
+  public validateStoragePath(storagePath: string): ValidateStorageResult {
+    try {
+      // Check if path is empty
+      if (!storagePath || storagePath.trim() === '') {
+        return { valid: false, error: 'Storage path cannot be empty' };
+      }
+
+      const fullPath = path.join(storagePath, IMAGES_DIR);
+
+      // Check if parent directory exists
+      if (!fs.existsSync(storagePath)) {
+        return { valid: false, error: `Path does not exist: ${storagePath}` };
+      }
+
+      // Try to create the images directory if it doesn't exist
+      if (!fs.existsSync(fullPath)) {
+        fs.mkdirSync(fullPath, { recursive: true });
+      }
+
+      // Test write permission by creating a test file
+      const testFile = path.join(fullPath, '.write-test');
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile);
+
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        error: `Cannot write to path: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  }
+
+  /**
+   * Get current storage information
+   */
+  public getStorageInfo(): StorageInfo {
+    let accessible = false;
+    try {
+      accessible = fs.existsSync(this.basePath);
+      if (accessible) {
+        // Test write permission
+        const testFile = path.join(this.basePath, '.access-test');
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+      }
+    } catch {
+      accessible = false;
+    }
+
+    return {
+      type: this.storageType,
+      path: this.basePath,
+      accessible,
+    };
+  }
+
+  /**
+   * Reinitialize storage with new settings (used when settings change)
+   */
+  public reinitialize(type: StorageType, customPath?: string): void {
+    this.storageType = type;
+
+    if (type === 'lan' && customPath) {
+      this.basePath = path.join(customPath, IMAGES_DIR);
+    } else {
+      this.basePath = this.getDefaultLocalPath();
+    }
+
+    this.ensureDirectory(this.basePath);
+  }
+
+  /**
    * Ensure a directory exists, creating it if necessary
    */
   private ensureDirectory(dirPath: string): void {
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
+    try {
+      if (!fs.existsSync(dirPath)) {
+        console.log(`[ImageStorageService] Creating directory: ${dirPath}`);
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
+    } catch (error) {
+      console.error(`[ImageStorageService] Failed to create directory ${dirPath}:`, error);
+      throw error;
     }
   }
 
@@ -88,6 +211,9 @@ export class ImageStorageService {
     originalFileName: string,
     mimeType: string
   ): Promise<SaveImageResult> {
+    console.log(`[ImageStorageService] Saving image for SKU: ${sku}, file: ${originalFileName}, size: ${buffer.length}, type: ${mimeType}`);
+    console.log(`[ImageStorageService] Current base path: ${this.basePath}`);
+
     // Validate MIME type
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
       throw new Error(`Invalid file type: ${mimeType}. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`);
@@ -100,6 +226,7 @@ export class ImageStorageService {
 
     // Ensure SKU directory exists
     const skuDir = this.getSkuDirectory(sku);
+    console.log(`[ImageStorageService] SKU directory: ${skuDir}`);
     this.ensureDirectory(skuDir);
 
     // Generate unique filename
@@ -130,6 +257,7 @@ export class ImageStorageService {
 
       // Return relative paths
       const safeSku = sku.replace(/[^a-zA-Z0-9-_]/g, '_');
+      console.log(`[ImageStorageService] Image saved successfully: ${filePath}`);
       return {
         filePath: path.join(safeSku, fileName),
         thumbnailPath: path.join(safeSku, thumbnailFileName),
@@ -138,6 +266,7 @@ export class ImageStorageService {
         mimeType,
       };
     } catch (error) {
+      console.error(`[ImageStorageService] Failed to save image:`, error);
       // Clean up any partial files
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);

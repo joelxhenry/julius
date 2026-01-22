@@ -115,6 +115,11 @@ export class InventoryImageService {
   async getImagesWithBase64(sku: string, isVariant: boolean): Promise<ImageWithBase64[]> {
     const images = await this.getImagesForSku(sku, isVariant);
 
+    console.log(`[InventoryImageService] getImagesWithBase64 for SKU: ${sku}, found ${images.length} images`);
+    images.forEach((img, idx) => {
+      console.log(`[InventoryImageService] Image ${idx}: id=${img.id}, filePath=${img.filePath}, thumbnailPath=${img.thumbnailPath}`);
+    });
+
     return images.map(image => ({
       ...image,
       imageBase64: image.filePath ? this.imageStorage.readImageAsBase64(image.filePath) || undefined : undefined,

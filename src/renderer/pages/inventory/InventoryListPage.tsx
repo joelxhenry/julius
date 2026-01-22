@@ -150,12 +150,12 @@ export function InventoryListPage() {
       {
         key: 'image',
         header: '',
-        width: 50,
+        width: 100,
         render: (item) => (
           <ProductThumbnail
             sku={item.sku}
             isVariant={false}
-            size={40}
+            size={80}
             preloadedImage={getThumbnail(item.sku, false)}
             onClick={() => handleThumbnailClick(item.sku)}
           />
@@ -164,7 +164,7 @@ export function InventoryListPage() {
       {
         key: 'sku',
         header: 'SKU',
-        width: 120,
+        width: 250,
         render: (item) => (
           <Group gap="xs">
             <Text fw={500} size="sm">{item.sku}</Text>
@@ -189,7 +189,7 @@ export function InventoryListPage() {
       {
         key: 'category',
         header: 'Category',
-        width: 120,
+        width: 180,
         render: (item) =>
           item.category ? (
             <Badge variant="light" size="sm">

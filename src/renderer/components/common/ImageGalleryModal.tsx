@@ -77,10 +77,10 @@ export function ImageGalleryModal({
 
       if (result.success && result.data) {
         setImages(result.data);
-        // Reset selection if needed
-        if (selectedIndex >= result.data.length) {
-          setSelectedIndex(Math.max(0, result.data.length - 1));
-        }
+        // Reset selection if out of bounds
+        setSelectedIndex(prev =>
+          prev >= result.data.length ? Math.max(0, result.data.length - 1) : prev
+        );
       }
     } catch (error) {
       console.error('Failed to load images:', error);
@@ -92,14 +92,14 @@ export function ImageGalleryModal({
     } finally {
       setIsLoading(false);
     }
-  }, [sku, isVariant, selectedIndex]);
+  }, [sku, isVariant]);
 
   useEffect(() => {
     if (opened) {
-      loadImages();
       setSelectedIndex(0);
+      loadImages();
     }
-  }, [opened, loadImages]);
+  }, [opened, sku, isVariant, loadImages]);
 
   const selectedImage = images[selectedIndex];
 
@@ -323,51 +323,64 @@ export function ImageGalleryModal({
 
             {/* Thumbnail Strip */}
             {images.length > 1 && (
-              <Group gap="xs" justify="center" wrap="wrap">
-                {images.map((image, index) => (
-                  <UnstyledButton
-                    key={image.id}
-                    onClick={() => setSelectedIndex(index)}
-                  >
-                    <Box
-                      style={{
-                        width: 60,
-                        height: 60,
-                        borderRadius: 'var(--mantine-radius-sm)',
-                        overflow: 'hidden',
-                        border:
-                          index === selectedIndex
-                            ? '2px solid var(--mantine-color-blue-6)'
-                            : '2px solid transparent',
-                        position: 'relative',
-                      }}
+              <Box
+                style={{
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  paddingBottom: 8,
+                }}
+              >
+                <Group gap="xs" wrap="nowrap" justify="center" style={{ minWidth: 'min-content' }}>
+                  {images.map((image, index) => (
+                    <UnstyledButton
+                      key={`thumb-${image.id}`}
+                      onClick={() => setSelectedIndex(index)}
+                      style={{ flexShrink: 0 }}
                     >
-                      {image.thumbnailBase64 ? (
-                        <Image
-                          src={image.thumbnailBase64}
-                          alt={`Thumbnail ${index + 1}`}
-                          width={60}
-                          height={60}
-                          fit="cover"
-                        />
-                      ) : (
-                        <Skeleton width={60} height={60} />
-                      )}
-                      {image.isPrimary && (
-                        <IconStarFilled
-                          size={14}
-                          color="var(--mantine-color-yellow-5)"
-                          style={{
-                            position: 'absolute',
-                            bottom: 2,
-                            right: 2,
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </UnstyledButton>
-                ))}
-              </Group>
+                      <Box
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 'var(--mantine-radius-sm)',
+                          overflow: 'hidden',
+                          border:
+                            index === selectedIndex
+                              ? '2px solid var(--mantine-color-blue-6)'
+                              : '2px solid transparent',
+                          position: 'relative',
+                          backgroundColor: 'var(--mantine-color-gray-1)',
+                        }}
+                      >
+                        {image.thumbnailBase64 ? (
+                          <img
+                            src={image.thumbnailBase64}
+                            alt={`Thumbnail ${index + 1}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block',
+                            }}
+                          />
+                        ) : (
+                          <Skeleton width={60} height={60} />
+                        )}
+                        {image.isPrimary && (
+                          <IconStarFilled
+                            size={14}
+                            color="var(--mantine-color-yellow-5)"
+                            style={{
+                              position: 'absolute',
+                              bottom: 2,
+                              right: 2,
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </UnstyledButton>
+                  ))}
+                </Group>
+              </Box>
             )}
 
             {/* Image Info */}

@@ -179,6 +179,12 @@ function registerDataHandlers() {
   const systemSettingsService = new SystemSettingsService(db);
   const paymentTransactionService = new PaymentTransactionService(db, paymentService, invoiceService, creditNoteService);
   const imageStorageService = new ImageStorageService();
+  // Initialize system settings defaults and then storage from settings
+  systemSettingsService.initializeDefaults()
+    .then(() => imageStorageService.initializeFromSettings(systemSettingsService))
+    .catch(err => {
+      console.error('Failed to initialize image storage from settings:', err);
+    });
   const inventoryImageService = new InventoryImageService(db, imageStorageService);
 
   // Initialize controllers
@@ -622,11 +628,41 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.DELETE_SYSTEM_SETTING, (_, { key }: { key: string }) => systemSettingsController.deleteByKey(key));
   ipcMain.handle(IpcChannel.INITIALIZE_SYSTEM_SETTINGS, () => systemSettingsController.initializeDefaults());
 
+  // ===== FILE STORAGE HANDLERS =====
+  ipcMain.handle(IpcChannel.VALIDATE_STORAGE_PATH, async (_, { path }: { path: string }) => {
+    try {
+      const result = imageStorageService.validateStoragePath(path);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to validate storage path' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.REINITIALIZE_STORAGE, async (_, { type, path }: { type: 'local' | 'lan'; path?: string }) => {
+    try {
+      imageStorageService.reinitialize(type, path);
+      return { success: true, data: imageStorageService.getStorageInfo() };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to reinitialize storage' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_STORAGE_INFO, async () => {
+    try {
+      const info = imageStorageService.getStorageInfo();
+      return { success: true, data: info };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get storage info' };
+    }
+  });
+
   // ===== INVENTORY IMAGE HANDLERS =====
   ipcMain.handle(IpcChannel.UPLOAD_INVENTORY_IMAGE, async (_, params: { sku: string; isVariant: boolean; fileData: string; fileName: string; mimeType: string; isPrimary?: boolean }) => {
+    console.log(`[IPC] UPLOAD_INVENTORY_IMAGE: SKU=${params.sku}, isVariant=${params.isVariant}, fileName=${params.fileName}`);
     try {
       // Convert base64 to buffer
       const buffer = Buffer.from(params.fileData, 'base64');
+      console.log(`[IPC] Buffer size: ${buffer.length} bytes`);
       const result = await inventoryImageService.uploadImage({
         sku: params.sku,
         isVariant: params.isVariant,
@@ -635,8 +671,10 @@ function registerDataHandlers() {
         mimeType: params.mimeType,
         isPrimary: params.isPrimary,
       });
+      console.log(`[IPC] UPLOAD_INVENTORY_IMAGE: Success`);
       return { success: true, data: result };
     } catch (error) {
+      console.error(`[IPC] UPLOAD_INVENTORY_IMAGE: Error`, error);
       return { success: false, error: error instanceof Error ? error.message : 'Failed to upload image' };
     }
   });

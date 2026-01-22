@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Paper,
   Stack,
@@ -11,13 +11,13 @@ import {
   Divider,
   Skeleton,
   Center,
-  ActionIcon,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPhoto, IconUpload, IconPhotoPlus } from '@tabler/icons-react';
-import { ImageGalleryModal, ImageUploader, ProductThumbnail } from '../common';
+import { IconPhoto, IconUpload, IconPhotoPlus, IconStarFilled } from '@tabler/icons-react';
+import { ImageGalleryModal, ImageUploader } from '../common';
 import { useAllInventoryImages } from '../../hooks/useAllInventoryImages';
 import { InventoryImage } from '../../hooks/useInventoryImages';
+import { IpcChannel } from '../../../shared/types/ipc';
 
 interface Inventory {
   id: number;
@@ -50,6 +50,77 @@ interface ImageSectionProps {
   onUploadClick: () => void;
 }
 
+// Component for individual thumbnail that loads its own image data
+function ThumbnailImage({ image, onClick }: { image: InventoryImage; onClick: () => void }) {
+  const [thumbnailData, setThumbnailData] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+   useEffect(() => {
+    if (image.thumbnailPath) {
+      window.electron.invoke(IpcChannel.GET_IMAGE_FILE, { relativePath: image.thumbnailPath })
+        .then((result: { success: boolean; data?: string }) => {
+          if (result.success && result.data) {
+            setThumbnailData(result.data);
+          }
+          setIsLoading(false);
+        })
+        .catch(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
+  }, [image.thumbnailPath]);
+
+  return (
+    <Box
+      style={{
+        position: 'relative',
+        aspectRatio: '1',
+        borderRadius: 'var(--mantine-radius-sm)',
+        overflow: 'hidden',
+        border: image.isPrimary
+          ? '2px solid var(--mantine-color-blue-5)'
+          : '1px solid var(--mantine-color-gray-3)',
+        cursor: 'pointer',
+        backgroundColor: 'var(--mantine-color-gray-1)',
+      }}
+      onClick={onClick}
+    >
+      {isLoading ? (
+        <Skeleton style={{ width: '100%', height: '100%' }} />
+      ) : thumbnailData ? (
+        <img
+          src={thumbnailData}
+          alt={image.fileName}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
+        />
+      ) : (
+        <Center style={{ width: '100%', height: '100%' }}>
+          <IconPhoto size={24} color="var(--mantine-color-gray-5)" />
+        </Center>
+      )}
+      {image.isPrimary && (
+        <IconStarFilled
+          size={16}
+          color="var(--mantine-color-yellow-5)"
+          style={{
+            position: 'absolute',
+            bottom: 4,
+            right: 4,
+            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+          }}
+        />
+      )}
+    </Box>
+  );
+}
+
 function ImageSection({
   title,
   subtitle,
@@ -60,7 +131,6 @@ function ImageSection({
   onUploadClick,
 }: ImageSectionProps) {
   const imageCount = images.length;
-  const primaryImage = images.find(img => img.isPrimary) || images[0];
 
   return (
     <Paper p="md" radius="md" withBorder>
@@ -103,43 +173,13 @@ function ImageSection({
 
         {imageCount > 0 ? (
           <SimpleGrid cols={{ base: 4, sm: 6, md: 8 }} spacing="xs">
-            {images.map((image, index) => (
-              <Box
+
+            {images.map((image) => (
+              <ThumbnailImage
                 key={image.id}
-                style={{
-                  position: 'relative',
-                  aspectRatio: '1',
-                  borderRadius: 'var(--mantine-radius-sm)',
-                  overflow: 'hidden',
-                  border: image.isPrimary
-                    ? '2px solid var(--mantine-color-blue-5)'
-                    : '1px solid var(--mantine-color-gray-3)',
-                  cursor: 'pointer',
-                }}
+                image={image}
                 onClick={onManageClick}
-              >
-                <ProductThumbnail
-                  sku={sku}
-                  isVariant={isVariant}
-                  size={80}
-                  preloadedImage={image.thumbnailPath ? undefined : undefined}
-                  onClick={onManageClick}
-                />
-                {image.isPrimary && (
-                  <Badge
-                    size="xs"
-                    variant="filled"
-                    color="blue"
-                    style={{
-                      position: 'absolute',
-                      bottom: 2,
-                      left: 2,
-                    }}
-                  >
-                    Primary
-                  </Badge>
-                )}
-              </Box>
+              />
             ))}
             <Box
               style={{

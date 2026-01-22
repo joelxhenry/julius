@@ -13,10 +13,12 @@ import {
   IconReceipt,
   IconBell,
   IconLayout,
+  IconFolder,
 } from '@tabler/icons-react';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
 import { InterfaceSettingsTab } from './InterfaceSettingsTab';
 import { TaxSettingsTab } from './TaxSettingsTab';
+import { StorageSettingsTab } from './StorageSettingsTab';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string | null>('database');
@@ -42,6 +44,9 @@ export function SettingsPage() {
             </Tabs.Tab>
             <Tabs.Tab value="tax" leftSection={<IconReceipt size={16} />}>
               Tax
+            </Tabs.Tab>
+            <Tabs.Tab value="storage" leftSection={<IconFolder size={16} />}>
+              Storage
             </Tabs.Tab>
             <Tabs.Tab value="notifications" leftSection={<IconBell size={16} />}>
               Notifications
@@ -72,6 +77,10 @@ export function SettingsPage() {
 
           <Tabs.Panel value="tax" pt="lg">
             <TaxSettingsTab />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="storage" pt="lg">
+            <StorageSettingsTab />
           </Tabs.Panel>
 
           <Tabs.Panel value="notifications" pt="lg">
