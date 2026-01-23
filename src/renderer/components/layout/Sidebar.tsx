@@ -8,6 +8,7 @@ import {
   IconClock,
   IconDashboard,
   IconUsers,
+  IconTruck,
 } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -27,6 +28,7 @@ const businessNavItems: NavItem[] = [
   { label: 'Quotations', icon: <IconFileText size={20} stroke={1.5} />, path: '/quotations' },
   { label: 'Inventory', icon: <IconPackages size={20} stroke={1.5} />, path: '/inventory', shortcut: 'Alt+S' },
   { label: 'Clients', icon: <IconUsers size={20} stroke={1.5} />, path: '/clients' },
+  { label: 'Suppliers', icon: <IconTruck size={20} stroke={1.5} />, path: '/suppliers' },
   { label: 'Payments', icon: <IconCash size={20} stroke={1.5} />, path: '/payments', shortcut: 'Alt+P' },
   { label: 'Attendance', icon: <IconClock size={20} stroke={1.5} />, path: '/attendance', shortcut: 'Alt+C' },
 ];

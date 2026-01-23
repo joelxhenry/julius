@@ -17,6 +17,7 @@ import {
   VariantService,
   InventoryTransactionService,
   InventoryAlternateService,
+  InventoryReceivingService,
   InvoiceService,
   QuotationService,
   CreditNoteService,
@@ -45,6 +46,7 @@ import {
   VariantController,
   InventoryTransactionController,
   InventoryAlternateController,
+  InventoryReceivingController,
   InvoiceController,
   QuotationController,
   CreditNoteController,
@@ -164,6 +166,7 @@ function registerDataHandlers() {
   const variantService = new VariantService(db);
   const inventoryTransactionService = new InventoryTransactionService(db);
   const inventoryAlternateService = new InventoryAlternateService(db);
+  const inventoryReceivingService = new InventoryReceivingService(db);
   const quotationService = new QuotationService(db);
   const creditNoteService = new CreditNoteService(db);
   const documentLineItemService = new DocumentLineItemService(db);
@@ -197,6 +200,7 @@ function registerDataHandlers() {
   const variantController = new VariantController(variantService);
   const inventoryTransactionController = new InventoryTransactionController(inventoryTransactionService);
   const inventoryAlternateController = new InventoryAlternateController(inventoryAlternateService);
+  const inventoryReceivingController = new InventoryReceivingController(inventoryReceivingService);
   const invoiceController = new InvoiceController(invoiceService);
   const quotationController = new QuotationController(quotationService);
   const creditNoteController = new CreditNoteController(creditNoteService);
@@ -246,9 +250,19 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_SUPPLIER_BY_CODE, (_, { supplierCode }: { supplierCode: string }) => supplierController.getBySupplierCode(supplierCode));
   ipcMain.handle(IpcChannel.GET_ACTIVE_SUPPLIERS, () => supplierController.getActive());
   ipcMain.handle(IpcChannel.SEARCH_SUPPLIERS, (_, { query }: { query: string }) => supplierController.search(query));
+  ipcMain.handle(IpcChannel.SEARCH_SUPPLIERS_FOR_SELECT, async (_, { query, limit }: { query: string; limit?: number }) => {
+    try {
+      const data = await supplierService.searchForSelect(query, limit);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
   ipcMain.handle(IpcChannel.CREATE_SUPPLIER, (_, data: any) => supplierController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_SUPPLIER, (_, { id, data }: any) => supplierController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_SUPPLIER, (_, { id }: { id: number }) => supplierController.delete(id));
+  ipcMain.handle(IpcChannel.ACTIVATE_SUPPLIER, (_, { id }: { id: number }) => supplierController.activate(id));
+  ipcMain.handle(IpcChannel.DEACTIVATE_SUPPLIER, (_, { id }: { id: number }) => supplierController.deactivate(id));
 
   // ===== EMPLOYEE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_EMPLOYEES, () => employeeController.getAll());
@@ -322,6 +336,16 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_INVENTORY_ALTERNATES_BY_PART, (_, { partNo }: { partNo: string }) => inventoryAlternateController.getByPartNo(partNo));
   ipcMain.handle(IpcChannel.CREATE_INVENTORY_ALTERNATE, (_, { partNo, alternateNo, supplier }: { partNo: string; alternateNo: string; supplier?: string }) => inventoryAlternateController.createAlternate(partNo, alternateNo, supplier));
   ipcMain.handle(IpcChannel.DELETE_INVENTORY_ALTERNATE, (_, { partNo, alternateNo }: { partNo: string; alternateNo: string }) => inventoryAlternateController.deleteAlternate(partNo, alternateNo));
+
+  // ===== INVENTORY RECEIVING HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING, () => inventoryReceivingController.getAll());
+  ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_ID, (_, { id }: { id: number }) => inventoryReceivingController.getById(id));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_SKU, (_, { sku }: { sku: string }) => inventoryReceivingController.getBySku(sku));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_SKU_PAGINATED, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number }) => inventoryReceivingController.getBySkuPaginated(sku, params));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_SUPPLIER, (_, { supplierId, ...params }: { supplierId: number; page?: number; pageSize?: number }) => inventoryReceivingController.getBySupplierIdPaginated(supplierId, params));
+  ipcMain.handle(IpcChannel.CREATE_INVENTORY_RECEIVING, (_, data: any) => inventoryReceivingController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_INVENTORY_RECEIVING, (_, { id, data }: any) => inventoryReceivingController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_INVENTORY_RECEIVING, (_, { id }: { id: number }) => inventoryReceivingController.delete(id));
 
   // ===== INVENTORY SALES HANDLERS =====
   ipcMain.handle(IpcChannel.GET_VARIANT_SALES, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => documentLineItemController.getVariantSales(sku, params));

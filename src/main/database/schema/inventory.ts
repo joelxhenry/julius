@@ -119,6 +119,8 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   id: serial('id').primaryKey(),
   sku: varchar('sku', { length: 50 }).notNull()
     .references(() => inventory.sku, { onDelete: 'cascade' }),
+  supplierId: integer('supplier_id')
+    .references(() => suppliers.id, { onDelete: 'set null' }),
   supplier: varchar('supplier', { length: 100 })
     .references(() => suppliers.company, { onDelete: 'set null' }),
   receivingDate: date('receiving_date'),
@@ -135,6 +137,7 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
 }, (table) => [
   index('idx_inv_rec_sku').on(table.sku),
   index('idx_inv_rec_supplier').on(table.supplier),
+  index('idx_inv_rec_supplier_id').on(table.supplierId),
 ]);
 
 // INVENTORY_IMAGES table - product gallery images

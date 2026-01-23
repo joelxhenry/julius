@@ -37,9 +37,12 @@ export enum IpcChannel {
   GET_SUPPLIER_BY_CODE = 'db:get-supplier-by-code',
   GET_ACTIVE_SUPPLIERS = 'db:get-active-suppliers',
   SEARCH_SUPPLIERS = 'db:search-suppliers',
+  SEARCH_SUPPLIERS_FOR_SELECT = 'db:search-suppliers-for-select',
   CREATE_SUPPLIER = 'db:create-supplier',
   UPDATE_SUPPLIER = 'db:update-supplier',
   DELETE_SUPPLIER = 'db:delete-supplier',
+  ACTIVATE_SUPPLIER = 'db:activate-supplier',
+  DEACTIVATE_SUPPLIER = 'db:deactivate-supplier',
 
   // Employee operations
   GET_EMPLOYEES = 'db:get-employees',
@@ -252,6 +255,16 @@ export enum IpcChannel {
   GET_INVENTORY_ALTERNATES_BY_PART = 'db:get-inventory-alternates-by-part',
   CREATE_INVENTORY_ALTERNATE = 'db:create-inventory-alternate',
   DELETE_INVENTORY_ALTERNATE = 'db:delete-inventory-alternate',
+
+  // Inventory receiving operations
+  GET_INVENTORY_RECEIVING = 'db:get-inventory-receiving',
+  GET_INVENTORY_RECEIVING_BY_ID = 'db:get-inventory-receiving-by-id',
+  GET_INVENTORY_RECEIVING_BY_SKU = 'db:get-inventory-receiving-by-sku',
+  GET_INVENTORY_RECEIVING_BY_SKU_PAGINATED = 'db:get-inventory-receiving-by-sku-paginated',
+  GET_INVENTORY_RECEIVING_BY_SUPPLIER = 'db:get-inventory-receiving-by-supplier-paginated',
+  CREATE_INVENTORY_RECEIVING = 'db:create-inventory-receiving',
+  UPDATE_INVENTORY_RECEIVING = 'db:update-inventory-receiving',
+  DELETE_INVENTORY_RECEIVING = 'db:delete-inventory-receiving',
 
   // Inventory sales queries
   GET_VARIANT_SALES = 'db:get-variant-sales',

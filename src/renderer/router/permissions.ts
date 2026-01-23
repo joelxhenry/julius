@@ -26,6 +26,10 @@ export const authenticatedRoutes: RoutePermission[] = [
   { path: '/clients', description: 'Clients' },
   { path: '/clients/new', description: 'Create Client' },
   { path: '/clients/:id', description: 'View Client' },
+  { path: '/suppliers', description: 'Suppliers' },
+  { path: '/suppliers/new', description: 'Create Supplier' },
+  { path: '/suppliers/:id', description: 'View Supplier' },
+  { path: '/suppliers/:id/edit', description: 'Edit Supplier' },
   { path: '/payments', description: 'Process Payments' },
   { path: '/attendance', description: 'Clock In/Out' },
 ];

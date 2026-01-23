@@ -5,7 +5,7 @@ import { NotFoundPage, ErrorPage } from '../pages/error';
 import { LandingPage } from '../pages/LandingPage';
 import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
 import { QuotationsPage, QuotationCreatePage, QuotationDetailPage } from '../pages/quotations';
-import { InventoryPage, InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
+import { InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
 import { PaymentsPage, PaymentDetailPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import { DashboardPage } from '../pages/dashboard';
@@ -17,6 +17,7 @@ import {
   EmployeePermissionsPage,
 } from '../pages/employees';
 import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
+import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
 import { SettingsPage } from '../pages/settings';
 
 export const router = createHashRouter([
@@ -131,6 +132,23 @@ export const router = createHashRouter([
       {
         path: 'clients/:id',
         element: <ClientDetailPage />,
+      },
+      // Supplier Management
+      {
+        path: 'suppliers',
+        element: <SuppliersPage />,
+      },
+      {
+        path: 'suppliers/new',
+        element: <SupplierEditorPage />,
+      },
+      {
+        path: 'suppliers/:id',
+        element: <SupplierDetailPage />,
+      },
+      {
+        path: 'suppliers/:id/edit',
+        element: <SupplierEditorPage />,
       },
       // Settings
       {

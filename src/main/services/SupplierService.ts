@@ -8,6 +8,7 @@ export interface SupplierQueryParams {
   page?: number;
   pageSize?: number;
   search?: string;
+  activeOnly?: boolean;
 }
 
 export class SupplierService extends BaseService<
@@ -20,7 +21,7 @@ export class SupplierService extends BaseService<
   }
 
   async findPaginated(params: SupplierQueryParams = {}): Promise<PaginatedResult<schema.Supplier>> {
-    const { page = 1, pageSize = 50, search } = params;
+    const { page = 1, pageSize = 50, search, activeOnly } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -34,6 +35,10 @@ export class SupplierService extends BaseService<
           ilike(schema.suppliers.contact2, searchTerm)
         )
       );
+    }
+
+    if (activeOnly) {
+      conditions.push(eq(schema.suppliers.isActive, true));
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
@@ -106,5 +111,40 @@ export class SupplierService extends BaseService<
       .where(whereCondition)
       .orderBy(desc(schema.suppliers.id))
       .limit(limit);
+  }
+
+  async findBySupplierCode(supplierCode: string): Promise<schema.Supplier | null> {
+    const results = await this.db
+      .select()
+      .from(schema.suppliers)
+      .where(eq(schema.suppliers.supplierCode, supplierCode))
+      .limit(1);
+    return results[0] || null;
+  }
+
+  async findActive(): Promise<schema.Supplier[]> {
+    return this.db
+      .select()
+      .from(schema.suppliers)
+      .where(eq(schema.suppliers.isActive, true))
+      .orderBy(desc(schema.suppliers.id));
+  }
+
+  async activate(id: number): Promise<schema.Supplier | null> {
+    const results = await this.db
+      .update(schema.suppliers)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(schema.suppliers.id, id))
+      .returning();
+    return results[0] || null;
+  }
+
+  async deactivate(id: number): Promise<schema.Supplier | null> {
+    const results = await this.db
+      .update(schema.suppliers)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(schema.suppliers.id, id))
+      .returning();
+    return results[0] || null;
   }
 }

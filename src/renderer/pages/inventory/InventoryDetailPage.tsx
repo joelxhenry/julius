@@ -33,6 +33,7 @@ import {
   IconAlertTriangle,
   IconCheck,
   IconPhoto,
+  IconPackageImport,
 } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
@@ -40,7 +41,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
-import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, InventoryEditModal } from '../../components/inventory';
+import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, ReceivingTab, InventoryEditModal } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
 import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
 import { CopyButton } from '../../components/common';
@@ -713,6 +714,9 @@ export function InventoryDetailPage() {
           <Tabs.Tab value="sales" leftSection={<IconChartLine size={16} />}>
             Sales
           </Tabs.Tab>
+          <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
+            Receiving
+          </Tabs.Tab>
           <Tabs.Tab value="gallery" leftSection={<IconPhoto size={16} />}>
             Gallery
           </Tabs.Tab>
@@ -775,6 +779,11 @@ export function InventoryDetailPage() {
             onPageChange={setSalesPage}
             formatCurrency={formatCurrency}
           />
+        </Tabs.Panel>
+
+        {/* Receiving Tab */}
+        <Tabs.Panel value="receiving" pt="md">
+          <ReceivingTab sku={item.sku} />
         </Tabs.Panel>
 
         {/* Gallery Tab */}

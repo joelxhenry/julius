@@ -1,4 +1,4 @@
-export { InventoryPage } from './InventoryPage';
+
 export { InventoryListPage } from './InventoryListPage';
 export { InventoryEditorPage } from './InventoryEditorPage';
 export { InventoryDetailPage } from './InventoryDetailPage';
