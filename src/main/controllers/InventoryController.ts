@@ -85,6 +85,24 @@ export class InventoryController extends BaseController<InventoryService> {
     }
   }
 
+  async getDistinctCategories(search?: string, limit?: number) {
+    try {
+      const categories = await this.service.getDistinctCategories(search, limit);
+      return this.wrapSuccess(categories);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getDistinctModels(search?: string, limit?: number) {
+    try {
+      const models = await this.service.getDistinctModels(search, limit);
+      return this.wrapSuccess(models);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async getLowStock() {
     try {
       const items = await this.service.findLowStock();

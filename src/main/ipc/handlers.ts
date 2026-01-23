@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { getDatabaseOrNull, initDatabase, closeDatabase, getConnectionError } from '../database';
+import { getDatabaseOrNull, initDatabase, closeDatabase, getConnectionError, runMigrationsAndSeeds } from '../database';
 import { IpcChannel } from '../../shared/types/ipc';
 
 // Track which handlers have been registered to avoid duplicates
@@ -79,7 +79,8 @@ function removeDataHandlers() {
       !channel.startsWith('db:update-config') &&
       !channel.startsWith('db:test-connection') &&
       !channel.startsWith('db:reconnect') &&
-      !channel.startsWith('db:check-status')) {
+      !channel.startsWith('db:check-status') &&
+      !channel.startsWith('db:run-migrations-and-seeds')) {
       removeHandler(channel as IpcChannel);
     }
   });
@@ -132,6 +133,18 @@ export function registerIpcHandlers() {
         connected: db !== null,
         error: error?.message || null,
       };
+    });
+
+    ipcMain.handle(IpcChannel.RUN_MIGRATIONS_AND_SEEDS, async () => {
+      try {
+        const result = await runMigrationsAndSeeds();
+        return { success: result.success, data: result };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
     });
 
     configHandlersRegistered = true;
@@ -301,6 +314,10 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY, (_, { query }: { query: string }) => inventoryController.search(query));
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => inventoryController.searchForSelect(query, limit));
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY_WITH_VARIANTS, (_, { query, limit }: { query: string; limit?: number }) => inventoryController.searchWithVariants(query, limit));
+  ipcMain.handle(IpcChannel.GET_DISTINCT_CATEGORIES, (_, { search, limit }: { search?: string; limit?: number } = {}) =>
+    inventoryController.getDistinctCategories(search, limit));
+  ipcMain.handle(IpcChannel.GET_DISTINCT_MODELS, (_, { search, limit }: { search?: string; limit?: number } = {}) =>
+    inventoryController.getDistinctModels(search, limit));
   ipcMain.handle(IpcChannel.CREATE_INVENTORY, (_, data: any) => inventoryController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY, (_, { id, data }: any) => inventoryController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVENTORY, (_, { id }: { id: number }) => inventoryController.delete(id));

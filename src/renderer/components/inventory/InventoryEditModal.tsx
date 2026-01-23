@@ -27,11 +27,8 @@ import {
   IconMapPin,
 } from "@tabler/icons-react";
 import { IpcChannel } from "../../../shared/types/ipc";
-
-interface Category {
-  id: number;
-  category: string;
-}
+import { normalizeToArray, arrayToJsonString } from "../../../shared/utils/arrayFields";
+import { CategoryTagsInput, ModelTagsInput } from "../inputs";
 
 interface Inventory {
   id: number;
@@ -57,8 +54,8 @@ interface InventoryFormValues {
   sku: string;
   description1: string;
   description2: string;
-  category: string;
-  model: string;
+  categories: string[];
+  models: string[];
   location: string;
   unit: string;
   quantity: number;
@@ -105,17 +102,14 @@ export function InventoryEditModal({
 }: InventoryEditModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<
-    { value: string; label: string }[]
-  >([]);
 
   const form = useForm<InventoryFormValues>({
     initialValues: {
       sku: "",
       description1: "",
       description2: "",
-      category: "",
-      model: "",
+      categories: [],
+      models: [],
       location: "",
       unit: "EA",
       quantity: 0,
@@ -135,11 +129,6 @@ export function InventoryEditModal({
     },
   });
 
-  // Load categories on mount
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
   // Set form values when item changes or modal opens
   useEffect(() => {
     if (opened && item) {
@@ -147,8 +136,8 @@ export function InventoryEditModal({
         sku: item.sku || "",
         description1: item.description1 || "",
         description2: item.description2 || "",
-        category: item.category || "",
-        model: item.model || "",
+        categories: normalizeToArray(item.category),
+        models: normalizeToArray(item.model),
         location: item.location || "",
         unit: item.unit || "EA",
         quantity: item.quantity || 0,
@@ -179,23 +168,6 @@ export function InventoryEditModal({
     }
   }, [form.values.cost, form.values.price]);
 
-  const loadCategories = async () => {
-    try {
-      const result = await window.electron.invoke(IpcChannel.GET_CATEGORIES, {
-        categoryType: "inventory",
-      });
-      if (result.success && result.data) {
-        const categoryOptions = result.data.map((cat: Category) => ({
-          value: cat.category,
-          label: cat.category,
-        }));
-        setCategories(categoryOptions);
-      }
-    } catch (err) {
-      console.error("Failed to load categories:", err);
-    }
-  };
-
   const handleSubmit = async (values: InventoryFormValues) => {
     setSubmitting(true);
     setError(null);
@@ -205,8 +177,8 @@ export function InventoryEditModal({
         sku: values.sku,
         description1: values.description1 || null,
         description2: values.description2 || null,
-        category: values.category || null,
-        model: values.model || null,
+        category: arrayToJsonString(values.categories),
+        model: arrayToJsonString(values.models),
         location: values.location || null,
         unit: values.unit,
         quantity: values.quantity,
@@ -285,22 +257,14 @@ export function InventoryEditModal({
                   <Title order={5}>Basic Information</Title>
                 </Group>
 
-                <SimpleGrid cols={{ base: 1, md: 2 }}>
-                  <TextInput
-                    label="SKU"
-                    value={form.values.sku}
-                    disabled
-                    description="SKU cannot be changed"
-                  />
-                  <Select
-                    label="Category"
-                    placeholder="Select category"
-                    data={categories}
-                    searchable
-                    clearable
-                    {...form.getInputProps("category")}
-                  />
-                </SimpleGrid>
+                <TextInput
+                  label="SKU"
+                  value={form.values.sku}
+                  disabled
+                  description="SKU cannot be changed"
+                />
+
+                <CategoryTagsInput {...form.getInputProps("categories")} />
 
                 <TextInput
                   label="Description"
@@ -316,18 +280,13 @@ export function InventoryEditModal({
                   {...form.getInputProps("description2")}
                 />
 
-                <SimpleGrid cols={{ base: 1, md: 2 }}>
-                  <TextInput
-                    label="Model"
-                    placeholder="Model number or name"
-                    {...form.getInputProps("model")}
-                  />
-                  <Select
-                    label="Unit of Measure"
-                    data={UNIT_OPTIONS}
-                    {...form.getInputProps("unit")}
-                  />
-                </SimpleGrid>
+                <ModelTagsInput {...form.getInputProps("models")} />
+
+                <Select
+                  label="Unit of Measure"
+                  data={UNIT_OPTIONS}
+                  {...form.getInputProps("unit")}
+                />
               </Stack>
             </Paper>
 

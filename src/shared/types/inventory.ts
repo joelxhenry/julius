@@ -37,6 +37,7 @@ export interface VariantItem {
   price: string | null;
   wholesalePrice: string | null;
   isActive: boolean;
+  isBase: boolean; // Base variant flag - every inventory item has one
 }
 
 /**
@@ -52,6 +53,7 @@ export interface InventorySearchResult {
   quantity: number;
   isTaxable: boolean;
   isVariant: boolean;
+  isBase?: boolean; // True if this is a base variant
   parentSku?: string | null;
   variantName?: string | null;
 }

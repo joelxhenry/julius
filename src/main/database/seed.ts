@@ -2,6 +2,8 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 import * as schema from './schema/index';
+import { seedBaseVariants } from './seedBaseVariants';
+import { seedMultiValueFields } from './seedMultiValueFields';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -91,6 +93,8 @@ export async function runSeeds(db: NodePgDatabase<typeof schema>): Promise<void>
 
   try {
     await seedSuperUser(db);
+    await seedBaseVariants(db);
+    await seedMultiValueFields(db);
     console.log('Database seeding completed successfully');
   } catch (error) {
     console.error('Database seeding failed:', error);

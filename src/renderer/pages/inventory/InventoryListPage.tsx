@@ -9,26 +9,21 @@ import {
   Badge,
   ActionIcon,
   Text,
-  Menu,
-  Select,
   NumberFormatter,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconSearch,
   IconPlus,
-  IconEye,
-  IconEdit,
-  IconDotsVertical,
   IconRefresh,
   IconAlertTriangle,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader, CopyButton } from '../../components/common';
 import { usePreloadThumbnails } from '../../hooks';
+import { normalizeToArray } from '../../../shared/utils/arrayFields';
 
 interface Inventory {
   id: number;
@@ -61,7 +56,6 @@ interface PaginatedResult {
 }
 
 export function InventoryListPage() {
-  const navigate = useNavigate();
   const { replaceCurrentTab } = useTabContext();
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<Inventory[]>([]);
@@ -69,8 +63,7 @@ export function InventoryListPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
-  const [debouncedSearch] = useDebouncedValue(search,500);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [debouncedSearch] = useDebouncedValue(search, 500);
 
   // Gallery modal state
   const [galleryOpened, { open: openGallery, close: closeGallery }] = useDisclosure(false);
@@ -89,7 +82,6 @@ export function InventoryListPage() {
         page,
         pageSize,
         search: debouncedSearch,
-        category: categoryFilter || undefined
       });
 
       console.log('Inventory fetch result:', result);
@@ -107,16 +99,16 @@ export function InventoryListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, categoryFilter]);
+  }, [page, pageSize, debouncedSearch]);
 
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when search changes
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, categoryFilter]);
+  }, [debouncedSearch]);
 
   // Preload thumbnails when inventory data changes
   useEffect(() => {
@@ -191,16 +183,22 @@ export function InventoryListPage() {
       },
       {
         key: 'category',
-        header: 'Category',
-        width: 180,
-        render: (item) =>
-          item.category ? (
-            <Badge variant="light" size="sm">
-              {item.category}
-            </Badge>
+        header: 'Categories',
+        width: 250,
+        render: (item) => {
+          const categories = normalizeToArray(item.category);
+          return categories.length > 0 ? (
+            <Group gap={6} wrap="wrap">
+              {categories.map((cat, idx) => (
+                <Badge key={idx} variant="filled" size="md" radius="sm">
+                  {cat}
+                </Badge>
+              ))}
+            </Group>
           ) : (
             <Text size="sm" c="dimmed">-</Text>
-          ),
+          );
+        },
       },
       {
         key: 'quantity',
@@ -237,39 +235,15 @@ export function InventoryListPage() {
         width: 100,
         accessor: 'location',
       },
-      {
-        key: 'actions',
-        header: 'Actions',
-        width: 100,
-        render: (item) => (
-          <Group gap="xs">
-            <Menu position="bottom-end" shadow="md">
-              <Menu.Target>
-                <ActionIcon variant="subtle">
-                  <IconDotsVertical size={16} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  leftSection={<IconEdit size={14} />}
-                  onClick={() => navigate(`/inventory/${item.id}/edit`)}
-                >
-                  Edit
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-        ),
-      },
     ],
-    [navigate, getThumbnail, handleThumbnailClick]
+    [getThumbnail, handleThumbnailClick]
   );
 
   return (
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="center">
         <Title order={2}>Inventory</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/inventory/new')}>
+        <Button leftSection={<IconPlus size={16} />} onClick={() => replaceCurrentTab('/inventory/new')}>
           Add Item
         </Button>
       </Group>
@@ -284,16 +258,6 @@ export function InventoryListPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{ flex: 1 }}
-            />
-            <Select
-              placeholder="Category"
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              data={[
-                { value: '', label: 'All Categories' },
-              ]}
-              clearable
-              w={150}
             />
             <ActionIcon variant="subtle" onClick={fetchInventory} title="Refresh">
               <IconRefresh size={18} />
@@ -317,7 +281,6 @@ export function InventoryListPage() {
             totalPages={totalPages}
             onPageChange={setPage}
             skeletonRows={5}
-            stickyActionsColumn
             minWidth={1000}
           />
         </Stack>

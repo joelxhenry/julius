@@ -47,12 +47,14 @@ export const variants = pgTable('variants', {
   priceCurrency: varchar('price_currency', { length: 10 }).notNull().default('JA'),
   wholesalePrice: numeric('wholesale_price', { precision: 15, scale: 2 }),
   isActive: boolean('is_active').notNull().default(true),
+  isBase: boolean('is_base').notNull().default(false), // Base variant flag - every inventory item has one
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_variants_parent_sku').on(table.parentSku),
   index('idx_variants_variant_sku').on(table.variantSku),
   index('idx_variants_active').on(table.isActive),
+  index('idx_variants_is_base').on(table.isBase),
 ]);
 
 // INVENTORY_ALTERNATES table - alternate part numbers
@@ -119,6 +121,8 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   id: serial('id').primaryKey(),
   sku: varchar('sku', { length: 50 }).notNull()
     .references(() => inventory.sku, { onDelete: 'cascade' }),
+  variantSku: varchar('variant_sku', { length: 50 })
+    .references(() => variants.variantSku, { onDelete: 'cascade' }),
   supplierId: integer('supplier_id')
     .references(() => suppliers.id, { onDelete: 'set null' }),
   supplier: varchar('supplier', { length: 100 })
@@ -136,6 +140,7 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_inv_rec_sku').on(table.sku),
+  index('idx_inv_rec_variant_sku').on(table.variantSku),
   index('idx_inv_rec_supplier').on(table.supplier),
   index('idx_inv_rec_supplier_id').on(table.supplierId),
 ]);

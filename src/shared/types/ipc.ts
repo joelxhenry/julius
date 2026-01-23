@@ -81,6 +81,8 @@ export enum IpcChannel {
   SEARCH_INVENTORY = 'db:search-inventory',
   SEARCH_INVENTORY_FOR_SELECT = 'db:search-inventory-for-select',
   SEARCH_INVENTORY_WITH_VARIANTS = 'db:search-inventory-with-variants',
+  GET_DISTINCT_CATEGORIES = 'db:get-distinct-categories',
+  GET_DISTINCT_MODELS = 'db:get-distinct-models',
   GET_INVENTORY_VARIANTS = 'db:get-inventory-variants',
   CHECK_HAS_VARIANTS = 'db:check-has-variants',
   CREATE_INVENTORY = 'db:create-inventory',
@@ -276,6 +278,7 @@ export enum IpcChannel {
   TEST_DATABASE_CONNECTION = 'db:test-connection',
   RECONNECT_DATABASE = 'db:reconnect',
   CHECK_DATABASE_STATUS = 'db:check-status',
+  RUN_MIGRATIONS_AND_SEEDS = 'db:run-migrations-and-seeds',
 
   // System settings operations
   GET_SYSTEM_SETTINGS = 'db:get-system-settings',

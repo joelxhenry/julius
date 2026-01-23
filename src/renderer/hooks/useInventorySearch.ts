@@ -12,6 +12,7 @@ export interface InventorySearchItem {
   quantity: number;
   isTaxable: boolean;
   isVariant: boolean;
+  isBase?: boolean; // True if this is a base variant
   parentSku: string | null;
   variantName: string | null;
 }
@@ -45,13 +46,17 @@ export function useInventorySearch(config: UseInventorySearchOptions = {}) {
       const result = await window.electron.invoke(IpcChannel.SEARCH_INVENTORY_WITH_VARIANTS, { query, limit });
       if (result.success && result.data) {
         setItemOptions(
-          result.data.map((item: InventorySearchItem) => ({
-            value: item.sku,
-            label: item.isVariant
-              ? `[V] ${item.sku} - ${item.variantName || item.description1 || 'No name'}`
-              : `${item.sku} - ${item.description1 || 'No description'}`,
-            item,
-          }))
+          result.data.map((item: InventorySearchItem) => {
+            let label: string;
+            if (item.isBase) {
+              // Base variant - show as regular item (no prefix)
+              label = `${item.sku}    —    ${item.description1 || item.variantName || 'No description'}`;
+            } else {
+              // Non-base variant - show variant indicator
+              label = `[V] ${item.sku}    —    ${item.variantName || item.description1 || 'No name'}`;
+            }
+            return { value: item.sku, label, item };
+          })
         );
       }
     } catch (error) {

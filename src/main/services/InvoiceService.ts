@@ -439,25 +439,25 @@ export class InvoiceService extends BaseService<
       const createdLineItems = await tx.insert(schema.documentLineItems).values(lineItemsData).returning();
 
       // 5. Create inventory transactions and reduce stock
-      // Handles both inventory items and variants
+      // All transactions go through variants (including base variants)
       const inventoryTransactions: schema.InventoryTransaction[] = [];
       for (const item of lineItems) {
         if (!item.sku || parseFloat(item.quantity) <= 0) continue;
 
-        // First check if SKU is a variant
+        // First check if SKU is already a variant
         const [variant] = await tx
-          .select({ id: schema.variants.id, parentSku: schema.variants.parentSku })
+          .select({ id: schema.variants.id, parentSku: schema.variants.parentSku, variantSku: schema.variants.variantSku })
           .from(schema.variants)
           .where(eq(schema.variants.variantSku, item.sku))
           .limit(1);
 
         if (variant) {
-          // Variant transaction - use parent SKU for FK, variant SKU in new column
+          // SKU is a variant - use directly
           const [invTrans] = await tx
             .insert(schema.inventoryTransactions)
             .values({
               sku: variant.parentSku,
-              variantSku: item.sku,
+              variantSku: variant.variantSku,
               activity: 'SALE',
               reference: invNumber!,
               quantity: -parseFloat(item.quantity),
@@ -475,9 +475,9 @@ export class InvoiceService extends BaseService<
             WHERE variant_sku = ${item.sku}
           `);
         } else {
-          // Check if SKU exists in inventory
+          // SKU is not a variant - check if it's an inventory item and resolve to base variant
           const [inventoryItem] = await tx
-            .select()
+            .select({ sku: schema.inventory.sku })
             .from(schema.inventory)
             .where(eq(schema.inventory.sku, item.sku))
             .limit(1);
@@ -487,27 +487,60 @@ export class InvoiceService extends BaseService<
             continue;
           }
 
-          // Inventory transaction
-          const [invTrans] = await tx
-            .insert(schema.inventoryTransactions)
-            .values({
-              sku: item.sku,
-              activity: 'SALE',
-              reference: invNumber!,
-              quantity: -parseFloat(item.quantity),
-              activityDate: invoiceData.invDate,
-            })
-            .returning();
+          // Look up the base variant for this inventory item
+          const [baseVariant] = await tx
+            .select({ variantSku: schema.variants.variantSku })
+            .from(schema.variants)
+            .where(and(eq(schema.variants.parentSku, item.sku), eq(schema.variants.isBase, true)))
+            .limit(1);
 
-          inventoryTransactions.push(invTrans);
+          if (baseVariant) {
+            // Use base variant for transaction
+            const [invTrans] = await tx
+              .insert(schema.inventoryTransactions)
+              .values({
+                sku: item.sku,
+                variantSku: baseVariant.variantSku,
+                activity: 'SALE',
+                reference: invNumber!,
+                quantity: -parseFloat(item.quantity),
+                activityDate: invoiceData.invDate,
+              })
+              .returning();
 
-          // Update inventory quantity
-          await tx.execute(sql`
-            UPDATE inventory
-            SET quantity = quantity - ${parseFloat(item.quantity)},
-                updated_at = NOW()
-            WHERE sku = ${item.sku}
-          `);
+            inventoryTransactions.push(invTrans);
+
+            // Update base variant quantity
+            await tx.execute(sql`
+              UPDATE variants
+              SET quantity = quantity - ${parseFloat(item.quantity)},
+                  updated_at = NOW()
+              WHERE variant_sku = ${baseVariant.variantSku}
+            `);
+          } else {
+            // Fallback: No base variant found, record against inventory directly
+            warnings.push(`No base variant found for ${item.sku} - using legacy inventory`);
+            const [invTrans] = await tx
+              .insert(schema.inventoryTransactions)
+              .values({
+                sku: item.sku,
+                activity: 'SALE',
+                reference: invNumber!,
+                quantity: -parseFloat(item.quantity),
+                activityDate: invoiceData.invDate,
+              })
+              .returning();
+
+            inventoryTransactions.push(invTrans);
+
+            // Update inventory quantity
+            await tx.execute(sql`
+              UPDATE inventory
+              SET quantity = quantity - ${parseFloat(item.quantity)},
+                  updated_at = NOW()
+              WHERE sku = ${item.sku}
+            `);
+          }
         }
       }
 
@@ -648,9 +681,8 @@ export class InvoiceService extends BaseService<
   /**
    * Create inventory transactions when invoice is issued
    * Reduces inventory quantities and creates transaction records
-   * Handles both inventory items and variants
-   * For variants: sku = parent SKU (for FK), variantSku = variant SKU
-   * For inventory: sku = inventory SKU, variantSku = null
+   * All transactions now go through variants (including base variants)
+   * For all items: sku = parent SKU (for FK), variantSku = variant SKU (required)
    */
   async createInventoryTransactions(
     invNumber: string,
@@ -660,18 +692,18 @@ export class InvoiceService extends BaseService<
     for (const item of lineItems) {
       if (!item.sku || item.quantity <= 0) continue;
 
-      // Check if this SKU is a variant
+      // First check if this SKU is already a variant
       const variant = await this.db
-        .select({ id: schema.variants.id, parentSku: schema.variants.parentSku })
+        .select({ id: schema.variants.id, parentSku: schema.variants.parentSku, variantSku: schema.variants.variantSku })
         .from(schema.variants)
         .where(eq(schema.variants.variantSku, item.sku))
         .limit(1);
 
       if (variant.length > 0) {
-        // Variant transaction - use parent SKU for FK, variant SKU in new column
+        // SKU is a variant - use directly
         await this.db.insert(schema.inventoryTransactions).values({
           sku: variant[0].parentSku,
-          variantSku: item.sku,
+          variantSku: variant[0].variantSku,
           activity: 'SALE',
           reference: invNumber,
           quantity: -item.quantity,
@@ -682,18 +714,56 @@ export class InvoiceService extends BaseService<
           sql`UPDATE variants SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE variant_sku = ${item.sku}`
         );
       } else {
-        // Inventory transaction
-        await this.db.insert(schema.inventoryTransactions).values({
-          sku: item.sku,
-          activity: 'SALE',
-          reference: invNumber,
-          quantity: -item.quantity,
-          activityDate: invDate,
-        });
-        // Update inventory quantity
-        await this.db.execute(
-          sql`UPDATE inventory SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE sku = ${item.sku}`
-        );
+        // SKU is not a variant - check if it's an inventory item and resolve to base variant
+        const inventoryItem = await this.db
+          .select({ sku: schema.inventory.sku })
+          .from(schema.inventory)
+          .where(eq(schema.inventory.sku, item.sku))
+          .limit(1);
+
+        if (inventoryItem.length === 0) {
+          // SKU not found in inventory or variants - skip
+          console.warn(`SKU ${item.sku} not found in inventory or variants`);
+          continue;
+        }
+
+        // Look up the base variant for this inventory item
+        const baseVariant = await this.db
+          .select({ variantSku: schema.variants.variantSku })
+          .from(schema.variants)
+          .where(and(eq(schema.variants.parentSku, item.sku), eq(schema.variants.isBase, true)))
+          .limit(1);
+
+        if (baseVariant.length > 0) {
+          // Use base variant for transaction
+          await this.db.insert(schema.inventoryTransactions).values({
+            sku: item.sku,
+            variantSku: baseVariant[0].variantSku,
+            activity: 'SALE',
+            reference: invNumber,
+            quantity: -item.quantity,
+            activityDate: invDate,
+          });
+          // Update base variant quantity
+          await this.db.execute(
+            sql`UPDATE variants SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE variant_sku = ${baseVariant[0].variantSku}`
+          );
+        } else {
+          // Fallback: No base variant found, record against inventory directly
+          // This handles legacy data before migration
+          console.warn(`No base variant found for inventory item ${item.sku}`);
+          await this.db.insert(schema.inventoryTransactions).values({
+            sku: item.sku,
+            activity: 'SALE',
+            reference: invNumber,
+            quantity: -item.quantity,
+            activityDate: invDate,
+          });
+          // Update inventory quantity
+          await this.db.execute(
+            sql`UPDATE inventory SET quantity = quantity - ${item.quantity}, updated_at = NOW() WHERE sku = ${item.sku}`
+          );
+        }
       }
     }
   }

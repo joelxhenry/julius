@@ -191,6 +191,56 @@ export async function closeDatabase(): Promise<void> {
 }
 
 /**
+ * Run migrations and seeds manually
+ * This can be triggered from settings to re-run data migrations
+ */
+export async function runMigrationsAndSeeds(): Promise<{
+  success: boolean;
+  message: string;
+  migrationsRan: boolean;
+  seedsRan: boolean;
+}> {
+  if (!db) {
+    return {
+      success: false,
+      message: 'Database not connected. Please connect to the database first.',
+      migrationsRan: false,
+      seedsRan: false,
+    };
+  }
+
+  let migrationsRan = false;
+  let seedsRan = false;
+
+  try {
+    // Run migrations
+    console.log('Running migrations manually...');
+    await runMigrations(db);
+    migrationsRan = true;
+
+    // Run seeds
+    console.log('Running seeds manually...');
+    await runSeeds(db);
+    seedsRan = true;
+
+    return {
+      success: true,
+      message: 'Migrations and seeds completed successfully.',
+      migrationsRan,
+      seedsRan,
+    };
+  } catch (error) {
+    console.error('Error running migrations and seeds:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      migrationsRan,
+      seedsRan,
+    };
+  }
+}
+
+/**
  * Custom error for database connection failures
  */
 export class DatabaseConnectionError extends Error {

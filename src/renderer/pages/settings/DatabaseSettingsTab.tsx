@@ -24,6 +24,7 @@ import {
   IconPlugConnectedX,
   IconTestPipe,
   IconDeviceFloppy,
+  IconDatabaseImport,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDatabaseConnection } from '../../contexts/DatabaseConnectionContext';
@@ -43,6 +44,7 @@ export function DatabaseSettingsTab() {
   const [loading, setLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRunningMigrations, setIsRunningMigrations] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -171,6 +173,45 @@ export function DatabaseSettingsTab() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRunMigrationsAndSeeds = async () => {
+    if (!isConnected) {
+      notifications.show({
+        title: 'Not Connected',
+        message: 'Please connect to the database first.',
+        color: 'orange',
+      });
+      return;
+    }
+
+    setIsRunningMigrations(true);
+
+    try {
+      const result = await window.electron.invoke(IpcChannel.RUN_MIGRATIONS_AND_SEEDS, {});
+      if (result.success && result.data) {
+        notifications.show({
+          title: 'Success',
+          message: result.data.message || 'Migrations and seeds completed successfully.',
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+      } else {
+        notifications.show({
+          title: 'Error',
+          message: result.error || result.data?.message || 'Failed to run migrations and seeds.',
+          color: 'red',
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to run migrations and seeds.',
+        color: 'red',
+      });
+    } finally {
+      setIsRunningMigrations(false);
     }
   };
 
@@ -314,6 +355,32 @@ export function DatabaseSettingsTab() {
                 Save & Reconnect
               </Button>
             </Group>
+          </Group>
+        </Stack>
+      </Paper>
+
+      {/* Database Maintenance */}
+      <Paper p="lg" radius="md" withBorder>
+        <Stack gap="md">
+          <Text fw={500} size="lg">Database Maintenance</Text>
+          <Divider />
+          <Group justify="space-between" align="flex-start">
+            <Stack gap={4}>
+              <Text size="sm" fw={500}>Run Migrations & Seeds</Text>
+              <Text size="xs" c="dimmed">
+                Manually run database migrations and seed data. This includes creating base variants
+                for existing inventory items and other data migrations.
+              </Text>
+            </Stack>
+            <Button
+              leftSection={<IconDatabaseImport size={16} />}
+              onClick={handleRunMigrationsAndSeeds}
+              loading={isRunningMigrations}
+              disabled={!isConnected || isTesting || isSaving}
+              variant="outline"
+            >
+              Run Migrations & Seeds
+            </Button>
           </Group>
         </Stack>
       </Paper>

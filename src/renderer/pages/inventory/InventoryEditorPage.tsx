@@ -37,11 +37,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { VariantForm } from '../../components/forms';
-
-interface Category {
-  id: number;
-  category: string;
-}
+import { CategoryTagsInput, ModelTagsInput } from '../../components/inputs';
+import { arrayToJsonString } from '../../../shared/utils/arrayFields';
 
 interface PendingVariant {
   tempId: string;
@@ -61,8 +58,8 @@ interface InventoryFormValues {
   sku: string;
   description1: string;
   description2: string;
-  category: string;
-  model: string;
+  categories: string[];
+  models: string[];
   location: string;
   unit: string;
   quantity: number;
@@ -100,7 +97,6 @@ export function InventoryEditorPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
 
   // Variant state for new items
   const [pendingVariants, setPendingVariants] = useState<PendingVariant[]>([]);
@@ -112,8 +108,8 @@ export function InventoryEditorPage() {
       sku: '',
       description1: '',
       description2: '',
-      category: '',
-      model: '',
+      categories: [],
+      models: [],
       location: '',
       unit: 'EA',
       quantity: 0,
@@ -134,10 +130,6 @@ export function InventoryEditorPage() {
     },
   });
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
   // Calculate margin when cost or price changes
   useEffect(() => {
     const cost = form.values.cost;
@@ -149,21 +141,6 @@ export function InventoryEditorPage() {
       form.setFieldValue('margin', null);
     }
   }, [form.values.cost, form.values.price]);
-
-  const loadCategories = async () => {
-    try {
-      const result = await window.electron.invoke(IpcChannel.GET_CATEGORIES, { categoryType: 'inventory' });
-      if (result.success && result.data) {
-        const categoryOptions = result.data.map((cat: Category) => ({
-          value: cat.category,
-          label: cat.category,
-        }));
-        setCategories(categoryOptions);
-      }
-    } catch (err) {
-      console.error('Failed to load categories:', err);
-    }
-  };
 
   // Variant handlers
   const handleAddVariant = () => {
@@ -220,8 +197,8 @@ export function InventoryEditorPage() {
         sku: values.sku,
         description1: values.description1 || null,
         description2: values.description2 || null,
-        category: values.category || null,
-        model: values.model || null,
+        category: arrayToJsonString(values.categories),
+        model: arrayToJsonString(values.models),
         location: values.location || null,
         unit: values.unit,
         quantity: values.quantity,
@@ -331,22 +308,14 @@ export function InventoryEditorPage() {
                 <Title order={4}>Basic Information</Title>
               </Group>
 
-              <SimpleGrid cols={{ base: 1, md: 2 }}>
-                <TextInput
-                  label="SKU"
-                  placeholder="Enter SKU code"
-                  required
-                  {...form.getInputProps('sku')}
-                />
-                <Select
-                  label="Category"
-                  placeholder="Select category"
-                  data={categories}
-                  searchable
-                  clearable
-                  {...form.getInputProps('category')}
-                />
-              </SimpleGrid>
+              <TextInput
+                label="SKU"
+                placeholder="Enter SKU code"
+                required
+                {...form.getInputProps('sku')}
+              />
+
+              <CategoryTagsInput {...form.getInputProps('categories')} />
 
               <TextInput
                 label="Description"
@@ -362,18 +331,13 @@ export function InventoryEditorPage() {
                 {...form.getInputProps('description2')}
               />
 
-              <SimpleGrid cols={{ base: 1, md: 2 }}>
-                <TextInput
-                  label="Model"
-                  placeholder="Model number or name"
-                  {...form.getInputProps('model')}
-                />
-                <Select
-                  label="Unit of Measure"
-                  data={UNIT_OPTIONS}
-                  {...form.getInputProps('unit')}
-                />
-              </SimpleGrid>
+              <ModelTagsInput {...form.getInputProps('models')} />
+
+              <Select
+                label="Unit of Measure"
+                data={UNIT_OPTIONS}
+                {...form.getInputProps('unit')}
+              />
             </Stack>
           </Paper>
 

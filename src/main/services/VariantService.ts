@@ -19,6 +19,20 @@ export interface VariantWithInventory extends schema.Variant {
   parentIsTaxable?: boolean;
 }
 
+export class BaseVariantDeletionError extends Error {
+  constructor(variantSku: string) {
+    super(`Cannot delete base variant '${variantSku}'. Delete the parent inventory item instead.`);
+    this.name = 'BaseVariantDeletionError';
+  }
+}
+
+export class DuplicateBaseVariantError extends Error {
+  constructor(parentSku: string) {
+    super(`A base variant already exists for inventory item '${parentSku}'.`);
+    this.name = 'DuplicateBaseVariantError';
+  }
+}
+
 export class VariantService extends BaseService<
   typeof schema.variants,
   schema.Variant,
@@ -26,6 +40,50 @@ export class VariantService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.variants);
+  }
+
+  /**
+   * Override create to validate no duplicate base variants
+   */
+  async create(data: schema.InsertVariant): Promise<schema.Variant> {
+    // If creating a base variant, check if one already exists
+    if (data.isBase) {
+      const existingBase = await this.findBaseVariant(data.parentSku);
+      if (existingBase) {
+        throw new DuplicateBaseVariantError(data.parentSku);
+      }
+    }
+    return super.create(data);
+  }
+
+  /**
+   * Override delete to prevent deletion of base variants
+   */
+  async delete(id: number): Promise<boolean> {
+    const variant = await this.findById(id);
+    if (variant?.isBase) {
+      throw new BaseVariantDeletionError(variant.variantSku);
+    }
+    return super.delete(id);
+  }
+
+  /**
+   * Find the base variant for an inventory item
+   */
+  async findBaseVariant(parentSku: string): Promise<schema.Variant | null> {
+    const results = await this.db
+      .select()
+      .from(schema.variants)
+      .where(and(eq(schema.variants.parentSku, parentSku), eq(schema.variants.isBase, true)))
+      .limit(1);
+    return results[0] || null;
+  }
+
+  /**
+   * Check if a variant is a base variant
+   */
+  isBaseVariant(variant: schema.Variant): boolean {
+    return variant.isBase === true;
   }
 
   async findPaginated(params: VariantQueryParams = {}): Promise<PaginatedResult<schema.Variant>> {
@@ -169,6 +227,7 @@ export class VariantService extends BaseService<
         priceCurrency: schema.variants.priceCurrency,
         wholesalePrice: schema.variants.wholesalePrice,
         isActive: schema.variants.isActive,
+        isBase: schema.variants.isBase,
         createdAt: schema.variants.createdAt,
         updatedAt: schema.variants.updatedAt,
         parentDescription1: schema.inventory.description1,

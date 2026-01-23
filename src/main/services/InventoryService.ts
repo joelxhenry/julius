@@ -1,8 +1,9 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or, and, ilike, desc, asc, count } from 'drizzle-orm';
+import { eq, like, or, and, ilike, desc, asc, count, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
+import { normalizeToArray } from '../../shared/utils/arrayFields';
 
 export interface InventoryQueryParams {
   page?: number;
@@ -25,6 +26,7 @@ export interface UnifiedSearchResult {
   quantity: number;
   isTaxable: boolean;
   isVariant: boolean;
+  isBase?: boolean; // True if this is a base variant
   parentSku: string | null;
   variantName: string | null;
 }
@@ -36,6 +38,64 @@ export class InventoryService extends BaseService<
 > {
   constructor(db: NodePgDatabase<typeof schema>) {
     super(db, schema.inventory);
+  }
+
+  /**
+   * Override create to auto-generate a base variant for new inventory items
+   */
+  async create(data: schema.InsertInventory): Promise<schema.Inventory> {
+    // Create the inventory item
+    const inventory = await super.create(data);
+
+    // Auto-create base variant
+    await this.createBaseVariant(inventory);
+
+    return inventory;
+  }
+
+  /**
+   * Create a base variant for an inventory item
+   */
+  private async createBaseVariant(inventory: schema.Inventory): Promise<schema.Variant> {
+    const results = await this.db.insert(schema.variants).values({
+      parentSku: inventory.sku,
+      variantSku: `${inventory.sku}`,
+      variantName: inventory.description1 || 'Base',
+      description: inventory.description2 || undefined,
+      quantity: inventory.quantity,
+      cost: inventory.cost,
+      costCurrency: inventory.costCurrency,
+      price: inventory.price,
+      priceCurrency: inventory.priceCurrency,
+      wholesalePrice: inventory.wholesalePrice || undefined,
+      isActive: true,
+      isBase: true,
+      attributes: {},
+    }).returning();
+    return results[0];
+  }
+
+  /**
+   * Get the base variant for an inventory item
+   */
+  async getBaseVariant(parentSku: string): Promise<schema.Variant | null> {
+    const results = await this.db
+      .select()
+      .from(schema.variants)
+      .where(and(eq(schema.variants.parentSku, parentSku), eq(schema.variants.isBase, true)))
+      .limit(1);
+    return results[0] || null;
+  }
+
+  /**
+   * Check if an inventory item has a base variant
+   */
+  async hasBaseVariant(parentSku: string): Promise<boolean> {
+    const result = await this.db
+      .select({ count: count() })
+      .from(schema.variants)
+      .where(and(eq(schema.variants.parentSku, parentSku), eq(schema.variants.isBase, true)));
+    return Number(result[0]?.count ?? 0) > 0;
   }
 
   async findPaginated(params: InventoryQueryParams = {}): Promise<PaginatedResult<schema.Inventory>> {
@@ -221,7 +281,8 @@ export class InventoryService extends BaseService<
   }
 
   /**
-   * Search inventory and variants together, returning a unified result
+   * Search variants only, returning a unified result
+   * All inventory items have base variants, so this covers all products
    * Useful for invoice line item selection
    */
   async searchWithVariants(query: string, limit = 20): Promise<UnifiedSearchResult[]> {
@@ -233,38 +294,8 @@ export class InventoryService extends BaseService<
 
     const searchTerm = `%${query.trim()}%`;
 
-    // Search inventory items
-    const inventoryItems = await this.db
-      .select()
-      .from(schema.inventory)
-      .where(
-        or(
-          ilike(schema.inventory.sku, searchTerm),
-          ilike(schema.inventory.description1, searchTerm),
-          ilike(schema.inventory.model, searchTerm)
-        )
-      )
-      .orderBy(desc(schema.inventory.id))
-      .limit(limit);
-
-    // Add inventory items to results
-    for (const item of inventoryItems) {
-      results.push({
-        id: item.id,
-        sku: item.sku,
-        description1: item.description1,
-        description2: item.description2,
-        price: item.price,
-        cost: item.cost,
-        quantity: item.quantity,
-        isTaxable: item.isTaxable,
-        isVariant: false,
-        parentSku: null,
-        variantName: null,
-      });
-    }
-
-    // Search variants
+    // Search variants only (includes base variants for all inventory items)
+    // Also search by parent inventory fields (sku, description1, model)
     const variantItems = await this.db
       .select({
         variant: schema.variants,
@@ -278,7 +309,10 @@ export class InventoryService extends BaseService<
           or(
             ilike(schema.variants.variantSku, searchTerm),
             ilike(schema.variants.variantName, searchTerm),
-            ilike(schema.variants.description, searchTerm)
+            ilike(schema.variants.description, searchTerm),
+            ilike(schema.variants.parentSku, searchTerm),
+            ilike(schema.inventory.description1, searchTerm),
+            ilike(schema.inventory.model, searchTerm)
           )
         )
       )
@@ -297,18 +331,83 @@ export class InventoryService extends BaseService<
         quantity: variant.quantity,
         isTaxable: parent?.isTaxable ?? true,
         isVariant: true,
+        isBase: variant.isBase,
         parentSku: variant.parentSku,
         variantName: variant.variantName,
       });
     }
 
-    // Sort by relevance (exact SKU matches first) and limit
+    // Sort by relevance (exact SKU matches first, then base variants before non-base)
     results.sort((a, b) => {
       const aExact = a.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
       const bExact = b.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
-      return aExact - bExact;
+      if (aExact !== bExact) return aExact - bExact;
+      // Base variants come before non-base variants
+      const aBase = a.isBase ? 0 : 1;
+      const bBase = b.isBase ? 0 : 1;
+      return aBase - bBase;
     });
 
     return results.slice(0, limit);
+  }
+
+  /**
+   * Get distinct categories across all inventory items
+   * Handles both legacy single values and JSON array values
+   * @param search - Optional search query to filter categories
+   * @param limit - Maximum number of results to return (default 20)
+   */
+  async getDistinctCategories(search?: string, limit = 20): Promise<string[]> {
+    const results = await this.db
+      .select({ category: schema.inventory.category })
+      .from(schema.inventory)
+      .where(sql`${schema.inventory.category} IS NOT NULL AND ${schema.inventory.category} != ''`);
+
+    // Flatten all categories from JSON arrays and legacy strings
+    const allCategories = new Set<string>();
+    for (const row of results) {
+      const cats = normalizeToArray(row.category);
+      cats.forEach((c) => allCategories.add(c));
+    }
+
+    let sorted = Array.from(allCategories).sort();
+
+    // Filter by search if provided
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+      sorted = sorted.filter((c) => c.toLowerCase().includes(searchLower));
+    }
+
+    return sorted.slice(0, limit);
+  }
+
+  /**
+   * Get distinct models across all inventory items
+   * Handles both legacy single values and JSON array values
+   * @param search - Optional search query to filter models
+   * @param limit - Maximum number of results to return (default 20)
+   */
+  async getDistinctModels(search?: string, limit = 20): Promise<string[]> {
+    const results = await this.db
+      .select({ model: schema.inventory.model })
+      .from(schema.inventory)
+      .where(sql`${schema.inventory.model} IS NOT NULL AND ${schema.inventory.model} != ''`);
+
+    // Flatten all models from JSON arrays and legacy strings
+    const allModels = new Set<string>();
+    for (const row of results) {
+      const models = normalizeToArray(row.model);
+      models.forEach((m) => allModels.add(m));
+    }
+
+    let sorted = Array.from(allModels).sort();
+
+    // Filter by search if provided
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+      sorted = sorted.filter((m) => m.toLowerCase().includes(searchLower));
+    }
+
+    return sorted.slice(0, limit);
   }
 }

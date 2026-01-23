@@ -1,5 +1,6 @@
 import { Paper, Stack, Title, SimpleGrid, Text, Badge, Group } from '@mantine/core';
 import { CopyButton } from '../common';
+import { normalizeToArray } from '../../../shared/utils/arrayFields';
 
 interface Inventory {
   id: number;
@@ -46,15 +47,41 @@ export function OverviewTab({ item, formatCurrency }: OverviewTabProps) {
             </Stack>
             <Stack gap={2}>
               <Text size="xs" c="dimmed">
-                Category
+                Categories
               </Text>
-              <Text fw={500}>{item.category || '-'}</Text>
+              {(() => {
+                const categories = normalizeToArray(item.category);
+                return categories.length > 0 ? (
+                  <Group gap={6} wrap="wrap">
+                    {categories.map((cat, idx) => (
+                      <Badge key={idx} variant="filled" size="md" radius="sm">
+                        {cat}
+                      </Badge>
+                    ))}
+                  </Group>
+                ) : (
+                  <Text fw={500}>-</Text>
+                );
+              })()}
             </Stack>
             <Stack gap={2}>
               <Text size="xs" c="dimmed">
-                Model
+                Models
               </Text>
-              <Text fw={500}>{item.model || '-'}</Text>
+              {(() => {
+                const models = normalizeToArray(item.model);
+                return models.length > 0 ? (
+                  <Group gap={6} wrap="wrap">
+                    {models.map((model, idx) => (
+                      <Badge key={idx} variant="light" color="gray" size="md" radius="sm">
+                        {model}
+                      </Badge>
+                    ))}
+                  </Group>
+                ) : (
+                  <Text fw={500}>-</Text>
+                );
+              })()}
             </Stack>
             <Stack gap={2}>
               <Text size="xs" c="dimmed">
