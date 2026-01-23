@@ -22,6 +22,8 @@ export const SystemSettingKeys = {
   // File storage settings
   FILE_STORAGE_TYPE: 'file_storage_type',
   FILE_STORAGE_PATH: 'file_storage_path',
+  // Interface settings
+  RECENT_INVOICES_LIMIT: 'recent_invoices_limit',
 } as const;
 
 export type SystemSettingKey = (typeof SystemSettingKeys)[keyof typeof SystemSettingKeys];
@@ -36,6 +38,7 @@ export const SystemSettingGroups = {
   DEFAULTS: 'defaults',
   DOCUMENTS: 'documents',
   STORAGE: 'storage',
+  INTERFACE: 'interface',
 } as const;
 
 export type SystemSettingGroup = (typeof SystemSettingGroups)[keyof typeof SystemSettingGroups];
@@ -274,6 +277,15 @@ export class SystemSettingsService {
         value: '',
         group: SystemSettingGroups.STORAGE,
         description: 'Network path for LAN storage (e.g., \\\\SERVER\\share)',
+        readonly: false,
+        visible: true,
+      },
+      // Interface settings
+      {
+        key: SystemSettingKeys.RECENT_INVOICES_LIMIT,
+        value: '8',
+        group: SystemSettingGroups.INTERFACE,
+        description: 'Maximum number of recent invoices to display on the new invoice page',
         readonly: false,
         visible: true,
       },

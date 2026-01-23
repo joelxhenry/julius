@@ -5,6 +5,8 @@ import {
   IconSettings,
   IconUserCog,
   IconLock,
+  IconFileInvoice,
+  IconPackages,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,6 +19,13 @@ interface DashboardSection {
 }
 
 const dashboardSections: DashboardSection[] = [
+  {
+    title: 'Invoices',
+    description: 'View and search all invoices',
+    icon: <IconFileInvoice size={24} />,
+    color: 'teal',
+    path: '/invoices',
+  },
   {
     title: 'Reports',
     description: 'Sales, inventory, and financial reports',

@@ -1,7 +1,13 @@
-import { Stack, NavLink as MantineNavLink, Text, Box, ScrollArea, Divider } from '@mantine/core';
+import {
+  Stack,
+  NavLink as MantineNavLink,
+  Text,
+  Box,
+  ScrollArea,
+  Divider,
+} from "@mantine/core";
 import {
   IconHome,
-  IconFileInvoice,
   IconFileText,
   IconPackages,
   IconCash,
@@ -9,8 +15,9 @@ import {
   IconDashboard,
   IconUsers,
   IconTruck,
-} from '@tabler/icons-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+  IconFilePlus,
+} from "@tabler/icons-react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface NavItem {
   label: string;
@@ -20,21 +27,64 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { label: 'Home', icon: <IconHome size={20} stroke={1.5} />, path: '/', shortcut: 'Alt+H' },
+  {
+    label: "Home",
+    icon: <IconHome size={20} stroke={1.5} />,
+    path: "/",
+    shortcut: "Alt+H",
+  },
 ];
 
 const businessNavItems: NavItem[] = [
-  { label: 'Invoices', icon: <IconFileInvoice size={20} stroke={1.5} />, path: '/invoices', shortcut: 'Alt+F' },
-  { label: 'Quotations', icon: <IconFileText size={20} stroke={1.5} />, path: '/quotations' },
-  { label: 'Inventory', icon: <IconPackages size={20} stroke={1.5} />, path: '/inventory', shortcut: 'Alt+S' },
-  { label: 'Clients', icon: <IconUsers size={20} stroke={1.5} />, path: '/clients' },
-  { label: 'Suppliers', icon: <IconTruck size={20} stroke={1.5} />, path: '/suppliers' },
-  { label: 'Payments', icon: <IconCash size={20} stroke={1.5} />, path: '/payments', shortcut: 'Alt+P' },
-  { label: 'Attendance', icon: <IconClock size={20} stroke={1.5} />, path: '/attendance', shortcut: 'Alt+C' },
+  {
+    label: "Inventory",
+    icon: <IconPackages size={20} stroke={1.5} />,
+    path: "/inventory",
+    shortcut: "Alt+S",
+  },
+
+  {
+    label: "New Invoice",
+    icon: <IconFilePlus size={20} stroke={1.5} />,
+    path: "/invoices/form",
+    shortcut: "Alt+N",
+  },
+  {
+    label: "Quotations",
+    icon: <IconFileText size={20} stroke={1.5} />,
+    path: "/quotations",
+  },
+  {
+    label: "Clients",
+    icon: <IconUsers size={20} stroke={1.5} />,
+    path: "/clients",
+  },
+  {
+    label: "Suppliers",
+    icon: <IconTruck size={20} stroke={1.5} />,
+    path: "/suppliers",
+  },
+  {
+    label: "Payments",
+    icon: <IconCash size={20} stroke={1.5} />,
+    path: "/payments",
+    shortcut: "Alt+P",
+  },
+  {
+    label: "Attendance",
+    icon: <IconClock size={20} stroke={1.5} />,
+    path: "/attendance",
+    shortcut: "Alt+C",
+  },
 ];
 
 const adminNavItems: NavItem[] = [
-  { label: 'Dashboard', icon: <IconDashboard size={20} stroke={1.5} />, path: '/dashboard', shortcut: 'Alt+D' },
+  {
+    label: "Dashboard",
+    icon: <IconDashboard size={20} stroke={1.5} />,
+    path: "/dashboard",
+    shortcut: "Alt+D",
+  },
 ];
 
 interface SidebarProps {
@@ -54,8 +104,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   const isPathActive = (path: string) => {
-    if (path === '/') {
-      return location.pathname === '/';
+    if (path === "/") {
+      return location.pathname === "/";
     }
     return location.pathname.startsWith(path);
   };
@@ -80,10 +130,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         onClick={() => handleNavClick(item.path)}
         styles={{
           root: {
-            borderRadius: 'var(--mantine-radius-md)',
-            transition: 'all 150ms ease',
-            '&:hover': {
-              transform: 'translateX(4px)',
+            borderRadius: "var(--mantine-radius-md)",
+            transition: "all 150ms ease",
+            "&:hover": {
+              transform: "translateX(4px)",
             },
           },
           label: {
@@ -97,11 +147,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <Box
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: 'var(--mantine-color-body)',
-        borderRight: '1px solid var(--mantine-color-default-border)',
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: "var(--mantine-color-body)",
+        borderRight: "1px solid var(--mantine-color-default-border)",
       }}
     >
       <ScrollArea style={{ flex: 1 }} p="md">
@@ -116,7 +166,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </Stack>
       </ScrollArea>
 
-      <Box p="md" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+      <Box
+        p="md"
+        style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
+      >
         <Text size="xs" c="dimmed" ta="center">
           Press ? for shortcuts
         </Text>

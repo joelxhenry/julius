@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
-import { Box, Stack, Loader, Center, Modal, Text, Group, Button } from '@mantine/core';
+import { Box, Stack, Loader, Center, Modal, Text, Group, Button, Paper, Badge, ScrollArea, UnstyledButton } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
@@ -88,6 +88,48 @@ export function InvoiceCreatePage() {
   // Loading/saving state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Recent invoices for quick access
+  const [recentInvoices, setRecentInvoices] = useState<Array<{
+    id: number;
+    invNumber: string;
+    clientName: string | null;
+    status: string;
+  }>>([]);
+
+  // Fetch recent active invoices on mount
+  useEffect(() => {
+    const fetchRecentInvoices = async () => {
+      try {
+        // Get the limit from system settings
+        let limit = 8;
+        const settingResult = await window.electron.invoke(IpcChannel.GET_SYSTEM_SETTING_VALUE, {
+          key: 'recent_invoices_limit',
+        });
+        if (settingResult.success && settingResult.data?.value !== null) {
+          limit = parseInt(settingResult.data.value, 10) || 8;
+        }
+
+        // If limit is 0, don't fetch invoices
+        if (limit === 0) {
+          setRecentInvoices([]);
+          return;
+        }
+
+        const result = await window.electron.invoke(IpcChannel.GET_RECENT_INVOICES, { limit: limit + 5 });
+        if (result.success && result.data) {
+          // Filter to show only active/pending invoices
+          const activeInvoices = result.data.filter(
+            (inv: any) => inv.status === 'active' || inv.status === 'pending'
+          );
+          setRecentInvoices(activeInvoices.slice(0, limit));
+        }
+      } catch (error) {
+        console.error('Failed to fetch recent invoices:', error);
+      }
+    };
+    fetchRecentInvoices();
+  }, []);
 
   // Check client credit
   const checkClientCredit = useCallback(async (checkClientId: number) => {
@@ -514,6 +556,47 @@ export function InvoiceCreatePage() {
   return (
     <>
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
+        {/* Recent Active Invoices */}
+        {recentInvoices.length > 0 && (
+          <Paper px="md" py="sm" withBorder radius="md" style={{ flexShrink: 0 }}>
+            <Group gap="md">
+              <Text size="sm" fw={600} c="dimmed">Latest Invoices:</Text>
+              <ScrollArea type="never" style={{ flex: 1 }}>
+                <Group gap="sm" wrap="nowrap">
+                  {recentInvoices.map((inv) => (
+                    <UnstyledButton
+                      key={inv.id}
+                      onClick={() => replaceCurrentTab(`/invoices/${inv.id}`)}
+                      style={{ flexShrink: 0 }}
+                    >
+                      <Paper
+                        px="md"
+                        py="xs"
+                        radius="md"
+                        withBorder
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'all 150ms ease',
+                          backgroundColor: 'var(--mantine-color-blue-light)',
+                        }}
+                      >
+                        <Group gap="xs" wrap="nowrap">
+                          <Text size="sm" fw={600} c="blue">
+                            {inv.invNumber}
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            {inv.clientName || 'No Client'}
+                          </Text>
+                        </Group>
+                      </Paper>
+                    </UnstyledButton>
+                  ))}
+                </Group>
+              </ScrollArea>
+            </Group>
+          </Paper>
+        )}
+
         {/* Compact Toolbar with Actions and Totals */}
         <CompactInvoiceToolbar
           isEditing={isEditing}
