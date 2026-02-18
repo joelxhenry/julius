@@ -34,6 +34,7 @@ export function useTabParams<T extends Record<string, string | undefined> = Reco
     // e.g., /invoices/form/:id must come before /invoices/:id
     const routePatterns = [
       '/invoices/form/:id',
+      '/invoices/edit/:id',
       '/invoices/:id',
       '/quotations/:id/edit',
       '/quotations/:id',

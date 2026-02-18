@@ -548,6 +548,14 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.EXPIRE_QUOTATION, (_, { id }: { id: number }) => quotationController.expire(id));
   ipcMain.handle(IpcChannel.ARCHIVE_QUOTATION, (_, { id }: { id: number }) => quotationController.archive(id));
   ipcMain.handle(IpcChannel.GET_ADJACENT_QUOTATIONS, (_, { id }: { id: number }) => quotationController.getAdjacentQuotations(id));
+  ipcMain.handle(IpcChannel.GET_RECENT_QUOTATIONS, async (_, { limit }: { limit?: number } = {}) => {
+    try {
+      const data = await quotationService.findRecentQuotations(limit);
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  });
 
   // ===== CREDIT NOTE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_CREDIT_NOTES, () => creditNoteController.getAll());

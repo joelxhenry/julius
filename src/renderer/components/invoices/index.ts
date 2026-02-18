@@ -15,6 +15,7 @@ export { InvoiceLineItemsReadOnly } from './InvoiceLineItemsReadOnly';
 export { InvoiceClientDetailsSection } from './InvoiceClientDetailsSection';
 export { InvoiceCreateHeader } from './InvoiceCreateHeader';
 export { CompactInvoiceToolbar } from './CompactInvoiceToolbar';
+export { CompactQuotationToolbar } from './CompactQuotationToolbar';
 export { CompactFormBar } from './CompactFormBar';
 export { CompactDetailHeader } from './CompactDetailHeader';
 export { CompactDetailInfoBar } from './CompactDetailInfoBar';

@@ -8,7 +8,6 @@ import {
 } from "@mantine/core";
 import {
   IconHome,
-  IconFileText,
   IconPackages,
   IconCash,
   IconClock,
@@ -50,9 +49,9 @@ const businessNavItems: NavItem[] = [
     shortcut: "Alt+N",
   },
   {
-    label: "Quotations",
-    icon: <IconFileText size={20} stroke={1.5} />,
-    path: "/quotations",
+    label: "New Quotation",
+    icon: <IconFilePlus size={20} stroke={1.5} />,
+    path: "/quotations/new",
   },
   {
     label: "Clients",

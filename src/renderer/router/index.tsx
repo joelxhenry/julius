@@ -44,7 +44,7 @@ export const router = createHashRouter([
         element: <InvoiceCreatePage />,
       },
       {
-        path: 'invoices/form/:id',
+        path: 'invoices/edit/:id',
         element: <InvoiceCreatePage />,
       },
       {

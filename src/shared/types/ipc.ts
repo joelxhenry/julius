@@ -155,6 +155,7 @@ export enum IpcChannel {
   EXPIRE_QUOTATION = 'db:expire-quotation',
   ARCHIVE_QUOTATION = 'db:archive-quotation',
   GET_ADJACENT_QUOTATIONS = 'db:get-adjacent-quotations',
+  GET_RECENT_QUOTATIONS = 'db:get-recent-quotations',
 
   // Credit note operations
   GET_CREDIT_NOTES = 'db:get-credit-notes',

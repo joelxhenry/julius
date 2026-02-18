@@ -7,6 +7,7 @@ import {
   IconChevronRight,
   IconDotsVertical,
   IconArchive,
+  IconEdit,
 } from '@tabler/icons-react';
 
 interface Invoice {
@@ -29,6 +30,7 @@ interface CompactDetailHeaderProps {
   onCreateCreditNote: () => void;
   onViewClient: () => void;
   onArchive: () => void;
+  onEdit?: () => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -61,6 +63,7 @@ export function CompactDetailHeader({
   onCreateCreditNote,
   onViewClient,
   onArchive,
+  onEdit,
 }: CompactDetailHeaderProps) {
   const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
 
@@ -115,6 +118,11 @@ export function CompactDetailHeader({
 
         {/* Right: Actions */}
         <Group gap="sm" wrap="nowrap">
+          {onEdit && ['active', 'partially_paid'].includes(invoice.status) && (
+            <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={onEdit}>
+              Edit
+            </Button>
+          )}
           {['active', 'partially_paid'].includes(invoice.status) && (
             <Button size="xs" leftSection={<IconCash size={14} />} onClick={onRecordPayment}>
               Record Payment

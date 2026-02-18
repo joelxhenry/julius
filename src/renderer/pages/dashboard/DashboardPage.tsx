@@ -27,6 +27,13 @@ const dashboardSections: DashboardSection[] = [
     path: '/invoices',
   },
   {
+    title: 'Quotations',
+    description: 'View and search all quotations',
+    icon: <IconFileInvoice size={24} />,
+    color: 'teal',
+    path: '/quotations',
+  },
+  {
     title: 'Reports',
     description: 'Sales, inventory, and financial reports',
     icon: <IconChartBar size={24} />,

@@ -22,8 +22,8 @@ export function getComponentForPath(path: string): React.ReactNode {
 
   // Invoices
   if (cleanPath === 'invoices') return <InvoicesPage />;
-  if (cleanPath === 'invoices/form') return <InvoiceCreatePage />;
-  if (cleanPath.match(/^invoices\/form\/\d+$/)) {
+  if (cleanPath === 'invoices/form' || cleanPath === 'invoices/new') return <InvoiceCreatePage />;
+  if (cleanPath.match(/^invoices\/form\/\d+$/) || cleanPath.match(/^invoices\/edit\/\d+$/)) {
     return <InvoiceCreatePage />;
   }
   if (cleanPath.match(/^invoices\/\d+$/)) {

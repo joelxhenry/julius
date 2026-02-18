@@ -63,19 +63,21 @@ function isExcludedRoute(path: string): boolean {
 // Helper function to generate initial tab title from path
 function generateTitleFromPath(path: string): string {
   if (path === '/invoices/form') return 'New Invoice';
-  if (path.startsWith('/invoices/form/')) {
+ 
+  if (path.startsWith('/invoices/edit')) {
     const id = path.split('/')[3];
     return `Edit Invoice #${id}`;
   }
+
   if (path.startsWith('/invoices/')) {
     const id = path.split('/')[2];
     return `Invoice #${id}`;
   }
+  
   if (path.includes('/quotations/new')) return 'New Quotation';
   if (path.includes('/quotations/')) return 'Quotation';
   if (path.includes('/inventory/new')) return 'New Item';
   if (path.includes('/inventory/') && path.includes('/edit')) return 'Edit Item';
-  // if (path.includes('/inventory/')) return 'Inventory Item';
   if (path.includes('/employees/new')) return 'New Employee';
   if (path.includes('/employees/') && path.includes('/edit')) return 'Edit Employee';
   if (path.includes('/employees/') && path.includes('/permissions')) return 'Employee Permissions';
@@ -356,8 +358,9 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
       );
 
       // Update URL without triggering new tab creation
+      // Use location state to reliably indicate this is a tab replace operation
       skipNextLocationChange.current = true;
-      navigate(path, { replace: true });
+      navigate(path, { replace: true, state: { tabReplace: true } });
     },
     [activeTabId, navigate]
   );
@@ -420,15 +423,24 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
   // Navigation interceptor: automatically open tabs for direct navigate() calls
   useEffect(() => {
     const path = location.pathname;
+    const state = location.state as { tabReplace?: boolean } | null;
 
     // Skip if we just navigated programmatically from tab operations
-    if (skipNextLocationChange.current) {
+    // Check both the ref and the location state for reliability
+    if (skipNextLocationChange.current || state?.tabReplace) {
       skipNextLocationChange.current = false;
       return;
     }
 
     // If navigating to a tabbed route, ensure it opens in a tab
     if (isTabbed(path)) {
+      // First check if the active tab already has this path (from replaceCurrentTab)
+      const activeTabHasPath = tabs.some(tab => tab.id === activeTabId && tab.path === path);
+      if (activeTabHasPath) {
+        // Tab was already updated by replaceCurrentTab, nothing to do
+        return;
+      }
+
       const existingTab = findTabByPath(path);
       if (!existingTab) {
         // Create component and open tab
@@ -445,7 +457,7 @@ export function TabProvider({ children }: { children: React.ReactNode }) {
         );
       }
     }
-  }, [location.pathname, isTabbed, findTabByPath, activeTabId, openTab]);
+  }, [location.pathname, location.state, isTabbed, findTabByPath, activeTabId, openTab, tabs]);
 
   const value: TabContextValue = {
     tabs,

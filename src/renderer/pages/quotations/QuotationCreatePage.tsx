@@ -1,37 +1,28 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import {
+  Box,
   Stack,
-  Title,
   Text,
   Group,
   Button,
-  Grid,
   Loader,
   Center,
-  ActionIcon,
   Modal,
   Paper,
-  Textarea,
-  Collapse,
+  ScrollArea,
   UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import {
-  IconArrowLeft,
-  IconDeviceFloppy,
-  IconKeyboard,
-  IconChevronDown,
-  IconChevronRight,
-} from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
 import { useKeyboardShortcutContext } from '../../contexts/KeyboardShortcutContext';
 import {
-  InvoiceFormHeader,
+  CompactQuotationToolbar,
+  CompactFormBar,
   InvoiceLineItemsTable,
   VariantSelectorModal,
   BulkDiscountModal,
@@ -51,7 +42,6 @@ interface LocationState {
 }
 
 export function QuotationCreatePage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { user } = useAuth();
@@ -69,9 +59,8 @@ export function QuotationCreatePage() {
   const [client, setClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isTaxable, setIsTaxable] = useState(true);
-  const [pricing, setPricing] = useState('R'); // R = Retail, W = Wholesale
-  const [salespersonId, setSalespersonId] = useState<number | null>(locationState?.salespersonId ?? user?.id ?? null);
-  const [salespersonName, setSalespersonName] = useState<string>(locationState?.salespersonName ?? user?.firstName ?? '');
+  const [pricing, setPricing] = useState('R');
+  const [salespersonId] = useState<number | null>(locationState?.salespersonId ?? user?.id ?? null);
   const [originalQuoteNum, setOriginalQuoteNum] = useState<string | null>(null);
 
   // Tax rate from system settings
@@ -111,12 +100,50 @@ export function QuotationCreatePage() {
   // Keyboard shortcuts help modal
   const [shortcutsModalOpen, { open: openShortcutsModal, close: closeShortcutsModal }] = useDisclosure(false);
 
-  // Notes collapsible
-  const [notesOpen, { toggle: toggleNotes }] = useDisclosure(false);
-
   // Delete confirmation modal
   const [deleteConfirmOpen, { open: openDeleteConfirm, close: closeDeleteConfirm }] = useDisclosure(false);
   const [itemToDelete, setItemToDelete] = useState<LineItem | null>(null);
+
+  // Recent quotations for quick access
+  const [recentQuotations, setRecentQuotations] = useState<Array<{
+    id: number;
+    quoteNum: string;
+    clientName: string | null;
+  }>>([]);
+
+  // Fetch recent quotations on mount (only for new quotations)
+  useEffect(() => {
+    if (isEditing) return;
+
+    const fetchRecentQuotations = async () => {
+      try {
+        let limit = 3;
+        const settingResult = await window.electron.invoke(IpcChannel.GET_SYSTEM_SETTING_VALUE, {
+          key: 'recent_quotations_limit',
+        });
+        if (settingResult.success && settingResult.data?.value !== null) {
+          limit = parseInt(settingResult.data.value, 10) || 3;
+        }
+
+        if (limit === 0) {
+          setRecentQuotations([]);
+          return;
+        }
+
+        const result = await window.electron.invoke(IpcChannel.GET_RECENT_QUOTATIONS, { limit });
+        if (result.success && result.data) {
+          setRecentQuotations(result.data.map((q: any) => ({
+            id: q.id,
+            quoteNum: q.quoteNum,
+            clientName: q.clientName,
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to fetch recent quotations:', error);
+      }
+    };
+    fetchRecentQuotations();
+  }, [isEditing]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -160,15 +187,12 @@ export function QuotationCreatePage() {
         setClientId(quote.clientId);
         setIsTaxable(quote.isTaxable);
         setPricing(quote.pricing);
-        setSalespersonId(quote.salespersonId);
         setOriginalQuoteNum(quote.quoteNum);
 
-        // Update tab title (only if this is the active tab)
         if (location.pathname === `/quotations/${id}/edit`) {
           updateTabTitle(location.pathname, `Edit Quotation ${quote.quoteNum}`);
         }
 
-        // Load client
         if (quote.clientId) {
           const clientResult = await window.electron.invoke(IpcChannel.GET_CLIENT, { id: quote.clientId });
           if (clientResult.success && clientResult.data) {
@@ -177,7 +201,6 @@ export function QuotationCreatePage() {
           }
         }
 
-        // Load line items
         const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_QUOTATION, {
           quoteNum: quote.quoteNum,
         });
@@ -330,13 +353,11 @@ export function QuotationCreatePage() {
       if (option) {
         const item = option.item;
 
-        // If the item is already a variant (from unified search), add it directly
         if ((item as any).isVariant) {
           addLineItemFromInventory(item, item.sku, (item as any).variantName || item.description1 || '', true);
           return;
         }
 
-        // Otherwise check if inventory item has variants
         const hasVariants = await checkHasVariants(item.sku);
 
         if (hasVariants) {
@@ -445,7 +466,6 @@ export function QuotationCreatePage() {
       let quoteNum: string;
 
       if (isEditing && id && originalQuoteNum) {
-        // Delete existing line items first
         await window.electron.invoke(IpcChannel.DELETE_DOCUMENT_LINE_ITEMS_BY_DOCUMENT, {
           documentType: 'QUOTE',
           documentNumber: originalQuoteNum,
@@ -469,7 +489,6 @@ export function QuotationCreatePage() {
         quoteNum = result.data.quoteNum;
       }
 
-      // Save line items
       for (let i = 0; i < lineItems.length; i++) {
         const item = lineItems[i];
         await window.electron.invoke(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, {
@@ -513,6 +532,7 @@ export function QuotationCreatePage() {
     clientId,
     client,
     reference,
+    notes,
     totals,
     isTaxable,
     pricing,
@@ -617,7 +637,7 @@ export function QuotationCreatePage() {
     return () => {
       unregisterShortcuts('quotation-line-items');
     };
-  }, [selectedLineItemId, lineItems, openBulkDiscountModal, openTargetTotalModal, handleSave, selectPreviousLineItem, selectNextLineItem, registerShortcuts, unregisterShortcuts]);
+  }, [selectedLineItemId, lineItems, openBulkDiscountModal, openTargetTotalModal, handleSave, selectPreviousLineItem, selectNextLineItem, registerShortcuts, unregisterShortcuts, openDeleteConfirm]);
 
   if (isLoading) {
     return (
@@ -629,124 +649,103 @@ export function QuotationCreatePage() {
 
   return (
     <>
-      <Stack gap="lg">
-        {/* Header */}
-        <Group justify="space-between" align="flex-start">
-          <Group gap="md">
-            <Stack gap={4}>
-              <Title order={2}>{isEditing ? 'Edit Quotation' : 'New Quotation'}</Title>
-              {salespersonName && (
-                <Text c="dimmed" size="sm">
-                  Salesperson: {salespersonName}
-                </Text>
-              )}
-            </Stack>
-          </Group>
-
-          <Group gap="sm">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="lg"
-              onClick={openShortcutsModal}
-              title="Keyboard Shortcuts"
-            >
-              <IconKeyboard size={20} />
-            </ActionIcon>
-            <Button
-              color="violet"
-              leftSection={<IconDeviceFloppy size={16} />}
-              onClick={handleSave}
-              loading={isSaving}
-              disabled={lineItems.length === 0}
-            >
-              Save Quotation
-            </Button>
-          </Group>
-        </Group>
-
-        <Grid>
-          {/* Quotation Details */}
-          <Grid.Col span={{ base: 12, md: 8 }}>
-            <InvoiceFormHeader
-              invDate={quoteDate}
-              setInvDate={setQuoteDate}
-              reference={reference}
-              setReference={setReference}
-              client={client}
-              clientSearch={clientSearch}
-              setClientSearch={setClientSearch}
-              clientOptions={clientOptions}
-              isSearchingClients={isSearchingClients}
-              onClientSearchChange={searchClients}
-              onClientSelect={handleClientSelect}
-              pricing={pricing}
-              setPricing={setPricing}
-              creditTerms=""
-              setCreditTerms={() => {}}
-              isTaxable={isTaxable}
-              setIsTaxable={setIsTaxable}
-            />
-
-            {/* Notes */}
-            <Paper withBorder p="xs" radius="md">
-              <UnstyledButton onClick={toggleNotes} w="100%">
-                <Group gap="xs">
-                  {notesOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-                  <Text size="sm" c={notes ? "blue" : "dimmed"}>
-                    {notes ? "Notes" : "Add Notes"}
-                  </Text>
+      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
+        {/* Recent Quotations (only show when creating new) */}
+        {!isEditing && recentQuotations.length > 0 && (
+          <Paper px="md" py="sm" withBorder radius="md" style={{ flexShrink: 0 }}>
+            <Group gap="md">
+              <Text size="sm" fw={600} c="dimmed">Recent Quotations:</Text>
+              <ScrollArea type="never" style={{ flex: 1 }}>
+                <Group gap="sm" wrap="nowrap">
+                  {recentQuotations.map((quote) => (
+                    <UnstyledButton
+                      key={quote.id}
+                      onClick={() => replaceCurrentTab(`/quotations/${quote.id}`)}
+                      style={{ flexShrink: 0 }}
+                    >
+                      <Paper
+                        px="md"
+                        py="xs"
+                        radius="md"
+                        withBorder
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'all 150ms ease',
+                          backgroundColor: 'var(--mantine-color-violet-light)',
+                        }}
+                      >
+                        <Group gap="xs" wrap="nowrap">
+                          <Text size="sm" fw={600} c="violet">
+                            {quote.quoteNum}
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            {quote.clientName || 'No Client'}
+                          </Text>
+                        </Group>
+                      </Paper>
+                    </UnstyledButton>
+                  ))}
                 </Group>
-              </UnstyledButton>
-              <Collapse in={notesOpen}>
-                <Textarea
-                  placeholder="Add notes for this quotation..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.currentTarget.value)}
-                  size="sm"
-                  autosize
-                  minRows={2}
-                  maxRows={4}
-                  mt="xs"
-                />
-              </Collapse>
-            </Paper>
+              </ScrollArea>
+            </Group>
+          </Paper>
+        )}
 
-            {/* Line Items */}
-            <InvoiceLineItemsTable
-              lineItems={lineItems}
-              itemSearch={itemSearch}
-              setItemSearch={setItemSearch}
-              itemOptions={itemOptions}
-              isSearchingItems={isSearchingItems}
-              onItemSearchChange={searchItems}
-              onItemSelect={handleItemSelect}
-              onUpdateLineItem={updateLineItem}
-              onRemoveLineItem={removeLineItem}
-              formatCurrency={formatCurrency}
-              inventoryWarnings={[]}
-              isCheckingInventory={false}
-              selectedLineItemId={selectedLineItemId}
-              onSelectLineItem={selectLineItem}
-              focusTrigger={focusTrigger}
-            />
-          </Grid.Col>
+        {/* Compact Toolbar with Title, Totals and Actions */}
+        <CompactQuotationToolbar
+          isEditing={isEditing}
+          originalQuoteNum={originalQuoteNum}
+          totals={totals}
+          isTaxable={isTaxable}
+          isSaving={isSaving}
+          hasLineItems={lineItems.length > 0}
+          onSave={handleSave}
+          onOpenShortcuts={openShortcutsModal}
+        />
 
-          {/* Summary */}
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <QuotationSummaryCard
-              lineItemCount={lineItems.length}
-              totals={totals}
-              isTaxable={isTaxable}
-              taxRate={taxRate}
-              isSaving={isSaving}
-              hasLineItems={lineItems.length > 0}
-              formatCurrency={formatCurrency}
-              onSave={handleSave}
-            />
-          </Grid.Col>
-        </Grid>
-      </Stack>
+        {/* Compact Form Bar */}
+        <CompactFormBar
+          invDate={quoteDate}
+          setInvDate={setQuoteDate}
+          reference={reference}
+          setReference={setReference}
+          client={client}
+          clientSearch={clientSearch}
+          setClientSearch={setClientSearch}
+          clientOptions={clientOptions}
+          isSearchingClients={isSearchingClients}
+          onClientSearchChange={searchClients}
+          onClientSelect={handleClientSelect}
+          pricing={pricing}
+          setPricing={setPricing}
+          creditTerms=""
+          setCreditTerms={() => {}}
+          isTaxable={isTaxable}
+          setIsTaxable={setIsTaxable}
+          taxRate={taxRate}
+          notes={notes}
+          setNotes={setNotes}
+        />
+
+        {/* Line Items - Primary Focus */}
+        <InvoiceLineItemsTable
+          lineItems={lineItems}
+          itemSearch={itemSearch}
+          setItemSearch={setItemSearch}
+          itemOptions={itemOptions}
+          isSearchingItems={isSearchingItems}
+          onItemSearchChange={searchItems}
+          onItemSelect={handleItemSelect}
+          onUpdateLineItem={updateLineItem}
+          onRemoveLineItem={removeLineItem}
+          formatCurrency={formatCurrency}
+          inventoryWarnings={[]}
+          isCheckingInventory={false}
+          selectedLineItemId={selectedLineItemId}
+          onSelectLineItem={selectLineItem}
+          focusTrigger={focusTrigger}
+        />
+      </Box>
 
       {/* Variant Selector Modal */}
       <VariantSelectorModal
@@ -792,7 +791,7 @@ export function QuotationCreatePage() {
       >
         <Stack gap="md">
           <Text>
-            Are you sure you want to delete "{itemToDelete?.description || itemToDelete?.sku}"?
+            Are you sure you want to delete &quot;{itemToDelete?.description || itemToDelete?.sku}&quot;?
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="default" onClick={closeDeleteConfirm}>
@@ -814,90 +813,5 @@ export function QuotationCreatePage() {
         </Stack>
       </Modal>
     </>
-  );
-}
-
-// Quotation Summary Card Component
-interface QuotationSummaryCardProps {
-  lineItemCount: number;
-  totals: { subTotal: number; tax: number; total: number };
-  isTaxable: boolean;
-  taxRate: number;
-  isSaving: boolean;
-  hasLineItems: boolean;
-  formatCurrency: (value: number) => string;
-  onSave: () => void;
-}
-
-function QuotationSummaryCard({
-  lineItemCount,
-  totals,
-  isTaxable,
-  taxRate,
-  isSaving,
-  hasLineItems,
-  formatCurrency,
-  onSave,
-}: QuotationSummaryCardProps) {
-  return (
-    <Stack
-      gap="md"
-      p="lg"
-      style={{
-        backgroundColor: 'var(--mantine-color-body)',
-        border: '1px solid var(--mantine-color-default-border)',
-        borderRadius: 'var(--mantine-radius-md)',
-        position: 'sticky',
-        top: 20,
-      }}
-    >
-      <Text fw={600} size="lg">
-        Quotation Summary
-      </Text>
-
-      <Stack gap="xs">
-        <Group justify="space-between">
-          <Text c="dimmed" size="sm">
-            Items
-          </Text>
-          <Text size="sm">{lineItemCount}</Text>
-        </Group>
-
-        <Group justify="space-between">
-          <Text c="dimmed" size="sm">
-            Subtotal
-          </Text>
-          <Text size="sm">{formatCurrency(totals.subTotal)}</Text>
-        </Group>
-
-        {isTaxable && (
-          <Group justify="space-between">
-            <Text c="dimmed" size="sm">
-              Tax ({(taxRate * 100).toFixed(0)}%)
-            </Text>
-            <Text size="sm">{formatCurrency(totals.tax)}</Text>
-          </Group>
-        )}
-
-        <Group justify="space-between" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
-          <Text fw={600}>Total</Text>
-          <Text fw={600} size="lg">
-            {formatCurrency(totals.total)}
-          </Text>
-        </Group>
-      </Stack>
-
-      <Button
-        color="violet"
-        fullWidth
-        size="md"
-        leftSection={<IconDeviceFloppy size={18} />}
-        onClick={onSave}
-        loading={isSaving}
-        disabled={!hasLineItems}
-      >
-        Save Quotation
-      </Button>
-    </Stack>
   );
 }

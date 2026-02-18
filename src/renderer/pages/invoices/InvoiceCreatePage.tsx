@@ -240,7 +240,7 @@ export function InvoiceCreatePage() {
         const inv = result.data;
         formActions.loadFromInvoice(inv);
 
-        if (location.pathname === `/invoices/form/${id}`) {
+        if (location.pathname === `/invoices/form/${id}` || location.pathname === `/invoices/edit/${id}`) {
           updateTabTitle(location.pathname, `Edit Invoice ${inv.invNumber}`);
         }
 
@@ -467,38 +467,83 @@ export function InvoiceCreatePage() {
 
       setIsSaving(true);
       try {
-        const invoiceData = {
-          invDate: formState.invDate.toISOString().split('T')[0],
-          salespersonId: formState.salespersonId,
-          clientId: formState.clientId,
-          clientName: client?.clientName || null,
-          clientAddress1: client?.address1 || null,
-          clientAddress2: client?.address2 || null,
-          clientPhone: client?.phone || null,
-          reference: formState.reference || null,
-          notes: formState.notes || null,
-          subTotal: totals.subTotal.toFixed(2),
-          tax: totals.tax.toFixed(2),
-          total: totals.total.toFixed(2),
-          totalPaid: '0',
-          status: 'active',
-          isTaxable: formState.isTaxable,
-          pricing: formState.pricing,
-          creditTerms: formState.creditTerms || null,
-          issuedAt: new Date(),
-          issuedById: formState.salespersonId,
-          ...(override && {
-            adminOverrideById: override.adminId,
-            adminOverrideNotes: override.notes,
-            adminOverrideAt: new Date(),
-          }),
-        };
+        let invoiceId: number;
+        let invNumber: string;
 
-        const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE, invoiceData);
-        if (!result.success) throw new Error(result.error || 'Failed to create invoice');
+        if (isEditing && id && formState.originalInvNumber) {
+          // Update existing invoice
+          const updateData = {
+            invDate: formState.invDate.toISOString().split('T')[0],
+            salespersonId: formState.salespersonId,
+            clientId: formState.clientId,
+            clientName: client?.clientName || null,
+            clientAddress1: client?.address1 || null,
+            clientAddress2: client?.address2 || null,
+            clientPhone: client?.phone || null,
+            reference: formState.reference || null,
+            notes: formState.notes || null,
+            subTotal: totals.subTotal.toFixed(2),
+            tax: totals.tax.toFixed(2),
+            total: totals.total.toFixed(2),
+            isTaxable: formState.isTaxable,
+            pricing: formState.pricing,
+            creditTerms: formState.creditTerms || null,
+            ...(override && {
+              adminOverrideById: override.adminId,
+              adminOverrideNotes: override.notes,
+              adminOverrideAt: new Date(),
+            }),
+          };
 
-        const invoiceId = result.data.id;
-        const invNumber = result.data.invNumber;
+          // Delete existing line items
+          await window.electron.invoke(IpcChannel.DELETE_DOCUMENT_LINE_ITEMS_BY_DOCUMENT, {
+            documentType: 'INVOICE',
+            documentNumber: formState.originalInvNumber,
+          });
+
+          const result = await window.electron.invoke(IpcChannel.UPDATE_INVOICE, {
+            id: parseInt(id, 10),
+            data: updateData,
+          });
+          if (!result.success) throw new Error(result.error || 'Failed to update invoice');
+
+          invoiceId = parseInt(id, 10);
+          invNumber = result.data.invNumber;
+        } else {
+          // Create new invoice
+          const invoiceData = {
+            invDate: formState.invDate.toISOString().split('T')[0],
+            salespersonId: formState.salespersonId,
+            clientId: formState.clientId,
+            clientName: client?.clientName || null,
+            clientAddress1: client?.address1 || null,
+            clientAddress2: client?.address2 || null,
+            clientPhone: client?.phone || null,
+            reference: formState.reference || null,
+            notes: formState.notes || null,
+            subTotal: totals.subTotal.toFixed(2),
+            tax: totals.tax.toFixed(2),
+            total: totals.total.toFixed(2),
+            totalPaid: '0',
+            status: 'active',
+            isTaxable: formState.isTaxable,
+            pricing: formState.pricing,
+            creditTerms: formState.creditTerms || null,
+            issuedAt: new Date(),
+            issuedById: formState.salespersonId,
+            ...(override && {
+              adminOverrideById: override.adminId,
+              adminOverrideNotes: override.notes,
+              adminOverrideAt: new Date(),
+            }),
+          };
+
+          const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE, invoiceData);
+          if (!result.success) throw new Error(result.error || 'Failed to create invoice');
+
+          invoiceId = result.data.id;
+          invNumber = result.data.invNumber;
+        }
 
         // Save line items
         for (let i = 0; i < lineItems.length; i++) {
@@ -517,19 +562,21 @@ export function InvoiceCreatePage() {
           });
         }
 
-        // Create inventory transactions
-        const transactionResult = await window.electron.invoke(IpcChannel.CREATE_INVOICE_TRANSACTIONS, {
-          invNumber,
-          lineItems: lineItems.map(item => ({ sku: item.sku, quantity: item.quantity })),
-          invDate: formState.invDate.toISOString().split('T')[0],
-        });
+        // Create inventory transactions (only for new invoices)
+        if (!isEditing) {
+          const transactionResult = await window.electron.invoke(IpcChannel.CREATE_INVOICE_TRANSACTIONS, {
+            invNumber,
+            lineItems: lineItems.map(item => ({ sku: item.sku, quantity: item.quantity })),
+            invDate: formState.invDate.toISOString().split('T')[0],
+          });
 
-        if (!transactionResult.success) {
-          console.error('Warning: Failed to create inventory transactions:', transactionResult.error);
-          notifications.show({ title: 'Warning', message: 'Invoice created but inventory may not have been updated', color: 'yellow' });
+          if (!transactionResult.success) {
+            console.error('Warning: Failed to create inventory transactions:', transactionResult.error);
+            notifications.show({ title: 'Warning', message: 'Invoice created but inventory may not have been updated', color: 'yellow' });
+          }
         }
 
-        notifications.show({ title: 'Success', message: `Invoice ${invNumber} created and issued`, color: 'green' });
+        notifications.show({ title: 'Success', message: `Invoice ${invNumber} ${isEditing ? 'updated' : 'created and issued'}`, color: 'green' });
         replaceCurrentTab(`/invoices/${invoiceId}`);
       } catch (error) {
         console.error('Failed to issue invoice:', error);

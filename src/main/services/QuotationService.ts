@@ -283,4 +283,17 @@ export class QuotationService extends BaseService<
       nextId: nextResult[0]?.id ?? null,
     };
   }
+
+  /**
+   * Find recent quotations for quick access on the create page
+   * Filters to non-archived quotations only
+   */
+  async findRecentQuotations(limit: number = 3): Promise<schema.Quotation[]> {
+    return this.db
+      .select()
+      .from(schema.quotations)
+      .where(eq(schema.quotations.isArchived, false))
+      .orderBy(desc(schema.quotations.createdAt))
+      .limit(limit);
+  }
 }

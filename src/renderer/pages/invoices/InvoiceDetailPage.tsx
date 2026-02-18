@@ -278,6 +278,13 @@ export function InvoiceDetailPage() {
     }
   }, [invoice, navigate]);
 
+  // Navigate to edit invoice
+  const handleEdit = useCallback(() => {
+    if (invoice) {
+      replaceCurrentTab(`/invoices/edit/${invoice.id}`);
+    }
+  }, [invoice, replaceCurrentTab]);
+
   if (isLoading) {
     return (
       <Center h="60vh">
@@ -293,8 +300,8 @@ export function InvoiceDetailPage() {
   return (
     <>
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
-        {/* Back Button and Header */}
-        <Group gap="sm" align="flex-start">
+        {/* Header with Back Button */}
+        <Group gap="sm" align="center" wrap="nowrap">
           <ActionIcon
             variant="subtle"
             size="lg"
@@ -304,7 +311,6 @@ export function InvoiceDetailPage() {
             <IconArrowLeft size={20} />
           </ActionIcon>
           <Box style={{ flex: 1 }}>
-            {/* Compact Header with Status, Totals, and Actions */}
             <CompactDetailHeader
               invoice={invoice}
               adjacentIds={adjacentIds}
@@ -313,6 +319,7 @@ export function InvoiceDetailPage() {
               onCreateCreditNote={handleCreateCreditNote}
               onViewClient={handleViewClient}
               onArchive={handleArchive}
+              onEdit={handleEdit}
             />
           </Box>
         </Group>

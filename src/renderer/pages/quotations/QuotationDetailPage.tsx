@@ -368,8 +368,8 @@ export function QuotationDetailPage() {
   return (
     <>
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
-        {/* Back Button and Header */}
-        <Group gap="sm" align="flex-start">
+        {/* Header with Back Button */}
+        <Group gap="sm" align="center" wrap="nowrap">
           <ActionIcon
             variant="subtle"
             size="lg"
@@ -379,7 +379,6 @@ export function QuotationDetailPage() {
             <IconArrowLeft size={20} />
           </ActionIcon>
           <Box style={{ flex: 1 }}>
-            {/* Compact Header with Status, Total, and Actions */}
             <QuotationDetailHeader
               quotation={quotation}
               adjacentIds={adjacentIds}

@@ -24,6 +24,7 @@ export const SystemSettingKeys = {
   FILE_STORAGE_PATH: 'file_storage_path',
   // Interface settings
   RECENT_INVOICES_LIMIT: 'recent_invoices_limit',
+  RECENT_QUOTATIONS_LIMIT: 'recent_quotations_limit',
 } as const;
 
 export type SystemSettingKey = (typeof SystemSettingKeys)[keyof typeof SystemSettingKeys];
@@ -286,6 +287,14 @@ export class SystemSettingsService {
         value: '8',
         group: SystemSettingGroups.INTERFACE,
         description: 'Maximum number of recent invoices to display on the new invoice page',
+        readonly: false,
+        visible: true,
+      },
+      {
+        key: SystemSettingKeys.RECENT_QUOTATIONS_LIMIT,
+        value: '3',
+        group: SystemSettingGroups.INTERFACE,
+        description: 'Maximum number of recent quotations to display on the new quotation page',
         readonly: false,
         visible: true,
       },
