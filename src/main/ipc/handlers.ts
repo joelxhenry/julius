@@ -27,6 +27,7 @@ import {
   PaymentMethodService,
   GctPaymentService,
   EmployeeAttendanceService,
+  EmployeeShiftsService,
   CreditCheckService,
   SpotlightService,
   SystemSettingsService,
@@ -56,6 +57,7 @@ import {
   PaymentMethodController,
   GctPaymentController,
   EmployeeAttendanceController,
+  EmployeeShiftsController,
   SystemSettingsController,
 } from '../controllers';
 
@@ -190,6 +192,7 @@ function registerDataHandlers() {
   const paymentMethodService = new PaymentMethodService(db);
   const gctPaymentService = new GctPaymentService(db);
   const employeeAttendanceService = new EmployeeAttendanceService(db);
+  const employeeShiftsService = new EmployeeShiftsService(db);
   const creditCheckService = new CreditCheckService(db);
   const spotlightService = new SpotlightService(db);
   const systemSettingsService = new SystemSettingsService(db);
@@ -223,6 +226,7 @@ function registerDataHandlers() {
   const paymentMethodController = new PaymentMethodController(paymentMethodService);
   const gctPaymentController = new GctPaymentController(gctPaymentService);
   const employeeAttendanceController = new EmployeeAttendanceController(employeeAttendanceService);
+  const employeeShiftsController = new EmployeeShiftsController(employeeShiftsService);
   const systemSettingsController = new SystemSettingsController(systemSettingsService);
 
   // ===== BRANCH HANDLERS =====
@@ -670,6 +674,17 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.CREATE_ATTENDANCE, (_, data: any) => employeeAttendanceController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_ATTENDANCE, (_, { id, data }: any) => employeeAttendanceController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_ATTENDANCE, (_, { id }: { id: number }) => employeeAttendanceController.delete(id));
+
+  // ===== EMPLOYEE SHIFTS HANDLERS (modern clock-in/out) =====
+  ipcMain.handle(IpcChannel.GET_SHIFTS_BY_EMPLOYEE, (_, { employeeId }: { employeeId: number }) => employeeShiftsController.getByEmployee(employeeId));
+  ipcMain.handle(IpcChannel.GET_SHIFTS_BY_DATE_RANGE, (_, { startDate, endDate, employeeId }: { startDate: string; endDate: string; employeeId?: number }) => employeeShiftsController.getByDateRange(startDate, endDate, employeeId));
+  ipcMain.handle(IpcChannel.GET_ACTIVE_SHIFT, (_, { employeeId }: { employeeId: number }) => employeeShiftsController.getActiveShift(employeeId));
+  ipcMain.handle(IpcChannel.CLOCK_IN_SHIFT, (_, { employeeId, notes }: { employeeId: number; notes?: string }) => employeeShiftsController.clockIn(employeeId, notes));
+  ipcMain.handle(IpcChannel.CLOCK_OUT_SHIFT, (_, { employeeId, notes }: { employeeId: number; notes?: string }) => employeeShiftsController.clockOut(employeeId, notes));
+  ipcMain.handle(IpcChannel.GET_TOTAL_SHIFT_HOURS, (_, { employeeId, startDate, endDate }: { employeeId: number; startDate: string; endDate: string }) => employeeShiftsController.getTotalHours(employeeId, startDate, endDate));
+  ipcMain.handle(IpcChannel.GET_SHIFT, (_, { id }: { id: number }) => employeeShiftsController.getById(id));
+  ipcMain.handle(IpcChannel.UPDATE_SHIFT, (_, { id, data }: any) => employeeShiftsController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_SHIFT, (_, { id }: { id: number }) => employeeShiftsController.delete(id));
 
   // ===== SYSTEM SETTINGS HANDLERS =====
   ipcMain.handle(IpcChannel.GET_SYSTEM_SETTINGS, () => systemSettingsController.getAll());

@@ -52,7 +52,7 @@ const TAB_SETTINGS_KEY = 'turbo-julius-tab-settings';
 const DEFAULT_MAX_TABS = 10;
 
 // Pages that should NOT open in tabs
-const EXCLUDED_ROUTES = ['/', '/dashboard', '/profile', '/settings'];
+const EXCLUDED_ROUTES = ['/', '/dashboard', '/profile', '/settings', '/attendance'];
 
 // Helper function to check if a path is excluded
 function isExcludedRoute(path: string): boolean {

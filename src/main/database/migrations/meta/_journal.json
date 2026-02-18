@@ -85,6 +85,13 @@
       "when": 1769196965101,
       "tag": "0011_chunky_sway",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1769808000000,
+      "tag": "0012_employee_shifts",
+      "breakpoints": true
     }
   ]
 }

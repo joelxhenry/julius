@@ -36,6 +36,7 @@ export { GctPaymentService, type GctPaymentQueryParams } from './GctPaymentServi
 
 // Employee Services
 export { EmployeeAttendanceService, type AttendanceQueryParams } from './EmployeeAttendanceService';
+export { EmployeeShiftsService } from './EmployeeShiftsService';
 
 // System Settings
 export {

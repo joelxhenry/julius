@@ -246,6 +246,17 @@ export enum IpcChannel {
   UPDATE_ATTENDANCE = 'db:update-attendance',
   DELETE_ATTENDANCE = 'db:delete-attendance',
 
+  // Employee shifts operations (modern clock-in/out)
+  GET_SHIFTS_BY_EMPLOYEE = 'db:get-shifts-by-employee',
+  GET_SHIFTS_BY_DATE_RANGE = 'db:get-shifts-by-date-range',
+  GET_ACTIVE_SHIFT = 'db:get-active-shift',
+  CLOCK_IN_SHIFT = 'db:clock-in-shift',
+  CLOCK_OUT_SHIFT = 'db:clock-out-shift',
+  GET_TOTAL_SHIFT_HOURS = 'db:get-total-shift-hours',
+  GET_SHIFT = 'db:get-shift',
+  UPDATE_SHIFT = 'db:update-shift',
+  DELETE_SHIFT = 'db:delete-shift',
+
   // Inventory transaction operations
   GET_INVENTORY_TRANSACTIONS = 'db:get-inventory-transactions',
   GET_INVENTORY_TRANSACTIONS_PAGINATED = 'db:get-inventory-transactions-paginated',

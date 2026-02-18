@@ -24,6 +24,7 @@ export * from './bills';
 
 // HR Tables
 export * from './employeeAttendance';
+export * from './employeeShifts';
 
 // System Tables
 export * from './gctPayments';

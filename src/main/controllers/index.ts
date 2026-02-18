@@ -29,6 +29,7 @@ export * from './GctPaymentController';
 
 // Employee Controllers
 export * from './EmployeeAttendanceController';
+export * from './EmployeeShiftsController';
 
 // Settings Controllers
 export * from './DatabaseSettingsController';

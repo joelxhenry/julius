@@ -31,7 +31,6 @@ export const authenticatedRoutes: RoutePermission[] = [
   { path: '/suppliers/:id', description: 'View Supplier' },
   { path: '/suppliers/:id/edit', description: 'Edit Supplier' },
   { path: '/payments', description: 'Process Payments' },
-  { path: '/attendance', description: 'Clock In/Out' },
 ];
 
 // Routes that require specific permissions
@@ -53,6 +52,7 @@ export const permissionProtectedRoutes: RoutePermission[] = [
 export const publicRoutes: string[] = [
   '/',
   '/login',
+  '/attendance',
 ];
 
 // Routes that require full password authentication (not just PIN)
