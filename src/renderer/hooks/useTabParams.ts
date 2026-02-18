@@ -41,6 +41,7 @@ export function useTabParams<T extends Record<string, string | undefined> = Reco
       '/inventory/:id/edit',
       '/inventory/:id',
       '/payments/:id',
+      '/credit-notes/:id',
       '/employees/:id/edit',
       '/employees/:id/permissions',
       '/employees/:id',

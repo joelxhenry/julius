@@ -5,7 +5,7 @@ import { IpcChannel } from '../../shared/types/ipc';
 
 export interface SpotlightResult {
   id: number;
-  type: 'invoice' | 'client' | 'inventory' | 'quotation';
+  type: 'invoice' | 'client' | 'inventory' | 'quotation' | 'credit_note';
   title: string;
   subtitle: string;
   status?: string;

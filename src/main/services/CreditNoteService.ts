@@ -22,6 +22,22 @@ export class CreditNoteService extends BaseService<
     super(db, schema.creditNotes);
   }
 
+  async create(data: schema.InsertCreditNote): Promise<schema.CreditNote> {
+    let crNumber = data.crNumber;
+    if (!crNumber) {
+      const countResult = await this.db
+        .select({ cnt: count() })
+        .from(schema.creditNotes);
+      const nextNum = Number(countResult[0]?.cnt ?? 0) + 1;
+      crNumber = `CR${nextNum.toString().padStart(4, '0')}`;
+    }
+    const results = await this.db
+      .insert(schema.creditNotes)
+      .values({ ...data, crNumber })
+      .returning();
+    return results[0];
+  }
+
   async findPaginated(params: CreditNoteQueryParams = {}): Promise<PaginatedResult<schema.CreditNote>> {
     const { page = 1, pageSize = 50, search, status, clientId, includeArchived = false } = params;
     const offset = (page - 1) * pageSize;

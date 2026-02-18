@@ -7,6 +7,7 @@ import {
   IconLock,
   IconFileInvoice,
   IconPackages,
+  IconReceipt,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -32,6 +33,13 @@ const dashboardSections: DashboardSection[] = [
     icon: <IconFileInvoice size={24} />,
     color: 'teal',
     path: '/quotations',
+  },
+  {
+    title: 'Credit Notes',
+    description: 'View and manage issued credit notes',
+    icon: <IconReceipt size={24} />,
+    color: 'green',
+    path: '/credit-notes',
   },
   {
     title: 'Reports',

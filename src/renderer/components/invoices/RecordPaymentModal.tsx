@@ -1,9 +1,26 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Modal, Stack, Text, Button, Group, Loader, NumberInput, Select, Textarea, TextInput, Alert, Checkbox, Badge, Divider } from '@mantine/core';
-import { IconCash, IconAlertCircle, IconReceipt } from '@tabler/icons-react';
+import {
+  Modal,
+  Stack,
+  Text,
+  Button,
+  Group,
+  Loader,
+  NumberInput,
+  Select,
+  Textarea,
+  TextInput,
+  Alert,
+  Badge,
+  Divider,
+  Box,
+  ThemeIcon,
+} from '@mantine/core';
+import { IconCash, IconAlertCircle, IconReceipt, IconCheck } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
+import { ApplyCreditNoteModal } from './ApplyCreditNoteModal';
 
 interface Invoice {
   id: number;
@@ -21,25 +38,22 @@ interface PaymentMethod {
   active: boolean;
 }
 
-interface CreditNote {
-  id: number;
-  crNumber: string;
-  total: string;
-  totalUsed: string;
-  crDate: string;
-}
-
 interface RecordPaymentModalProps {
   opened: boolean;
   onClose: () => void;
   onPaymentRecorded: () => void;
+  onCreditApplied?: () => void;
   invoice: Invoice | null;
 }
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
 export function RecordPaymentModal({
   opened,
   onClose,
   onPaymentRecorded,
+  onCreditApplied,
   invoice,
 }: RecordPaymentModalProps) {
   const { user } = useAuth();
@@ -53,27 +67,27 @@ export function RecordPaymentModal({
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
-  // Credit note state
-  const [availableCreditNotes, setAvailableCreditNotes] = useState<CreditNote[]>([]);
-  const [selectedCreditNoteId, setSelectedCreditNoteId] = useState<string | null>(null);
-  const [creditNoteAmount, setCreditNoteAmount] = useState<number | string>('');
-  const [useCreditNote, setUseCreditNote] = useState(false);
-  const [isLoadingCreditNotes, setIsLoadingCreditNotes] = useState(false);
+  // Applied credit notes (tracked locally after each ApplyCreditNoteModal submission)
+  const [appliedCredits, setAppliedCredits] = useState<Array<{ crNumber: string; amount: number }>>([]);
+  const [cnModalOpen, setCnModalOpen] = useState(false);
 
-  // Calculate balance due
   const balanceDue = invoice
     ? parseFloat(invoice.total) - parseFloat(invoice.totalPaid)
     : 0;
 
+  const totalCreditApplied = appliedCredits.reduce((sum, c) => sum + c.amount, 0);
+  const effectiveBalance = Math.max(0, balanceDue - totalCreditApplied);
+  const cashPayment = typeof amount === 'number' ? amount : parseFloat(amount as string) || 0;
+
   // Load payment methods
   useEffect(() => {
+    if (!opened) return;
     const loadPaymentMethods = async () => {
       setIsLoadingMethods(true);
       try {
         const result = await window.electron.invoke(IpcChannel.GET_ACTIVE_PAYMENT_METHODS, {});
         if (result.success && result.data) {
           setPaymentMethods(result.data);
-          // Set default payment method if available
           if (result.data.length > 0 && !paymentMethodId) {
             setPaymentMethodId(result.data[0].id.toString());
           }
@@ -84,113 +98,69 @@ export function RecordPaymentModal({
         setIsLoadingMethods(false);
       }
     };
-
-    if (opened) {
-      loadPaymentMethods();
-    }
+    loadPaymentMethods();
   }, [opened]);
-
-  // Load available credit notes for the client
-  useEffect(() => {
-    const loadCreditNotes = async () => {
-      if (!invoice?.clientId) {
-        setAvailableCreditNotes([]);
-        return;
-      }
-
-      setIsLoadingCreditNotes(true);
-      try {
-        const result = await window.electron.invoke(IpcChannel.GET_CLIENT_AVAILABLE_CREDIT_NOTES, {
-          clientId: invoice.clientId,
-        });
-        if (result.success && result.data) {
-          setAvailableCreditNotes(result.data);
-        }
-      } catch (err) {
-        console.error('Failed to load credit notes:', err);
-      } finally {
-        setIsLoadingCreditNotes(false);
-      }
-    };
-
-    if (opened) {
-      loadCreditNotes();
-    }
-  }, [opened, invoice?.clientId]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (opened && invoice) {
-      setAmount(balanceDue > 0 ? balanceDue : '');
+      const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
+      setAmount(balance > 0 ? balance : '');
       setTransactionReference('');
       setNotes('');
       setError(null);
-      setUseCreditNote(false);
-      setSelectedCreditNoteId(null);
-      setCreditNoteAmount('');
+      setAppliedCredits([]);
       setTimeout(() => {
         amountInputRef.current?.focus();
         amountInputRef.current?.select();
       }, 100);
     }
-  }, [opened, invoice, balanceDue]);
+  }, [opened, invoice]);
 
-  // Calculate available credit for selected credit note
-  const selectedCreditNote = availableCreditNotes.find(cn => cn.id.toString() === selectedCreditNoteId);
-  const availableCreditAmount = selectedCreditNote
-    ? parseFloat(selectedCreditNote.total) - parseFloat(selectedCreditNote.totalUsed)
-    : 0;
-
-  // Calculate effective amounts
-  const creditApplied = useCreditNote && selectedCreditNote
-    ? (typeof creditNoteAmount === 'number' ? creditNoteAmount : parseFloat(creditNoteAmount as string) || 0)
-    : 0;
-  const cashPayment = typeof amount === 'number' ? amount : parseFloat(amount as string) || 0;
-  const totalPayment = creditApplied + cashPayment;
+  // Update cash amount when credits are applied
+  const handleCreditApplied = useCallback(
+    (creditAmount: number, crNumber: string) => {
+      setAppliedCredits((prev) => {
+        const updated = [...prev, { crNumber, amount: creditAmount }];
+        const totalApplied = updated.reduce((sum, c) => sum + c.amount, 0);
+        const newBalance = Math.max(0, balanceDue - totalApplied);
+        setAmount(newBalance > 0 ? newBalance : 0);
+        return updated;
+      });
+      // Notify parent page so it can refresh invoice totals/credit note balances immediately
+      onCreditApplied?.();
+    },
+    [balanceDue, onCreditApplied]
+  );
 
   const handleSubmit = useCallback(async () => {
-    if (!invoice) return;
-    if (!user) {
+    if (!invoice || !user) {
       setError('You must be logged in to record payments');
       return;
     }
 
-    // Validate credit note if used
-    if (useCreditNote) {
-      if (!selectedCreditNoteId) {
-        setError('Please select a credit note to apply');
-        return;
-      }
-      if (creditApplied <= 0) {
-        setError('Please enter a valid credit note amount');
-        return;
-      }
-      if (creditApplied > availableCreditAmount + 0.01) {
-        setError(`Credit note amount cannot exceed available credit ($${availableCreditAmount.toFixed(2)})`);
-        return;
-      }
-    }
-
-    // Validate cash payment if entered
-    if (cashPayment > 0 && !paymentMethodId) {
-      setError('Please select a payment method for cash payment');
+    // If the entire balance was covered by credits, just acknowledge
+    if (effectiveBalance <= 0.001 && cashPayment <= 0) {
+      onPaymentRecorded();
+      onClose();
       return;
     }
 
-    // Validate total doesn't exceed balance
-    if (totalPayment > balanceDue + 0.01) {
-      setError(`Total payment cannot exceed balance due ($${balanceDue.toFixed(2)})`);
+    if (cashPayment <= 0) {
+      setError('Please enter a payment amount');
+      return;
+    }
+    if (!paymentMethodId) {
+      setError('Please select a payment method');
+      return;
+    }
+    if (cashPayment > effectiveBalance + 0.01) {
+      setError(`Payment cannot exceed balance due (${formatCurrency(effectiveBalance)})`);
       return;
     }
 
-    // Must have at least some payment
-    if (totalPayment <= 0) {
-      setError('Please enter a payment amount or apply credit');
-      return;
-    }
-
-    const selectedMethod = cashPayment > 0 ? paymentMethods.find(pm => pm.id.toString() === paymentMethodId) : null;
-    if (cashPayment > 0 && !selectedMethod) {
+    const selectedMethod = paymentMethods.find((pm) => pm.id.toString() === paymentMethodId);
+    if (!selectedMethod) {
       setError('Selected payment method is invalid');
       return;
     }
@@ -199,55 +169,27 @@ export function RecordPaymentModal({
     setError(null);
 
     try {
-      // Build entries array
-      const entries: Array<{
-        type: 'payment' | 'credit_note';
-        paymentMethodCode?: string;
-        creditNoteId?: number;
-        amount: string;
-        transactionReference?: string;
-        notes?: string;
-      }> = [];
-
-      // Add credit note entry if used
-      if (useCreditNote && selectedCreditNote && creditApplied > 0) {
-        entries.push({
-          type: 'credit_note',
-          creditNoteId: selectedCreditNote.id,
-          amount: creditApplied.toFixed(2),
-          notes: `Applied from ${selectedCreditNote.crNumber}`,
-        });
-      }
-
-      // Add cash payment entry if present
-      if (cashPayment > 0 && selectedMethod) {
-        entries.push({
-          type: 'payment',
-          paymentMethodCode: selectedMethod.code,
-          amount: cashPayment.toFixed(2),
-          transactionReference: transactionReference || undefined,
-          notes: notes || undefined,
-        });
-      }
-
-      // Use the new PROCESS_INVOICE_PAYMENT channel which handles everything
       const result = await window.electron.invoke(IpcChannel.PROCESS_INVOICE_PAYMENT, {
         invoiceId: invoice.id,
         invoiceNumber: invoice.invNumber,
         clientId: invoice.clientId,
         processedById: user.id,
         payerName: invoice.clientName || 'Walk-in Customer',
-        entries,
+        entries: [
+          {
+            type: 'payment',
+            paymentMethodCode: selectedMethod.code,
+            amount: cashPayment.toFixed(2),
+            transactionReference: transactionReference || undefined,
+            notes: notes || undefined,
+          },
+        ],
       });
 
       if (result.success) {
-        const messages: string[] = [];
-        if (creditApplied > 0) messages.push(`$${creditApplied.toFixed(2)} credit applied`);
-        if (cashPayment > 0) messages.push(`$${cashPayment.toFixed(2)} payment recorded`);
-
         notifications.show({
           title: 'Payment Recorded',
-          message: `${messages.join(' and ')} for invoice ${invoice.invNumber}`,
+          message: `${formatCurrency(cashPayment)} recorded for invoice ${invoice.invNumber}`,
           color: 'green',
         });
         onPaymentRecorded();
@@ -260,7 +202,18 @@ export function RecordPaymentModal({
     } finally {
       setIsLoading(false);
     }
-  }, [invoice, user, useCreditNote, selectedCreditNoteId, creditApplied, availableCreditAmount, cashPayment, paymentMethodId, totalPayment, balanceDue, paymentMethods, selectedCreditNote, notes, onPaymentRecorded, onClose]);
+  }, [
+    invoice,
+    user,
+    effectiveBalance,
+    cashPayment,
+    paymentMethodId,
+    paymentMethods,
+    transactionReference,
+    notes,
+    onPaymentRecorded,
+    onClose,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -274,230 +227,209 @@ export function RecordPaymentModal({
     [handleSubmit, isLoading, onClose]
   );
 
-  // Format currency
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value);
-  };
-
   if (!invoice) return null;
 
+  const allCoveredByCredit = effectiveBalance <= 0.001 && totalCreditApplied > 0;
+
   return (
-    <Modal
-      opened={opened}
-      onClose={onClose}
-      title={
-        <Group gap="xs">
-          <IconCash size={20} />
-          <Text fw={600}>Record Payment</Text>
-        </Group>
-      }
-      centered
-      size="md"
-      closeOnClickOutside={false}
-      closeOnEscape
-    >
-      <Stack gap="md">
-        {/* Invoice Info */}
-        <Stack gap={4} p="sm" style={{ backgroundColor: 'var(--mantine-color-gray-light)', borderRadius: 'var(--mantine-radius-sm)' }}>
-          <Group justify="space-between">
-            <Text size="sm" c="dimmed">Invoice</Text>
-            <Text size="sm" fw={500}>{invoice.invNumber}</Text>
+    <>
+      <Modal
+        opened={opened}
+        onClose={onClose}
+        title={
+          <Group gap="xs">
+            <IconCash size={20} />
+            <Text fw={600}>Record Payment</Text>
           </Group>
-          <Group justify="space-between">
-            <Text size="sm" c="dimmed">Client</Text>
-            <Text size="sm">{invoice.clientName || 'Walk-in Customer'}</Text>
-          </Group>
-          <Group justify="space-between">
-            <Text size="sm" c="dimmed">Total</Text>
-            <Text size="sm">{formatCurrency(parseFloat(invoice.total))}</Text>
-          </Group>
-          <Group justify="space-between">
-            <Text size="sm" c="dimmed">Paid</Text>
-            <Text size="sm" c="green">{formatCurrency(parseFloat(invoice.totalPaid))}</Text>
-          </Group>
-          <Group justify="space-between">
-            <Text size="sm" fw={500}>Balance Due</Text>
-            <Text size="sm" fw={500} c={balanceDue > 0 ? 'red' : 'green'}>
-              {formatCurrency(balanceDue)}
-            </Text>
-          </Group>
-        </Stack>
-
-        {error && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-            {error}
-          </Alert>
-        )}
-
-        {/* Credit Note Section - only show if client has available credit notes */}
-        {availableCreditNotes.length > 0 && (
-          <>
-            <Divider label={<Group gap={4}><IconReceipt size={14} /><Text size="xs">Apply Credit Note</Text></Group>} labelPosition="center" />
-
-            <Checkbox
-              label="Apply credit note to this invoice"
-              checked={useCreditNote}
-              onChange={(e) => {
-                setUseCreditNote(e.currentTarget.checked);
-                if (!e.currentTarget.checked) {
-                  setSelectedCreditNoteId(null);
-                  setCreditNoteAmount('');
-                }
-              }}
-              disabled={isLoading}
-            />
-
-            {useCreditNote && (
-              <Stack gap="sm">
-                <Select
-                  label="Select Credit Note"
-                  placeholder="Choose credit note"
-                  value={selectedCreditNoteId}
-                  onChange={(value) => {
-                    setSelectedCreditNoteId(value);
-                    // Auto-fill the max available amount
-                    const cn = availableCreditNotes.find(c => c.id.toString() === value);
-                    if (cn) {
-                      const available = parseFloat(cn.total) - parseFloat(cn.totalUsed);
-                      const maxApplicable = Math.min(available, balanceDue - cashPayment);
-                      setCreditNoteAmount(maxApplicable > 0 ? maxApplicable : '');
-                    }
-                  }}
-                  data={availableCreditNotes.map((cn) => {
-                    const available = parseFloat(cn.total) - parseFloat(cn.totalUsed);
-                    return {
-                      value: cn.id.toString(),
-                      label: `${cn.crNumber} - ${formatCurrency(available)} available`,
-                    };
-                  })}
-                  disabled={isLoading || isLoadingCreditNotes}
-                  rightSection={isLoadingCreditNotes ? <Loader size={14} /> : undefined}
-                />
-
-                {selectedCreditNote && (
-                  <NumberInput
-                    label={`Credit Amount (max ${formatCurrency(availableCreditAmount)})`}
-                    placeholder="0.00"
-                    value={creditNoteAmount}
-                    onChange={setCreditNoteAmount}
-                    min={0.01}
-                    max={Math.min(availableCreditAmount, balanceDue)}
-                    decimalScale={2}
-                    fixedDecimalScale
-                    prefix="$"
-                    thousandSeparator=","
-                    disabled={isLoading}
-                  />
-                )}
-              </Stack>
-            )}
-
-            <Divider label={<Text size="xs">Cash Payment</Text>} labelPosition="center" />
-          </>
-        )}
-
-        <NumberInput
-          ref={amountInputRef}
-          label={useCreditNote ? "Additional Cash Payment" : "Payment Amount"}
-          description={useCreditNote ? "Enter 0 if paying entirely with credit" : undefined}
-          placeholder="0.00"
-          value={amount}
-          onChange={setAmount}
-          onKeyDown={handleKeyDown}
-          min={0}
-          max={balanceDue - creditApplied}
-          decimalScale={2}
-          fixedDecimalScale
-          prefix="$"
-          thousandSeparator=","
-          disabled={isLoading}
-          required={!useCreditNote}
-        />
-
-        <Select
-          label="Payment Method"
-          placeholder="Select payment method"
-          value={paymentMethodId}
-          onChange={setPaymentMethodId}
-          data={paymentMethods.map((pm) => ({
-            value: pm.id.toString(),
-            label: pm.name,
-          }))}
-          disabled={isLoading || isLoadingMethods || (useCreditNote && cashPayment === 0)}
-          rightSection={isLoadingMethods ? <Loader size={14} /> : undefined}
-          required={!useCreditNote || cashPayment > 0}
-        />
-
-        <TextInput
-          label="Reference #"
-          placeholder="e.g., Trace #, Auth code"
-          value={transactionReference}
-          onChange={(e) => setTransactionReference(e.currentTarget.value)}
-          disabled={isLoading || (useCreditNote && cashPayment === 0)}
-        />
-
-        <Textarea
-          label="Notes (optional)"
-          placeholder="Payment notes..."
-          value={notes}
-          onChange={(e) => setNotes(e.currentTarget.value)}
-          minRows={2}
-          disabled={isLoading}
-        />
-
-        {/* Total Summary when using credit */}
-        {useCreditNote && totalPayment > 0 && (
-          <Stack gap={4} p="sm" style={{ backgroundColor: 'var(--mantine-color-blue-light)', borderRadius: 'var(--mantine-radius-sm)' }}>
-            {creditApplied > 0 && (
+        }
+        centered
+        size="lg"
+        closeOnClickOutside={false}
+        closeOnEscape
+      >
+        <Stack gap="md">
+          {/* Invoice Info */}
+          <Stack
+            gap={4}
+            p="sm"
+            style={{
+              backgroundColor: 'var(--mantine-color-gray-light)',
+              borderRadius: 'var(--mantine-radius-sm)',
+            }}
+          >
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Invoice</Text>
+              <Text size="sm" fw={500}>{invoice.invNumber}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Client</Text>
+              <Text size="sm">{invoice.clientName || 'Walk-in Customer'}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Total</Text>
+              <Text size="sm">{formatCurrency(parseFloat(invoice.total))}</Text>
+            </Group>
+            <Group justify="space-between">
+              <Text size="sm" c="dimmed">Paid</Text>
+              <Text size="sm" c="green">{formatCurrency(parseFloat(invoice.totalPaid))}</Text>
+            </Group>
+            {totalCreditApplied > 0 && (
               <Group justify="space-between">
-                <Text size="sm">Credit Applied</Text>
-                <Badge color="green" variant="light">{formatCurrency(creditApplied)}</Badge>
-              </Group>
-            )}
-            {cashPayment > 0 && (
-              <Group justify="space-between">
-                <Text size="sm">Cash Payment</Text>
-                <Badge color="blue" variant="light">{formatCurrency(cashPayment)}</Badge>
+                <Text size="sm" c="dimmed">Credits Applied (this session)</Text>
+                <Text size="sm" c="teal">{formatCurrency(totalCreditApplied)}</Text>
               </Group>
             )}
             <Divider my={4} />
             <Group justify="space-between">
-              <Text size="sm" fw={600}>Total Payment</Text>
-              <Badge color="green" size="lg">{formatCurrency(totalPayment)}</Badge>
+              <Text size="sm" fw={500}>Balance Due</Text>
+              <Text size="sm" fw={600} c={effectiveBalance > 0 ? 'red' : 'green'}>
+                {formatCurrency(effectiveBalance)}
+              </Text>
             </Group>
           </Stack>
-        )}
 
-        <Group justify="space-between" mt="md">
-          <Button
-            variant="subtle"
-            onClick={() => {
-              if (useCreditNote && creditApplied > 0) {
-                setAmount(balanceDue - creditApplied);
-              } else {
-                setAmount(balanceDue);
-              }
-            }}
-            disabled={isLoading}
-          >
-            Pay Full Balance
-          </Button>
-          <Group gap="sm">
-            <Button variant="subtle" onClick={onClose} disabled={isLoading}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading || totalPayment <= 0 || (cashPayment > 0 && !paymentMethodId)}
+          {error && (
+            <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+              {error}
+            </Alert>
+          )}
+
+          {/* Applied credits list */}
+          {appliedCredits.length > 0 && (
+            <Box
+              p="sm"
+              style={{
+                border: '1px solid var(--mantine-color-teal-3)',
+                borderRadius: 'var(--mantine-radius-sm)',
+                backgroundColor: 'var(--mantine-color-teal-light)',
+              }}
             >
-              {isLoading ? <Loader size="xs" color="white" /> : 'Record Payment'}
+              <Text size="xs" fw={600} c="teal" mb={4}>Credits Applied This Session</Text>
+              <Stack gap={2}>
+                {appliedCredits.map((c, i) => (
+                  <Group key={i} justify="space-between">
+                    <Group gap={4}>
+                      <ThemeIcon size={14} color="teal" variant="transparent">
+                        <IconCheck size={12} />
+                      </ThemeIcon>
+                      <Text size="xs">{c.crNumber}</Text>
+                    </Group>
+                    <Text size="xs" fw={500} c="teal">{formatCurrency(c.amount)}</Text>
+                  </Group>
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Apply Credit Note button */}
+          {invoice.clientId && effectiveBalance > 0 && (
+            <Button
+              variant="light"
+              color="teal"
+              leftSection={<IconReceipt size={16} />}
+              onClick={() => setCnModalOpen(true)}
+              disabled={isLoading}
+            >
+              Apply Credit Note
             </Button>
+          )}
+
+          {allCoveredByCredit ? (
+            <Alert color="green" variant="light" icon={<IconCheck size={16} />}>
+              The full balance has been covered by credit notes. Click "Done" to finish.
+            </Alert>
+          ) : (
+            <>
+              <Divider label="Cash Payment" labelPosition="center" />
+
+              <NumberInput
+                ref={amountInputRef}
+                label="Payment Amount"
+                placeholder="0.00"
+                value={amount}
+                onChange={setAmount}
+                onKeyDown={handleKeyDown}
+                min={0}
+                max={effectiveBalance}
+                decimalScale={2}
+                fixedDecimalScale
+                prefix="$"
+                thousandSeparator=","
+                disabled={isLoading}
+                required
+              />
+
+              <Select
+                label="Payment Method"
+                placeholder="Select payment method"
+                value={paymentMethodId}
+                onChange={setPaymentMethodId}
+                data={paymentMethods.map((pm) => ({
+                  value: pm.id.toString(),
+                  label: pm.name,
+                }))}
+                disabled={isLoading || isLoadingMethods}
+                rightSection={isLoadingMethods ? <Loader size={14} /> : undefined}
+                required
+              />
+
+              <TextInput
+                label="Reference #"
+                placeholder="e.g., Trace #, Auth code"
+                value={transactionReference}
+                onChange={(e) => setTransactionReference(e.currentTarget.value)}
+                disabled={isLoading}
+              />
+
+              <Textarea
+                label="Notes (optional)"
+                placeholder="Payment notes..."
+                value={notes}
+                onChange={(e) => setNotes(e.currentTarget.value)}
+                minRows={2}
+                disabled={isLoading}
+              />
+            </>
+          )}
+
+          <Group justify="space-between" mt="md">
+            {!allCoveredByCredit && (
+              <Button
+                variant="subtle"
+                onClick={() => setAmount(effectiveBalance)}
+                disabled={isLoading}
+              >
+                Pay Full Balance
+              </Button>
+            )}
+            <Group gap="sm" ml="auto">
+              <Button variant="subtle" onClick={onClose} disabled={isLoading}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                loading={isLoading}
+                disabled={!allCoveredByCredit && (cashPayment <= 0 || !paymentMethodId)}
+                leftSection={allCoveredByCredit ? <IconCheck size={16} /> : <IconCash size={16} />}
+              >
+                {allCoveredByCredit ? 'Done' : 'Record Payment'}
+              </Button>
+            </Group>
           </Group>
-        </Group>
-      </Stack>
-    </Modal>
+        </Stack>
+      </Modal>
+
+      {/* Separate modal for applying credit notes */}
+      <ApplyCreditNoteModal
+        opened={cnModalOpen}
+        onClose={() => setCnModalOpen(false)}
+        onApplied={handleCreditApplied}
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.invNumber}
+        clientId={invoice.clientId}
+        clientName={invoice.clientName}
+        maxAmount={effectiveBalance}
+      />
+    </>
   );
 }

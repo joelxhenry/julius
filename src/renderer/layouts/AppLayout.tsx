@@ -25,7 +25,6 @@ const navigationShortcuts = [
   { key: 'i', path: '/invoices/form', description: 'Create Invoice' },
   { key: 'q', path: '/quotations/new', description: 'Create Quotation' },
   { key: 's', path: '/inventory', description: 'Search Inventory' },
-  { key: 'f', path: '/invoices', description: 'Search Invoices' },
   { key: 'p', path: '/payments', description: 'Process Payments' },
   { key: 'c', path: '/attendance', description: 'Clock In/Out' },
   { key: 'd', path: '/dashboard', description: 'Dashboard' },
@@ -55,13 +54,20 @@ function AppLayoutContent() {
   // Handle navigation with PIN verification
   const handleProtectedNavigation = useCallback(
     (path: string) => {
-      // Public routes don't need authentication
+     
+       // Public routes don't need authentication
       if (isPublicRoute(path)) {
         navigate(path);
         return;
       }
 
       const permission = getRoutePermission(path);
+
+       // Public routes don't need authentication
+      if (permission === undefined) {
+        navigate(path);
+        return;
+      }
 
       // Check if user has valid session
       if (isSessionValid) {
@@ -297,7 +303,7 @@ function AppLayoutContent() {
 
 export function AppLayout() {
   return (
-    <TabProvider>
+    <TabProvider getComponentForPath={getComponentForPath}>
       <AppLayoutContent />
     </TabProvider>
   );

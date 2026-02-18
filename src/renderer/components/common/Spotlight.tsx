@@ -1,5 +1,5 @@
 import { Modal, TextInput, Stack, Group, Text, Badge, Loader, Kbd, Paper, UnstyledButton, Box, Center } from '@mantine/core';
-import { IconSearch, IconFileInvoice, IconUser, IconPackage, IconFileText } from '@tabler/icons-react';
+import { IconSearch, IconFileInvoice, IconUser, IconPackage, IconFileText, IconReceipt } from '@tabler/icons-react';
 import { useSpotlight, SpotlightResult } from '../../contexts/SpotlightContext';
 import { CopyButton } from './CopyButton';
 
@@ -8,6 +8,7 @@ const typeIcons: Record<SpotlightResult['type'], React.ReactNode> = {
   client: <IconUser size={20} />,
   inventory: <IconPackage size={20} />,
   quotation: <IconFileText size={20} />,
+  credit_note: <IconReceipt size={20} />,
 };
 
 const typeColors: Record<SpotlightResult['type'], string> = {
@@ -15,6 +16,15 @@ const typeColors: Record<SpotlightResult['type'], string> = {
   client: 'green',
   inventory: 'orange',
   quotation: 'purple',
+  credit_note: 'teal',
+};
+
+const typeLabels: Record<SpotlightResult['type'], string> = {
+  invoice: 'invoice',
+  client: 'client',
+  inventory: 'inventory',
+  quotation: 'quotation',
+  credit_note: 'credit note',
 };
 
 const statusColors: Record<string, string> = {
@@ -26,6 +36,7 @@ const statusColors: Record<string, string> = {
   pending: 'yellow',
   accepted: 'green',
   expired: 'red',
+  used: 'gray',
 };
 
 interface SpotlightResultItemProps {
@@ -68,7 +79,7 @@ function SpotlightResultItem({ result, isSelected, onClick }: SpotlightResultIte
           </Text>
         </Stack>
         <Badge size="xs" variant="outline" color={typeColors[result.type]}>
-          {result.type}
+          {typeLabels[result.type]}
         </Badge>
       </Group>
     </UnstyledButton>
@@ -101,7 +112,7 @@ export function Spotlight() {
     >
       <Paper>
         <TextInput
-          placeholder="Search invoices, clients, inventory..."
+          placeholder="Search invoices, clients, credit notes, inventory..."
            leftSection={isLoading ? <Loader size={16} /> : <IconSearch size={16} />}
           rightSection={
             <Group gap={4}>

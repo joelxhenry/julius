@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Paper, Stack, Text, Group, Badge, ThemeIcon, ActionIcon, Menu, Modal, Textarea, Button } from '@mantine/core';
+import { Paper, Stack, Text, Group, Badge, ThemeIcon, ActionIcon, Menu, Modal, Textarea, Button, Alert } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconCash, IconReceipt, IconDotsVertical, IconX } from '@tabler/icons-react';
@@ -13,6 +13,7 @@ interface Payment {
   documentType: string;
   documentNumber: string;
   invoiceNumber: string | null;
+  creditNoteNumber: string | null;
   payerName: string | null;
   paymentDate: string | null;
   paymentDesc: string | null;
@@ -136,12 +137,23 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
 
   const balanceDue = invoiceTotal - totalPaid;
 
-  // Check if a payment can be voided (not already a void entry, positive amount)
-  const canVoidPayment = (payment: Payment) => {
-    const amount = parseFloat(payment.amount);
-    const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
-    return !isVoidEntry && amount > 0;
-  };
+  // Build a set of IDs for positive payments that have a matching void reversal in the list
+  const voidedIds = useMemo(() => {
+    const voided = new Set<number>();
+    const voidReversals = payments.filter(
+      (p) => parseFloat(p.amount) < 0 && p.paymentDesc?.includes('VOID')
+    );
+    if (voidReversals.length === 0) return voided;
+    payments.forEach((p) => {
+      if (parseFloat(p.amount) > 0 && !p.paymentDesc?.includes('VOID')) {
+        const hasReversal = voidReversals.some(
+          (v) => Math.abs(parseFloat(v.amount)) === parseFloat(p.amount)
+        );
+        if (hasReversal) voided.add(p.id);
+      }
+    });
+    return voided;
+  }, [payments]);
 
   // Define columns for DataTable
   const columns: Column<Payment>[] = useMemo(() => [
@@ -159,12 +171,35 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
       render: (payment) => {
         const amount = parseFloat(payment.amount);
         const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
+        const isVoided = voidedIds.has(payment.id);
+        const isCreditNote = payment.documentType === 'CREDIT' && !!payment.creditNoteNumber;
         return (
-          <Group gap={4}>
-            <Text size="sm">
-              {payment.paymentDesc2 || payment.paymentDesc || '-'}
-            </Text>
+          <Group gap={4} wrap="nowrap">
+            {isCreditNote ? (
+              <>
+                <ThemeIcon size={16} color="teal" variant="transparent">
+                  <IconReceipt size={14} />
+                </ThemeIcon>
+                <Badge
+                  size="sm"
+                  color="teal"
+                  variant="light"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openTab(`/credit-notes?search=${payment.creditNoteNumber}`);
+                  }}
+                >
+                  {payment.creditNoteNumber}
+                </Badge>
+              </>
+            ) : (
+              <Text size="sm" td={isVoided ? 'line-through' : undefined} c={isVoided ? 'dimmed' : undefined}>
+                {payment.paymentDesc2 || payment.paymentDesc || '-'}
+              </Text>
+            )}
             {isVoidEntry && <Badge size="xs" color="red" variant="light">VOID</Badge>}
+            {isVoided && <Badge size="xs" color="red" variant="outline">Voided</Badge>}
           </Group>
         );
       },
@@ -176,11 +211,13 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
       render: (payment) => {
         const amount = parseFloat(payment.amount);
         const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
+        const isVoided = voidedIds.has(payment.id);
         return (
           <Text
             size="sm"
             fw={500}
-            c={isVoidEntry ? 'red' : 'green'}
+            c={isVoidEntry ? 'red' : isVoided ? 'dimmed' : 'green'}
+            td={isVoided ? 'line-through' : undefined}
             ta="right"
           >
             {isVoidEntry ? '-' : '+'}{formatCurrency(Math.abs(amount))}
@@ -192,11 +229,12 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
       key: 'notes',
       header: 'Notes/Ref',
       render: (payment) => {
+        const isCreditNote = payment.documentType === 'CREDIT' && !!payment.creditNoteNumber;
         const parts: string[] = [];
         if (payment.transactionReference) {
           parts.push(`Ref: ${payment.transactionReference}`);
         }
-        if (payment.paymentDesc && !payment.paymentDesc.includes('VOID')) {
+        if (!isCreditNote && payment.paymentDesc && !payment.paymentDesc.includes('VOID')) {
           parts.push(payment.paymentDesc);
         }
         return (
@@ -211,7 +249,10 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
       header: '',
       width: 40,
       render: (payment) => {
-        if (!canVoidPayment(payment)) return null;
+        const amount = parseFloat(payment.amount);
+        const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
+        const isVoided = voidedIds.has(payment.id);
+        if (isVoidEntry || isVoided || amount <= 0) return null;
         return (
           <Menu shadow="md" width={150} position="bottom-end">
             <Menu.Target>
@@ -232,7 +273,7 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
         );
       },
     },
-  ], [handleVoidClick]);
+  ], [handleVoidClick, voidedIds, openTab]);
 
   return (
     <div>
@@ -309,20 +350,37 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
       >
         <Stack gap="md">
           {selectedPayment && (
-            <Stack gap={4} p="sm" style={{ backgroundColor: 'var(--mantine-color-red-light)', borderRadius: 'var(--mantine-radius-sm)' }}>
-              <Group justify="space-between">
-                <Text size="sm" c="dimmed">Amount</Text>
-                <Text size="sm" fw={500}>{formatCurrency(selectedPayment.amount)}</Text>
-              </Group>
-              <Group justify="space-between">
-                <Text size="sm" c="dimmed">Date</Text>
-                <Text size="sm">{formatDate(selectedPayment.paymentDate)}</Text>
-              </Group>
-              <Group justify="space-between">
-                <Text size="sm" c="dimmed">Method</Text>
-                <Text size="sm">{selectedPayment.paymentDesc2 || selectedPayment.paymentDesc || '-'}</Text>
-              </Group>
-            </Stack>
+            <>
+              <Stack gap={4} p="sm" style={{ backgroundColor: 'var(--mantine-color-red-light)', borderRadius: 'var(--mantine-radius-sm)' }}>
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">Amount</Text>
+                  <Text size="sm" fw={500}>{formatCurrency(selectedPayment.amount)}</Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">Date</Text>
+                  <Text size="sm">{formatDate(selectedPayment.paymentDate)}</Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">Method</Text>
+                  <Text size="sm">
+                    {selectedPayment.documentType === 'CREDIT' && selectedPayment.creditNoteNumber
+                      ? `Credit Note ${selectedPayment.creditNoteNumber}`
+                      : selectedPayment.paymentDesc2 || selectedPayment.paymentDesc || '-'}
+                  </Text>
+                </Group>
+              </Stack>
+
+              {selectedPayment.documentType === 'CREDIT' && selectedPayment.creditNoteNumber && (
+                <Alert icon={<IconReceipt size={16} />} color="teal" variant="light">
+                  <Text size="sm">
+                    Voiding this payment will restore{' '}
+                    <Text span fw={600}>{formatCurrency(selectedPayment.amount)}</Text>{' '}
+                    back to credit note{' '}
+                    <Text span fw={600}>{selectedPayment.creditNoteNumber}</Text>.
+                  </Text>
+                </Alert>
+              )}
+            </>
           )}
 
           <Text size="sm" c="dimmed">

@@ -32,7 +32,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientEditModal } from '../../components/clients';
+import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal } from '../../components/clients';
 import { useTabContext } from '../../contexts/TabContext';
 
 interface Client {
@@ -436,12 +436,7 @@ export function ClientDetailPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="creditNotes" pt="md">
-          <Card withBorder>
-            <Stack align="center" gap="md" py="xl">
-              <IconReceipt size={48} stroke={1} color="gray" />
-              <Text c="dimmed">Credit notes list will be displayed here</Text>
-            </Stack>
-          </Card>
+          <ClientCreditNotesTab clientId={client.id} />
         </Tabs.Panel>
 
         <Tabs.Panel value="payments" pt="md">

@@ -110,7 +110,6 @@ export function InvoiceLineItemsReadOnly({
                       <Group gap="xs">
                         <Text size={compact ? 'sm' : 'md'} fw={500}>{item.sku}</Text>
                         <CopyButton value={item.sku} />
-                        <IconPackage size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
                       </Group>
                     </Table.Td>
                     <Table.Td style={{ height: rowHeight }}>

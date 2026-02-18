@@ -121,15 +121,12 @@ export class PaymentService extends BaseService<
   }
 
   async findByInvoice(invoiceNumber: string): Promise<schema.Payment[]> {
+    // Return all payment records for this invoice, including credit note applications
+    // (documentType 'INVOICE' = cash/card payments, 'CREDIT' = credit note applied to invoice)
     return this.db
       .select()
       .from(schema.payments)
-      .where(
-        and(
-          eq(schema.payments.documentType, 'INVOICE'),
-          eq(schema.payments.invoiceNumber, invoiceNumber)
-        )
-      )
+      .where(eq(schema.payments.invoiceNumber, invoiceNumber))
       .orderBy(desc(schema.payments.paymentDate));
   }
 

@@ -4,7 +4,7 @@ import * as schema from '../database/schema';
 
 export interface SpotlightResult {
   id: number;
-  type: 'invoice' | 'client' | 'inventory' | 'quotation';
+  type: 'invoice' | 'client' | 'inventory' | 'quotation' | 'credit_note';
   title: string;
   subtitle: string;
   status?: string;
@@ -14,7 +14,7 @@ export interface SpotlightResult {
 export interface SpotlightSearchParams {
   query: string;
   limit?: number;
-  types?: ('invoice' | 'client' | 'inventory' | 'quotation')[];
+  types?: ('invoice' | 'client' | 'inventory' | 'quotation' | 'credit_note')[];
 }
 
 export class SpotlightService {
@@ -33,7 +33,7 @@ export class SpotlightService {
 
     const searchTerm = `%${query.trim()}%`;
     const results: SpotlightResult[] = [];
-    const defaultTypes: ('invoice' | 'client' | 'inventory' | 'quotation')[] = ['invoice', 'client', 'inventory', 'quotation'];
+    const defaultTypes: ('invoice' | 'client' | 'inventory' | 'quotation' | 'credit_note')[] = ['invoice', 'client', 'inventory', 'quotation', 'credit_note'];
     const searchTypes = Array.isArray(types) && types.length > 0 ? types : defaultTypes;
     const limitPerType = Math.ceil(limit / searchTypes.length);
 
@@ -164,6 +164,40 @@ export class SpotlightService {
         }
       } catch (err) {
         console.error('Spotlight quotation search error:', err);
+      }
+    }
+
+    // Search credit notes
+    if (searchTypes.includes('credit_note')) {
+      try {
+        const creditNotes = await this.db
+          .select()
+          .from(schema.creditNotes)
+          .where(
+            or(
+              ilike(schema.creditNotes.crNumber, searchTerm),
+              ilike(schema.creditNotes.clientName, searchTerm),
+              ilike(schema.creditNotes.invNumber, searchTerm),
+              ilike(schema.creditNotes.reference, searchTerm)
+            )
+          )
+          .orderBy(desc(schema.creditNotes.createdAt))
+          .limit(limitPerType);
+
+        for (const cn of creditNotes) {
+          const remaining = parseFloat(cn.total) - parseFloat(cn.totalUsed);
+          const effectiveStatus = cn.isArchived ? 'archived' : cn.status === 'U' ? 'used' : 'active';
+          results.push({
+            id: cn.id,
+            type: 'credit_note',
+            title: `Credit Note ${cn.crNumber}`,
+            subtitle: `${cn.clientName || 'No client'}${cn.invNumber ? ` · Inv ${cn.invNumber}` : ''} · $${remaining.toFixed(2)} remaining`,
+            status: effectiveStatus,
+            url: `/credit-notes/${cn.id}`,
+          });
+        }
+      } catch (err) {
+        console.error('Spotlight credit note search error:', err);
       }
     }
 

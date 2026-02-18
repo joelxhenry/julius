@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from './AuthContext';
-import { getComponentForPath } from '../utils/componentMapper';
 
 // Tab interface
 export interface Tab {
@@ -88,13 +87,24 @@ function generateTitleFromPath(path: string): string {
   if (path === '/clients') return 'Clients';
   if (path.includes('/payments')) return 'Payments';
   if (path.includes('/attendance')) return 'Attendance';
+  if (path === '/credit-notes') return 'Credit Notes';
+  if (path.startsWith('/credit-notes/')) {
+    const id = path.split('/')[2];
+    return `Credit Note #${id}`;
+  }
 
   // Default: capitalize first segment
   const segments = path.split('/').filter(Boolean);
   return segments[0]?.charAt(0).toUpperCase() + segments[0]?.slice(1) || 'Untitled';
 }
 
-export function TabProvider({ children }: { children: React.ReactNode }) {
+export function TabProvider({
+  children,
+  getComponentForPath,
+}: {
+  children: React.ReactNode;
+  getComponentForPath: (path: string) => React.ReactNode;
+}) {
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [maxTabs, setMaxTabsState] = useState<number>(DEFAULT_MAX_TABS);

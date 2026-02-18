@@ -28,6 +28,7 @@ interface CompactDetailHeaderProps {
   onNavigateAdjacent: (id: number | null) => void;
   onRecordPayment: () => void;
   onCreateCreditNote: () => void;
+  canCreateCreditNote?: boolean;
   onViewClient: () => void;
   onArchive: () => void;
   onEdit?: () => void;
@@ -61,6 +62,7 @@ export function CompactDetailHeader({
   onNavigateAdjacent,
   onRecordPayment,
   onCreateCreditNote,
+  canCreateCreditNote = true,
   onViewClient,
   onArchive,
   onEdit,
@@ -137,8 +139,12 @@ export function CompactDetailHeader({
             </Menu.Target>
             <Menu.Dropdown>
               {['active', 'partially_paid', 'paid'].includes(invoice.status) && (
-                <Menu.Item leftSection={<IconFileText size={16} />} onClick={onCreateCreditNote}>
-                  Create Credit Note
+                <Menu.Item
+                  leftSection={<IconFileText size={16} />}
+                  onClick={canCreateCreditNote ? onCreateCreditNote : undefined}
+                  disabled={!canCreateCreditNote}
+                >
+                  {canCreateCreditNote ? 'Create Credit Note' : 'Credit Note (no payments)'}
                 </Menu.Item>
               )}
               {invoice.clientId && (

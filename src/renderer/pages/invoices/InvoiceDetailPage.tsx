@@ -2,16 +2,17 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabParams } from '../../hooks/useTabParams';
-import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack } from '@mantine/core';
+import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Button, Tooltip, Table } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconAlertTriangle, IconArrowLeft } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
   CompactDetailHeader,
   CompactDetailInfoBar,
   InvoiceLineItemsReadOnly,
+  CreateCreditNoteModal,
 } from '../../components/invoices';
 import { PaymentHistoryCard } from '../../components/payments';
 import { CollapsibleSection } from '../../components/common';
@@ -57,6 +58,16 @@ interface LineItem {
   isTaxable: boolean;
 }
 
+interface CreditNote {
+  id: number;
+  crNumber: string;
+  crDate: string;
+  total: string;
+  totalUsed: string;
+  status: string;
+  isArchived: boolean;
+}
+
 // Cache for adjacent invoices to improve navigation performance
 interface InvoiceCache {
   invoice: Invoice;
@@ -76,7 +87,7 @@ export function InvoiceDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +96,8 @@ export function InvoiceDetailPage() {
     nextId: null,
   });
   const [paymentModalOpen, { open: openPaymentModal, close: closePaymentModal }] = useDisclosure(false);
+  const [cnModalOpen, { open: openCnModal, close: closeCnModal }] = useDisclosure(false);
+  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
 
   // Cache for adjacent invoices
   const invoiceCacheRef = useRef<Map<number, InvoiceCache>>(new Map());
@@ -121,6 +134,18 @@ export function InvoiceDetailPage() {
     } catch (error) {
       console.error('Failed to load invoice data:', error);
       return null;
+    }
+  }, []);
+
+  // Load credit notes for this invoice
+  const loadCreditNotes = useCallback(async (invNumber: string) => {
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTES_BY_INVOICE, { invNumber });
+      if (result.success && result.data) {
+        setCreditNotes(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load credit notes:', error);
     }
   }, []);
 
@@ -167,8 +192,9 @@ export function InvoiceDetailPage() {
         setAdjacentIds(cachedData.adjacentIds);
         setIsLoading(false);
 
-        // Prefetch adjacent invoices
+        // Prefetch adjacent invoices and load credit notes
         prefetchAdjacentInvoices(cachedData.adjacentIds.previousId, cachedData.adjacentIds.nextId);
+        loadCreditNotes(cachedData.invoice.invNumber);
         return;
       }
 
@@ -184,8 +210,9 @@ export function InvoiceDetailPage() {
           setLineItems(data.lineItems);
           setAdjacentIds(data.adjacentIds);
 
-          // Prefetch adjacent invoices in background
+          // Prefetch adjacent invoices in background and load credit notes
           prefetchAdjacentInvoices(data.adjacentIds.previousId, data.adjacentIds.nextId);
+          loadCreditNotes(data.invoice.invNumber);
         } else {
           notifications.show({
             title: 'Error',
@@ -206,7 +233,7 @@ export function InvoiceDetailPage() {
       }
     };
     loadInvoice();
-  }, [id, navigate, loadInvoiceData, prefetchAdjacentInvoices]);
+  }, [id, navigate, loadInvoiceData, prefetchAdjacentInvoices, loadCreditNotes]);
 
   // Navigate to previous/next invoice (same tab)
   const handleNavigateAdjacent = useCallback(
@@ -247,7 +274,7 @@ export function InvoiceDetailPage() {
     openPaymentModal();
   }, [openPaymentModal]);
 
-  // Handle payment recorded - refresh invoice data
+  // Handle payment recorded or voided - refresh invoice and credit notes
   const handlePaymentRecorded = useCallback(async () => {
     if (!invoice) return;
 
@@ -255,21 +282,63 @@ export function InvoiceDetailPage() {
     const updatedResult = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoice.id });
     if (updatedResult.success && updatedResult.data) {
       setInvoice(updatedResult.data);
-      // Also update the cache
       const cache = invoiceCacheRef.current;
       const cached = cache.get(invoice.id);
       if (cached) {
         cache.set(invoice.id, { ...cached, invoice: updatedResult.data });
       }
     }
-  }, [invoice]);
 
-  // Navigate to create credit note
+    // Also reload credit notes — a void may have restored a credit note's balance,
+    // and a credit application changes its used amount
+    loadCreditNotes(invoice.invNumber);
+  }, [invoice, loadCreditNotes]);
+
+  // A credit note requires at least some payment on the invoice
+  const creditNoteAllowed = invoice ? parseFloat(invoice.totalPaid) > 0 : false;
+  // For partial payments the credit is capped at totalPaid
+  const maxCreditAllowed = invoice ? parseFloat(invoice.totalPaid) : 0;
+
+  // Open create credit note modal (blocked when nothing has been paid)
   const handleCreateCreditNote = useCallback(() => {
-    if (invoice) {
-      navigate(`/credit-notes/new?invoiceId=${invoice.id}`);
+    if (!invoice || parseFloat(invoice.totalPaid) <= 0) {
+      notifications.show({
+        title: 'Cannot Create Credit Note',
+        message: 'A credit note can only be issued after at least one payment has been recorded on this invoice.',
+        color: 'orange',
+      });
+      return;
     }
-  }, [invoice, navigate]);
+    openCnModal();
+  }, [openCnModal, invoice]);
+
+  // Refresh invoice, line items, and credit notes after a credit note is created
+  const handleCreditNoteCreated = useCallback(async () => {
+    if (!invoice) return;
+    const cache = invoiceCacheRef.current;
+
+    // Reload credit notes
+    loadCreditNotes(invoice.invNumber);
+
+    // Reload invoice totals (they change when items are credited)
+    const updatedInv = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoice.id });
+    if (updatedInv.success && updatedInv.data) {
+      setInvoice(updatedInv.data);
+      const cached = cache.get(invoice.id);
+      if (cached) cache.set(invoice.id, { ...cached, invoice: updatedInv.data });
+    }
+
+    // Reload line items (quantities/items may have changed)
+    const updatedItems = await window.electron.invoke(
+      IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE,
+      { invNumber: invoice.invNumber }
+    );
+    if (updatedItems.success && updatedItems.data) {
+      setLineItems(updatedItems.data);
+      const cached = cache.get(invoice.id);
+      if (cached) cache.set(invoice.id, { ...cached, lineItems: updatedItems.data });
+    }
+  }, [invoice, loadCreditNotes]);
 
   // Navigate to client
   const handleViewClient = useCallback(() => {
@@ -317,6 +386,7 @@ export function InvoiceDetailPage() {
               onNavigateAdjacent={handleNavigateAdjacent}
               onRecordPayment={handleRecordPayment}
               onCreateCreditNote={handleCreateCreditNote}
+              canCreateCreditNote={creditNoteAllowed}
               onViewClient={handleViewClient}
               onArchive={handleArchive}
               onEdit={handleEdit}
@@ -377,6 +447,89 @@ export function InvoiceDetailPage() {
             onPaymentVoided={handlePaymentRecorded}
           />
         </CollapsibleSection>
+
+        {/* Collapsible: Credit Notes */}
+        <CollapsibleSection
+          title="Credit Notes"
+          icon={<IconReceipt size={18} style={{ color: 'var(--mantine-color-dimmed)' }} />}
+          badge={
+            creditNotes.length > 0 ? (
+              <Badge variant="light" color="teal" size="sm">
+                {creditNotes.length}
+              </Badge>
+            ) : undefined
+          }
+        >
+          <Stack gap="xs">
+            {!invoice.isArchived && (
+              <Group justify="flex-end">
+                <Tooltip
+                  label="No payments recorded — a credit note requires at least one payment"
+                  disabled={creditNoteAllowed}
+                  withArrow
+                >
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="teal"
+                    leftSection={<IconPlus size={14} />}
+                    onClick={handleCreateCreditNote}
+                    disabled={!creditNoteAllowed}
+                  >
+                    Create Credit Note
+                  </Button>
+                </Tooltip>
+              </Group>
+            )}
+            {creditNotes.length === 0 ? (
+              <Text c="dimmed" size="sm" ta="center" py="sm">
+                No credit notes issued for this invoice
+              </Text>
+            ) : (
+              <Table verticalSpacing={4} fz="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>CR #</Table.Th>
+                    <Table.Th>Date</Table.Th>
+                    <Table.Th ta="right">Total</Table.Th>
+                    <Table.Th ta="right">Remaining</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th w={40}></Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {creditNotes.map((cn) => {
+                    const remaining = parseFloat(cn.total) - parseFloat(cn.totalUsed);
+                    const effectiveStatus = cn.isArchived ? 'archived' : cn.status;
+                    const statusColor = effectiveStatus === 'A' ? 'green' : 'gray';
+                    const statusLabel = effectiveStatus === 'A' ? 'Active' : effectiveStatus === 'U' ? 'Used' : 'Archived';
+                    const crDate = new Date(cn.crDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                    return (
+                      <Table.Tr key={cn.id}>
+                        <Table.Td><Text fw={500} size="sm">{cn.crNumber}</Text></Table.Td>
+                        <Table.Td><Text size="sm">{crDate}</Text></Table.Td>
+                        <Table.Td ta="right"><Text size="sm">{formatCurrency(cn.total)}</Text></Table.Td>
+                        <Table.Td ta="right">
+                          <Text size="sm" c={remaining > 0 ? 'green' : 'dimmed'}>{formatCurrency(remaining.toString())}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge size="sm" variant="light" color={statusColor}>{statusLabel}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Tooltip label="View Credit Note">
+                            <ActionIcon variant="subtle" size="sm" onClick={() => openTab(`/credit-notes/${cn.id}`)}>
+                              <IconEye size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  })}
+                </Table.Tbody>
+              </Table>
+            )}
+          </Stack>
+        </CollapsibleSection>
       </Box>
 
       {/* Record Payment Modal */}
@@ -384,7 +537,18 @@ export function InvoiceDetailPage() {
         opened={paymentModalOpen}
         onClose={closePaymentModal}
         onPaymentRecorded={handlePaymentRecorded}
+        onCreditApplied={handlePaymentRecorded}
         invoice={invoice}
+      />
+
+      {/* Create Credit Note Modal */}
+      <CreateCreditNoteModal
+        opened={cnModalOpen}
+        onClose={closeCnModal}
+        onCreated={handleCreditNoteCreated}
+        invoice={invoice}
+        lineItems={lineItems}
+        maxCreditAllowed={maxCreditAllowed}
       />
     </>
   );

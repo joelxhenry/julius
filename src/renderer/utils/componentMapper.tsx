@@ -11,6 +11,7 @@ import {
 } from '../pages/employees';
 import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
+import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
 
 /**
  * Maps a route path to its corresponding React component
@@ -91,6 +92,10 @@ export function getComponentForPath(path: string): React.ReactNode {
   if (cleanPath.match(/^suppliers\/\d+\/edit$/)) {
     return <SupplierEditorPage />;
   }
+
+  // Credit Notes
+  if (cleanPath === 'credit-notes') return <CreditNotesPage />;
+  if (cleanPath.match(/^credit-notes\/\d+$/)) return <CreditNoteDetailPage />;
 
   // Default fallback
   return <div>Page not found: {path}</div>;

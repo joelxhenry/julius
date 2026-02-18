@@ -17,6 +17,7 @@ import {
   Textarea,
   Card,
   Divider,
+  Alert,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -95,6 +96,7 @@ export function PaymentDetailPage() {
   const [voidModalOpen, { open: openVoidModal, close: closeVoidModal }] = useDisclosure(false);
   const [voidReason, setVoidReason] = useState('');
   const [isVoiding, setIsVoiding] = useState(false);
+  const [isVoided, setIsVoided] = useState(false);
 
   const loadPayment = useCallback(async () => {
     if (!id) {
@@ -133,6 +135,7 @@ export function PaymentDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    setIsVoided(false);
     loadPayment();
   }, [loadPayment]);
 
@@ -170,7 +173,7 @@ export function PaymentDetailPage() {
           color: 'green',
         });
         closeVoidModal();
-        loadPayment(); // Reload to show updated state
+        setIsVoided(true);
       } else {
         notifications.show({
           title: 'Error',
@@ -215,73 +218,55 @@ export function PaymentDetailPage() {
     return colors[type] || 'gray';
   };
 
-  const handleViewDocument = useCallback(async () => {
-    if (!payment) return;
-
-    if (payment.documentType === 'INVOICE' && payment.invoiceNumber) {
-      // Get invoice by number to find the ID
-      try {
-        console.log('Looking up invoice with number:', payment.invoiceNumber);
-        const result = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, {
-          invNumber: payment.invoiceNumber
-        });
-        console.log('Invoice lookup result:', result);
-
-        if (result.success && result.data) {
-          openTab(`/invoices/${result.data.id}`);
-        } else {
-          console.error('Invoice not found for number:', payment.invoiceNumber);
-          notifications.show({
-            title: 'Invoice Not Found',
-            message: `Invoice ${payment.invoiceNumber} could not be found. It may have been deleted or archived.`,
-            color: 'red',
-          });
-        }
-      } catch (error) {
-        console.error('Failed to find invoice:', error);
-        notifications.show({
-          title: 'Error',
-          message: 'Failed to load invoice',
-          color: 'red',
-        });
-      }
-    } else if (payment.documentType === 'CREDIT' && payment.creditNoteNumber) {
-      // Get credit note by number to find the ID
-      try {
-        console.log('Looking up credit note with number:', payment.creditNoteNumber);
-        const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTE_BY_NUMBER, {
-          crNumber: payment.creditNoteNumber
-        });
-        console.log('Credit note lookup result:', result);
-
-        if (result.success && result.data) {
-          openTab(`/credit-notes/${result.data.id}`);
-        } else {
-          console.error('Credit note not found for number:', payment.creditNoteNumber);
-          notifications.show({
-            title: 'Credit Note Not Found',
-            message: `Credit note ${payment.creditNoteNumber} could not be found. It may have been deleted or archived.`,
-            color: 'red',
-          });
-        }
-      } catch (error) {
-        console.error('Failed to find credit note:', error);
-        notifications.show({
-          title: 'Error',
-          message: 'Failed to load credit note',
-          color: 'red',
-        });
-      }
-    } else {
-      // Handle case where document number is missing
-      console.warn('Cannot view document - missing document number:', payment);
-      notifications.show({
-        title: 'Cannot View Document',
-        message: 'This payment does not have an associated document number.',
-        color: 'orange',
+  const handleViewInvoice = useCallback(async () => {
+    if (!payment?.invoiceNumber) return;
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, {
+        invNumber: payment.invoiceNumber,
       });
+      if (result.success && result.data) {
+        openTab(`/invoices/${result.data.id}`);
+      } else {
+        notifications.show({
+          title: 'Invoice Not Found',
+          message: `Invoice ${payment.invoiceNumber} could not be found.`,
+          color: 'red',
+        });
+      }
+    } catch {
+      notifications.show({ title: 'Error', message: 'Failed to load invoice', color: 'red' });
     }
   }, [payment, openTab]);
+
+  const handleViewCreditNote = useCallback(async () => {
+    if (!payment?.creditNoteNumber) return;
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTE_BY_NUMBER, {
+        crNumber: payment.creditNoteNumber,
+      });
+      if (result.success && result.data) {
+        openTab(`/credit-notes/${result.data.id}`);
+      } else {
+        notifications.show({
+          title: 'Credit Note Not Found',
+          message: `Credit note ${payment.creditNoteNumber} could not be found.`,
+          color: 'red',
+        });
+      }
+    } catch {
+      notifications.show({ title: 'Error', message: 'Failed to load credit note', color: 'red' });
+    }
+  }, [payment, openTab]);
+
+  // For backwards-compat: primary document navigation
+  const handleViewDocument = useCallback(async () => {
+    if (!payment) return;
+    if (payment.invoiceNumber) {
+      handleViewInvoice();
+    } else if (payment.creditNoteNumber) {
+      handleViewCreditNote();
+    }
+  }, [payment, handleViewInvoice, handleViewCreditNote]);
 
   if (isLoading) {
     return (
@@ -307,7 +292,7 @@ export function PaymentDetailPage() {
   }
 
   const amount = parseFloat(payment.amount);
-  const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
+  const isVoidEntry = isVoided || amount < 0 || payment.paymentDesc?.includes('VOID');
 
   return (
     <>
@@ -389,10 +374,16 @@ export function PaymentDetailPage() {
 
                   <Grid.Col span={6}>
                     <Group gap="xs">
-                      <IconCash size={16} color="gray" />
+                      {payment.documentType === 'CREDIT' && payment.creditNoteNumber
+                        ? <IconReceipt size={16} color="gray" />
+                        : <IconCash size={16} color="gray" />}
                       <Text size="sm" c="dimmed">Payment Method</Text>
                     </Group>
-                    <Text fw={500} ml={24}>{payment.paymentDesc2 || payment.paymentDesc || '-'}</Text>
+                    <Text fw={500} ml={24}>
+                      {payment.documentType === 'CREDIT' && payment.creditNoteNumber
+                        ? 'Credit Note'
+                        : payment.paymentDesc2 || payment.paymentDesc || '-'}
+                    </Text>
                   </Grid.Col>
                 </Grid>
 
@@ -408,35 +399,41 @@ export function PaymentDetailPage() {
                       variant="light"
                       mt={4}
                     >
-                      {payment.documentType}
+                      {payment.documentType === 'CREDIT' && payment.invoiceNumber
+                        ? 'Credit Applied to Invoice'
+                        : payment.documentType}
                     </Badge>
                   </Grid.Col>
 
-                  <Grid.Col span={6}>
-                    <Text size="sm" c="dimmed">Document Number</Text>
-                    <Group gap="xs" mt={4}>
-                      <Text
-                        fw={500}
-                        c="blue"
-                        style={{ cursor: 'pointer' }}
-                        onClick={handleViewDocument}
-                      >
-                        {payment.documentNumber}
-                      </Text>
-                    </Group>
-                  </Grid.Col>
-
-                  {payment.invoiceNumber && payment.invoiceNumber !== payment.documentNumber && (
+                  {/* Invoice link — shown for all payment types that have an invoice */}
+                  {payment.invoiceNumber && (
                     <Grid.Col span={6}>
-                      <Text size="sm" c="dimmed">Invoice Number</Text>
-                      <Text fw={500}>{payment.invoiceNumber}</Text>
+                      <Text size="sm" c="dimmed">Invoice</Text>
+                      <Text
+                        fw={600}
+                        c="blue"
+                        mt={4}
+                        style={{ cursor: 'pointer' }}
+                        onClick={handleViewInvoice}
+                      >
+                        {payment.invoiceNumber}
+                      </Text>
                     </Grid.Col>
                   )}
 
+                  {/* Credit note link — shown when a credit note was the payment source */}
                   {payment.creditNoteNumber && (
                     <Grid.Col span={6}>
                       <Text size="sm" c="dimmed">Credit Note</Text>
-                      <Text fw={500}>{payment.creditNoteNumber}</Text>
+                      <Text
+                        fw={600}
+                        c="teal"
+                        mt={4}
+                        style={{ cursor: 'pointer' }}
+                        onClick={handleViewCreditNote}
+                      >
+                        {payment.creditNoteNumber}
+                      </Text>
                     </Grid.Col>
                   )}
                 </Grid>
@@ -504,14 +501,38 @@ export function PaymentDetailPage() {
               <Stack gap="sm">
                 <Text fw={600}>Quick Actions</Text>
 
-                <Button
-                  fullWidth
-                  variant="light"
-                  leftSection={getDocumentTypeIcon(payment.documentType)}
-                  onClick={handleViewDocument}
-                >
-                  View {payment.documentType === 'INVOICE' ? 'Invoice' : payment.documentType === 'CREDIT' ? 'Credit Note' : 'Document'}
-                </Button>
+                {/* For credit note application payments — show both links */}
+                {payment.documentType === 'CREDIT' && payment.invoiceNumber && payment.creditNoteNumber ? (
+                  <>
+                    <Button
+                      fullWidth
+                      variant="light"
+                      color="blue"
+                      leftSection={<IconFileInvoice size={16} />}
+                      onClick={handleViewInvoice}
+                    >
+                      View Invoice {payment.invoiceNumber}
+                    </Button>
+                    <Button
+                      fullWidth
+                      variant="light"
+                      color="teal"
+                      leftSection={<IconReceipt size={16} />}
+                      onClick={handleViewCreditNote}
+                    >
+                      View Credit Note {payment.creditNoteNumber}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    fullWidth
+                    variant="light"
+                    leftSection={getDocumentTypeIcon(payment.documentType)}
+                    onClick={handleViewDocument}
+                  >
+                    View {payment.documentType === 'INVOICE' ? 'Invoice' : payment.documentType === 'CREDIT' ? 'Credit Note' : 'Document'}
+                  </Button>
+                )}
 
                 {canVoidPayment(payment) && (
                   <Button
@@ -554,13 +575,28 @@ export function PaymentDetailPage() {
               <Text size="sm">{formatDate(payment.paymentDate)}</Text>
             </Group>
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Document</Text>
-              <Text size="sm">{payment.documentNumber}</Text>
+              <Text size="sm" c="dimmed">Method</Text>
+              <Text size="sm">
+                {payment.documentType === 'CREDIT' && payment.creditNoteNumber
+                  ? `Credit Note ${payment.creditNoteNumber}`
+                  : payment.paymentDesc2 || payment.paymentDesc || '-'}
+              </Text>
             </Group>
           </Stack>
 
+          {payment.documentType === 'CREDIT' && payment.creditNoteNumber && (
+            <Alert icon={<IconReceipt size={16} />} color="teal" variant="light">
+              <Text size="sm">
+                Voiding this payment will restore{' '}
+                <Text span fw={600}>{formatCurrency(payment.amount)}</Text>{' '}
+                back to credit note{' '}
+                <Text span fw={600}>{payment.creditNoteNumber}</Text>.
+              </Text>
+            </Alert>
+          )}
+
           <Text size="sm" c="dimmed">
-            This will reverse the payment and restore the document balance. This action cannot be undone.
+            This will reverse the payment and restore the invoice balance. This action cannot be undone.
           </Text>
 
           <Textarea
