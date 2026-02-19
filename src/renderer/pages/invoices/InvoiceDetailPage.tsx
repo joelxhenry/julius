@@ -15,7 +15,7 @@ import {
   CreateCreditNoteModal,
 } from '../../components/invoices';
 import { PaymentHistoryCard } from '../../components/payments';
-import { CollapsibleSection, PrintButton } from '../../components/common';
+import { CollapsibleSection, LookupTicketButton, PrintButton } from '../../components/common';
 
 interface Invoice {
   id: number;
@@ -405,6 +405,7 @@ export function InvoiceDetailPage() {
               onEdit={handleEdit}
             />
           </Box>
+          <LookupTicketButton source="invoice" invoiceId={invoice.id} sourceReference={`Invoice #${invoice.invNumber}`} />
           <PrintButton documentType="invoice" documentId={invoice.id} />
         </Group>
 

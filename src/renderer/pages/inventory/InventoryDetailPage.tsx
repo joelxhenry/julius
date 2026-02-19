@@ -44,7 +44,7 @@ import { AlternateForm } from '../../components/forms/AlternateForm';
 import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, ReceivingTab, InventoryEditModal } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
 import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
-import { CopyButton } from '../../components/common';
+import { CopyButton, LookupTicketButton } from '../../components/common';
 
 interface Inventory {
   id: number;
@@ -637,6 +637,16 @@ export function InventoryDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <LookupTicketButton
+            source="inventory"
+            inventoryItem={{
+              sku: item.sku,
+              description1: item.description1,
+              description2: item.description2,
+              location: item.location,
+              quantity: item.quantity,
+            }}
+          />
           <Button
             variant="outline"
             leftSection={<IconAdjustments size={16} />}

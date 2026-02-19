@@ -23,6 +23,10 @@ import { getThermalInvoiceTemplate } from './print-templates/thermal/thermalInvo
 import { getThermalQuotationTemplate } from './print-templates/thermal/thermalQuotationTemplate';
 import { getThermalCreditNoteTemplate } from './print-templates/thermal/thermalCreditNoteTemplate';
 import { getThermalPaymentReceiptTemplate } from './print-templates/thermal/thermalPaymentReceiptTemplate';
+import { getThermalLookupTicketTemplate } from './print-templates/thermal/thermalLookupTicketTemplate';
+import { InventoryService } from './InventoryService';
+import { VariantService } from './VariantService';
+import { LookupTicketRequest, LookupTicketData, LookupTicketItem } from '../../shared/types/lookupTicket';
 
 export interface PrintResult {
   html?: string;
@@ -42,6 +46,8 @@ export class PrintService {
     private paymentService: PaymentService,
     private documentLineItemService: DocumentLineItemService,
     private employeeService: EmployeeService,
+    private inventoryService: InventoryService,
+    private variantService: VariantService,
   ) {}
 
   // --- Hidden window lifecycle ---
@@ -477,5 +483,135 @@ export class PrintService {
   async getAvailablePrinters(): Promise<Electron.PrinterInfo[]> {
     const win = await this.getOrCreateHiddenWindow();
     return win.webContents.getPrintersAsync();
+  }
+
+  // --- Lookup Ticket ---
+
+  async generateLookupTicket(request: LookupTicketRequest): Promise<PrintResult> {
+    const settings = await this.loadPrintSettings();
+    const companyName = (await this.systemSettingsService.getValue(SystemSettingKeys.COMPANY_NAME)) || '';
+    const data = await this.buildLookupTicketData(request, companyName);
+    const html = getThermalLookupTicketTemplate(data, settings.thermalPaperWidth);
+    const previewWidth = settings.thermalPaperWidth === '80mm' ? 360 : 280;
+
+    if (request.outputMode === 'preview') {
+      const previewWin = new BrowserWindow({
+        width: previewWidth,
+        height: 700,
+        title: 'Lookup Ticket Preview',
+        webPreferences: { contextIsolation: true, nodeIntegration: false },
+      });
+      await previewWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      return { previewing: true };
+    }
+
+    // Print mode
+    const win = await this.getOrCreateHiddenWindow();
+    await this.loadHtmlInWindow(win, html);
+    const useSilent = !!settings.thermalPrinterName;
+
+    return new Promise<PrintResult>((resolve) => {
+      win.webContents.print(
+        {
+          silent: useSilent,
+          printBackground: true,
+          deviceName: settings.thermalPrinterName || undefined,
+          copies: 1,
+        },
+        (success) => {
+          resolve({ printed: success });
+        },
+      );
+    });
+  }
+
+  private async buildLookupTicketData(
+    request: LookupTicketRequest,
+    companyName: string,
+  ): Promise<LookupTicketData> {
+    const printedAt = new Date().toLocaleString();
+
+    if (request.source === 'inventory' && request.inventoryItem) {
+      const inv = request.inventoryItem;
+      const desc = [inv.description1, inv.description2].filter(Boolean).join(' - ');
+      return {
+        companyName,
+        printedAt,
+        sourceReference: request.sourceReference || `Item ${inv.sku}`,
+        items: [{
+          sku: inv.sku,
+          description: desc || inv.sku,
+          location: inv.location || '',
+          quantity: inv.quantity,
+        }],
+      };
+    }
+
+    if (request.source === 'invoice' && request.invoiceId) {
+      const invoice = await this.invoiceService.findById(request.invoiceId);
+      if (!invoice) throw new Error(`Invoice with ID ${request.invoiceId} not found`);
+      const lineItems = await this.documentLineItemService.findByInvoice(invoice.invNumber);
+      const items = await this.resolveLocations(lineItems);
+      return {
+        companyName,
+        printedAt,
+        sourceReference: request.sourceReference || `Invoice #${invoice.invNumber}`,
+        items,
+      };
+    }
+
+    if (request.source === 'quotation' && request.quotationId) {
+      const quotation = await this.quotationService.findById(request.quotationId);
+      if (!quotation) throw new Error(`Quotation with ID ${request.quotationId} not found`);
+      const lineItems = await this.documentLineItemService.findByQuotation(quotation.quoteNum);
+      const items = await this.resolveLocations(lineItems);
+      return {
+        companyName,
+        printedAt,
+        sourceReference: request.sourceReference || `Quote #${quotation.quoteNum}`,
+        items,
+      };
+    }
+
+    return { companyName, printedAt, sourceReference: request.sourceReference || '', items: [] };
+  }
+
+  private async resolveLocations(
+    lineItems: Array<{ sku: string; description: string | null; quantity: number }>,
+  ): Promise<LookupTicketItem[]> {
+    const results: LookupTicketItem[] = [];
+
+    for (const li of lineItems) {
+      if (!li.sku) {
+        results.push({ sku: '', description: li.description || '', location: '', quantity: li.quantity });
+        continue;
+      }
+
+      let location = '';
+
+      // Try inventory item first
+      const invItem = await this.inventoryService.findBySku(li.sku);
+      if (invItem) {
+        location = invItem.location || '';
+      } else {
+        // Try variant — resolve parent's location
+        const variant = await this.variantService.findByVariantSku(li.sku);
+        if (variant && variant.parentSku) {
+          const parent = await this.inventoryService.findBySku(variant.parentSku);
+          if (parent) {
+            location = parent.location || '';
+          }
+        }
+      }
+
+      results.push({
+        sku: li.sku,
+        description: li.description || li.sku,
+        location,
+        quantity: li.quantity,
+      });
+    }
+
+    return results;
   }
 }

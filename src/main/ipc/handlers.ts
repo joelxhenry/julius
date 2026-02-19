@@ -37,6 +37,7 @@ import { ImageStorageService } from '../services/ImageStorageService';
 import { InventoryImageService, UploadImageParams } from '../services/InventoryImageService';
 import { PrintService } from '../services/PrintService';
 import { PrintDocumentRequest } from '../../shared/types/print';
+import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
 // Import controllers
 import {
@@ -216,6 +217,8 @@ function registerDataHandlers() {
     paymentService,
     documentLineItemService,
     employeeService,
+    inventoryService,
+    variantService,
   );
 
   // Initialize controllers
@@ -859,6 +862,8 @@ function registerDataHandlers() {
     printController.getAvailablePrinters());
   ipcMain.handle(IpcChannel.GET_PRINT_SETTINGS, () =>
     printController.getPrintSettings());
+  ipcMain.handle(IpcChannel.PRINT_LOOKUP_TICKET, (_, params: LookupTicketRequest) =>
+    printController.printLookupTicket(params));
 
   dataHandlersRegistered = true;
   console.log('Data handlers registered successfully');

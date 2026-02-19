@@ -1,5 +1,6 @@
 import { PrintService, PrintResult } from '../services/PrintService';
 import { PrintDocumentType, PrintOutputMode } from '../../shared/types/print';
+import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
 export class PrintController {
   constructor(private printService: PrintService) {}
@@ -49,6 +50,15 @@ export class PrintController {
     try {
       const settings = await this.printService.getPrintSettings();
       return this.wrapSuccess(settings);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async printLookupTicket(params: LookupTicketRequest) {
+    try {
+      const result = await this.printService.generateLookupTicket(params);
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }
