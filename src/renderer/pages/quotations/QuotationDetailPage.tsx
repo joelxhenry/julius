@@ -9,6 +9,7 @@ import { IconArrowLeft, IconFileInvoice } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { QuotationDetailHeader, QuotationDetailInfoBar } from '../../components/quotations';
 import { InvoiceLineItemsReadOnly } from '../../components/invoices';
+import { PrintButton } from '../../components/common';
 
 interface Quotation {
   id: number;
@@ -403,6 +404,7 @@ export function QuotationDetailPage() {
               onArchive={handleArchive}
             />
           </Box>
+          <PrintButton documentType="quotation" documentId={quotation.id} />
         </Group>
 
         {/* Compact Info Bar */}

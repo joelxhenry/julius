@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { InvoiceLineItemsReadOnly } from '../../components/invoices';
+import { PrintButton } from '../../components/common';
 
 interface CreditNote {
   id: number;
@@ -258,6 +259,7 @@ export function CreditNoteDetailPage() {
             </Group>
           </Paper>
         </Box>
+        <PrintButton documentType="credit_note" documentId={creditNote.id} />
       </Group>
 
       {/* Info Bar */}

@@ -320,4 +320,10 @@ export enum IpcChannel {
   REORDER_IMAGES = 'db:reorder-images',
   GET_IMAGE_FILE = 'db:get-image-file',
   GET_ALL_PRODUCT_IMAGES = 'db:get-all-product-images',
+
+  // Print operations
+  PRINT_DOCUMENT = 'print:document',
+  PRINT_DOCUMENT_PREVIEW = 'print:document-preview',
+  PRINT_DOCUMENT_PDF = 'print:document-pdf',
+  GET_AVAILABLE_PRINTERS = 'print:get-printers',
 }

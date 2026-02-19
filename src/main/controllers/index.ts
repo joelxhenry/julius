@@ -34,3 +34,6 @@ export * from './EmployeeShiftsController';
 // Settings Controllers
 export * from './DatabaseSettingsController';
 export * from './SystemSettingsController';
+
+// Print Controller
+export * from './PrintController';

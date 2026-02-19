@@ -35,6 +35,7 @@ import {
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
+import { PrintButton } from '../../components/common';
 
 interface Payment {
   id: number;
@@ -340,6 +341,7 @@ export function PaymentDetailPage() {
           </Group>
 
           <Group gap="sm">
+            <PrintButton documentType="payment_receipt" documentId={payment.id} />
             {canVoidPayment(payment) && (
               <Button
                 color="red"

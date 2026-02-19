@@ -15,6 +15,7 @@ import {
   Center,
   ActionIcon,
   Tooltip,
+  SegmentedControl,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import {
@@ -87,12 +88,24 @@ export function InvoicesPage() {
   const [accessModalOpen, { open: openAccessModal, close: closeAccessModal }] = useDisclosure(false);
   const [sortField, setSortField] = useState<string>('invDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Handle sort change
   const handleSort = useCallback((field: string, direction: SortDirection) => {
     setSortField(field);
     setSortDirection(direction);
   }, []);
+
+  // Filter invoices by status
+  const filteredRecent = useMemo(() => {
+    if (statusFilter === 'all') return recentInvoices;
+    return recentInvoices.filter((inv) => inv.status === statusFilter);
+  }, [recentInvoices, statusFilter]);
+
+  const filteredSearch = useMemo(() => {
+    if (statusFilter === 'all') return searchResults;
+    return searchResults.filter((inv) => inv.status === statusFilter);
+  }, [searchResults, statusFilter]);
 
   // Load recent invoices
   useEffect(() => {
@@ -282,14 +295,29 @@ export function InvoicesPage() {
           </Button>
         </Group>
 
-        {/* Search */}
-        <TextInput
-          placeholder="Search by invoice number, client name, or reference..."
-          leftSection={isSearching ? <Loader size={14} /> : <IconSearch size={14} />}
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.currentTarget.value)}
-          size="md"
-        />
+        {/* Search + Status Filter */}
+        <Group gap="sm" align="flex-end">
+          <TextInput
+            placeholder="Search by invoice number, client name, or reference..."
+            leftSection={isSearching ? <Loader size={14} /> : <IconSearch size={14} />}
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.currentTarget.value)}
+            size="md"
+            style={{ flex: 1 }}
+          />
+          <SegmentedControl
+            size="md"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            data={[
+              { label: 'All', value: 'all' },
+              { label: 'Active', value: 'active' },
+              { label: 'Partial', value: 'partially_paid' },
+              { label: 'Paid', value: 'paid' },
+              { label: 'Archived', value: 'archived' },
+            ]}
+          />
+        </Group>
 
         {/* Tabs */}
         <Paper withBorder radius="md" p={0}>
@@ -300,9 +328,9 @@ export function InvoicesPage() {
               </Tabs.Tab>
               <Tabs.Tab value="all" leftSection={<IconArchive size={16} />}>
                 All
-                {searchQuery.length >= 2 && searchResults.length > 0 && (
+                {searchQuery.length >= 2 && filteredSearch.length > 0 && (
                   <Badge ml="xs" size="sm" variant="light" color="blue">
-                    {searchResults.length}
+                    {filteredSearch.length}
                   </Badge>
                 )}
               </Tabs.Tab>
@@ -312,11 +340,11 @@ export function InvoicesPage() {
             <Tabs.Panel value="recent" p="md">
               <DataTable
                 columns={viewOnlyColumns}
-                data={recentInvoices}
+                data={filteredRecent}
                 loading={isLoadingRecent}
                 keyField="id"
                 onRowClick={handleViewInvoice}
-                emptyMessage="No recent invoices"
+                emptyMessage={statusFilter === 'all' ? 'No recent invoices' : `No ${statusLabels[statusFilter]?.toLowerCase() || statusFilter} invoices`}
                 stickyActionsColumn
                 sortField={sortField}
                 sortDirection={sortDirection}
@@ -338,11 +366,11 @@ export function InvoicesPage() {
               ) : (
                 <DataTable
                   columns={viewOnlyColumns}
-                  data={searchResults}
+                  data={filteredSearch}
                   loading={isSearching}
                   keyField="id"
                   onRowClick={handleViewInvoice}
-                  emptyMessage={`No invoices found for "${searchQuery}"`}
+                  emptyMessage={statusFilter === 'all' ? `No invoices found for "${searchQuery}"` : `No ${statusLabels[statusFilter]?.toLowerCase() || statusFilter} invoices found for "${searchQuery}"`}
                   stickyActionsColumn
                   sortField={sortField}
                   sortDirection={sortDirection}

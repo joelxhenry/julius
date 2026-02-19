@@ -17,6 +17,7 @@ import {
 } from '@tabler/icons-react';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
 import { InterfaceSettingsTab } from './InterfaceSettingsTab';
+import { CompanySettingsTab } from './CompanySettingsTab';
 import { TaxSettingsTab } from './TaxSettingsTab';
 import { StorageSettingsTab } from './StorageSettingsTab';
 
@@ -62,10 +63,7 @@ export function SettingsPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="company" pt="lg">
-            <Stack align="center" py="xl">
-              <IconBuilding size={48} stroke={1} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Company settings coming soon</Text>
-            </Stack>
+            <CompanySettingsTab />
           </Tabs.Panel>
 
           <Tabs.Panel value="documents" pt="lg">

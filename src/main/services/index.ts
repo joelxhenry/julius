@@ -38,6 +38,9 @@ export { GctPaymentService, type GctPaymentQueryParams } from './GctPaymentServi
 export { EmployeeAttendanceService, type AttendanceQueryParams } from './EmployeeAttendanceService';
 export { EmployeeShiftsService } from './EmployeeShiftsService';
 
+// Print Service
+export { PrintService, type PrintResult } from './PrintService';
+
 // System Settings
 export {
   SystemSettingsService,

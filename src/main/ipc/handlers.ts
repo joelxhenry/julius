@@ -35,6 +35,8 @@ import {
 import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams } from '../services/PaymentTransactionService';
 import { ImageStorageService } from '../services/ImageStorageService';
 import { InventoryImageService, UploadImageParams } from '../services/InventoryImageService';
+import { PrintService } from '../services/PrintService';
+import { PrintDocumentRequest } from '../../shared/types/print';
 
 // Import controllers
 import {
@@ -59,6 +61,7 @@ import {
   EmployeeAttendanceController,
   EmployeeShiftsController,
   SystemSettingsController,
+  PrintController,
 } from '../controllers';
 
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
@@ -205,6 +208,15 @@ function registerDataHandlers() {
       console.error('Failed to initialize image storage from settings:', err);
     });
   const inventoryImageService = new InventoryImageService(db, imageStorageService);
+  const printService = new PrintService(
+    systemSettingsService,
+    invoiceService,
+    quotationService,
+    creditNoteService,
+    paymentService,
+    documentLineItemService,
+    employeeService,
+  );
 
   // Initialize controllers
   const branchController = new BranchController(branchService);
@@ -228,6 +240,7 @@ function registerDataHandlers() {
   const employeeAttendanceController = new EmployeeAttendanceController(employeeAttendanceService);
   const employeeShiftsController = new EmployeeShiftsController(employeeShiftsService);
   const systemSettingsController = new SystemSettingsController(systemSettingsService);
+  const printController = new PrintController(printService);
 
   // ===== BRANCH HANDLERS =====
   ipcMain.handle(IpcChannel.GET_BRANCHES, () => branchController.getAll());
@@ -834,6 +847,16 @@ function registerDataHandlers() {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get all product images' };
     }
   });
+
+  // ===== PRINT HANDLERS =====
+  ipcMain.handle(IpcChannel.PRINT_DOCUMENT, (_, params: PrintDocumentRequest) =>
+    printController.printDocument(params));
+  ipcMain.handle(IpcChannel.PRINT_DOCUMENT_PREVIEW, (_, params: { documentType: string; documentId: number }) =>
+    printController.printDocument({ ...params, outputMode: 'preview' } as PrintDocumentRequest));
+  ipcMain.handle(IpcChannel.PRINT_DOCUMENT_PDF, (_, params: { documentType: string; documentId: number }) =>
+    printController.printDocument({ ...params, outputMode: 'pdf' } as PrintDocumentRequest));
+  ipcMain.handle(IpcChannel.GET_AVAILABLE_PRINTERS, () =>
+    printController.getAvailablePrinters());
 
   dataHandlersRegistered = true;
   console.log('Data handlers registered successfully');

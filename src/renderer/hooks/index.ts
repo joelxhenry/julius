@@ -66,3 +66,6 @@ export type { InvoiceFormState, InvoiceFormActions } from './useInvoiceForm';
 export { useInvoiceSubmit } from './useInvoiceSubmit';
 
 export { useInvoiceKeyboardShortcuts } from './useInvoiceKeyboardShortcuts';
+
+// Print hooks
+export { usePrint } from './usePrint';

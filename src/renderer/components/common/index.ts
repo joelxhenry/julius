@@ -8,6 +8,7 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { ImageGalleryModal } from './ImageGalleryModal';
 export { ImageUploader } from './ImageUploader';
 export { KeyboardShortcutHelp } from './KeyboardShortcutHelp';
+export { PrintButton } from './PrintButton';
 export { ProductThumbnail, ProductThumbnailPlaceholder } from './ProductThumbnail';
 export { RouteParamsProvider } from './RouteParamsProvider';
 export { Spotlight } from './Spotlight';
