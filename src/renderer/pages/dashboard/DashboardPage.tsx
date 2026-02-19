@@ -1,7 +1,6 @@
 import { Stack, Title, Text, Paper, SimpleGrid, ThemeIcon, Group } from '@mantine/core';
 import {
   IconChartBar,
-  IconUsers,
   IconSettings,
   IconUserCog,
   IconLock,
@@ -48,12 +47,6 @@ const dashboardSections: DashboardSection[] = [
     color: 'blue',
   },
   {
-    title: 'HR Features',
-    description: 'Employee management and attendance reports',
-    icon: <IconUsers size={24} />,
-    color: 'green',
-  },
-  {
     title: 'System Settings',
     description: 'Application configuration',
     icon: <IconSettings size={24} />,
@@ -61,7 +54,7 @@ const dashboardSections: DashboardSection[] = [
     path: '/settings',
   },
   {
-    title: 'User Management',
+    title: 'Employee Management',
     description: 'View, create, and manage employee accounts',
     icon: <IconUserCog size={24} />,
     color: 'violet',

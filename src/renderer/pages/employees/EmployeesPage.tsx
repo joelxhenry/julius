@@ -9,18 +9,11 @@ import {
   Badge,
   ActionIcon,
   Text,
-  Menu,
   Checkbox,
 } from '@mantine/core';
 import {
   IconSearch,
   IconPlus,
-  IconEye,
-  IconEdit,
-  IconDotsVertical,
-  IconShield,
-  IconUserOff,
-  IconUserCheck,
   IconRefresh,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
@@ -152,54 +145,6 @@ export function EmployeesPage() {
               Salesperson
             </Badge>
           ) : null,
-      },
-      {
-        key: 'actions',
-        header: 'Actions',
-        width: 100,
-        render: (employee) => (
-          <Group gap="xs">
-            <ActionIcon
-              variant="subtle"
-              color="blue"
-              onClick={() => navigate(`/employees/${employee.id}`)}
-              title="View details"
-            >
-              <IconEye size={16} />
-            </ActionIcon>
-            <Menu position="bottom-end" shadow="md">
-              <Menu.Target>
-                <ActionIcon variant="subtle">
-                  <IconDotsVertical size={16} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  leftSection={<IconEdit size={14} />}
-                  onClick={() => navigate(`/employees/${employee.id}/edit`)}
-                >
-                  Edit
-                </Menu.Item>
-                <Menu.Item
-                  leftSection={<IconShield size={14} />}
-                  onClick={() => navigate(`/employees/${employee.id}/permissions`)}
-                >
-                  Manage Permissions
-                </Menu.Item>
-                <Menu.Divider />
-                {employee.status === 'active' ? (
-                  <Menu.Item leftSection={<IconUserOff size={14} />} color="red">
-                    Deactivate
-                  </Menu.Item>
-                ) : (
-                  <Menu.Item leftSection={<IconUserCheck size={14} />} color="green">
-                    Activate
-                  </Menu.Item>
-                )}
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
-        ),
       },
     ],
     [navigate]

@@ -9,6 +9,7 @@ import '@mantine/notifications/styles.css';
 
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { ModalsProvider } from '@mantine/modals';
 import { AuthProvider } from './renderer/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
@@ -25,6 +26,7 @@ function AppWithTheme() {
 
   return (
     <MantineProvider theme={theme} forceColorScheme={colorScheme}>
+      <ModalsProvider>
       <Notifications position="top-right" />
       <ThemeTransitionOverlay />
       <DatabaseConnectionProvider>
@@ -36,6 +38,7 @@ function AppWithTheme() {
           </KeyboardShortcutProvider>
         </AuthProvider>
       </DatabaseConnectionProvider>
+      </ModalsProvider>
     </MantineProvider>
   );
 }
