@@ -62,7 +62,7 @@ export function QuotationDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +70,7 @@ export function QuotationDetailPage() {
     previousId: null,
     nextId: null,
   });
+  const [salespersonName, setSalespersonName] = useState<string | null>(null);
 
   // Convert to invoice modal
   const [convertModalOpen, { open: openConvertModal, close: closeConvertModal }] = useDisclosure(false);
@@ -77,6 +78,18 @@ export function QuotationDetailPage() {
 
   // Cache for adjacent quotations
   const quotationCacheRef = useRef<Map<number, QuotationCache>>(new Map());
+
+  // Fetch salesperson name when quotation loads
+  useEffect(() => {
+    if (!quotation?.salespersonId) { setSalespersonName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: quotation.salespersonId }).then((res) => {
+      if (res.success && res.data) {
+        const emp = res.data;
+        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        setSalespersonName(name);
+      }
+    });
+  }, [quotation?.salespersonId]);
 
   // Update tab title when quotation loads (only when this tab is active)
   useEffect(() => {
@@ -393,7 +406,12 @@ export function QuotationDetailPage() {
         </Group>
 
         {/* Compact Info Bar */}
-        <QuotationDetailInfoBar quotation={quotation} onViewClient={handleViewClient} />
+        <QuotationDetailInfoBar
+          quotation={quotation}
+          onViewClient={handleViewClient}
+          salespersonName={salespersonName}
+          onViewSalesperson={() => quotation.salespersonId && openTab(`/employees/${quotation.salespersonId}`)}
+        />
 
         {/* Notes */}
         {quotation.notes && (

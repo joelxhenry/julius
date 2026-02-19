@@ -98,9 +98,22 @@ export function InvoiceDetailPage() {
   const [paymentModalOpen, { open: openPaymentModal, close: closePaymentModal }] = useDisclosure(false);
   const [cnModalOpen, { open: openCnModal, close: closeCnModal }] = useDisclosure(false);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
+  const [salespersonName, setSalespersonName] = useState<string | null>(null);
 
   // Cache for adjacent invoices
   const invoiceCacheRef = useRef<Map<number, InvoiceCache>>(new Map());
+
+  // Fetch salesperson name when invoice loads
+  useEffect(() => {
+    if (!invoice?.salespersonId) { setSalespersonName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: invoice.salespersonId }).then((res) => {
+      if (res.success && res.data) {
+        const emp = res.data;
+        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        setSalespersonName(name);
+      }
+    });
+  }, [invoice?.salespersonId]);
 
   // Update tab title when invoice loads (only when this tab is active)
   useEffect(() => {
@@ -395,7 +408,12 @@ export function InvoiceDetailPage() {
         </Group>
 
         {/* Compact Info Bar */}
-        <CompactDetailInfoBar invoice={invoice} onViewClient={handleViewClient} />
+        <CompactDetailInfoBar
+          invoice={invoice}
+          onViewClient={handleViewClient}
+          salespersonName={salespersonName}
+          onViewSalesperson={() => invoice.salespersonId && openTab(`/employees/${invoice.salespersonId}`)}
+        />
 
         {/* Admin Override Info */}
         {invoice.adminOverrideById && (

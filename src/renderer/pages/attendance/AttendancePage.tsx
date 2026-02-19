@@ -35,6 +35,7 @@ interface SafeEmployee {
   lastName: string | null;
   title: string | null;
   department: string | null;
+  status: string | null;
 }
 
 interface EmployeeShift {
@@ -155,6 +156,13 @@ export function AttendancePage() {
         return;
       }
       const emp = empRes.data as SafeEmployee;
+
+      if (emp.status !== 'active') {
+        setError('This employee is not active and cannot clock in or out.');
+        setCode('');
+        return;
+      }
+
       setEmployee(emp);
 
       const shiftRes = await window.electron.invoke(IpcChannel.GET_ACTIVE_SHIFT, { employeeId: emp.id });

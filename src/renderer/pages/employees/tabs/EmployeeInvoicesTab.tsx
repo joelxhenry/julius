@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Paper, Table, Badge, Text, Skeleton, Group, Pagination } from '@mantine/core';
 import { IpcChannel } from '../../../../shared/types/ipc';
+import { useTabContext } from '../../../contexts/TabContext';
 
 interface Props {
   employeeId: number;
@@ -11,6 +12,7 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-JM', { style: 'currency', currency: 'JMD' }).format(amount);
 
 export function EmployeeInvoicesTab({ employeeId, isActive }: Props) {
+  const { openTab } = useTabContext();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -77,7 +79,11 @@ export function EmployeeInvoicesTab({ employeeId, isActive }: Props) {
               </Table.Tr>
             ) : (
               invoices.map((inv) => (
-                <Table.Tr key={inv.id}>
+                <Table.Tr
+                  key={inv.id}
+                  onClick={() => openTab(`/invoices/${inv.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <Table.Td><Text fw={500}>{inv.invNumber}</Text></Table.Td>
                   <Table.Td>{inv.invDate}</Table.Td>
                   <Table.Td>{inv.clientName || '-'}</Table.Td>

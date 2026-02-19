@@ -1,5 +1,5 @@
 import { Paper, Group, Text, Anchor } from '@mantine/core';
-import { IconUser, IconCalendar, IconFileText, IconCreditCard } from '@tabler/icons-react';
+import { IconUser, IconCalendar, IconFileText, IconCreditCard, IconUserCheck } from '@tabler/icons-react';
 
 interface Invoice {
   id: number;
@@ -15,6 +15,8 @@ interface Invoice {
 interface CompactDetailInfoBarProps {
   invoice: Invoice;
   onViewClient: () => void;
+  salespersonName?: string | null;
+  onViewSalesperson?: () => void;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -27,7 +29,7 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function CompactDetailInfoBar({ invoice, onViewClient }: CompactDetailInfoBarProps) {
+export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, onViewSalesperson }: CompactDetailInfoBarProps) {
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 40 }}>
       <Group gap="lg" wrap="nowrap" h="100%">
@@ -37,6 +39,17 @@ export function CompactDetailInfoBar({ invoice, onViewClient }: CompactDetailInf
             <IconUser size={14} color="gray" />
             <Anchor size="sm" onClick={onViewClient} c="blue" style={{ cursor: 'pointer' }}>
               {invoice.clientName}
+            </Anchor>
+          </Group>
+        )}
+
+        {/* Salesperson */}
+        {salespersonName && (
+          <Group gap={4} wrap="nowrap">
+            <IconUserCheck size={14} color="gray" />
+            <Text size="sm" c="dimmed">Salesperson:</Text>
+            <Anchor size="sm" onClick={onViewSalesperson} c="violet" style={{ cursor: 'pointer' }}>
+              {salespersonName}
             </Anchor>
           </Group>
         )}

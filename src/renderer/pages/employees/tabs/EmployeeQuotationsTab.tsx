@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Paper, Table, Text, Skeleton, Group, Pagination } from '@mantine/core';
 import { IpcChannel } from '../../../../shared/types/ipc';
+import { useTabContext } from '../../../contexts/TabContext';
 
 interface Props {
   employeeId: number;
@@ -11,6 +12,7 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-JM', { style: 'currency', currency: 'JMD' }).format(amount);
 
 export function EmployeeQuotationsTab({ employeeId, isActive }: Props) {
+  const { openTab } = useTabContext();
   const [quotations, setQuotations] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -76,7 +78,7 @@ export function EmployeeQuotationsTab({ employeeId, isActive }: Props) {
               </Table.Tr>
             ) : (
               quotations.map((quote) => (
-                <Table.Tr key={quote.id}>
+                <Table.Tr key={quote.id} onClick={() => openTab(`/quotations/${quote.id}`)} style={{ cursor: 'pointer' }}>
                   <Table.Td><Text fw={500}>{quote.quoteNum}</Text></Table.Td>
                   <Table.Td>{quote.quoteDate}</Table.Td>
                   <Table.Td>{quote.clientName || '-'}</Table.Td>

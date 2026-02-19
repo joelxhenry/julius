@@ -1,5 +1,5 @@
 import { Paper, Group, Text, Anchor } from '@mantine/core';
-import { IconUser, IconCalendar, IconFileText, IconTag } from '@tabler/icons-react';
+import { IconUser, IconCalendar, IconFileText, IconTag, IconUserCheck } from '@tabler/icons-react';
 
 interface Quotation {
   id: number;
@@ -14,6 +14,8 @@ interface Quotation {
 interface QuotationDetailInfoBarProps {
   quotation: Quotation;
   onViewClient: () => void;
+  salespersonName?: string | null;
+  onViewSalesperson?: () => void;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -26,7 +28,7 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function QuotationDetailInfoBar({ quotation, onViewClient }: QuotationDetailInfoBarProps) {
+export function QuotationDetailInfoBar({ quotation, onViewClient, salespersonName, onViewSalesperson }: QuotationDetailInfoBarProps) {
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 40 }}>
       <Group gap="lg" wrap="nowrap" h="100%">
@@ -36,6 +38,17 @@ export function QuotationDetailInfoBar({ quotation, onViewClient }: QuotationDet
             <IconUser size={14} color="gray" />
             <Anchor size="sm" onClick={onViewClient} c="blue" style={{ cursor: 'pointer' }}>
               {quotation.clientName}
+            </Anchor>
+          </Group>
+        )}
+
+        {/* Salesperson */}
+        {salespersonName && (
+          <Group gap={4} wrap="nowrap">
+            <IconUserCheck size={14} color="gray" />
+            <Text size="sm" c="dimmed">Salesperson:</Text>
+            <Anchor size="sm" onClick={onViewSalesperson} c="violet" style={{ cursor: 'pointer' }}>
+              {salespersonName}
             </Anchor>
           </Group>
         )}

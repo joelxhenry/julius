@@ -88,6 +88,7 @@ export function CreditNoteDetailPage() {
   const [creditNote, setCreditNote] = useState<CreditNote | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [salespersonName, setSalespersonName] = useState<string | null>(null);
 
   const loadCreditNote = useCallback(async () => {
     if (!id) return;
@@ -128,6 +129,17 @@ export function CreditNoteDetailPage() {
   useEffect(() => {
     loadCreditNote();
   }, [loadCreditNote]);
+
+  useEffect(() => {
+    if (!creditNote?.salespersonId) { setSalespersonName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: creditNote.salespersonId }).then((res) => {
+      if (res.success && res.data) {
+        const emp = res.data;
+        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        setSalespersonName(name);
+      }
+    });
+  }, [creditNote?.salespersonId]);
 
   useEffect(() => {
     if (creditNote && location.pathname === `/credit-notes/${id}`) {
@@ -279,6 +291,20 @@ export function CreditNoteDetailPage() {
             <Group gap={4}>
               <Text size="sm" c="dimmed">Reference:</Text>
               <Text size="sm">{creditNote.reference}</Text>
+            </Group>
+          )}
+          {salespersonName && (
+            <Group gap={4}>
+              <Text size="sm" c="dimmed">Salesperson:</Text>
+              <Text
+                size="sm"
+                fw={500}
+                c="violet"
+                style={{ cursor: 'pointer' }}
+                onClick={() => openTab(`/employees/${creditNote.salespersonId}`)}
+              >
+                {salespersonName}
+              </Text>
             </Group>
           )}
         </Group>

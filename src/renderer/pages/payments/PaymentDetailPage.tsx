@@ -91,12 +91,25 @@ export function PaymentDetailPage() {
   const { openTab, updateTabTitle, replaceCurrentTab } = useTabContext();
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [processedByName, setProcessedByName] = useState<string | null>(null);
 
   // Void modal state
   const [voidModalOpen, { open: openVoidModal, close: closeVoidModal }] = useDisclosure(false);
   const [voidReason, setVoidReason] = useState('');
   const [isVoiding, setIsVoiding] = useState(false);
   const [isVoided, setIsVoided] = useState(false);
+
+  // Fetch processed-by employee name
+  useEffect(() => {
+    if (!payment?.processedById) { setProcessedByName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: payment.processedById }).then((res) => {
+      if (res.success && res.data) {
+        const emp = res.data;
+        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        setProcessedByName(name);
+      }
+    });
+  }, [payment?.processedById]);
 
   const loadPayment = useCallback(async () => {
     if (!id) {
@@ -489,7 +502,15 @@ export function PaymentDetailPage() {
                   {payment.processedById && (
                     <Group justify="space-between">
                       <Text size="sm" c="dimmed">Processed By</Text>
-                      <Text size="sm">Employee #{payment.processedById}</Text>
+                      <Text
+                        size="sm"
+                        fw={500}
+                        c="violet"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => openTab(`/employees/${payment.processedById}`)}
+                      >
+                        {processedByName || `Employee #${payment.processedById}`}
+                      </Text>
                     </Group>
                   )}
                 </Stack>
