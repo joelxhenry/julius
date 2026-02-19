@@ -7,7 +7,7 @@ import { CreditNoteService } from './CreditNoteService';
 import { PaymentService } from './PaymentService';
 import { DocumentLineItemService } from './DocumentLineItemService';
 import { EmployeeService } from './EmployeeService';
-import { PrintDocumentType, PrintOutputMode } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth } from '../../shared/types/print';
 import {
   CompanyInfo,
   InvoiceTemplateData,
@@ -19,6 +19,10 @@ import { getInvoiceTemplate } from './print-templates/invoiceTemplate';
 import { getQuotationTemplate } from './print-templates/quotationTemplate';
 import { getCreditNoteTemplate } from './print-templates/creditNoteTemplate';
 import { getPaymentReceiptTemplate } from './print-templates/paymentReceiptTemplate';
+import { getThermalInvoiceTemplate } from './print-templates/thermal/thermalInvoiceTemplate';
+import { getThermalQuotationTemplate } from './print-templates/thermal/thermalQuotationTemplate';
+import { getThermalCreditNoteTemplate } from './print-templates/thermal/thermalCreditNoteTemplate';
+import { getThermalPaymentReceiptTemplate } from './print-templates/thermal/thermalPaymentReceiptTemplate';
 
 export interface PrintResult {
   html?: string;
@@ -258,6 +262,34 @@ export class PrintService {
     };
   }
 
+  // --- Print settings ---
+
+  private async loadPrintSettings(): Promise<PrintSettingsConfig> {
+    const [fmtInv, fmtQuo, fmtCn, fmtPay, paperWidth, printerName] = await Promise.all([
+      this.systemSettingsService.getValue(SystemSettingKeys.PRINT_FORMAT_INVOICE),
+      this.systemSettingsService.getValue(SystemSettingKeys.PRINT_FORMAT_QUOTATION),
+      this.systemSettingsService.getValue(SystemSettingKeys.PRINT_FORMAT_CREDIT_NOTE),
+      this.systemSettingsService.getValue(SystemSettingKeys.PRINT_FORMAT_PAYMENT_RECEIPT),
+      this.systemSettingsService.getValue(SystemSettingKeys.THERMAL_PAPER_WIDTH),
+      this.systemSettingsService.getValue(SystemSettingKeys.THERMAL_PRINTER_NAME),
+    ]);
+
+    return {
+      documentFormats: {
+        invoice: (fmtInv as PrintFormat) || 'standard',
+        quotation: (fmtQuo as PrintFormat) || 'standard',
+        credit_note: (fmtCn as PrintFormat) || 'standard',
+        payment_receipt: (fmtPay as PrintFormat) || 'standard',
+      },
+      thermalPaperWidth: (paperWidth as ThermalPaperWidth) || '80mm',
+      thermalPrinterName: printerName || '',
+    };
+  }
+
+  async getPrintSettings(): Promise<PrintSettingsConfig> {
+    return this.loadPrintSettings();
+  }
+
   // --- HTML generation ---
 
   private async generateHtml(documentType: PrintDocumentType, documentId: number): Promise<string> {
@@ -283,6 +315,82 @@ export class PrintService {
     }
   }
 
+  private async generateThermalHtml(
+    documentType: PrintDocumentType,
+    documentId: number,
+    paperWidth: ThermalPaperWidth,
+  ): Promise<string> {
+    switch (documentType) {
+      case 'invoice': {
+        const data = await this.loadInvoiceData(documentId);
+        return getThermalInvoiceTemplate(data, paperWidth);
+      }
+      case 'quotation': {
+        const data = await this.loadQuotationData(documentId);
+        return getThermalQuotationTemplate(data, paperWidth);
+      }
+      case 'credit_note': {
+        const data = await this.loadCreditNoteData(documentId);
+        return getThermalCreditNoteTemplate(data, paperWidth);
+      }
+      case 'payment_receipt': {
+        const data = await this.loadPaymentData(documentId);
+        return getThermalPaymentReceiptTemplate(data, paperWidth);
+      }
+      default:
+        throw new Error(`Unsupported document type: ${documentType}`);
+    }
+  }
+
+  private async generateThermalDocument(
+    documentType: PrintDocumentType,
+    documentId: number,
+    outputMode: PrintOutputMode,
+    settings: PrintSettingsConfig,
+    copies?: number,
+  ): Promise<PrintResult> {
+    if (outputMode === 'pdf') {
+      throw new Error('PDF export is not supported for thermal format. Use print or preview instead.');
+    }
+
+    const html = await this.generateThermalHtml(documentType, documentId, settings.thermalPaperWidth);
+    const previewWidth = settings.thermalPaperWidth === '80mm' ? 360 : 280;
+
+    if (outputMode === 'preview') {
+      const previewWin = new BrowserWindow({
+        width: previewWidth,
+        height: 700,
+        title: `Thermal Preview — ${documentType}`,
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+      });
+      await previewWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      return { previewing: true };
+    }
+
+    // Print mode
+    const win = await this.getOrCreateHiddenWindow();
+    await this.loadHtmlInWindow(win, html);
+
+    const useSilent = !!settings.thermalPrinterName;
+
+    return new Promise<PrintResult>((resolve) => {
+      win.webContents.print(
+        {
+          silent: useSilent,
+          printBackground: true,
+          deviceName: settings.thermalPrinterName || undefined,
+          copies: copies || 1,
+        },
+        (success) => {
+          resolve({ printed: success });
+        },
+      );
+    });
+  }
+
   // --- Load HTML into hidden window and wait for render ---
 
   private async loadHtmlInWindow(win: BrowserWindow, html: string): Promise<void> {
@@ -298,6 +406,12 @@ export class PrintService {
     printerName?: string,
     copies?: number,
   ): Promise<PrintResult> {
+    // Check if this document type is configured for thermal printing
+    const settings = await this.loadPrintSettings();
+    if (settings.documentFormats[documentType] === 'thermal') {
+      return this.generateThermalDocument(documentType, documentId, outputMode, settings, copies);
+    }
+
     const html = await this.generateHtml(documentType, documentId);
 
     if (outputMode === 'preview') {

@@ -2,6 +2,10 @@ export type PrintDocumentType = 'invoice' | 'quotation' | 'credit_note' | 'payme
 
 export type PrintOutputMode = 'print' | 'preview' | 'pdf';
 
+export type PrintFormat = 'standard' | 'thermal';
+
+export type ThermalPaperWidth = '80mm' | '58mm';
+
 export interface PrintDocumentRequest {
   documentType: PrintDocumentType;
   documentId: number;
@@ -15,4 +19,10 @@ export interface PrintDocumentResponse {
   pdfPath?: string;
   printed?: boolean;
   previewing?: boolean;
+}
+
+export interface PrintSettingsConfig {
+  documentFormats: Record<PrintDocumentType, PrintFormat>;
+  thermalPaperWidth: ThermalPaperWidth;
+  thermalPrinterName: string;
 }

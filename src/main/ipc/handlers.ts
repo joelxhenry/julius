@@ -857,6 +857,8 @@ function registerDataHandlers() {
     printController.printDocument({ ...params, outputMode: 'pdf' } as PrintDocumentRequest));
   ipcMain.handle(IpcChannel.GET_AVAILABLE_PRINTERS, () =>
     printController.getAvailablePrinters());
+  ipcMain.handle(IpcChannel.GET_PRINT_SETTINGS, () =>
+    printController.getPrintSettings());
 
   dataHandlersRegistered = true;
   console.log('Data handlers registered successfully');

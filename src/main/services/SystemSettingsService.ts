@@ -25,6 +25,13 @@ export const SystemSettingKeys = {
   // Interface settings
   RECENT_INVOICES_LIMIT: 'recent_invoices_limit',
   RECENT_QUOTATIONS_LIMIT: 'recent_quotations_limit',
+  // Printing settings
+  PRINT_FORMAT_INVOICE: 'print_format_invoice',
+  PRINT_FORMAT_QUOTATION: 'print_format_quotation',
+  PRINT_FORMAT_CREDIT_NOTE: 'print_format_credit_note',
+  PRINT_FORMAT_PAYMENT_RECEIPT: 'print_format_payment_receipt',
+  THERMAL_PAPER_WIDTH: 'thermal_paper_width',
+  THERMAL_PRINTER_NAME: 'thermal_printer_name',
 } as const;
 
 export type SystemSettingKey = (typeof SystemSettingKeys)[keyof typeof SystemSettingKeys];
@@ -40,6 +47,7 @@ export const SystemSettingGroups = {
   DOCUMENTS: 'documents',
   STORAGE: 'storage',
   INTERFACE: 'interface',
+  PRINTING: 'printing',
 } as const;
 
 export type SystemSettingGroup = (typeof SystemSettingGroups)[keyof typeof SystemSettingGroups];
@@ -295,6 +303,55 @@ export class SystemSettingsService {
         value: '3',
         group: SystemSettingGroups.INTERFACE,
         description: 'Maximum number of recent quotations to display on the new quotation page',
+        readonly: false,
+        visible: true,
+      },
+      // Printing settings
+      {
+        key: SystemSettingKeys.PRINT_FORMAT_INVOICE,
+        value: 'standard',
+        group: SystemSettingGroups.PRINTING,
+        description: 'Print format for invoices (standard or thermal)',
+        readonly: false,
+        visible: true,
+      },
+      {
+        key: SystemSettingKeys.PRINT_FORMAT_QUOTATION,
+        value: 'standard',
+        group: SystemSettingGroups.PRINTING,
+        description: 'Print format for quotations (standard or thermal)',
+        readonly: false,
+        visible: true,
+      },
+      {
+        key: SystemSettingKeys.PRINT_FORMAT_CREDIT_NOTE,
+        value: 'standard',
+        group: SystemSettingGroups.PRINTING,
+        description: 'Print format for credit notes (standard or thermal)',
+        readonly: false,
+        visible: true,
+      },
+      {
+        key: SystemSettingKeys.PRINT_FORMAT_PAYMENT_RECEIPT,
+        value: 'standard',
+        group: SystemSettingGroups.PRINTING,
+        description: 'Print format for payment receipts (standard or thermal)',
+        readonly: false,
+        visible: true,
+      },
+      {
+        key: SystemSettingKeys.THERMAL_PAPER_WIDTH,
+        value: '80mm',
+        group: SystemSettingGroups.PRINTING,
+        description: 'Thermal paper width (80mm or 58mm)',
+        readonly: false,
+        visible: true,
+      },
+      {
+        key: SystemSettingKeys.THERMAL_PRINTER_NAME,
+        value: '',
+        group: SystemSettingGroups.PRINTING,
+        description: 'Default thermal printer name (empty for system dialog)',
         readonly: false,
         visible: true,
       },

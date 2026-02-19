@@ -44,4 +44,13 @@ export class PrintController {
       return this.handleError(error);
     }
   }
+
+  async getPrintSettings() {
+    try {
+      const settings = await this.printService.getPrintSettings();
+      return this.wrapSuccess(settings);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }

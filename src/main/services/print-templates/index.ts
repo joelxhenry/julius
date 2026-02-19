@@ -4,3 +4,4 @@ export { getCreditNoteTemplate } from './creditNoteTemplate';
 export { getPaymentReceiptTemplate } from './paymentReceiptTemplate';
 export * from './types';
 export { formatCurrency, formatDate, escapeHtml } from './baseStyles';
+export * from './thermal';

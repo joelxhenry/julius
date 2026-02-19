@@ -20,6 +20,7 @@ import { InterfaceSettingsTab } from './InterfaceSettingsTab';
 import { CompanySettingsTab } from './CompanySettingsTab';
 import { TaxSettingsTab } from './TaxSettingsTab';
 import { StorageSettingsTab } from './StorageSettingsTab';
+import { DocumentSettingsTab } from './DocumentSettingsTab';
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<string | null>('database');
@@ -67,10 +68,7 @@ export function SettingsPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="documents" pt="lg">
-            <Stack align="center" py="xl">
-              <IconFileText size={48} stroke={1} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Document settings coming soon</Text>
-            </Stack>
+            <DocumentSettingsTab />
           </Tabs.Panel>
 
           <Tabs.Panel value="tax" pt="lg">

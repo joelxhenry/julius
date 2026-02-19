@@ -326,4 +326,5 @@ export enum IpcChannel {
   PRINT_DOCUMENT_PREVIEW = 'print:document-preview',
   PRINT_DOCUMENT_PDF = 'print:document-pdf',
   GET_AVAILABLE_PRINTERS = 'print:get-printers',
+  GET_PRINT_SETTINGS = 'print:get-settings',
 }
