@@ -68,8 +68,13 @@ export function getThermalHeader(company: CompanyInfo): string {
     company.companyTrn ? `TRN: ${company.companyTrn}` : null,
   ].filter(Boolean);
 
+  const logo = company.companyLogo
+    ? `<img src="${company.companyLogo}" style="height:30px;width:30px;margin-bottom:4px;" />`
+    : '';
+
   return `
     <div class="thermal-header">
+      ${logo}
       <div class="company-name">${escapeHtml(company.companyName || 'Company')}</div>
       ${details.map(d => `<div class="company-detail">${escapeHtml(d!)}</div>`).join('')}
     </div>

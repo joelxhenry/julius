@@ -83,6 +83,8 @@ function copyNodeModules(buildPath: string) {
 const config: ForgeConfig = {
   packagerConfig: {
     asar: false,
+    icon: './resources/icon',
+    extraResource: ['./resources/icon.png'],
     afterCopy: [(buildPath, electronVersion, platform, arch, callback) => {
       try {
         copyNodeModules(buildPath);
@@ -99,6 +101,7 @@ const config: ForgeConfig = {
     new MakerSquirrel({
       name: 'TurboJulius',
       setupExe: 'TurboJulius-Setup.exe',
+      setupIcon: './resources/icon.ico',
     }),
     new MakerZIP({}, ['darwin', 'win32']),
     new MakerRpm({}),

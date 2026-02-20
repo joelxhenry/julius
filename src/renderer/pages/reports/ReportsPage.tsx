@@ -3,8 +3,6 @@ import { Box, NavLink, Text, Stack, ThemeIcon, ScrollArea, ActionIcon, Tooltip }
 import {
   IconCash,
   IconClockDollar,
-  IconPackages,
-  IconUsersGroup,
   IconCreditCard,
   IconChartBar,
   IconLayoutSidebarLeftCollapse,
@@ -12,8 +10,6 @@ import {
 } from '@tabler/icons-react';
 import { SalesSummaryReport } from './SalesSummaryReport';
 import { ReceivablesAgingReport } from './ReceivablesAgingReport';
-import { InventoryValuationReport } from './InventoryValuationReport';
-import { SalespersonPerformanceReport } from './SalespersonPerformanceReport';
 import { PaymentCollectionReport } from './PaymentCollectionReport';
 
 interface ReportEntry {
@@ -41,22 +37,6 @@ const reports: ReportEntry[] = [
     icon: <IconClockDollar size={20} />,
     color: 'orange',
     component: <ReceivablesAgingReport />,
-  },
-  {
-    key: 'inventory',
-    label: 'Inventory Valuation',
-    description: 'Stock value at cost and retail',
-    icon: <IconPackages size={20} />,
-    color: 'blue',
-    component: <InventoryValuationReport />,
-  },
-  {
-    key: 'salesperson',
-    label: 'Salesperson Performance',
-    description: 'Sales, quotes & credit notes per person',
-    icon: <IconUsersGroup size={20} />,
-    color: 'violet',
-    component: <SalespersonPerformanceReport />,
   },
   {
     key: 'payments',

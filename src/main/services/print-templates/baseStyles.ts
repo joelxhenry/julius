@@ -88,10 +88,17 @@ export function getHeader(company: CompanyInfo): string {
     company.companyTrn ? `TRN: ${company.companyTrn}` : null,
   ].filter(Boolean).join(' &bull; ');
 
+  const logo = company.companyLogo
+    ? `<img src="${company.companyLogo}" style="height:40px;width:40px;margin-right:10px;border-radius:4px;" />`
+    : '';
+
   return `
-    <div class="header">
-      <div class="company-name">${escapeHtml(company.companyName || 'Company')}</div>
-      <div class="company-details">${details}</div>
+    <div class="header" style="display:flex;align-items:center;">
+      ${logo}
+      <div>
+        <div class="company-name">${escapeHtml(company.companyName || 'Company')}</div>
+        <div class="company-details">${details}</div>
+      </div>
     </div>
   `;
 }

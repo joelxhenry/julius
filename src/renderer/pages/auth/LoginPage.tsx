@@ -9,12 +9,12 @@ import {
   Box,
   Text,
   Transition,
-  ThemeIcon,
   Group,
   Anchor,
 } from '@mantine/core';
-import { IconAlertCircle, IconUser, IconEngine, IconLock, IconArrowLeft } from '@tabler/icons-react';
+import { IconAlertCircle, IconUser, IconLock, IconArrowLeft } from '@tabler/icons-react';
 import { useAuth } from '../../contexts/AuthContext';
+
 
 const MIN_PIN_LENGTH = 4;
 const MAX_PIN_LENGTH = 6;
@@ -100,7 +100,6 @@ export function LoginPage() {
           >
             <IconEngine size={48} stroke={1.5} />
           </ThemeIcon>
-
           <Text size="2rem" fw={700} c="white" ta="center">
             Turbo Julius
           </Text>

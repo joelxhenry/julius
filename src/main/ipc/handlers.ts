@@ -900,10 +900,6 @@ function registerDataHandlers() {
     reportController.getSalesSummary(params));
   ipcMain.handle(IpcChannel.GET_RECEIVABLES_AGING_REPORT, () =>
     reportController.getReceivablesAging());
-  ipcMain.handle(IpcChannel.GET_INVENTORY_VALUATION_REPORT, (_, params: any = {}) =>
-    reportController.getInventoryValuation(params));
-  ipcMain.handle(IpcChannel.GET_SALESPERSON_PERFORMANCE_REPORT, (_, params: any = {}) =>
-    reportController.getSalespersonPerformance(params));
   ipcMain.handle(IpcChannel.GET_PAYMENT_COLLECTION_REPORT, (_, params: any = {}) =>
     reportController.getPaymentCollection(params));
 

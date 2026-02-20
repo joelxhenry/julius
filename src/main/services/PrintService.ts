@@ -1,5 +1,6 @@
-import { BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import * as fs from 'fs';
+import * as path from 'path';
 import { SystemSettingsService, SystemSettingKeys } from './SystemSettingsService';
 import { InvoiceService } from './InvoiceService';
 import { QuotationService } from './QuotationService';
@@ -96,6 +97,17 @@ export class PrintService {
       this.systemSettingsService.getTaxRate(),
     ]);
 
+    let companyLogo: string | undefined;
+    try {
+      const logoPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'icon.png')
+        : path.join(__dirname, '../../resources/icon.png');
+      const buf = fs.readFileSync(logoPath);
+      companyLogo = `data:image/png;base64,${buf.toString('base64')}`;
+    } catch {
+      // Logo file unavailable, skip
+    }
+
     return {
       companyName: name || '',
       companyAddress: address || '',
@@ -105,6 +117,7 @@ export class PrintService {
       currencyCode: currCode || 'JMD',
       currencySymbol: currSymbol || '$',
       taxRate,
+      companyLogo,
     };
   }
 

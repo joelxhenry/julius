@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip } from '@mantine/core';
 import { IconLogout, IconUser, IconSun, IconMoon, IconSearch } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import logoUrl from '../../assets/logo.png';
 import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSpotlight } from '../../contexts/SpotlightContext';
@@ -35,6 +36,7 @@ export function Header() {
       }}
     >
       <Group>
+        <img src={logoUrl} alt="" style={{ height: 32, width: 32, borderRadius: 4 }} />
         <Title order={3} style={{ letterSpacing: '-0.025em' }}>
           Turbo Julius
         </Title>

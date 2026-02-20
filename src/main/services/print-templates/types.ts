@@ -7,6 +7,7 @@ export interface CompanyInfo {
   currencyCode: string;
   currencySymbol: string;
   taxRate: number;
+  companyLogo?: string;
 }
 
 export interface PrintLineItem {

@@ -326,8 +326,6 @@ export enum IpcChannel {
   // Report operations
   GET_SALES_REPORT = 'db:get-sales-report',
   GET_RECEIVABLES_AGING_REPORT = 'db:get-receivables-aging-report',
-  GET_INVENTORY_VALUATION_REPORT = 'db:get-inventory-valuation-report',
-  GET_SALESPERSON_PERFORMANCE_REPORT = 'db:get-salesperson-performance-report',
   GET_PAYMENT_COLLECTION_REPORT = 'db:get-payment-collection-report',
 
   // Export operations
