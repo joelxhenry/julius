@@ -170,6 +170,8 @@ export enum IpcChannel {
   DELETE_CREDIT_NOTE = 'db:delete-credit-note',
   RECORD_CREDIT_NOTE_USAGE = 'db:record-credit-note-usage',
   ARCHIVE_CREDIT_NOTE = 'db:archive-credit-note',
+  RESTORE_CREDIT_NOTE_INVENTORY = 'db:restore-credit-note-inventory',
+  PROCESS_INVOICE_RETURN = 'db:process-invoice-return',
 
   // Document line item operations
   GET_DOCUMENT_LINE_ITEMS = 'db:get-document-line-items',

@@ -5,7 +5,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Button, Tooltip, Table } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye, IconPackageExport } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
@@ -13,6 +13,7 @@ import {
   CompactDetailInfoBar,
   InvoiceLineItemsReadOnly,
   CreateCreditNoteModal,
+  ProcessReturnModal,
 } from '../../components/invoices';
 import { PaymentHistoryCard } from '../../components/payments';
 import { CollapsibleSection, LookupTicketButton, PrintButton } from '../../components/common';
@@ -97,6 +98,7 @@ export function InvoiceDetailPage() {
   });
   const [paymentModalOpen, { open: openPaymentModal, close: closePaymentModal }] = useDisclosure(false);
   const [cnModalOpen, { open: openCnModal, close: closeCnModal }] = useDisclosure(false);
+  const [returnModalOpen, { open: openReturnModal, close: closeReturnModal }] = useDisclosure(false);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [salespersonName, setSalespersonName] = useState<string | null>(null);
 
@@ -307,23 +309,45 @@ export function InvoiceDetailPage() {
     loadCreditNotes(invoice.invNumber);
   }, [invoice, loadCreditNotes]);
 
-  // A credit note requires at least some payment on the invoice
+  // Credit note requires at least one payment — capped at amount paid
   const creditNoteAllowed = invoice ? parseFloat(invoice.totalPaid) > 0 : false;
-  // For partial payments the credit is capped at totalPaid
   const maxCreditAllowed = invoice ? parseFloat(invoice.totalPaid) : 0;
 
-  // Open create credit note modal (blocked when nothing has been paid)
   const handleCreateCreditNote = useCallback(() => {
-    if (!invoice || parseFloat(invoice.totalPaid) <= 0) {
-      notifications.show({
-        title: 'Cannot Create Credit Note',
-        message: 'A credit note can only be issued after at least one payment has been recorded on this invoice.',
-        color: 'orange',
-      });
-      return;
-    }
+    if (!invoice || parseFloat(invoice.totalPaid) <= 0) return;
     openCnModal();
   }, [openCnModal, invoice]);
+
+  // Process return — available on any invoice regardless of payment
+  const handleProcessReturn = useCallback(() => {
+    if (!invoice) return;
+    openReturnModal();
+  }, [openReturnModal, invoice]);
+
+  // Refresh invoice and line items after a return is processed
+  const handleReturnProcessed = useCallback(async () => {
+    if (!invoice) return;
+    const cache = invoiceCacheRef.current;
+
+    // Reload invoice totals
+    const updatedInv = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoice.id });
+    if (updatedInv.success && updatedInv.data) {
+      setInvoice(updatedInv.data);
+      const cached = cache.get(invoice.id);
+      if (cached) cache.set(invoice.id, { ...cached, invoice: updatedInv.data });
+    }
+
+    // Reload line items
+    const updatedItems = await window.electron.invoke(
+      IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE,
+      { invNumber: invoice.invNumber }
+    );
+    if (updatedItems.success && updatedItems.data) {
+      setLineItems(updatedItems.data);
+      const cached = cache.get(invoice.id);
+      if (cached) cache.set(invoice.id, { ...cached, lineItems: updatedItems.data });
+    }
+  }, [invoice]);
 
   // Refresh invoice, line items, and credit notes after a credit note is created
   const handleCreditNoteCreated = useCallback(async () => {
@@ -400,6 +424,7 @@ export function InvoiceDetailPage() {
               onRecordPayment={handleRecordPayment}
               onCreateCreditNote={handleCreateCreditNote}
               canCreateCreditNote={creditNoteAllowed}
+              onProcessReturn={handleProcessReturn}
               onViewClient={handleViewClient}
               onArchive={handleArchive}
               onEdit={handleEdit}
@@ -483,6 +508,15 @@ export function InvoiceDetailPage() {
           <Stack gap="xs">
             {!invoice.isArchived && (
               <Group justify="flex-end">
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="orange"
+                  leftSection={<IconPackageExport size={14} />}
+                  onClick={handleProcessReturn}
+                >
+                  Process Return
+                </Button>
                 <Tooltip
                   label="No payments recorded — a credit note requires at least one payment"
                   disabled={creditNoteAllowed}
@@ -569,6 +603,15 @@ export function InvoiceDetailPage() {
         invoice={invoice}
         lineItems={lineItems}
         maxCreditAllowed={maxCreditAllowed}
+      />
+
+      {/* Process Return Modal */}
+      <ProcessReturnModal
+        opened={returnModalOpen}
+        onClose={closeReturnModal}
+        onProcessed={handleReturnProcessed}
+        invoice={invoice}
+        lineItems={lineItems}
       />
     </>
   );

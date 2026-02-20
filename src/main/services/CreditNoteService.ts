@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc, count, or, ilike } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, count, or, ilike, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -175,5 +175,83 @@ export class CreditNoteService extends BaseService<
 
   async archive(id: number): Promise<schema.CreditNote | null> {
     return this.update(id, { isArchived: true });
+  }
+
+  async restoreInventoryForCreditNote(
+    crNumber: string,
+    lineItems: Array<{ sku: string | null; quantity: number }>,
+    crDate: string,
+    activityType: string = 'CREDIT_RETURN',
+  ): Promise<void> {
+    for (const item of lineItems) {
+      if (!item.sku || item.quantity <= 0) continue;
+
+      // 1. Check if SKU is a variant
+      const variant = await this.db
+        .select({ id: schema.variants.id, parentSku: schema.variants.parentSku, variantSku: schema.variants.variantSku })
+        .from(schema.variants)
+        .where(eq(schema.variants.variantSku, item.sku))
+        .limit(1);
+
+      if (variant.length > 0) {
+        await this.db.insert(schema.inventoryTransactions).values({
+          sku: variant[0].parentSku,
+          variantSku: variant[0].variantSku,
+          activity: activityType,
+          reference: crNumber,
+          quantity: item.quantity,
+          activityDate: crDate,
+        });
+        await this.db.execute(
+          sql`UPDATE variants SET quantity = quantity + ${item.quantity}, updated_at = NOW() WHERE variant_sku = ${item.sku}`
+        );
+      } else {
+        // 2. Check if SKU is an inventory item
+        const inventoryItem = await this.db
+          .select({ sku: schema.inventory.sku })
+          .from(schema.inventory)
+          .where(eq(schema.inventory.sku, item.sku))
+          .limit(1);
+
+        if (inventoryItem.length === 0) {
+          console.warn(`SKU ${item.sku} not found in inventory or variants — inventory not restored`);
+          continue;
+        }
+
+        // 3. Find base variant
+        const baseVariant = await this.db
+          .select({ variantSku: schema.variants.variantSku })
+          .from(schema.variants)
+          .where(and(eq(schema.variants.parentSku, item.sku), eq(schema.variants.isBase, true)))
+          .limit(1);
+
+        if (baseVariant.length > 0) {
+          await this.db.insert(schema.inventoryTransactions).values({
+            sku: item.sku,
+            variantSku: baseVariant[0].variantSku,
+            activity: activityType,
+            reference: crNumber,
+            quantity: item.quantity,
+            activityDate: crDate,
+          });
+          await this.db.execute(
+            sql`UPDATE variants SET quantity = quantity + ${item.quantity}, updated_at = NOW() WHERE variant_sku = ${baseVariant[0].variantSku}`
+          );
+        } else {
+          // Fallback: no base variant, update inventory directly
+          console.warn(`No base variant found for ${item.sku} — using legacy inventory`);
+          await this.db.insert(schema.inventoryTransactions).values({
+            sku: item.sku,
+            activity: activityType,
+            reference: crNumber,
+            quantity: item.quantity,
+            activityDate: crDate,
+          });
+          await this.db.execute(
+            sql`UPDATE inventory SET quantity = quantity + ${item.quantity}, updated_at = NOW() WHERE sku = ${item.sku}`
+          );
+        }
+      }
+    }
   }
 }

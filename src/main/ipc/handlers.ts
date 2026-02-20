@@ -590,6 +590,28 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.DELETE_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.delete(id));
   ipcMain.handle(IpcChannel.RECORD_CREDIT_NOTE_USAGE, (_, { id, amount }: { id: number; amount: string }) => creditNoteController.recordUsage(id, amount));
   ipcMain.handle(IpcChannel.ARCHIVE_CREDIT_NOTE, (_, { id }: { id: number }) => creditNoteController.archive(id));
+  ipcMain.handle(
+    IpcChannel.RESTORE_CREDIT_NOTE_INVENTORY,
+    async (_, { crNumber, lineItems, crDate }: { crNumber: string; lineItems: Array<{ sku: string | null; quantity: number }>; crDate: string }) => {
+      try {
+        await creditNoteService.restoreInventoryForCreditNote(crNumber, lineItems, crDate);
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to restore inventory' };
+      }
+    }
+  );
+  ipcMain.handle(
+    IpcChannel.PROCESS_INVOICE_RETURN,
+    async (_, { invNumber, lineItems, returnDate }: { invNumber: string; lineItems: Array<{ sku: string | null; quantity: number }>; returnDate: string }) => {
+      try {
+        await creditNoteService.restoreInventoryForCreditNote(invNumber, lineItems, returnDate, 'RETURN');
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to process return' };
+      }
+    }
+  );
 
   // ===== DOCUMENT LINE ITEM HANDLERS =====
   ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS, () => documentLineItemController.getAll());

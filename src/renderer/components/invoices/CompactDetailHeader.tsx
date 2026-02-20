@@ -8,6 +8,7 @@ import {
   IconDotsVertical,
   IconArchive,
   IconEdit,
+  IconPackageExport,
 } from '@tabler/icons-react';
 
 interface Invoice {
@@ -29,6 +30,7 @@ interface CompactDetailHeaderProps {
   onRecordPayment: () => void;
   onCreateCreditNote: () => void;
   canCreateCreditNote?: boolean;
+  onProcessReturn?: () => void;
   onViewClient: () => void;
   onArchive: () => void;
   onEdit?: () => void;
@@ -63,6 +65,7 @@ export function CompactDetailHeader({
   onRecordPayment,
   onCreateCreditNote,
   canCreateCreditNote = true,
+  onProcessReturn,
   onViewClient,
   onArchive,
   onEdit,
@@ -145,6 +148,14 @@ export function CompactDetailHeader({
                   disabled={!canCreateCreditNote}
                 >
                   {canCreateCreditNote ? 'Create Credit Note' : 'Credit Note (no payments)'}
+                </Menu.Item>
+              )}
+              {['active', 'partially_paid', 'paid'].includes(invoice.status) && onProcessReturn && (
+                <Menu.Item
+                  leftSection={<IconPackageExport size={16} />}
+                  onClick={onProcessReturn}
+                >
+                  Process Return
                 </Menu.Item>
               )}
               {invoice.clientId && (

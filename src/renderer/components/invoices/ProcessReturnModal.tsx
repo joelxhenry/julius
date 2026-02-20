@@ -5,29 +5,22 @@ import {
   Group,
   Text,
   Button,
-  TextInput,
   NumberInput,
   Checkbox,
   Table,
   Divider,
-  Badge,
   Box,
   Alert,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import { IconReceipt, IconAlertCircle } from '@tabler/icons-react';
+import { IconPackageExport, IconAlertCircle } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface Invoice {
   id: number;
   invNumber: string;
-  clientId: number | null;
   clientName: string | null;
-  clientAddress1: string | null;
-  clientAddress2: string | null;
-  clientPhone: string | null;
-  salespersonId: number | null;
   total: string;
   totalPaid: string;
   isTaxable: boolean;
@@ -46,13 +39,12 @@ interface LineItem {
   isTaxable: boolean;
 }
 
-interface CreateCreditNoteModalProps {
+interface ProcessReturnModalProps {
   opened: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onProcessed: () => void;
   invoice: Invoice;
   lineItems: LineItem[];
-  maxCreditAllowed: number;
 }
 
 const formatCurrency = (value: number) =>
@@ -65,17 +57,15 @@ function computeLineAmount(qty: number, unitPrice: string, discount: string): nu
   return qty * price * discountMultiplier;
 }
 
-export function CreateCreditNoteModal({
+export function ProcessReturnModal({
   opened,
   onClose,
-  onCreated,
+  onProcessed,
   invoice,
   lineItems,
-  maxCreditAllowed,
-}: CreateCreditNoteModalProps) {
+}: ProcessReturnModalProps) {
   const [selectedItems, setSelectedItems] = useState<Map<number, number>>(new Map());
-  const [crDate, setCrDate] = useState<Date | null>(new Date());
-  const [reference, setReference] = useState('');
+  const [returnDate, setReturnDate] = useState<Date | null>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset state when modal opens
@@ -86,8 +76,7 @@ export function CreateCreditNoteModal({
         defaultSelection.set(item.id, item.quantity);
       });
       setSelectedItems(defaultSelection);
-      setCrDate(new Date());
-      setReference('');
+      setReturnDate(new Date());
     }
   }, [opened, lineItems]);
 
@@ -128,77 +117,18 @@ export function CreateCreditNoteModal({
     return { subTotal, tax, total: subTotal + tax };
   }, [selectedItems, lineItems, invoice.isTaxable]);
 
-  const exceedsCap = totals.total > maxCreditAllowed + 0.001;
-
   const handleSubmit = useCallback(async () => {
     if (totals.total <= 0) return;
 
-    if (totals.total > maxCreditAllowed + 0.001) {
-      notifications.show({
-        title: 'Credit Exceeds Amount Paid',
-        message: `Credit total ${formatCurrency(totals.total)} cannot exceed the amount paid (${formatCurrency(maxCreditAllowed)}).`,
-        color: 'orange',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      const crDateStr = crDate
-        ? crDate.toISOString().split('T')[0]
+      const returnDateStr = returnDate
+        ? returnDate.toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
-      const creditNoteData = {
-        invNumber: invoice.invNumber,
-        crDate: crDateStr,
-        salespersonId: invoice.salespersonId,
-        clientId: invoice.clientId,
-        clientName: invoice.clientName,
-        clientAddress1: invoice.clientAddress1,
-        clientAddress2: invoice.clientAddress2,
-        clientPhone: invoice.clientPhone,
-        reference: reference.trim() || null,
-        subTotal: totals.subTotal.toFixed(2),
-        tax: totals.tax.toFixed(2),
-        total: totals.total.toFixed(2),
-        status: 'A',
-      };
-
-      const result = await window.electron.invoke(IpcChannel.CREATE_CREDIT_NOTE, creditNoteData);
-
-      if (!result.success || !result.data) {
-        notifications.show({
-          title: 'Error',
-          message: result.error || 'Failed to create credit note',
-          color: 'red',
-        });
-        return;
-      }
-
-      const crNumber = result.data.crNumber;
-
-      // Create line items for the credit note
       const selectedLineItems = lineItems.filter((item) => selectedItems.has(item.id));
-      for (let i = 0; i < selectedLineItems.length; i++) {
-        const item = selectedLineItems[i];
-        const qty = selectedItems.get(item.id) ?? 0;
-        const amount = computeLineAmount(qty, item.unitPrice, item.discount);
 
-        await window.electron.invoke(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, {
-          documentType: 'CREDIT',
-          documentNumber: crNumber,
-          lineNumber: i + 1,
-          sku: item.sku || null,
-          description: item.description,
-          quantity: qty.toString(),
-          unitPrice: parseFloat(item.unitPrice).toFixed(2),
-          discount: parseFloat(item.discount).toFixed(2),
-          isTaxable: item.isTaxable,
-          amount: amount.toFixed(2),
-        });
-      }
-
-      // Restore inventory for credited items
+      // Restore inventory for returned items
       const inventoryLineItems = selectedLineItems
         .filter((item) => item.sku)
         .map((item) => ({
@@ -208,27 +138,27 @@ export function CreateCreditNoteModal({
 
       if (inventoryLineItems.length > 0) {
         const inventoryResult = await window.electron.invoke(
-          IpcChannel.RESTORE_CREDIT_NOTE_INVENTORY,
-          { crNumber, lineItems: inventoryLineItems, crDate: crDateStr },
+          IpcChannel.PROCESS_INVOICE_RETURN,
+          { invNumber: invoice.invNumber, lineItems: inventoryLineItems, returnDate: returnDateStr },
         );
         if (!inventoryResult.success) {
           console.warn('Failed to restore inventory:', inventoryResult.error);
         }
       }
 
-      // Update the source invoice line items to reflect the credit
+      // Update the source invoice line items
       let newSubTotal = 0;
       for (const item of lineItems) {
-        const creditedQty = selectedItems.get(item.id);
-        if (creditedQty === undefined) {
-          // Item not credited — keep as-is
+        const returnedQty = selectedItems.get(item.id);
+        if (returnedQty === undefined) {
+          // Item not returned — keep as-is
           newSubTotal += computeLineAmount(item.quantity, item.unitPrice, item.discount);
-        } else if (creditedQty >= item.quantity) {
-          // Fully credited — remove the line item from the invoice
+        } else if (returnedQty >= item.quantity) {
+          // Fully returned — remove the line item from the invoice
           await window.electron.invoke(IpcChannel.DELETE_DOCUMENT_LINE_ITEM, { id: item.id });
         } else {
-          // Partially credited — reduce quantity and recalculate amount
-          const remainingQty = item.quantity - creditedQty;
+          // Partially returned — reduce quantity and recalculate amount
+          const remainingQty = item.quantity - returnedQty;
           const newAmount = computeLineAmount(remainingQty, item.unitPrice, item.discount);
           await window.electron.invoke(IpcChannel.UPDATE_DOCUMENT_LINE_ITEM, {
             id: item.id,
@@ -255,24 +185,24 @@ export function CreateCreditNoteModal({
       });
 
       notifications.show({
-        title: 'Credit Note Created',
-        message: `Credit note ${crNumber} issued for ${formatCurrency(totals.total)}. Funds are available to apply to payments.`,
+        title: 'Return Processed',
+        message: `${selectedLineItems.length} item${selectedLineItems.length !== 1 ? 's' : ''} returned. Invoice reduced by ${formatCurrency(totals.total)}. Inventory has been restored.`,
         color: 'green',
       });
 
-      onCreated();
+      onProcessed();
       onClose();
     } catch (error) {
-      console.error('Failed to create credit note:', error);
+      console.error('Failed to process return:', error);
       notifications.show({
         title: 'Error',
-        message: 'Failed to create credit note',
+        message: 'Failed to process return',
         color: 'red',
       });
     } finally {
       setIsSubmitting(false);
     }
-  }, [totals, crDate, invoice, reference, lineItems, selectedItems, onCreated, onClose]);
+  }, [totals, returnDate, invoice, lineItems, selectedItems, onProcessed, onClose]);
 
   const selectedCount = selectedItems.size;
 
@@ -282,8 +212,8 @@ export function CreateCreditNoteModal({
       onClose={onClose}
       title={
         <Group gap="xs">
-          <IconReceipt size={20} />
-          <Text fw={600}>Create Credit Note</Text>
+          <IconPackageExport size={20} />
+          <Text fw={600}>Process Return</Text>
         </Group>
       }
       size="xl"
@@ -304,37 +234,21 @@ export function CreateCreditNoteModal({
           )}
         </Group>
 
-        <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light" p="xs">
+        <Alert icon={<IconAlertCircle size={16} />} color="orange" variant="light" p="xs">
           <Text size="xs">
-            Select items and quantities to credit. The invoice will be updated accordingly, inventory will be restored, and the credit note funds will be available to apply to future payments.
+            Select items and quantities to return. Inventory will be restored and the invoice will be reduced accordingly. No financial credit note will be issued.
           </Text>
         </Alert>
 
-        {exceedsCap && (
-          <Alert icon={<IconAlertCircle size={16} />} color="orange" variant="light" p="xs">
-            <Text size="xs" fw={500}>
-              Selected total {formatCurrency(totals.total)} exceeds the amount paid ({formatCurrency(maxCreditAllowed)}). Reduce the selection to continue.
-            </Text>
-          </Alert>
-        )}
-
-        {/* Date and reference */}
-        <Group grow>
-          <DateInput
-            label="Credit Note Date"
-            value={crDate}
-            onChange={setCrDate}
-            maxDate={new Date()}
-            size="sm"
-          />
-          <TextInput
-            label="Reference (optional)"
-            placeholder="e.g. return reason"
-            value={reference}
-            onChange={(e) => setReference(e.currentTarget.value)}
-            size="sm"
-          />
-        </Group>
+        {/* Return date */}
+        <DateInput
+          label="Return Date"
+          value={returnDate}
+          onChange={setReturnDate}
+          maxDate={new Date()}
+          size="sm"
+          maw={240}
+        />
 
         {/* Line items */}
         <Box>
@@ -414,19 +328,19 @@ export function CreateCreditNoteModal({
         <Box style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Stack gap={4} style={{ minWidth: 200 }}>
             <Group justify="space-between">
-              <Text size="sm" c="dimmed">Subtotal</Text>
+              <Text size="sm" c="dimmed">Subtotal Reduction</Text>
               <Text size="sm">{formatCurrency(totals.subTotal)}</Text>
             </Group>
             {invoice.isTaxable && (
               <Group justify="space-between">
-                <Text size="sm" c="dimmed">Tax</Text>
+                <Text size="sm" c="dimmed">Tax Reduction</Text>
                 <Text size="sm">{formatCurrency(totals.tax)}</Text>
               </Group>
             )}
             <Divider />
             <Group justify="space-between">
-              <Text fw={600}>Credit Total</Text>
-              <Text fw={600} c={totals.total > 0 ? 'green' : 'dimmed'}>
+              <Text fw={600}>Invoice Reduction</Text>
+              <Text fw={600} c={totals.total > 0 ? 'orange' : 'dimmed'}>
                 {formatCurrency(totals.total)}
               </Text>
             </Group>
@@ -443,13 +357,13 @@ export function CreateCreditNoteModal({
               Cancel
             </Button>
             <Button
-              leftSection={<IconReceipt size={16} />}
+              leftSection={<IconPackageExport size={16} />}
               onClick={handleSubmit}
               loading={isSubmitting}
-              disabled={totals.total <= 0 || exceedsCap}
-              color="green"
+              disabled={totals.total <= 0}
+              color="orange"
             >
-              Issue Credit Note
+              Process Return
             </Button>
           </Group>
         </Group>

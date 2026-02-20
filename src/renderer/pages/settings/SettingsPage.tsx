@@ -4,14 +4,12 @@ import {
   Title,
   Paper,
   Tabs,
-  Text,
 } from '@mantine/core';
 import {
   IconDatabase,
   IconBuilding,
   IconFileText,
   IconReceipt,
-  IconBell,
   IconLayout,
   IconFolder,
 } from '@tabler/icons-react';
@@ -50,9 +48,6 @@ export function SettingsPage() {
             <Tabs.Tab value="storage" leftSection={<IconFolder size={16} />}>
               Storage
             </Tabs.Tab>
-            <Tabs.Tab value="notifications" leftSection={<IconBell size={16} />}>
-              Notifications
-            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="database" pt="lg">
@@ -79,12 +74,6 @@ export function SettingsPage() {
             <StorageSettingsTab />
           </Tabs.Panel>
 
-          <Tabs.Panel value="notifications" pt="lg">
-            <Stack align="center" py="xl">
-              <IconBell size={48} stroke={1} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Notification settings coming soon</Text>
-            </Stack>
-          </Tabs.Panel>
         </Tabs>
       </Paper>
     </Stack>
