@@ -45,6 +45,7 @@ const dashboardSections: DashboardSection[] = [
     description: 'Sales, inventory, and financial reports',
     icon: <IconChartBar size={24} />,
     color: 'blue',
+    path: '/reports',
   },
   {
     title: 'System Settings',

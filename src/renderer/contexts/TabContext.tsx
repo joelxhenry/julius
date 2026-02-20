@@ -52,7 +52,7 @@ const TAB_SETTINGS_KEY = 'turbo-julius-tab-settings';
 const DEFAULT_MAX_TABS = 10;
 
 // Pages that should NOT open in tabs
-const EXCLUDED_ROUTES = ['/', '/dashboard', '/profile', '/settings', '/attendance'];
+const EXCLUDED_ROUTES = ['/', '/dashboard', '/profile', '/settings', '/attendance', '/reports'];
 
 // Helper function to check if a path is excluded
 function isExcludedRoute(path: string): boolean {
@@ -92,7 +92,6 @@ function generateTitleFromPath(path: string): string {
     const id = path.split('/')[2];
     return `Credit Note #${id}`;
   }
-
   // Default: capitalize first segment
   const segments = path.split('/').filter(Boolean);
   return segments[0]?.charAt(0).toUpperCase() + segments[0]?.slice(1) || 'Untitled';

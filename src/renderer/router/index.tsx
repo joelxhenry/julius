@@ -19,6 +19,7 @@ import {
 import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
 import { SettingsPage } from '../pages/settings';
+import { ReportsPage } from '../pages/reports';
 
 export const router = createHashRouter([
   {
@@ -149,6 +150,11 @@ export const router = createHashRouter([
       {
         path: 'suppliers/:id/edit',
         element: <SupplierEditorPage />,
+      },
+      // Reports
+      {
+        path: 'reports',
+        element: <ReportsPage />,
       },
       // Settings
       {

@@ -12,7 +12,6 @@ import {
 import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
 import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
-
 /**
  * Maps a route path to its corresponding React component
  * Used by the tab system to create components for tabbed routes

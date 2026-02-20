@@ -36,7 +36,10 @@ import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentPara
 import { ImageStorageService } from '../services/ImageStorageService';
 import { InventoryImageService, UploadImageParams } from '../services/InventoryImageService';
 import { PrintService } from '../services/PrintService';
+import { ReportService } from '../services/ReportService';
+import { ExportService } from '../services/ExportService';
 import { PrintDocumentRequest } from '../../shared/types/print';
+import { ExportRequest } from '../../shared/types/export';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
 // Import controllers
@@ -63,6 +66,8 @@ import {
   EmployeeShiftsController,
   SystemSettingsController,
   PrintController,
+  ReportController,
+  ExportController,
 } from '../controllers';
 
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
@@ -886,6 +891,28 @@ function registerDataHandlers() {
     printController.getPrintSettings());
   ipcMain.handle(IpcChannel.PRINT_LOOKUP_TICKET, (_, params: LookupTicketRequest) =>
     printController.printLookupTicket(params));
+
+  // ===== REPORT HANDLERS =====
+  const reportService = new ReportService(db);
+  const reportController = new ReportController(reportService);
+
+  ipcMain.handle(IpcChannel.GET_SALES_REPORT, (_, params: any = {}) =>
+    reportController.getSalesSummary(params));
+  ipcMain.handle(IpcChannel.GET_RECEIVABLES_AGING_REPORT, () =>
+    reportController.getReceivablesAging());
+  ipcMain.handle(IpcChannel.GET_INVENTORY_VALUATION_REPORT, (_, params: any = {}) =>
+    reportController.getInventoryValuation(params));
+  ipcMain.handle(IpcChannel.GET_SALESPERSON_PERFORMANCE_REPORT, (_, params: any = {}) =>
+    reportController.getSalespersonPerformance(params));
+  ipcMain.handle(IpcChannel.GET_PAYMENT_COLLECTION_REPORT, (_, params: any = {}) =>
+    reportController.getPaymentCollection(params));
+
+  // ===== EXPORT HANDLERS =====
+  const exportService = new ExportService();
+  const exportController = new ExportController(exportService);
+
+  ipcMain.handle(IpcChannel.EXPORT_REPORT, (_, params: ExportRequest) =>
+    exportController.exportReport(params));
 
   dataHandlersRegistered = true;
   console.log('Data handlers registered successfully');

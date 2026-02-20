@@ -41,6 +41,9 @@ export { EmployeeShiftsService } from './EmployeeShiftsService';
 // Print Service
 export { PrintService, type PrintResult } from './PrintService';
 
+// Report Service
+export { ReportService } from './ReportService';
+
 // System Settings
 export {
   SystemSettingsService,

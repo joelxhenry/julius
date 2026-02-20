@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cat:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(powershell -Command:*)"
     ],
     "deny": [],
     "ask": []
