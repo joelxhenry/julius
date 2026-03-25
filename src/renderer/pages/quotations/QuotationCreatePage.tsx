@@ -49,7 +49,7 @@ export function QuotationCreatePage() {
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
   const locationState = location.state as LocationState | null;
 
-  const isEditing = !!id;
+  const isEditing = !!id && id !== 'new';
 
   // Form state
   const [quoteDate, setQuoteDate] = useState<Date>(new Date());
