@@ -5,7 +5,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Paper, Stack, Text, ActionIcon, Group, Button, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconFileInvoice } from '@tabler/icons-react';
+import { IconArrowLeft, IconFileInvoice, IconPlus } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { QuotationDetailHeader, QuotationDetailInfoBar } from '../../components/quotations';
 import { InvoiceLineItemsReadOnly } from '../../components/invoices';
@@ -386,7 +386,7 @@ export function QuotationDetailPage() {
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
         {/* Header with Back Button */}
         <Group gap="sm" align="center" wrap="nowrap">
-          {fromListing && (
+          {fromListing ? (
             <ActionIcon
               variant="subtle"
               size="lg"
@@ -394,6 +394,15 @@ export function QuotationDetailPage() {
               title="Back to Quotations"
             >
               <IconArrowLeft size={20} />
+            </ActionIcon>
+          ) : (
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => replaceCurrentTab('/quotations/new')}
+              title="New Quotation"
+            >
+              <IconPlus size={20} />
             </ActionIcon>
           )}
           <Box style={{ flex: 1 }}>

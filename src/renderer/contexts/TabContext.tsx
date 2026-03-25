@@ -241,6 +241,32 @@ export function TabProvider({
       if (!tab) return false;
 
       // Check for unsaved changes
+      const doClose = () => {
+        setTabs((prev) => {
+          const newTabs = prev.filter((t) => t.id !== tabId);
+          const currentIndex = prev.findIndex((t) => t.id === tabId);
+
+          // Handle active tab change
+          if (activeTabId === tabId) {
+            if (newTabs.length === 0) {
+              setActiveTabId(null);
+              skipNextLocationChange.current = true;
+              navigate('/', { replace: true });
+            } else {
+              const nextIndex = Math.max(0, currentIndex - 1);
+              const nextTab = newTabs[nextIndex];
+              if (nextTab) {
+                setActiveTabId(nextTab.id);
+                skipNextLocationChange.current = true;
+                navigate(nextTab.path, { replace: true });
+              }
+            }
+          }
+
+          return newTabs;
+        });
+      };
+
       if (tab.hasUnsavedChanges) {
         return new Promise((resolve) => {
           modals.openConfirmModal({
@@ -249,30 +275,7 @@ export function TabProvider({
             labels: { confirm: 'Close Tab', cancel: 'Cancel' },
             confirmProps: { color: 'red' },
             onConfirm: () => {
-              // Proceed with close
-              const newTabs = tabs.filter((t) => t.id !== tabId);
-              setTabs(newTabs);
-
-              // Handle active tab change
-              if (activeTabId === tabId) {
-                if (newTabs.length === 0) {
-                  // No tabs left - navigate to dashboard
-                  setActiveTabId(null);
-                  skipNextLocationChange.current = true;
-                  navigate('/', { replace: true });
-                } else {
-                  // Switch to adjacent tab
-                  const currentIndex = tabs.findIndex((t) => t.id === tabId);
-                  const nextIndex = Math.max(0, currentIndex - 1);
-                  const nextTab = newTabs[nextIndex];
-                  if (nextTab) {
-                    setActiveTabId(nextTab.id);
-                    skipNextLocationChange.current = true;
-                    navigate(nextTab.path, { replace: true });
-                  }
-                }
-              }
-
+              doClose();
               resolve(true);
             },
             onCancel: () => resolve(false),
@@ -280,32 +283,10 @@ export function TabProvider({
         });
       }
 
-      // No unsaved changes, close immediately
-      const newTabs = tabs.filter((t) => t.id !== tabId);
-      setTabs(newTabs);
-
-      // Handle active tab change
-      if (activeTabId === tabId) {
-        if (newTabs.length === 0) {
-          // No tabs left - navigate to dashboard
-          setActiveTabId(null);
-          skipNextLocationChange.current = true;
-          navigate('/', { replace: true });
-        } else {
-          const currentIndex = tabs.findIndex((t) => t.id === tabId);
-          const nextIndex = Math.max(0, currentIndex - 1);
-          const nextTab = newTabs[nextIndex];
-          if (nextTab) {
-            setActiveTabId(nextTab.id);
-            skipNextLocationChange.current = true;
-            navigate(nextTab.path, { replace: true });
-          }
-        }
-      }
-
+      doClose();
       return true;
     },
-    [tabs, activeTabId, navigate]
+    [activeTabId, navigate]
   );
 
   // Switch to tab (INSTANT, NO NAVIGATION)
@@ -340,11 +321,13 @@ export function TabProvider({
     );
   }, []);
 
-  // Mark tab as dirty
-  const markTabDirty = useCallback((tabId: string, isDirty: boolean) => {
+  // Mark tab as dirty (accepts either tabId or path)
+  const markTabDirty = useCallback((tabIdOrPath: string, isDirty: boolean) => {
     setTabs((prev) =>
       prev.map((tab) =>
-        tab.id === tabId ? { ...tab, hasUnsavedChanges: isDirty } : tab
+        (tab.id === tabIdOrPath || tab.path === tabIdOrPath)
+          ? { ...tab, hasUnsavedChanges: isDirty }
+          : tab
       )
     );
   }, []);
