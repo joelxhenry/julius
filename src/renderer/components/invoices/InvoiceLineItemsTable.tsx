@@ -199,8 +199,8 @@ export function InvoiceLineItemsTable({
                         transition: 'background-color 0.1s ease',
                       }}
                     >
-                      <Table.Td style={{ height: rowHeight }}>
-                        <Group gap="xs">
+                      <Table.Td style={{ height: rowHeight, whiteSpace: 'nowrap' }}>
+                        <Group gap="xs" wrap="nowrap">
                           <TextInput
                             size={compact ? 'xs' : 'sm'}
                             variant="unstyled"

@@ -285,7 +285,7 @@ export function ProcessReturnModal({
                           size="xs"
                         />
                       </Table.Td>
-                      <Table.Td>
+                      <Table.Td style={{ whiteSpace: 'nowrap' }}>
                         <Text size="xs" c="dimmed">{item.sku || '—'}</Text>
                       </Table.Td>
                       <Table.Td>
