@@ -24,7 +24,7 @@ interface TabContextValue {
   openTab: (path: string, component?: React.ReactNode) => void;
   closeTab: (tabId: string) => Promise<boolean>;
   switchToTab: (tabId: string) => void;
-  replaceCurrentTab: (path: string) => void;
+  replaceCurrentTab: (path: string, state?: Record<string, unknown>) => void;
 
   // Management
   updateTabTitle: (tabIdOrPath: string, title: string) => void;
@@ -350,7 +350,7 @@ export function TabProvider({
 
   // Replace current tab's path and component (for same-tab navigation like next/prev invoice)
   const replaceCurrentTab = useCallback(
-    (path: string) => {
+    (path: string, state?: Record<string, unknown>) => {
       if (!activeTabId) return;
 
       // Generate new component for the path
@@ -369,7 +369,7 @@ export function TabProvider({
       // Update URL without triggering new tab creation
       // Use location state to reliably indicate this is a tab replace operation
       skipNextLocationChange.current = true;
-      navigate(path, { replace: true, state: { tabReplace: true } });
+      navigate(path, { replace: true, state: { tabReplace: true, ...state } });
     },
     [activeTabId, navigate]
   );

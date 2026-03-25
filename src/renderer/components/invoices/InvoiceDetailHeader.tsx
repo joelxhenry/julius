@@ -34,7 +34,7 @@ interface Invoice {
 interface InvoiceDetailHeaderProps {
   invoice: Invoice;
   adjacentIds: { previousId: number | null; nextId: number | null };
-  onNavigateAdjacent: (id: number | null) => void;
+  onNavigateAdjacent?: (id: number | null) => void;
   onRecordPayment: () => void;
   onCreateCreditNote: () => void;
   onViewClient: () => void;
@@ -143,22 +143,24 @@ export function InvoiceDetailHeader({
 
         {/* Right: Actions */}
         <Group gap="sm" wrap="nowrap">
-          <Group gap={4}>
-            <ActionIcon
-              variant="subtle"
-              disabled={!adjacentIds.previousId}
-              onClick={() => onNavigateAdjacent(adjacentIds.previousId)}
-            >
-              <IconChevronLeft size={16} />
-            </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              disabled={!adjacentIds.nextId}
-              onClick={() => onNavigateAdjacent(adjacentIds.nextId)}
-            >
-              <IconChevronRight size={16} />
-            </ActionIcon>
-          </Group>
+          {onNavigateAdjacent && (
+            <Group gap={4}>
+              <ActionIcon
+                variant="subtle"
+                disabled={!adjacentIds.previousId}
+                onClick={() => onNavigateAdjacent(adjacentIds.previousId)}
+              >
+                <IconChevronLeft size={16} />
+              </ActionIcon>
+              <ActionIcon
+                variant="subtle"
+                disabled={!adjacentIds.nextId}
+                onClick={() => onNavigateAdjacent(adjacentIds.nextId)}
+              >
+                <IconChevronRight size={16} />
+              </ActionIcon>
+            </Group>
+          )}
 
           {['active', 'partially_paid'].includes(invoice.status) && (
             <Button size="sm" leftSection={<IconCash size={16} />} onClick={onRecordPayment}>

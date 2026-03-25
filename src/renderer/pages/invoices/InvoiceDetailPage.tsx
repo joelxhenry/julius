@@ -251,11 +251,13 @@ export function InvoiceDetailPage() {
   }, [id, navigate, loadInvoiceData, prefetchAdjacentInvoices, loadCreditNotes]);
 
   // Navigate to previous/next invoice (same tab)
+  const fromListing = location.state?.fromListing === true;
+
   const handleNavigateAdjacent = useCallback(
     (targetId: number | null) => {
       if (targetId) {
-        // Use replaceCurrentTab to stay in the same tab
-        replaceCurrentTab(`/invoices/${targetId}`);
+        // Use replaceCurrentTab to stay in the same tab, preserve fromListing state
+        replaceCurrentTab(`/invoices/${targetId}`, { fromListing: true });
       }
     },
     [replaceCurrentTab]
@@ -408,19 +410,30 @@ export function InvoiceDetailPage() {
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
         {/* Header with Back Button */}
         <Group gap="sm" align="center" wrap="nowrap">
-          <ActionIcon
-            variant="subtle"
-            size="lg"
-            onClick={() => replaceCurrentTab('/invoices')}
-            title="Back to Invoices"
-          >
-            <IconArrowLeft size={20} />
-          </ActionIcon>
+          {fromListing ? (
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => replaceCurrentTab('/invoices')}
+              title="Back to Invoices"
+            >
+              <IconArrowLeft size={20} />
+            </ActionIcon>
+          ) : (
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => replaceCurrentTab('/invoices/form')}
+              title="New Invoice"
+            >
+              <IconPlus size={20} />
+            </ActionIcon>
+          )}
           <Box style={{ flex: 1 }}>
             <CompactDetailHeader
               invoice={invoice}
-              adjacentIds={adjacentIds}
-              onNavigateAdjacent={handleNavigateAdjacent}
+              adjacentIds={fromListing ? adjacentIds : { previousId: null, nextId: null }}
+              onNavigateAdjacent={fromListing ? handleNavigateAdjacent : undefined}
               onRecordPayment={handleRecordPayment}
               onCreateCreditNote={handleCreateCreditNote}
               canCreateCreditNote={creditNoteAllowed}

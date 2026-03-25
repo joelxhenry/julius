@@ -199,7 +199,7 @@ export function InvoicesPage() {
   // View invoice
   const handleViewInvoice = useCallback(
     (invoice: Invoice) => {
-      replaceCurrentTab(`/invoices/${invoice.id}`);
+      replaceCurrentTab(`/invoices/${invoice.id}`, { fromListing: true });
     },
     [replaceCurrentTab]
   );
@@ -268,7 +268,7 @@ export function InvoicesPage() {
         render: (invoice) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/invoices/${invoice.id}`)}>
+              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/invoices/${invoice.id}`, { fromListing: true })}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>

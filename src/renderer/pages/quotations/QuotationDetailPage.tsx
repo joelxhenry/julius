@@ -211,11 +211,13 @@ export function QuotationDetailPage() {
     loadQuotation();
   }, [id, navigate, loadQuotationData, prefetchAdjacentQuotations]);
 
+  const fromListing = location.state?.fromListing === true;
+
   // Navigate to previous/next quotation
   const handleNavigateAdjacent = useCallback(
     (targetId: number | null) => {
       if (targetId) {
-        replaceCurrentTab(`/quotations/${targetId}`);
+        replaceCurrentTab(`/quotations/${targetId}`, { fromListing: true });
       }
     },
     [replaceCurrentTab]
@@ -384,19 +386,21 @@ export function QuotationDetailPage() {
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
         {/* Header with Back Button */}
         <Group gap="sm" align="center" wrap="nowrap">
-          <ActionIcon
-            variant="subtle"
-            size="lg"
-            onClick={() => replaceCurrentTab('/quotations')}
-            title="Back to Quotations"
-          >
-            <IconArrowLeft size={20} />
-          </ActionIcon>
+          {fromListing && (
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => replaceCurrentTab('/quotations')}
+              title="Back to Quotations"
+            >
+              <IconArrowLeft size={20} />
+            </ActionIcon>
+          )}
           <Box style={{ flex: 1 }}>
             <QuotationDetailHeader
               quotation={quotation}
-              adjacentIds={adjacentIds}
-              onNavigateAdjacent={handleNavigateAdjacent}
+              adjacentIds={fromListing ? adjacentIds : { previousId: null, nextId: null }}
+              onNavigateAdjacent={fromListing ? handleNavigateAdjacent : undefined}
               onConvertToInvoice={openConvertModal}
               onEdit={handleEdit}
               onViewClient={handleViewClient}

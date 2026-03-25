@@ -26,7 +26,7 @@ interface Invoice {
 interface CompactDetailHeaderProps {
   invoice: Invoice;
   adjacentIds: { previousId: number | null; nextId: number | null };
-  onNavigateAdjacent: (id: number | null) => void;
+  onNavigateAdjacent?: (id: number | null) => void;
   onRecordPayment: () => void;
   onCreateCreditNote: () => void;
   canCreateCreditNote?: boolean;
@@ -77,24 +77,26 @@ export function CompactDetailHeader({
       <Group justify="space-between" wrap="nowrap" h="100%">
         {/* Left: Invoice # and Status */}
         <Group gap="sm" wrap="nowrap">
-          <Group gap={4}>
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              disabled={!adjacentIds.previousId}
-              onClick={() => onNavigateAdjacent(adjacentIds.previousId)}
-            >
-              <IconChevronLeft size={16} />
-            </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              disabled={!adjacentIds.nextId}
-              onClick={() => onNavigateAdjacent(adjacentIds.nextId)}
-            >
-              <IconChevronRight size={16} />
-            </ActionIcon>
-          </Group>
+          {onNavigateAdjacent && (
+            <Group gap={4}>
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                disabled={!adjacentIds.previousId}
+                onClick={() => onNavigateAdjacent(adjacentIds.previousId)}
+              >
+                <IconChevronLeft size={16} />
+              </ActionIcon>
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                disabled={!adjacentIds.nextId}
+                onClick={() => onNavigateAdjacent(adjacentIds.nextId)}
+              >
+                <IconChevronRight size={16} />
+              </ActionIcon>
+            </Group>
+          )}
           <Text fw={600} size="lg">
             Invoice {invoice.invNumber}
           </Text>

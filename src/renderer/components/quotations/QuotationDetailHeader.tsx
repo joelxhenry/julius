@@ -24,7 +24,7 @@ interface Quotation {
 interface QuotationDetailHeaderProps {
   quotation: Quotation;
   adjacentIds: { previousId: number | null; nextId: number | null };
-  onNavigateAdjacent: (id: number | null) => void;
+  onNavigateAdjacent?: (id: number | null) => void;
   onConvertToInvoice: () => void;
   onEdit: () => void;
   onViewClient: () => void;
@@ -55,24 +55,26 @@ export function QuotationDetailHeader({
       <Group justify="space-between" wrap="nowrap" h="100%">
         {/* Left: Quote # and Status */}
         <Group gap="sm" wrap="nowrap">
-          <Group gap={4}>
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              disabled={!adjacentIds.previousId}
-              onClick={() => onNavigateAdjacent(adjacentIds.previousId)}
-            >
-              <IconChevronLeft size={16} />
-            </ActionIcon>
-            <ActionIcon
-              variant="subtle"
-              size="sm"
-              disabled={!adjacentIds.nextId}
-              onClick={() => onNavigateAdjacent(adjacentIds.nextId)}
-            >
-              <IconChevronRight size={16} />
-            </ActionIcon>
-          </Group>
+          {onNavigateAdjacent && (
+            <Group gap={4}>
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                disabled={!adjacentIds.previousId}
+                onClick={() => onNavigateAdjacent(adjacentIds.previousId)}
+              >
+                <IconChevronLeft size={16} />
+              </ActionIcon>
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                disabled={!adjacentIds.nextId}
+                onClick={() => onNavigateAdjacent(adjacentIds.nextId)}
+              >
+                <IconChevronRight size={16} />
+              </ActionIcon>
+            </Group>
+          )}
           <Text fw={600} size="lg">
             Quote {quotation.quoteNum}
           </Text>

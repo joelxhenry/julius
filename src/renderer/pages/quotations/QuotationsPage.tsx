@@ -196,7 +196,7 @@ export function QuotationsPage() {
   // View quotation
   const handleViewQuotation = useCallback(
     (quotation: Quotation) => {
-      replaceCurrentTab(`/quotations/${quotation.id}`);
+      replaceCurrentTab(`/quotations/${quotation.id}`, { fromListing: true });
     },
     [replaceCurrentTab]
   );
@@ -276,7 +276,7 @@ export function QuotationsPage() {
         render: (quotation) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`)}>
+              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`, { fromListing: true })}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>
@@ -292,7 +292,7 @@ export function QuotationsPage() {
                 <ActionIcon
                   variant="subtle"
                   color="violet"
-                  onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`)}
+                  onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`, { fromListing: true })}
                 >
                   <IconFileInvoice size={16} />
                 </ActionIcon>
