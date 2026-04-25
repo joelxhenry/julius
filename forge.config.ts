@@ -62,8 +62,22 @@ function copyNodeModules(buildPath: string) {
     'buffer-writer', 'packet-reader', 'obuf',
     // drizzle-orm
     'drizzle-orm',
+    // sharp and its native dependencies
+    'sharp',
+    'color', 'color-convert', 'color-name', 'color-string', 'is-arrayish', 'simple-swizzle',
+    'detect-libc', 'semver',
   ];
+
   const srcNodeModules = path.join(process.cwd(), 'node_modules');
+
+  // Also copy @img scoped packages (sharp native binaries)
+  const imgScopePath = path.join(srcNodeModules, '@img');
+  if (fs.existsSync(imgScopePath)) {
+    const imgPackages = fs.readdirSync(imgScopePath);
+    for (const pkg of imgPackages) {
+      modulesToCopy.push(`@img/${pkg}`);
+    }
+  }
   const destNodeModules = path.join(buildPath, 'node_modules');
 
   if (!fs.existsSync(destNodeModules)) {
@@ -74,6 +88,11 @@ function copyNodeModules(buildPath: string) {
     const srcPath = path.join(srcNodeModules, mod);
     const destPath = path.join(destNodeModules, mod);
     if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
+      // Ensure parent directory exists for scoped packages (e.g. @img/sharp-win32-x64)
+      const parentDir = path.dirname(destPath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
       copyDirSafe(srcPath, destPath);
       console.log(`Copied ${mod} to ${destPath}`);
     }
