@@ -78,8 +78,8 @@ export function VariantForm({
     },
     validate: {
       variantSku: (value) => {
-        if (!value) return 'Variant SKU is required';
-        if (value.length < 2) return 'SKU must be at least 2 characters';
+        if (!value) return 'Variant Part Number is required';
+        if (value.length < 2) return 'Part Number must be at least 2 characters';
         return null;
       },
       variantName: (value) => (!value ? 'Variant name is required' : null),
@@ -116,7 +116,7 @@ export function VariantForm({
       <Stack gap="md">
         <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <TextInput
-            label="Variant SKU"
+            label="Variant Part Number"
             placeholder={`${parentSku}-001`}
             required
             disabled={isEditing}

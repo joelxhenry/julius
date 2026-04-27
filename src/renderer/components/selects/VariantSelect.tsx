@@ -31,7 +31,7 @@ export function VariantSelect({
   value,
   onChange,
   label = 'Variant',
-  placeholder = 'Search by variant SKU or name...',
+  placeholder = 'Search by variant part number or name...',
   required = false,
   error,
   disabled = false,

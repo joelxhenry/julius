@@ -346,7 +346,7 @@ export function CreateCreditNoteModal({
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th w={36}></Table.Th>
-                  <Table.Th>SKU</Table.Th>
+                  <Table.Th>Part Number</Table.Th>
                   <Table.Th>Description</Table.Th>
                   <Table.Th w={90} ta="right">Qty</Table.Th>
                   <Table.Th w={90} ta="right">Unit Price</Table.Th>

@@ -66,7 +66,7 @@ function SpotlightResultItem({ result, isSelected, onClick }: SpotlightResultIte
               {result.title}
             </Text>
             {result.type === 'inventory' && (
-              <CopyButton value={result.title} tooltip="Copy SKU" />
+              <CopyButton value={result.title} tooltip="Copy part number" />
             )}
             {result.status && (
               <Badge size="xs" variant="light" color={statusColors[result.status] || 'gray'}>

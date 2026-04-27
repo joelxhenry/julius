@@ -73,7 +73,7 @@ export function InvoiceLineItemsReadOnly({
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th style={{ width: 140 }}>SKU</Table.Th>
+              <Table.Th style={{ width: 140 }}>Part Number</Table.Th>
               <Table.Th>Description</Table.Th>
               <Table.Th style={{ width: 80, textAlign: 'center' }}>Qty</Table.Th>
               <Table.Th style={{ width: 120, textAlign: 'right' }}>Unit Price</Table.Th>

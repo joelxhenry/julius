@@ -10,6 +10,7 @@ export interface InventoryQueryParams {
   pageSize?: number;
   search?: string;
   category?: string;
+  model?: string;
   location?: string;
 }
 
@@ -99,7 +100,7 @@ export class InventoryService extends BaseService<
   }
 
   async findPaginated(params: InventoryQueryParams = {}): Promise<PaginatedResult<schema.Inventory>> {
-    const { page = 1, pageSize = 50, search, category, location } = params;
+    const { page = 1, pageSize = 50, search, category, model, location } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -118,8 +119,12 @@ export class InventoryService extends BaseService<
       );
     }
 
-    if (category && category !== 'all') {
-      conditions.push(eq(schema.inventory.category, category));
+    if (category && category.trim() && category !== 'all') {
+      conditions.push(ilike(schema.inventory.category, `%${category.trim()}%`));
+    }
+
+    if (model && model.trim() && model !== 'all') {
+      conditions.push(ilike(schema.inventory.model, `%${model.trim()}%`));
     }
 
     if (location && location !== 'all') {

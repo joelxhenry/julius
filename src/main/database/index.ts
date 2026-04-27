@@ -6,7 +6,10 @@ import fs from 'node:fs';
 import * as schema from './schema/index';
 import { ConfigManager } from '../config/ConfigManager';
 import { DatabaseConfig } from '../config/types';
-import { runSeeds } from './seed';
+import { runSeeds, runBackgroundSeeds } from './seed';
+
+export { runBackgroundSeeds } from './seed';
+export type { SeedProgressEvent, SeedProgressStatus, SeedProgressReporter } from './seed';
 
 export type DatabaseSchema = typeof schema;
 export type AppDatabase = NodePgDatabase<typeof schema>;
@@ -221,6 +224,7 @@ export async function runMigrationsAndSeeds(): Promise<{
     // Run seeds
     console.log('Running seeds manually...');
     await runSeeds(db);
+    await runBackgroundSeeds(db);
     seedsRan = true;
 
     return {

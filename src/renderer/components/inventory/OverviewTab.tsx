@@ -38,7 +38,7 @@ export function OverviewTab({ item, formatCurrency }: OverviewTabProps) {
           <SimpleGrid cols={2}>
             <Stack gap={2}>
               <Text size="xs" c="dimmed">
-                SKU
+                Part Number
               </Text>
               <Group gap="xs">
                 <Text fw={500}>{item.sku}</Text>

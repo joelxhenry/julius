@@ -8,7 +8,7 @@ interface CopyButtonProps {
   tooltip?: string;
 }
 
-export function CopyButton({ value, size = 'xs', tooltip = 'Copy SKU' }: CopyButtonProps) {
+export function CopyButton({ value, size = 'xs', tooltip = 'Copy part number' }: CopyButtonProps) {
   return (
     <MantineCopyButton value={value} timeout={1500}>
       {({ copied, copy }) => (

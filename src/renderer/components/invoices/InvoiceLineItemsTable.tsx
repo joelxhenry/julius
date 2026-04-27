@@ -142,7 +142,7 @@ export function InvoiceLineItemsTable({
         <Stack gap="md" style={{ flex: 1, minHeight: 0 }}>
           {/* Add item search */}
           <Autocomplete
-            placeholder="Search SKU or description to add item..."
+            placeholder="Search part number or description to add item..."
             value={itemSearch}
             onChange={(value) => {
               setItemSearch(value);
@@ -160,7 +160,7 @@ export function InvoiceLineItemsTable({
           <Table>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>SKU</Table.Th>
+                <Table.Th>Part Number</Table.Th>
                 <Table.Th>Description</Table.Th>
                 <Table.Th ta="center" w={80}>
                   Qty
@@ -206,7 +206,7 @@ export function InvoiceLineItemsTable({
                             variant="unstyled"
                             value={item.sku}
                             onChange={(e) => onUpdateLineItem(item.id, 'sku', e.currentTarget.value)}
-                            placeholder="SKU"
+                            placeholder="Part Number"
                             styles={{ input: { minWidth: 80, fontSize: compact ? 12 : 14 } }}
                           />
                           {item.sku && <CopyButton value={item.sku} />}

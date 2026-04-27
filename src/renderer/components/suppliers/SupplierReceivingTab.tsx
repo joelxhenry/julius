@@ -69,7 +69,7 @@ export function SupplierReceivingTab({ supplierId }: SupplierReceivingTabProps) 
       },
       {
         key: 'sku',
-        header: 'SKU',
+        header: 'Part Number',
         width: 150,
         accessor: 'sku',
       },

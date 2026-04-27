@@ -5,24 +5,25 @@ import {
   Paper,
   Group,
   TextInput,
+  Autocomplete,
   Button,
   Badge,
   ActionIcon,
   Text,
   NumberFormatter,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import {
   IconSearch,
   IconPlus,
   IconRefresh,
   IconAlertTriangle,
+  IconCategory,
+  IconCar,
 } from '@tabler/icons-react';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
-import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader, CopyButton } from '../../components/common';
-import { usePreloadThumbnails } from '../../hooks';
+import { DataTable, Column, CopyButton } from '../../components/common';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 
 interface Inventory {
@@ -63,15 +64,13 @@ export function InventoryListPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [modelFilter, setModelFilter] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 500);
-
-  // Gallery modal state
-  const [galleryOpened, { open: openGallery, close: closeGallery }] = useDisclosure(false);
-  const [uploaderOpened, { open: openUploader, close: closeUploader }] = useDisclosure(false);
-  const [selectedSku, setSelectedSku] = useState<string | null>(null);
-
-  // Thumbnail preloading
-  const { preload, getThumbnail } = usePreloadThumbnails();
+  const [debouncedCategory] = useDebouncedValue(categoryFilter, 500);
+  const [debouncedModel] = useDebouncedValue(modelFilter, 500);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
 
   const pageSize = 20;
 
@@ -82,6 +81,8 @@ export function InventoryListPage() {
         page,
         pageSize,
         search: debouncedSearch,
+        category: debouncedCategory,
+        model: debouncedModel,
       });
 
       console.log('Inventory fetch result:', result);
@@ -99,41 +100,37 @@ export function InventoryListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch]);
+  }, [page, pageSize, debouncedSearch, debouncedCategory, debouncedModel]);
 
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
 
-  // Reset to page 1 when search changes
+  // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, debouncedCategory, debouncedModel]);
 
-  // Preload thumbnails when inventory data changes
+  // Load distinct categories/models for autocomplete suggestions
   useEffect(() => {
-    if (inventory.length > 0) {
-      preload(inventory.map(item => ({ sku: item.sku, isVariant: false })));
-    }
-  }, [inventory, preload]);
-
-  // Handlers for gallery modal
-  const handleThumbnailClick = useCallback((sku: string) => {
-    setSelectedSku(sku);
-    openGallery();
-  }, [openGallery]);
-
-  const handleUploadClick = useCallback(() => {
-    closeGallery();
-    openUploader();
-  }, [closeGallery, openUploader]);
-
-  const handleImagesChange = useCallback(() => {
-    // Refresh thumbnails after image changes
-    if (inventory.length > 0) {
-      preload(inventory.map(item => ({ sku: item.sku, isVariant: false })));
-    }
-  }, [inventory, preload]);
+    let cancelled = false;
+    (async () => {
+      const [catResult, modelResult] = await Promise.all([
+        window.electron.invoke(IpcChannel.GET_DISTINCT_CATEGORIES, { limit: 200 }),
+        window.electron.invoke(IpcChannel.GET_DISTINCT_MODELS, { limit: 200 }),
+      ]);
+      if (cancelled) return;
+      if (catResult?.success && Array.isArray(catResult.data)) {
+        setCategoryOptions(catResult.data);
+      }
+      if (modelResult?.success && Array.isArray(modelResult.data)) {
+        setModelOptions(modelResult.data);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const isLowStock = (item: Inventory) => {
     return item.quantity <= item.minLevel;
@@ -142,22 +139,8 @@ export function InventoryListPage() {
   const columns: Column<Inventory>[] = useMemo(
     () => [
       {
-        key: 'image',
-        header: '',
-        width: 100,
-        render: (item) => (
-          <ProductThumbnail
-            sku={item.sku}
-            isVariant={false}
-            size={80}
-            preloadedImage={getThumbnail(item.sku, false)}
-            onClick={() => handleThumbnailClick(item.sku)}
-          />
-        ),
-      },
-      {
         key: 'sku',
-        header: 'SKU',
+        header: 'Part Number',
         width: 280,
         render: (item) => (
           <Group gap="xs">
@@ -183,20 +166,33 @@ export function InventoryListPage() {
       },
       {
         key: 'category',
-        header: 'Categories',
-        width: 250,
+        header: 'Category/Model',
+        width: 280,
         render: (item) => {
           const categories = normalizeToArray(item.category);
-          return categories.length > 0 ? (
+          const models = normalizeToArray(item.model);
+          if (categories.length === 0 && models.length === 0) {
+            return <Text size="sm" c="dimmed">-</Text>;
+          }
+          return (
             <Group gap={6} wrap="wrap">
               {categories.map((cat, idx) => (
-                <Badge key={idx} variant="filled" size="md" radius="sm">
+                <Badge key={`c-${idx}`} variant="filled" size="md" radius="sm">
                   {cat}
                 </Badge>
               ))}
+              {models.map((model, idx) => (
+                <Badge
+                  key={`m-${idx}`}
+                  variant="outline"
+                  size="md"
+                  radius="sm"
+                  color="gray"
+                >
+                  {model}
+                </Badge>
+              ))}
             </Group>
-          ) : (
-            <Text size="sm" c="dimmed">-</Text>
           );
         },
       },
@@ -229,14 +225,8 @@ export function InventoryListPage() {
           </Text>
         ),
       },
-      {
-        key: 'location',
-        header: 'Location',
-        width: 100,
-        accessor: 'location',
-      },
     ],
-    [getThumbnail, handleThumbnailClick]
+    []
   );
 
   return (
@@ -251,13 +241,33 @@ export function InventoryListPage() {
       <Paper p="md" radius="md" withBorder>
         <Stack gap="md">
           {/* Filters */}
-          <Group gap="md">
+          <Group gap="md" align="flex-end" wrap="wrap">
             <TextInput
-              placeholder="Search by SKU, description, model..."
+              placeholder="Search by part number, description, model..."
               leftSection={<IconSearch size={16} />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ flex: 1 }}
+              style={{ flex: 2, minWidth: 240 }}
+            />
+            <Autocomplete
+              placeholder="Filter by category"
+              leftSection={<IconCategory size={16} />}
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              data={categoryOptions}
+              limit={20}
+              clearable
+              style={{ flex: 1, minWidth: 180 }}
+            />
+            <Autocomplete
+              placeholder="Filter by model"
+              leftSection={<IconCar size={16} />}
+              value={modelFilter}
+              onChange={setModelFilter}
+              data={modelOptions}
+              limit={20}
+              clearable
+              style={{ flex: 1, minWidth: 180 }}
             />
             <ActionIcon variant="subtle" onClick={fetchInventory} title="Refresh">
               <IconRefresh size={18} />
@@ -285,33 +295,6 @@ export function InventoryListPage() {
           />
         </Stack>
       </Paper>
-
-      {/* Image Gallery Modal */}
-      {selectedSku && (
-        <ImageGalleryModal
-          opened={galleryOpened}
-          onClose={closeGallery}
-          sku={selectedSku}
-          isVariant={false}
-          onUploadClick={handleUploadClick}
-          onImagesChange={handleImagesChange}
-        />
-      )}
-
-      {/* Image Uploader Modal */}
-      {selectedSku && (
-        <ImageUploader
-          opened={uploaderOpened}
-          onClose={closeUploader}
-          sku={selectedSku}
-          isVariant={false}
-          onUploadComplete={() => {
-            handleImagesChange();
-            closeUploader();
-            openGallery();
-          }}
-        />
-      )}
     </Stack>
   );
 }

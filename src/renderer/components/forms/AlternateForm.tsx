@@ -41,7 +41,7 @@ export function AlternateForm({
       supplier: '',
     },
     validate: {
-      alternateNo: (value) => (!value ? 'Alternate SKU is required' : null),
+      alternateNo: (value) => (!value ? 'Alternate Part Number is required' : null),
     },
   });
 

@@ -86,18 +86,52 @@ export async function seedSuperUser(
 }
 
 /**
- * Run all database seeds
+ * Run critical database seeds that must complete before the app is usable.
+ * Heavy/idempotent backfills (e.g. base variants) run separately via runBackgroundSeeds.
  */
 export async function runSeeds(db: NodePgDatabase<typeof schema>): Promise<void> {
   console.log('Running database seeds...');
 
   try {
     await seedSuperUser(db);
-    await seedBaseVariants(db);
-    await seedMultiValueFields(db);
     console.log('Database seeding completed successfully');
   } catch (error) {
     console.error('Database seeding failed:', error);
     throw error;
+  }
+}
+
+export type SeedProgressStatus = 'started' | 'completed' | 'error';
+export interface SeedProgressEvent {
+  task: string;
+  label: string;
+  status: SeedProgressStatus;
+  message?: string;
+}
+export type SeedProgressReporter = (event: SeedProgressEvent) => void;
+
+/**
+ * Run idempotent background seeds. Safe to run after the window is shown — these
+ * backfills can take a while on large datasets and must not block startup.
+ */
+export async function runBackgroundSeeds(
+  db: NodePgDatabase<typeof schema>,
+  report?: SeedProgressReporter
+): Promise<void> {
+  const tasks: { task: string; label: string; run: () => Promise<void> }[] = [
+    { task: 'baseVariants', label: 'Updating inventory variants', run: () => seedBaseVariants(db) },
+    { task: 'multiValueFields', label: 'Updating multi-value fields', run: () => seedMultiValueFields(db) },
+  ];
+
+  for (const { task, label, run } of tasks) {
+    report?.({ task, label, status: 'started' });
+    try {
+      await run();
+      report?.({ task, label, status: 'completed' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Background seed '${task}' failed:`, error);
+      report?.({ task, label, status: 'error', message });
+    }
   }
 }

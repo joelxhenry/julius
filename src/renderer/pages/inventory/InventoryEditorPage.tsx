@@ -123,7 +123,7 @@ export function InventoryEditorPage() {
       isTaxable: true,
     },
     validate: {
-      sku: (value) => (!value ? 'SKU is required' : null),
+      sku: (value) => (!value ? 'Part Number is required' : null),
       description1: (value) => (!value ? 'Description is required' : null),
       price: (value) => (value < 0 ? 'Price cannot be negative' : null),
       cost: (value) => (value < 0 ? 'Cost cannot be negative' : null),
@@ -309,8 +309,8 @@ export function InventoryEditorPage() {
               </Group>
 
               <TextInput
-                label="SKU"
-                placeholder="Enter SKU code"
+                label="Part Number"
+                placeholder="Enter part number"
                 required
                 {...form.getInputProps('sku')}
               />
@@ -469,7 +469,7 @@ export function InventoryEditorPage() {
 
                 {!form.values.sku && (
                   <Text size="sm" c="dimmed">
-                    Enter a SKU first to add variants
+                    Enter a part number first to add variants
                   </Text>
                 )}
 
@@ -477,7 +477,7 @@ export function InventoryEditorPage() {
                   <Table striped highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
-                        <Table.Th>SKU</Table.Th>
+                        <Table.Th>Part Number</Table.Th>
                         <Table.Th>Name</Table.Th>
                         <Table.Th>Qty</Table.Th>
                         <Table.Th>Price</Table.Th>

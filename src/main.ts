@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
-import { initDatabase, getConnectionError } from './main/database';
+import { initDatabase, getConnectionError, getDatabaseOrNull, runBackgroundSeeds } from './main/database';
 import { registerIpcHandlers } from './main/ipc/handlers';
 
 // Declare Vite global variables
@@ -49,6 +49,20 @@ const createWindow = async () => {
     mainWindow.webContents.send('database:connection-error', {
       message: 'Database connection failed',
       error: error.message,
+    });
+  }
+
+  // Run heavy idempotent seeds in the background so they don't block startup.
+  // The renderer subscribes to 'seeds:progress' to surface a notification.
+  const bgDb = getDatabaseOrNull();
+  if (bgDb) {
+    const win = mainWindow;
+    void runBackgroundSeeds(bgDb, (event) => {
+      if (!win.isDestroyed()) {
+        win.webContents.send('seeds:progress', event);
+      }
+    }).catch((err) => {
+      console.error('Background seeds failed:', err);
     });
   }
 };

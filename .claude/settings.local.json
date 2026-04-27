@@ -5,9 +5,17 @@
       "Bash(npx tsc:*)",
       "Bash(npm install:*)",
       "Bash(powershell -Command:*)",
-      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(npm run *)",
+      "Bash(grep -E \"^\\(c:|/c/\\).*\\\\.\\(ts|tsx\\)$|error \")",
+      "Bash(git status *)",
+      "Bash(git stash *)",
+      "Bash(git add *)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "c:\\Users\\joelh\\Documents\\julius-app\\julius\\.claude"
+    ]
   }
 }

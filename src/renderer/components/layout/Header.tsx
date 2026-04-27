@@ -1,6 +1,14 @@
 import { useState } from 'react';
-import { Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip } from '@mantine/core';
-import { IconLogout, IconUser, IconSun, IconMoon, IconSearch } from '@tabler/icons-react';
+import { Burger, Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip } from '@mantine/core';
+import {
+  IconLogout,
+  IconUser,
+  IconSun,
+  IconMoon,
+  IconSearch,
+  IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarLeftExpand,
+} from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import logoUrl from '../../assets/logo.png';
 import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
@@ -8,7 +16,19 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useSpotlight } from '../../contexts/SpotlightContext';
 import { PasswordVerificationModal } from '../auth/PasswordVerificationModal';
 
-export function Header() {
+interface HeaderProps {
+  desktopOpened: boolean;
+  mobileOpened: boolean;
+  onToggleDesktop: () => void;
+  onToggleMobile: () => void;
+}
+
+export function Header({
+  desktopOpened,
+  mobileOpened,
+  onToggleDesktop,
+  onToggleMobile,
+}: HeaderProps) {
   const { user, logout, updateUser } = useAuth();
   const { colorScheme, toggleColorScheme } = useTheme();
   const { open: openSpotlight } = useSpotlight();
@@ -36,6 +56,31 @@ export function Header() {
       }}
     >
       <Group>
+        <Burger
+          opened={mobileOpened}
+          onClick={onToggleMobile}
+          hiddenFrom="sm"
+          size="sm"
+          aria-label="Toggle navigation"
+        />
+        <Tooltip
+          label={desktopOpened ? 'Collapse sidebar' : 'Expand sidebar'}
+          position="bottom"
+        >
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={onToggleDesktop}
+            visibleFrom="sm"
+            aria-label="Toggle sidebar"
+          >
+            {desktopOpened ? (
+              <IconLayoutSidebarLeftCollapse size={20} stroke={1.5} />
+            ) : (
+              <IconLayoutSidebarLeftExpand size={20} stroke={1.5} />
+            )}
+          </ActionIcon>
+        </Tooltip>
         <img src={logoUrl} alt="" style={{ height: 32, width: 32, borderRadius: 4 }} />
         <Title order={3} style={{ letterSpacing: '-0.025em' }}>
           Turbo Julius

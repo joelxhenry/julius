@@ -35,7 +35,7 @@ export function InventorySelect({
   value,
   onChange,
   label = 'Inventory Item',
-  placeholder = 'Search by SKU or description...',
+  placeholder = 'Search by part number or description...',
   required = false,
   error,
   disabled = false,

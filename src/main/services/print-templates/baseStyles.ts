@@ -143,7 +143,7 @@ export function getLineItemsTable(lineItems: PrintLineItem[], currencySymbol: st
       <thead>
         <tr>
           <th style="width: 40px;">#</th>
-          <th>SKU</th>
+          <th>Part No.</th>
           <th>Description</th>
           <th class="right">Qty</th>
           <th class="right">Unit Price</th>

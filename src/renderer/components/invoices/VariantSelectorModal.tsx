@@ -64,7 +64,7 @@ export function VariantSelectorModal({
         {!isLoading && variants.length === 0 && (
           <Alert icon={<IconAlertCircle size={16} />} color="blue" title="No Variants Found">
             <Text size="sm">
-              No active variants found for SKU {parentSku}. The parent item will be added instead.
+              No active variants found for part number {parentSku}. The parent item will be added instead.
             </Text>
           </Alert>
         )}

@@ -242,7 +242,12 @@ function AppLayoutContent() {
             transition: 'background-color 200ms ease, border-color 200ms ease',
           }}
         >
-          <Header />
+          <Header
+            desktopOpened={desktopOpened}
+            mobileOpened={mobileOpened}
+            onToggleDesktop={toggleDesktop}
+            onToggleMobile={toggleMobile}
+          />
         </AppShell.Header>
 
         <AppShell.Navbar

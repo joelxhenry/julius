@@ -66,7 +66,7 @@ export function InventoryWarningModal({
                   <Table>
                     <Table.Thead>
                       <Table.Tr>
-                        <Table.Th>SKU</Table.Th>
+                        <Table.Th>Part Number</Table.Th>
                         <Table.Th>Description</Table.Th>
                         <Table.Th ta="center">Available</Table.Th>
                         <Table.Th w={60}></Table.Th>

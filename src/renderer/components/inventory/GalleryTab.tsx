@@ -144,7 +144,7 @@ function ImageSection({
             </Group>
             {subtitle && (
               <Text size="xs" c="dimmed">
-                SKU: {subtitle}
+                Part Number: {subtitle}
               </Text>
             )}
           </Stack>

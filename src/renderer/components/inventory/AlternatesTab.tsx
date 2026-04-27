@@ -32,7 +32,7 @@ export function AlternatesTab({
     () => [
       {
         key: 'alternateNo',
-        header: 'Alternate SKU',
+        header: 'Alternate Part Number',
         render: (alt) => {
           const alternateSku = alt.partNo === currentSku ? alt.alternateNo : alt.partNo;
           return (

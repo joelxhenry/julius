@@ -258,10 +258,10 @@ export function InventoryEditModal({
                 </Group>
 
                 <TextInput
-                  label="SKU"
+                  label="Part Number"
                   value={form.values.sku}
                   disabled
-                  description="SKU cannot be changed"
+                  description="Part Number cannot be changed"
                 />
 
                 <CategoryTagsInput {...form.getInputProps("categories")} />

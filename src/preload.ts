@@ -16,6 +16,20 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.removeAllListeners('database:connection-error');
     };
   },
+  onSeedsProgress: (
+    callback: (event: {
+      task: string;
+      label: string;
+      status: 'started' | 'completed' | 'error';
+      message?: string;
+    }) => void
+  ) => {
+    const listener = (_: unknown, data: any) => callback(data);
+    ipcRenderer.on('seeds:progress', listener);
+    return () => {
+      ipcRenderer.removeListener('seeds:progress', listener);
+    };
+  },
 });
 
 // See the Electron documentation for details on how to use preload scripts:

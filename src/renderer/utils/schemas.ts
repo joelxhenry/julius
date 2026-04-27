@@ -18,7 +18,7 @@ export const partSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   category: z.string().optional(),
   description: z.string().optional(),
-  sku: z.string().min(1, 'SKU is required'),
+  sku: z.string().min(1, 'Part Number is required'),
   price: z.number().min(0, 'Price must be positive').default(0),
   taxable: z.boolean().default(true),
 });

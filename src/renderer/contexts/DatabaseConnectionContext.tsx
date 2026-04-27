@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../shared/types/ipc';
 
 interface DatabaseConnectionContextType {
@@ -68,6 +69,47 @@ export function DatabaseConnectionProvider({ children }: { children: React.React
     const cleanup = window.electron.onDatabaseError?.((error) => {
       setIsConnected(false);
       setConnectionError(error.error || error.message);
+    });
+
+    return () => {
+      cleanup?.();
+    };
+  }, []);
+
+  // Listen for background seed progress from the main process
+  useEffect(() => {
+    const cleanup = window.electron.onSeedsProgress?.((event) => {
+      const id = `seed-${event.task}`;
+      if (event.status === 'started') {
+        notifications.show({
+          id,
+          title: event.label,
+          message: 'Running in the background…',
+          loading: true,
+          autoClose: false,
+          withCloseButton: false,
+        });
+      } else if (event.status === 'completed') {
+        notifications.update({
+          id,
+          title: event.label,
+          message: 'Done',
+          color: 'teal',
+          loading: false,
+          autoClose: 3000,
+          withCloseButton: true,
+        });
+      } else {
+        notifications.update({
+          id,
+          title: event.label,
+          message: event.message || 'Failed',
+          color: 'red',
+          loading: false,
+          autoClose: 6000,
+          withCloseButton: true,
+        });
+      }
     });
 
     return () => {

@@ -559,7 +559,7 @@ export function InventoryDetailPage() {
       } else {
         notifications.show({
           title: 'Item Not Found',
-          message: `Could not find inventory item with SKU: ${alternateSku}`,
+          message: `Could not find inventory item with part number: ${alternateSku}`,
           color: 'orange',
         });
       }

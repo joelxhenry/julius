@@ -81,7 +81,7 @@ export function VariantsTab({ variants, loading, onAddVariant, onEditVariant, on
       },
       {
         key: 'variantSku',
-        header: 'Variant SKU',
+        header: 'Variant Part Number',
         width: 180,
         render: (variant) => (
           <Group gap="xs">

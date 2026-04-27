@@ -8,6 +8,14 @@ declare global {
         data?: unknown
       ) => Promise<any>;
       onDatabaseError?: (callback: (error: { message: string; error: string }) => void) => () => void;
+      onSeedsProgress?: (
+        callback: (event: {
+          task: string;
+          label: string;
+          status: 'started' | 'completed' | 'error';
+          message?: string;
+        }) => void
+      ) => () => void;
     };
   }
 }
