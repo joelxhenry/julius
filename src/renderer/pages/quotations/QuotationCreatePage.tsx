@@ -35,6 +35,8 @@ import {
 } from '../../components/invoices';
 import { useVariants } from '../../hooks/useVariants';
 import { useTaxRate } from '../../hooks/useTaxRate';
+import { useTrayDraftIntegration } from '../../hooks/useTrayDraftIntegration';
+import { useTabPath } from '../../components/layout/TabContainer';
 
 interface LocationState {
   salespersonId?: number;
@@ -47,6 +49,10 @@ export function QuotationCreatePage() {
   const { user } = useAuth();
   const { markTabDirty, updateTabTitle, replaceCurrentTab } = useTabContext();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
+  const tabPath = useTabPath();
+  // Owning-tab path: prefer the tab the page is mounted in (stable across active-tab
+  // switches) and only fall back to the live URL when not rendered inside a tab.
+  const ownPath = tabPath ?? location.pathname;
   const locationState = location.state as LocationState | null;
 
   const isEditing = !!id && id !== 'new';
@@ -85,6 +91,29 @@ export function QuotationCreatePage() {
   // Loading state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Marked-items tray integration: prefill on `state.fromTray`, register draft handler.
+  useTrayDraftIntegration({
+    docType: 'quotation',
+    enabled: !isEditing && !isLoading,
+    pricing,
+    addItem: (data) => {
+      const amount = data.quantity * data.unitPrice;
+      const newLineItem: LineItem = {
+        id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        sku: data.sku,
+        description: data.description,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+        discount: 0,
+        isTaxable: data.isTaxable,
+        amount,
+        inventoryId: data.inventoryId,
+        isVariant: data.isVariant,
+      };
+      setLineItems((prev) => [...prev, newLineItem]);
+    },
+  });
 
   // Variant selection
   const [variantModalOpen, { open: openVariantModal, close: closeVariantModal }] = useDisclosure(false);
@@ -189,8 +218,8 @@ export function QuotationCreatePage() {
         setPricing(quote.pricing);
         setOriginalQuoteNum(quote.quoteNum);
 
-        if (location.pathname === `/quotations/${id}/edit`) {
-          updateTabTitle(location.pathname, `Edit Quotation ${quote.quoteNum}`);
+        if (ownPath === `/quotations/${id}/edit`) {
+          updateTabTitle(ownPath, `Edit Quotation ${quote.quoteNum}`);
         }
 
         if (quote.clientId) {
@@ -232,11 +261,13 @@ export function QuotationCreatePage() {
     }
   };
 
-  // Track dirty state
+  // Track dirty state — must target the OWNING tab's path. `location.pathname` here
+  // returns the *active* tab's URL (this page can be mounted but not active inside
+  // TabContainer), so using it would mark a sibling tab dirty.
   useEffect(() => {
     const hasChanges = lineItems.length > 0 || clientId !== null || reference !== '';
-    markTabDirty(location.pathname, hasChanges);
-  }, [lineItems, clientId, reference, location.pathname, markTabDirty]);
+    markTabDirty(ownPath, hasChanges);
+  }, [lineItems, clientId, reference, ownPath, markTabDirty]);
 
   // Search clients
   const searchClients = useDebouncedCallback(async (query: string) => {
@@ -649,7 +680,7 @@ export function QuotationCreatePage() {
 
   return (
     <>
-      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
+      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8, overflow: 'auto' }}>
         {/* Recent Quotations (only show when creating new) */}
         {!isEditing && recentQuotations.length > 0 && (
           <Paper px="md" py="sm" withBorder radius="md" style={{ flexShrink: 0 }}>

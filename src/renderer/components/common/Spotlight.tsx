@@ -2,6 +2,7 @@ import { Modal, TextInput, Stack, Group, Text, Badge, Loader, Kbd, Paper, Unstyl
 import { IconSearch, IconFileInvoice, IconUser, IconPackage, IconFileText, IconReceipt } from '@tabler/icons-react';
 import { useSpotlight, SpotlightResult } from '../../contexts/SpotlightContext';
 import { CopyButton } from './CopyButton';
+import { MarkButton } from '../tray/MarkButton';
 
 const typeIcons: Record<SpotlightResult['type'], React.ReactNode> = {
   invoice: <IconFileInvoice size={20} />,
@@ -81,6 +82,9 @@ function SpotlightResultItem({ result, isSelected, onClick }: SpotlightResultIte
         <Badge size="xs" variant="outline" color={typeColors[result.type]}>
           {typeLabels[result.type]}
         </Badge>
+        {result.type === 'inventory' && (
+          <MarkButton mode="item" parentSku={result.title} />
+        )}
       </Group>
     </UnstyledButton>
   );

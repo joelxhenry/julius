@@ -45,6 +45,7 @@ import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, Gal
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
 import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
 import { CopyButton, LookupTicketButton } from '../../components/common';
+import { MarkButton } from '../../components/tray/MarkButton';
 
 interface Inventory {
   id: number;
@@ -620,6 +621,7 @@ export function InventoryDetailPage() {
             <Group gap="sm">
               <Title order={2}>{item.sku}</Title>
               <CopyButton value={item.sku} size="sm" />
+              <MarkButton mode="item" parentSku={item.sku} />
               {isLowStock && (
                 <Badge color="orange" variant="light" leftSection={<IconAlertTriangle size={12} />}>
                   Low Stock
@@ -742,6 +744,7 @@ export function InventoryDetailPage() {
           <VariantsTab
             variants={variants}
             loading={variantsLoading}
+            parentIsTaxable={item.isTaxable}
             onAddVariant={() => {
               setEditingVariant(null);
               setAddVariantOpen(true);

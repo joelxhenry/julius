@@ -9,6 +9,8 @@ import { TabBar } from '../components/layout/TabBar';
 import { TabContainer } from '../components/layout/TabContainer';
 import { PinVerificationModal } from '../components/auth/PinVerificationModal';
 import { Spotlight } from '../components/common/Spotlight';
+import { MarkedItemsLauncher } from '../components/tray/MarkedItemsLauncher';
+import { MarkedItemsTray } from '../components/tray/MarkedItemsTray';
 import { useTheme } from '../contexts/ThemeContext';
 import { useKeyboardShortcutContext } from '../contexts/KeyboardShortcutContext';
 import { SpotlightProvider } from '../contexts/SpotlightContext';
@@ -33,6 +35,7 @@ const navigationShortcuts = [
 function AppLayoutContent() {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
+  const [trayOpened, { open: openTray, close: closeTray }] = useDisclosure(false);
   const { colorScheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -173,6 +176,28 @@ function AppLayoutContent() {
     };
   }, [handleProtectedNavigation, registerShortcuts, unregisterShortcuts]);
 
+  // Register tray keyboard shortcut (Q-B9: Shift+2 / @)
+  useEffect(() => {
+    const trayShortcuts: KeyboardShortcut[] = [
+      {
+        key: '@',
+        shift: true,
+        callback: () => {
+          if (trayOpened) {
+            closeTray();
+          } else {
+            openTray();
+          }
+        },
+        description: 'Toggle marked items tray',
+      },
+    ];
+    registerShortcuts('marked-items', trayShortcuts);
+    return () => {
+      unregisterShortcuts('marked-items');
+    };
+  }, [trayOpened, openTray, closeTray, registerShortcuts, unregisterShortcuts]);
+
   // Register tab keyboard shortcuts
   useEffect(() => {
     const tabShortcuts: KeyboardShortcut[] = [
@@ -293,6 +318,13 @@ function AppLayoutContent() {
       </AppShell>
 
       <Spotlight />
+
+      {isSessionValid && (
+        <>
+          <MarkedItemsLauncher onOpen={openTray} />
+          <MarkedItemsTray opened={trayOpened} onClose={closeTray} />
+        </>
+      )}
 
       <PinVerificationModal
         opened={pinModalOpen}

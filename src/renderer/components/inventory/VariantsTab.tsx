@@ -3,6 +3,7 @@ import { Paper, Stack, Group, Text, Button, Badge, ActionIcon, Menu, NumberForma
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconEdit, IconTrash, IconDotsVertical } from '@tabler/icons-react';
 import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader, CopyButton } from '../common';
+import { MarkButton } from '../tray/MarkButton';
 import { usePreloadThumbnails } from '../../hooks';
 
 interface Variant {
@@ -24,12 +25,13 @@ interface Variant {
 interface VariantsTabProps {
   variants: Variant[];
   loading: boolean;
+  parentIsTaxable: boolean;
   onAddVariant: () => void;
   onEditVariant: (variant: Variant) => void;
   onDeleteVariant: (variantId: number) => void;
 }
 
-export function VariantsTab({ variants, loading, onAddVariant, onEditVariant, onDeleteVariant }: VariantsTabProps) {
+export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, onEditVariant, onDeleteVariant }: VariantsTabProps) {
   // Gallery modal state
   const [galleryOpened, { open: openGallery, close: closeGallery }] = useDisclosure(false);
   const [uploaderOpened, { open: openUploader, close: closeUploader }] = useDisclosure(false);
@@ -119,6 +121,24 @@ export function VariantsTab({ variants, loading, onAddVariant, onEditVariant, on
         ),
       },
       {
+        key: 'mark',
+        header: '',
+        width: 48,
+        render: (variant) => (
+          <MarkButton
+            mode="variant"
+            item={{
+              partNumber: variant.variantSku,
+              description: variant.description ?? variant.variantName ?? '',
+              unitPrice: Number(variant.price ?? 0) || 0,
+              isTaxable: parentIsTaxable,
+              isVariant: true,
+              parentPartNumber: variant.parentSku,
+            }}
+          />
+        ),
+      },
+      {
         key: 'actions',
         header: 'Actions',
         width: 80,
@@ -141,7 +161,7 @@ export function VariantsTab({ variants, loading, onAddVariant, onEditVariant, on
         ),
       },
     ],
-    [onEditVariant, onDeleteVariant, getThumbnail, handleThumbnailClick]
+    [onEditVariant, onDeleteVariant, getThumbnail, handleThumbnailClick, parentIsTaxable]
   );
 
   return (

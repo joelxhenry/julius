@@ -24,6 +24,7 @@ import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column, CopyButton } from '../../components/common';
+import { MarkButton } from '../../components/tray/MarkButton';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 
 interface Inventory {
@@ -224,6 +225,12 @@ export function InventoryListPage() {
             />
           </Text>
         ),
+      },
+      {
+        key: 'mark',
+        header: '',
+        width: 48,
+        render: (item) => <MarkButton mode="item" parentSku={item.sku} />,
       },
     ],
     []

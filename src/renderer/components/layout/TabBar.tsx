@@ -73,7 +73,6 @@ function TabItem({ id, title, isActive, hasUnsavedChanges, onSelect, onClose }: 
           size={6}
           color="yellow"
           position="middle-start"
-          style={{ marginRight: '-4px' }}
         />
       )}
 

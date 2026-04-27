@@ -14,6 +14,7 @@ import { AuthProvider } from './renderer/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
 import { KeyboardShortcutProvider } from './renderer/contexts/KeyboardShortcutContext';
+import { MarkedItemsProvider } from './renderer/contexts/MarkedItemsContext';
 import { DatabaseConfigModal } from './renderer/components/database/DatabaseConfigModal';
 import { ErrorBoundary } from './renderer/components/common/ErrorBoundary';
 import { ThemeTransitionOverlay } from './renderer/components/common/ThemeTransitionOverlay';
@@ -34,7 +35,9 @@ function AppWithTheme() {
         <AuthProvider>
           <KeyboardShortcutProvider>
             <KeyboardShortcutHelp />
-            <RouterProvider router={router} />
+            <MarkedItemsProvider>
+              <RouterProvider router={router} />
+            </MarkedItemsProvider>
           </KeyboardShortcutProvider>
         </AuthProvider>
       </DatabaseConnectionProvider>

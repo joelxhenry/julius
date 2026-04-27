@@ -3,6 +3,7 @@ import { Paper, Stack, Group, Text, Button, ActionIcon } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
 import { CopyButton } from '../common';
+import { MarkButton } from '../tray/MarkButton';
 
 interface InventoryAlternate {
   id: number;
@@ -54,6 +55,15 @@ export function AlternatesTab({
         key: 'supplier',
         header: 'Supplier',
         render: (alt) => alt.supplier || '-',
+      },
+      {
+        key: 'mark',
+        header: '',
+        width: 48,
+        render: (alt) => {
+          const alternateSku = alt.partNo === currentSku ? alt.alternateNo : alt.partNo;
+          return <MarkButton mode="item" parentSku={alternateSku} />;
+        },
       },
       {
         key: 'actions',

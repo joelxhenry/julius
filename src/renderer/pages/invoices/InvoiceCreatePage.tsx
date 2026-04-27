@@ -34,6 +34,8 @@ import {
   useInvoiceForm,
   useInvoiceKeyboardShortcuts,
 } from '../../hooks';
+import { useTrayDraftIntegration } from '../../hooks/useTrayDraftIntegration';
+import { useTabPath } from '../../components/layout/TabContainer';
 
 interface LocationState {
   salespersonId?: number;
@@ -44,6 +46,10 @@ export function InvoiceCreatePage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { markTabDirty, updateTabTitle, replaceCurrentTab } = useTabContext();
+  const tabPath = useTabPath();
+  // Owning-tab path: prefer the tab the page is mounted in (stable across active-tab
+  // switches) and only fall back to the live URL when not rendered inside a tab.
+  const ownPath = tabPath ?? location.pathname;
   const locationState = location.state as LocationState | null;
 
   const isEditing = !!id && /^\d+$/.test(id);
@@ -88,6 +94,24 @@ export function InvoiceCreatePage() {
   // Loading/saving state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Marked-items tray integration: prefill on `state.fromTray`, register draft handler.
+  useTrayDraftIntegration({
+    docType: 'invoice',
+    enabled: !isEditing && !isLoading,
+    pricing: formState.pricing,
+    addItem: (data) =>
+      addLineItem({
+        sku: data.sku,
+        description: data.description,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+        discount: 0,
+        isTaxable: data.isTaxable,
+        inventoryId: data.inventoryId,
+        isVariant: data.isVariant,
+      }),
+  });
 
   // Recent invoices for quick access
   const [recentInvoices, setRecentInvoices] = useState<Array<{
@@ -240,8 +264,8 @@ export function InvoiceCreatePage() {
         const inv = result.data;
         formActions.loadFromInvoice(inv);
 
-        if (location.pathname === `/invoices/form/${id}` || location.pathname === `/invoices/edit/${id}`) {
-          updateTabTitle(location.pathname, `Edit Invoice ${inv.invNumber}`);
+        if (ownPath === `/invoices/form/${id}` || ownPath === `/invoices/edit/${id}`) {
+          updateTabTitle(ownPath, `Edit Invoice ${inv.invNumber}`);
         }
 
         if (inv.clientId) {
@@ -282,11 +306,13 @@ export function InvoiceCreatePage() {
     }
   };
 
-  // Track dirty state
+  // Track dirty state — must target the OWNING tab's path. `location.pathname` here
+  // returns the *active* tab's URL (this page can be mounted but not active inside
+  // TabContainer), so using it would mark a sibling tab dirty.
   useEffect(() => {
     const hasChanges = lineItems.length > 0 || formState.clientId !== null || formState.reference !== '';
-    markTabDirty(location.pathname, hasChanges);
-  }, [lineItems, formState.clientId, formState.reference, location.pathname, markTabDirty]);
+    markTabDirty(ownPath, hasChanges);
+  }, [lineItems, formState.clientId, formState.reference, ownPath, markTabDirty]);
 
   // Add line item from inventory
   const addLineItemFromInventory = useCallback(
@@ -602,7 +628,7 @@ export function InvoiceCreatePage() {
 
   return (
     <>
-      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
+      <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8, overflow: 'auto' }}>
         {/* Recent Active Invoices */}
         {recentInvoices.length > 0 && (
           <Paper px="md" py="sm" withBorder radius="md" style={{ flexShrink: 0 }}>

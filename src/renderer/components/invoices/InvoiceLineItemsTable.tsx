@@ -137,9 +137,9 @@ export function InvoiceLineItemsTable({
     return inventoryWarnings.find((w) => w.sku === sku);
   };
   return (
-    <Box style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <Paper withBorder p="md" radius="md" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-        <Stack gap="md" style={{ flex: 1, minHeight: 0 }}>
+    <Box>
+      <Paper withBorder p="md" radius="md">
+        <Stack gap="md">
           {/* Add item search */}
           <Autocomplete
             placeholder="Search part number or description to add item..."
