@@ -38,7 +38,7 @@ import { InventoryImageService, UploadImageParams } from '../services/InventoryI
 import { PrintService } from '../services/PrintService';
 import { ReportService } from '../services/ReportService';
 import { ExportService } from '../services/ExportService';
-import { PrintDocumentRequest } from '../../shared/types/print';
+import { PrintDocumentRequest, ReceivingReferenceRequest } from '../../shared/types/print';
 import { ExportRequest } from '../../shared/types/export';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
@@ -224,6 +224,7 @@ function registerDataHandlers() {
     employeeService,
     inventoryService,
     variantService,
+    inventoryReceivingService,
   );
 
   // Initialize controllers
@@ -891,6 +892,8 @@ function registerDataHandlers() {
     printController.getPrintSettings());
   ipcMain.handle(IpcChannel.PRINT_LOOKUP_TICKET, (_, params: LookupTicketRequest) =>
     printController.printLookupTicket(params));
+  ipcMain.handle(IpcChannel.PRINT_RECEIVING_REFERENCE, (_, params: ReceivingReferenceRequest) =>
+    printController.printReceivingReference(params));
 
   // ===== REPORT HANDLERS =====
   const reportService = new ReportService(db);

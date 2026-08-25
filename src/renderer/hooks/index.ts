@@ -69,3 +69,4 @@ export { useInvoiceKeyboardShortcuts } from './useInvoiceKeyboardShortcuts';
 
 // Print hooks
 export { usePrint } from './usePrint';
+export { useReceivingReferencePrint } from './useReceivingReferencePrint';

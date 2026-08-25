@@ -1,5 +1,5 @@
 import { PrintService, PrintResult } from '../services/PrintService';
-import { PrintDocumentType, PrintOutputMode } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, ReceivingReferenceRequest } from '../../shared/types/print';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
 export class PrintController {
@@ -58,6 +58,15 @@ export class PrintController {
   async printLookupTicket(params: LookupTicketRequest) {
     try {
       const result = await this.printService.generateLookupTicket(params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async printReceivingReference(params: ReceivingReferenceRequest) {
+    try {
+      const result = await this.printService.generateReceivingReference(params);
       return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);

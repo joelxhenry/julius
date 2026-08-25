@@ -21,10 +21,13 @@ import {
   IconDownload,
   IconFileTypeCsv,
   IconFileSpreadsheet,
+  IconPrinter,
+  IconFileTypePdf,
 } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
 import { useTabContext } from '../../contexts/TabContext';
+import { useReceivingReferencePrint } from '../../hooks/useReceivingReferencePrint';
 import { IpcChannel } from '../../../shared/types/ipc';
 import type { ExportColumn, ExportFormat, ExportRequest } from '../../../shared/types/export';
 
@@ -82,6 +85,7 @@ const formatDate = (dateStr: string | null) => {
 
 export function ReceivingTab({ sku }: ReceivingTabProps) {
   const { openTab } = useTabContext();
+  const { printReceivingReference, isPrinting } = useReceivingReferencePrint();
   const [receiving, setReceiving] = useState<InventoryReceiving[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
@@ -319,7 +323,9 @@ export function ReceivingTab({ sku }: ReceivingTabProps) {
         </Paper>
       ) : (
         <>
-          {pagedGroups.map((group) => (
+          {pagedGroups.map((group) => {
+            const reference = group.reference;
+            return (
             <Paper key={group.key} p="md" radius="md" withBorder>
               <Group justify="space-between" wrap="wrap" gap="sm">
                 <Group gap="sm">
@@ -371,10 +377,45 @@ export function ReceivingTab({ sku }: ReceivingTabProps) {
                       </Menu.Item>
                     </Menu.Dropdown>
                   </Menu>
+                  {reference && (
+                    <Menu shadow="md" width={180} position="bottom-end">
+                      <Menu.Target>
+                        <Button
+                          size="xs"
+                          variant="light"
+                          leftSection={<IconPrinter size={14} />}
+                          loading={isPrinting}
+                        >
+                          Print
+                        </Button>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        <Menu.Item
+                          leftSection={<IconPrinter size={16} />}
+                          onClick={() => printReceivingReference(reference, 'print')}
+                        >
+                          Print
+                        </Menu.Item>
+                        <Menu.Item
+                          leftSection={<IconFileTypePdf size={16} />}
+                          onClick={() => printReceivingReference(reference, 'pdf')}
+                        >
+                          Save as PDF
+                        </Menu.Item>
+                        <Menu.Item
+                          leftSection={<IconEye size={16} />}
+                          onClick={() => printReceivingReference(reference, 'preview')}
+                        >
+                          Preview
+                        </Menu.Item>
+                      </Menu.Dropdown>
+                    </Menu>
+                  )}
                 </Group>
               </Group>
             </Paper>
-          ))}
+            );
+          })}
 
           {totalPages > 1 && (
             <Center>

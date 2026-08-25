@@ -8,13 +8,14 @@ import { CreditNoteService } from './CreditNoteService';
 import { PaymentService } from './PaymentService';
 import { DocumentLineItemService } from './DocumentLineItemService';
 import { EmployeeService } from './EmployeeService';
-import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest } from '../../shared/types/print';
 import {
   CompanyInfo,
   InvoiceTemplateData,
   QuotationTemplateData,
   CreditNoteTemplateData,
   PaymentReceiptTemplateData,
+  ReceivingReferenceTemplateData,
 } from './print-templates/types';
 import { getInvoiceTemplate } from './print-templates/invoiceTemplate';
 import { getQuotationTemplate } from './print-templates/quotationTemplate';
@@ -27,6 +28,8 @@ import { getThermalPaymentReceiptTemplate } from './print-templates/thermal/ther
 import { getThermalLookupTicketTemplate } from './print-templates/thermal/thermalLookupTicketTemplate';
 import { InventoryService } from './InventoryService';
 import { VariantService } from './VariantService';
+import { InventoryReceivingService } from './InventoryReceivingService';
+import { getReceivingReferenceTemplate } from './print-templates/receivingReferenceTemplate';
 import { LookupTicketRequest, LookupTicketData, LookupTicketItem } from '../../shared/types/lookupTicket';
 
 export interface PrintResult {
@@ -49,6 +52,7 @@ export class PrintService {
     private employeeService: EmployeeService,
     private inventoryService: InventoryService,
     private variantService: VariantService,
+    private inventoryReceivingService: InventoryReceivingService,
   ) {}
 
   // --- Hidden window lifecycle ---
@@ -496,6 +500,176 @@ export class PrintService {
   async getAvailablePrinters(): Promise<Electron.PrinterInfo[]> {
     const win = await this.getOrCreateHiddenWindow();
     return win.webContents.getPrintersAsync();
+  }
+
+  // --- Standard (letter) HTML output ---
+
+  private async outputStandardHtml(
+    html: string,
+    outputMode: PrintOutputMode,
+    defaultFileName: string,
+    title: string,
+    printerName?: string,
+    copies?: number,
+  ): Promise<PrintResult> {
+    if (outputMode === 'preview') {
+      const previewWin = new BrowserWindow({
+        width: 850,
+        height: 1100,
+        title,
+        webPreferences: { contextIsolation: true, nodeIntegration: false },
+      });
+      await previewWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      return { previewing: true };
+    }
+
+    if (outputMode === 'pdf') {
+      const win = await this.getOrCreateHiddenWindow();
+      await this.loadHtmlInWindow(win, html);
+
+      const pdfData = await win.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'Letter',
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      });
+
+      const saveResult = await dialog.showSaveDialog({
+        title: 'Save as PDF',
+        defaultPath: `${defaultFileName}.pdf`,
+        filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+      });
+
+      if (saveResult.canceled || !saveResult.filePath) {
+        return {};
+      }
+
+      fs.writeFileSync(saveResult.filePath, pdfData);
+      return { pdfPath: saveResult.filePath };
+    }
+
+    if (outputMode === 'print') {
+      const win = await this.getOrCreateHiddenWindow();
+      await this.loadHtmlInWindow(win, html);
+
+      return new Promise<PrintResult>((resolve) => {
+        win.webContents.print(
+          {
+            silent: false,
+            printBackground: true,
+            deviceName: printerName || undefined,
+            copies: copies || 1,
+          },
+          (success) => {
+            resolve({ printed: success });
+          },
+        );
+      });
+    }
+
+    throw new Error(`Unsupported output mode: ${outputMode}`);
+  }
+
+  // --- Receiving reference report ---
+
+  async generateReceivingReference(request: ReceivingReferenceRequest): Promise<PrintResult> {
+    const data = await this.buildReceivingReferenceData(request.reference);
+    const html = getReceivingReferenceTemplate(data);
+    return this.outputStandardHtml(
+      html,
+      request.outputMode,
+      `Receiving ${request.reference}`,
+      `Receiving Report — ${request.reference}`,
+      request.printerName,
+    );
+  }
+
+  private formatReceivingCurrency(value: string | null, currency?: string | null): string {
+    if (!value) return '-';
+    const num = parseFloat(value);
+    if (isNaN(num)) return '-';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency === 'US' ? 'USD' : 'JMD',
+    }).format(num);
+  }
+
+  private async resolveReceivingDescription(record: {
+    sku: string;
+    variantSku: string | null;
+  }): Promise<string> {
+    if (record.variantSku) {
+      const variant = await this.variantService.findByVariantSku(record.variantSku);
+      if (variant) {
+        const desc = variant.description || variant.variantName;
+        if (desc) return desc;
+        if (variant.parentSku) {
+          const parent = await this.inventoryService.findBySku(variant.parentSku);
+          const parentDesc = [parent?.description1, parent?.description2].filter(Boolean).join(' - ');
+          if (parentDesc) return parentDesc;
+        }
+      }
+      return record.variantSku;
+    }
+
+    const inv = await this.inventoryService.findBySku(record.sku);
+    const desc = [inv?.description1, inv?.description2].filter(Boolean).join(' - ');
+    return desc || record.sku;
+  }
+
+  private async buildReceivingReferenceData(reference: string): Promise<ReceivingReferenceTemplateData> {
+    const company = await this.loadCompanyInfo();
+    const records = await this.inventoryReceivingService.findByReference(reference);
+
+    // Sort for a stable, readable report ordered by part number.
+    const sorted = [...records].sort((a, b) => (a.variantSku || a.sku).localeCompare(b.variantSku || b.sku));
+
+    // Distinct cost currencies drive whether a single total is meaningful.
+    const currencies = new Set(
+      sorted.filter((r) => r.lastCost != null).map((r) => (r.lastCostCurrency === 'US' ? 'US' : 'JA')),
+    );
+    const singleCurrency = currencies.size <= 1;
+    const totalCurrency = sorted.find((r) => r.lastCost != null)?.lastCostCurrency ?? null;
+
+    let totalQuantity = 0;
+    let totalCost = 0;
+
+    const items = await Promise.all(
+      sorted.map(async (r) => {
+        const qty = r.quantity ?? 0;
+        const cost = r.lastCost != null ? parseFloat(r.lastCost) : NaN;
+        const amount = !isNaN(cost) ? cost * qty : NaN;
+        totalQuantity += qty;
+        if (!isNaN(amount)) totalCost += amount;
+
+        return {
+          sku: r.variantSku || r.sku,
+          description: await this.resolveReceivingDescription(r),
+          quantity: qty.toLocaleString('en-US'),
+          unitCost: this.formatReceivingCurrency(r.lastCost, r.lastCostCurrency),
+          amount: !isNaN(amount)
+            ? this.formatReceivingCurrency(amount.toFixed(2), r.lastCostCurrency)
+            : '-',
+        };
+      }),
+    );
+
+    const latestDate = sorted.reduce<string | null>((max, r) => {
+      const day = r.receivingDate ?? '';
+      return day > (max ?? '') ? day : max;
+    }, null);
+
+    return {
+      company,
+      reference,
+      supplier: sorted.find((r) => r.supplier)?.supplier ?? null,
+      receivingDate: latestDate,
+      printedAt: new Date().toLocaleString(),
+      items,
+      totalQuantity: totalQuantity.toLocaleString('en-US'),
+      totalCost: singleCurrency
+        ? this.formatReceivingCurrency(totalCost.toFixed(2), totalCurrency)
+        : '—',
+    };
   }
 
   // --- Lookup Ticket ---
