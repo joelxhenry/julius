@@ -1,8 +1,12 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, desc, gte, lte, count, ilike, or, sql } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, count, ilike, or, sql, isNull } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
+
+// Sentinel value used to scope a transaction query to the base inventory item
+// only (variant_sku IS NULL), excluding its variants.
+export const BASE_SKU_FILTER = '__base__';
 
 export interface InventoryTransactionQueryParams {
   page?: number;
@@ -11,6 +15,11 @@ export interface InventoryTransactionQueryParams {
   activity?: string;
   startDate?: string;
   endDate?: string;
+  // Optional variant scope:
+  //   undefined       -> base item + all its variants
+  //   BASE_SKU_FILTER -> base item only (variant_sku IS NULL)
+  //   <variant sku>   -> that variant only
+  variantSku?: string;
 }
 
 export class InventoryTransactionService extends BaseService<
@@ -23,13 +32,19 @@ export class InventoryTransactionService extends BaseService<
   }
 
   async findPaginated(params: InventoryTransactionQueryParams = {}): Promise<PaginatedResult<schema.InventoryTransaction>> {
-    const { page = 1, pageSize = 50, sku, activity, startDate, endDate } = params;
+    const { page = 1, pageSize = 50, sku, activity, startDate, endDate, variantSku } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
 
     if (sku && sku.trim()) {
       conditions.push(eq(schema.inventoryTransactions.sku, sku.trim()));
+    }
+
+    if (variantSku === BASE_SKU_FILTER) {
+      conditions.push(isNull(schema.inventoryTransactions.variantSku));
+    } else if (variantSku && variantSku.trim()) {
+      conditions.push(eq(schema.inventoryTransactions.variantSku, variantSku.trim()));
     }
 
     if (activity && activity !== 'all') {

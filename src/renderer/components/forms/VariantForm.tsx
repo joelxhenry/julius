@@ -15,6 +15,7 @@ import { useForm } from '@mantine/form';
 interface VariantFormValues {
   variantSku: string;
   variantName: string;
+  location: string;
   description: string;
   quantity: number;
   cost: string;
@@ -30,6 +31,7 @@ interface Variant {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
+  location: string | null;
   attributes: Record<string, any>;
   description: string | null;
   quantity: number;
@@ -67,6 +69,7 @@ export function VariantForm({
     initialValues: {
       variantSku: '',
       variantName: '',
+      location: '',
       description: '',
       quantity: 0,
       cost: '0',
@@ -92,6 +95,7 @@ export function VariantForm({
       form.setValues({
         variantSku: variant.variantSku,
         variantName: variant.variantName || '',
+        location: variant.location || '',
         description: variant.description || '',
         quantity: variant.quantity,
         cost: variant.cost || '0',
@@ -130,11 +134,18 @@ export function VariantForm({
           />
         </SimpleGrid>
 
-        <NumberInput
-          label="Initial Quantity"
-          min={0}
-          {...form.getInputProps('quantity')}
-        />
+        <SimpleGrid cols={{ base: 1, sm: 2 }}>
+          <NumberInput
+            label="Initial Quantity"
+            min={0}
+            {...form.getInputProps('quantity')}
+          />
+          <TextInput
+            label="Location"
+            placeholder="Warehouse location"
+            {...form.getInputProps('location')}
+          />
+        </SimpleGrid>
 
         <Textarea
           label="Description"

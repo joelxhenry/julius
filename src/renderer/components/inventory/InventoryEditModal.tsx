@@ -181,7 +181,6 @@ export function InventoryEditModal({
         model: arrayToJsonString(values.models),
         location: values.location || null,
         unit: values.unit,
-        quantity: values.quantity,
         minLevel: values.minLevel,
         cost: values.cost.toString(),
         costCurrency: values.costCurrency,
@@ -302,13 +301,16 @@ export function InventoryEditModal({
                   <TextInput
                     label="Location"
                     placeholder="Warehouse location"
+                    description="Base variant location"
                     {...form.getInputProps("location")}
                   />
                   <NumberInput
                     label="Current Quantity"
                     placeholder="0"
                     min={0}
-                    {...form.getInputProps("quantity")}
+                    disabled
+                    description="Use Adjust Stock to change quantity"
+                    value={form.values.quantity}
                   />
                   <NumberInput
                     label="Minimum Level"

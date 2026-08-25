@@ -369,7 +369,7 @@ function registerDataHandlers() {
   // ===== INVENTORY TRANSACTION HANDLERS =====
   ipcMain.handle(IpcChannel.GET_INVENTORY_TRANSACTIONS, () => inventoryTransactionController.getAll());
   ipcMain.handle(IpcChannel.GET_INVENTORY_TRANSACTIONS_PAGINATED, (_, params: any = {}) => inventoryTransactionController.getPaginated(params));
-  ipcMain.handle(IpcChannel.GET_INVENTORY_TRANSACTIONS_BY_SKU, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number }) => inventoryTransactionController.getBySkuPaginated(sku, params));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_TRANSACTIONS_BY_SKU, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number; activity?: string; startDate?: string; endDate?: string; variantSku?: string }) => inventoryTransactionController.getBySkuPaginated(sku, params));
   ipcMain.handle(IpcChannel.GET_INVENTORY_TRANSACTIONS_BY_DATE_RANGE, (_, { startDate, endDate, ...params }: { startDate: string; endDate: string; page?: number; pageSize?: number }) => inventoryTransactionController.getByDateRangePaginated(startDate, endDate, params));
   ipcMain.handle(IpcChannel.CREATE_INVENTORY_TRANSACTION, (_, data: any) => inventoryTransactionController.create(data));
 
@@ -390,8 +390,8 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.DELETE_INVENTORY_RECEIVING, (_, { id }: { id: number }) => inventoryReceivingController.delete(id));
 
   // ===== INVENTORY SALES HANDLERS =====
-  ipcMain.handle(IpcChannel.GET_VARIANT_SALES, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => documentLineItemController.getVariantSales(sku, params));
-  ipcMain.handle(IpcChannel.GET_INVENTORY_SALES_SUMMARY, (_, { sku, startDate, endDate }: { sku: string; startDate?: string; endDate?: string }) => documentLineItemController.getInventorySalesSummary(sku, { startDate, endDate }));
+  ipcMain.handle(IpcChannel.GET_VARIANT_SALES, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number; startDate?: string; endDate?: string; variantSku?: string }) => documentLineItemController.getVariantSales(sku, params));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_SALES_SUMMARY, (_, { sku, startDate, endDate, variantSku }: { sku: string; startDate?: string; endDate?: string; variantSku?: string }) => documentLineItemController.getInventorySalesSummary(sku, { startDate, endDate, variantSku }));
 
   // ===== INVOICE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_INVOICES, (_, { includeArchived }: { includeArchived?: boolean } = {}) => invoiceController.getAll(includeArchived ?? false));

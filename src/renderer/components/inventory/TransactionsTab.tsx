@@ -37,6 +37,11 @@ const ACTIVITY_OPTIONS = [
   ...Object.entries(ACTIVITY_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
+interface VariantFilterOption {
+  value: string;
+  label: string;
+}
+
 interface TransactionsTabProps {
   transactions: InventoryTransaction[];
   loading: boolean;
@@ -45,6 +50,9 @@ interface TransactionsTabProps {
   onPageChange: (page: number) => void;
   activity: string | null;
   onActivityChange: (activity: string | null) => void;
+  variant: string | null;
+  onVariantChange: (variant: string | null) => void;
+  variantOptions: VariantFilterOption[];
   dateRange: DateRangeValue;
   onDateRangeChange: (range: DateRangeValue) => void;
   onOpenReference: (reference: string) => void;
@@ -58,12 +66,21 @@ export function TransactionsTab({
   onPageChange,
   activity,
   onActivityChange,
+  variant,
+  onVariantChange,
+  variantOptions,
   dateRange,
   onDateRangeChange,
   onOpenReference,
 }: TransactionsTabProps) {
+  // Only the base item + variants entries means there are no real variants to filter by.
+  const hasVariants = variantOptions.length > 2;
+
   const hasActiveFilters =
-    (activity !== null && activity !== 'all') || dateRange[0] !== null || dateRange[1] !== null;
+    (activity !== null && activity !== 'all') ||
+    (variant !== null && variant !== 'all') ||
+    dateRange[0] !== null ||
+    dateRange[1] !== null;
 
   const transactionsColumns: Column<InventoryTransaction>[] = useMemo(
     () => [
@@ -145,6 +162,16 @@ export function TransactionsTab({
             allowDeselect={false}
             w={200}
           />
+          {hasVariants && (
+            <Select
+              label="Variant"
+              data={variantOptions}
+              value={variant ?? 'all'}
+              onChange={onVariantChange}
+              allowDeselect={false}
+              w={220}
+            />
+          )}
           <DateRangeFilter value={dateRange} onChange={onDateRangeChange} />
           {hasActiveFilters && (
             <Button
@@ -153,6 +180,7 @@ export function TransactionsTab({
               leftSection={<IconFilterOff size={16} />}
               onClick={() => {
                 onActivityChange('all');
+                onVariantChange('all');
                 onDateRangeChange([null, null]);
               }}
             >

@@ -17,6 +17,10 @@ export interface LookupTicketRequest {
     location: string | null;
     quantity: number;
   };
+  // Pre-resolved line items (e.g. selected product variants, each carrying its
+  // own location). When present for an inventory-source ticket these are used
+  // directly instead of resolving a single inventoryItem.
+  items?: LookupTicketItem[];
   invoiceId?: number;
   quotationId?: number;
   sourceReference?: string;

@@ -7,3 +7,4 @@ export { ReceivingTab } from './ReceivingTab';
 export { SalesTab } from './SalesTab';
 export { GalleryTab } from './GalleryTab';
 export { InventoryEditModal } from './InventoryEditModal';
+export { InventoryLookupTicketButton } from './InventoryLookupTicketButton';

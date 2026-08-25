@@ -55,6 +55,22 @@ export class InventoryService extends BaseService<
   }
 
   /**
+   * Override update to keep the base variant's location in sync. Location is
+   * conceptually a per-variant property; the product-level column mirrors the
+   * base variant so existing product-facing edits keep a single source of truth.
+   */
+  async update(id: number, data: Partial<schema.InsertInventory>): Promise<schema.Inventory | null> {
+    const item = await super.update(id, data);
+    if (item && data.location !== undefined) {
+      await this.db
+        .update(schema.variants)
+        .set({ location: (data.location as string | null) ?? null, updatedAt: new Date() })
+        .where(and(eq(schema.variants.parentSku, item.sku), eq(schema.variants.isBase, true)));
+    }
+    return item;
+  }
+
+  /**
    * Create a base variant for an inventory item
    */
   private async createBaseVariant(inventory: schema.Inventory): Promise<schema.Variant> {
@@ -62,6 +78,7 @@ export class InventoryService extends BaseService<
       parentSku: inventory.sku,
       variantSku: `${inventory.sku}`,
       variantName: inventory.description1 || 'Base',
+      location: inventory.location || undefined,
       description: inventory.description2 || undefined,
       quantity: inventory.quantity,
       cost: inventory.cost,

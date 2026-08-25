@@ -38,6 +38,7 @@ export const variants = pgTable('variants', {
     .references(() => inventory.sku, { onDelete: 'cascade' }),
   variantSku: varchar('variant_sku', { length: 50 }).notNull().unique(),
   variantName: varchar('variant_name', { length: 100 }),
+  location: varchar('location', { length: 20 }),
   attributes: jsonb('attributes').notNull().default({}),
   description: varchar('description', { length: 200 }),
   quantity: integer('quantity').notNull().default(0),
@@ -55,6 +56,7 @@ export const variants = pgTable('variants', {
   index('idx_variants_variant_sku').on(table.variantSku),
   index('idx_variants_active').on(table.isActive),
   index('idx_variants_is_base').on(table.isBase),
+  index('idx_variants_location').on(table.location),
 ]);
 
 // INVENTORY_ALTERNATES table - alternate part numbers

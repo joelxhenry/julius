@@ -11,6 +11,7 @@ interface Variant {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
+  location: string | null;
   attributes: Record<string, any>;
   description: string | null;
   quantity: number;
@@ -96,6 +97,12 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
         key: 'variantName',
         header: 'Name',
         render: (variant) => variant.variantName || '-',
+      },
+      {
+        key: 'location',
+        header: 'Location',
+        width: 120,
+        render: (variant) => variant.location || '-',
       },
       {
         key: 'quantity',

@@ -544,6 +544,20 @@ export class PrintService {
   ): Promise<LookupTicketData> {
     const printedAt = new Date().toLocaleString();
 
+    if (request.source === 'inventory' && request.items && request.items.length > 0) {
+      return {
+        companyName,
+        printedAt,
+        sourceReference: request.sourceReference || '',
+        items: request.items.map((it) => ({
+          sku: it.sku,
+          description: it.description || it.sku,
+          location: it.location || '',
+          quantity: it.quantity,
+        })),
+      };
+    }
+
     if (request.source === 'inventory' && request.inventoryItem) {
       const inv = request.inventoryItem;
       const desc = [inv.description1, inv.description2].filter(Boolean).join(' - ');
@@ -602,19 +616,18 @@ export class PrintService {
 
       let location = '';
 
-      // Try inventory item first
-      const invItem = await this.inventoryService.findBySku(li.sku);
-      if (invItem) {
-        location = invItem.location || '';
-      } else {
-        // Try variant — resolve parent's location
-        const variant = await this.variantService.findByVariantSku(li.sku);
-        if (variant && variant.parentSku) {
+      // Prefer a variant's own location; fall back to the parent product's
+      // location, then to the inventory item's location.
+      const variant = await this.variantService.findByVariantSku(li.sku);
+      if (variant) {
+        location = variant.location || '';
+        if (!location && variant.parentSku) {
           const parent = await this.inventoryService.findBySku(variant.parentSku);
-          if (parent) {
-            location = parent.location || '';
-          }
+          location = parent?.location || '';
         }
+      } else {
+        const invItem = await this.inventoryService.findBySku(li.sku);
+        location = invItem?.location || '';
       }
 
       results.push({

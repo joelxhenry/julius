@@ -1,10 +1,14 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, desc, gte, lte, sql, count, sum } from 'drizzle-orm';
+import { eq, and, or, desc, gte, lte, sql, count, sum, inArray, SQL } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
 
 export type DocumentType = 'INVOICE' | 'QUOTE' | 'CREDIT';
+
+// Sentinel value used to scope a sales query to the base inventory item only,
+// excluding its variants.
+export const BASE_SKU_FILTER = '__base__';
 
 export interface DocumentLineItemQueryParams {
   page?: number;
@@ -13,6 +17,11 @@ export interface DocumentLineItemQueryParams {
   documentType?: DocumentType;
   startDate?: string;
   endDate?: string;
+  // Optional variant scope for sales queries:
+  //   undefined       -> base item + all its variants
+  //   BASE_SKU_FILTER -> base item only
+  //   <variant sku>   -> that variant only
+  variantSku?: string;
 }
 
 export interface SalesSummary {
@@ -83,22 +92,71 @@ export class DocumentLineItemService extends BaseService<
   }
 
   /**
+   * Build the SKU-matching condition for a sales query.
+   *   - no variantSku:     base item SKU + all of its variant SKUs
+   *   - BASE_SKU_FILTER:   base item SKU only
+   *   - specific variant:  that variant SKU only
+   */
+  private buildSalesSkuCondition(sku: string, variantSku?: string): SQL {
+    if (variantSku && variantSku !== BASE_SKU_FILTER) {
+      return eq(schema.documentLineItems.sku, variantSku);
+    }
+    if (variantSku === BASE_SKU_FILTER) {
+      return eq(schema.documentLineItems.sku, sku);
+    }
+
+    // Default: include the base item and every variant of it. Variant sales are
+    // recorded on the line item under the variant's own SKU.
+    const variantSkus = this.db
+      .select({ variantSku: schema.variants.variantSku })
+      .from(schema.variants)
+      .where(eq(schema.variants.parentSku, sku));
+
+    return or(
+      eq(schema.documentLineItems.sku, sku),
+      inArray(schema.documentLineItems.sku, variantSkus)
+    )!;
+  }
+
+  /**
    * Get sales history for a specific SKU (from invoices only)
    */
   async getVariantSales(
     sku: string,
     params: DocumentLineItemQueryParams = {}
   ): Promise<PaginatedResult<schema.DocumentLineItem & { invoice?: schema.Invoice }>> {
-    const { page = 1, pageSize = 50, startDate, endDate } = params;
+    const { page = 1, pageSize = 50, startDate, endDate, variantSku } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [
-      eq(schema.documentLineItems.sku, sku),
+      this.buildSalesSkuCondition(sku, variantSku),
       eq(schema.documentLineItems.documentType, 'INVOICE'),
     ];
 
-    // For date filtering, we need to join with invoices
-    let query = this.db
+    // Apply date filters on invoice date if provided
+    if (startDate) {
+      conditions.push(gte(schema.invoices.invDate, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(schema.invoices.invDate, endDate));
+    }
+
+    const whereClause = and(...conditions);
+
+    // Get total count (joined so date filters on invoice date are applied)
+    const countResult = await this.db
+      .select({ count: count() })
+      .from(schema.documentLineItems)
+      .leftJoin(
+        schema.invoices,
+        eq(schema.documentLineItems.documentNumber, schema.invoices.invNumber)
+      )
+      .where(whereClause);
+
+    const total = Number(countResult[0]?.count ?? 0);
+
+    // Get paginated data
+    const results = await this.db
       .select({
         lineItem: schema.documentLineItems,
         invoice: schema.invoices,
@@ -108,40 +166,7 @@ export class DocumentLineItemService extends BaseService<
         schema.invoices,
         eq(schema.documentLineItems.documentNumber, schema.invoices.invNumber)
       )
-      .where(and(...conditions));
-
-    // Apply date filters on invoice date if provided
-    if (startDate || endDate) {
-      const dateConditions = [...conditions];
-      if (startDate) {
-        dateConditions.push(gte(schema.invoices.invDate, startDate));
-      }
-      if (endDate) {
-        dateConditions.push(lte(schema.invoices.invDate, endDate));
-      }
-      query = this.db
-        .select({
-          lineItem: schema.documentLineItems,
-          invoice: schema.invoices,
-        })
-        .from(schema.documentLineItems)
-        .leftJoin(
-          schema.invoices,
-          eq(schema.documentLineItems.documentNumber, schema.invoices.invNumber)
-        )
-        .where(and(...dateConditions));
-    }
-
-    // Get total count
-    const countResult = await this.db
-      .select({ count: count() })
-      .from(schema.documentLineItems)
-      .where(and(...conditions));
-
-    const total = Number(countResult[0]?.count ?? 0);
-
-    // Get paginated data
-    const results = await query
+      .where(whereClause)
       .orderBy(desc(schema.invoices.invDate), desc(schema.documentLineItems.id))
       .limit(pageSize)
       .offset(offset);
@@ -166,16 +191,16 @@ export class DocumentLineItemService extends BaseService<
    */
   async getInventorySalesSummary(
     sku: string,
-    params: { startDate?: string; endDate?: string } = {}
+    params: { startDate?: string; endDate?: string; variantSku?: string } = {}
   ): Promise<SalesSummary> {
-    const { startDate, endDate } = params;
+    const { startDate, endDate, variantSku } = params;
 
     const conditions = [
-      eq(schema.documentLineItems.sku, sku),
+      this.buildSalesSkuCondition(sku, variantSku),
       eq(schema.documentLineItems.documentType, 'INVOICE'),
     ];
 
-    let whereClause = and(...conditions);
+    const whereClause = and(...conditions);
 
     // If date filters, join with invoices
     if (startDate || endDate) {

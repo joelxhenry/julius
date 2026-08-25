@@ -42,10 +42,10 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
-import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, ReceivingTab, InventoryEditModal } from '../../components/inventory';
+import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, ReceivingTab, InventoryEditModal, InventoryLookupTicketButton } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
 import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
-import { CopyButton, LookupTicketButton } from '../../components/common';
+import { CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
 
 interface Inventory {
@@ -75,6 +75,7 @@ interface Variant {
   parentSku: string;
   variantSku: string;
   variantName: string | null;
+  location: string | null;
   attributes: Record<string, any>;
   description: string | null;
   quantity: number;
@@ -96,6 +97,7 @@ interface InventoryAlternate {
 interface InventoryTransaction {
   id: number;
   sku: string;
+  variantSku: string | null;
   activity: string;
   reference: string | null;
   quantity: number;
@@ -108,6 +110,8 @@ interface SaleRecord {
   invoiceId?: number;
   documentNumber: string;
   documentType: string;
+  sku?: string;
+  isVariant?: boolean;
   quantity: number;
   unitPrice: string;
   lineTotal: string;
@@ -116,7 +120,7 @@ interface SaleRecord {
 }
 
 interface SalesSummary {
-  totalQuantitySold: number;
+  totalUnitsSold: number;
   totalRevenue: number;
   averagePrice: number;
   transactionCount: number;
@@ -167,6 +171,7 @@ export function InventoryDetailPage() {
   const [transactionsTotalPages, setTransactionsTotalPages] = useState(1);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsActivity, setTransactionsActivity] = useState<string | null>('all');
+  const [transactionsVariant, setTransactionsVariant] = useState<string | null>('all');
   const [transactionsDateRange, setTransactionsDateRange] = useState<[string | null, string | null]>([null, null]);
 
   // Sales state
@@ -175,6 +180,7 @@ export function InventoryDetailPage() {
   const [salesTotalPages, setSalesTotalPages] = useState(1);
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
+  const [salesVariant, setSalesVariant] = useState<string | null>('all');
   const [salesDateRange, setSalesDateRange] = useState<[string | null, string | null]>([null, null]);
 
   // Stock adjustment modal
@@ -191,11 +197,16 @@ export function InventoryDetailPage() {
 
   const stockAdjustForm = useForm({
     initialValues: {
+      variantSku: '',
       adjustmentType: 'set',
       quantity: 0,
       reason: '',
     },
   });
+
+  // The variant currently targeted by the stock-adjustment form (null = base item)
+  const selectedAdjustVariant = variants.find((v) => v.variantSku === stockAdjustForm.values.variantSku) ?? null;
+  const adjustCurrentQuantity = selectedAdjustVariant ? selectedAdjustVariant.quantity : item?.quantity ?? 0;
 
   useEffect(() => {
     if (itemId) {
@@ -203,11 +214,14 @@ export function InventoryDetailPage() {
     }
   }, [itemId]);
 
+  // Load variants once the item is available. They're needed by the stock
+  // adjustment form and the Activity/Sales variant filters, not just the
+  // Variants and Gallery tabs.
   useEffect(() => {
-    if (item?.id && (activeTab === 'variants' || activeTab === 'gallery')) {
+    if (item?.id) {
       loadVariants(item.id);
     }
-  }, [item?.id, activeTab]);
+  }, [item?.id]);
 
   useEffect(() => {
     if (item?.sku && activeTab === 'alternates') {
@@ -219,24 +233,24 @@ export function InventoryDetailPage() {
     if (item?.sku && activeTab === 'transactions') {
       loadTransactions(item.sku, transactionsPage);
     }
-  }, [item?.sku, activeTab, transactionsPage, transactionsActivity, transactionsDateRange]);
+  }, [item?.sku, activeTab, transactionsPage, transactionsActivity, transactionsVariant, transactionsDateRange]);
 
   // Reset to first page when transaction filters change
   useEffect(() => {
     setTransactionsPage(1);
-  }, [transactionsActivity, transactionsDateRange]);
+  }, [transactionsActivity, transactionsVariant, transactionsDateRange]);
 
   useEffect(() => {
     if (item?.sku && activeTab === 'sales') {
       loadSales(item.sku, salesPage);
       loadSalesSummary(item.sku);
     }
-  }, [item?.sku, activeTab, salesPage, salesDateRange]);
+  }, [item?.sku, activeTab, salesPage, salesVariant, salesDateRange]);
 
-  // Reset to first page when sales date filter changes
+  // Reset to first page when sales filters change
   useEffect(() => {
     setSalesPage(1);
-  }, [salesDateRange]);
+  }, [salesVariant, salesDateRange]);
 
   const loadInventoryItem = async (id: number) => {
     setLoading(true);
@@ -292,6 +306,7 @@ export function InventoryDetailPage() {
         page,
         pageSize: 10,
         activity: transactionsActivity && transactionsActivity !== 'all' ? transactionsActivity : undefined,
+        variantSku: transactionsVariant && transactionsVariant !== 'all' ? transactionsVariant : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       });
@@ -309,9 +324,30 @@ export function InventoryDetailPage() {
   const loadSales = async (sku: string, page: number) => {
     setSalesLoading(true);
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_VARIANT_SALES, { sku, page, pageSize: 10 });
+      const [startDate, endDate] = salesDateRange;
+      const result = await window.electron.invoke(IpcChannel.GET_VARIANT_SALES, {
+        sku,
+        page,
+        pageSize: 10,
+        variantSku: salesVariant && salesVariant !== 'all' ? salesVariant : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
       if (result.success && result.data) {
-        setSales(result.data.data);
+        const mapped: SaleRecord[] = result.data.data.map((row: any) => ({
+          id: row.id,
+          invoiceId: row.invoice?.id,
+          documentNumber: row.documentNumber,
+          documentType: row.documentType,
+          sku: row.sku ?? undefined,
+          isVariant: row.isVariant ?? false,
+          quantity: row.quantity,
+          unitPrice: row.unitPrice,
+          lineTotal: row.amount,
+          documentDate: row.invoice?.invDate ?? '',
+          clientName: row.invoice?.clientName ?? undefined,
+        }));
+        setSales(mapped);
         setSalesTotalPages(result.data.totalPages);
       }
     } catch (err) {
@@ -323,7 +359,13 @@ export function InventoryDetailPage() {
 
   const loadSalesSummary = async (sku: string) => {
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_SALES_SUMMARY, { sku });
+      const [startDate, endDate] = salesDateRange;
+      const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_SALES_SUMMARY, {
+        sku,
+        variantSku: salesVariant && salesVariant !== 'all' ? salesVariant : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
       if (result.success && result.data) {
         setSalesSummary(result.data);
       }
@@ -332,43 +374,85 @@ export function InventoryDetailPage() {
     }
   };
 
+  // Open the related invoice document in a new tab
+  const handleOpenSaleDocument = (sale: SaleRecord) => {
+    if (sale.invoiceId) {
+      openTab(`/invoices/${sale.invoiceId}`);
+    } else {
+      notifications.show({
+        title: 'Document Unavailable',
+        message: `Could not locate invoice ${sale.documentNumber}`,
+        color: 'orange',
+      });
+    }
+  };
+
   const handleStockAdjust = async (values: typeof stockAdjustForm.values) => {
     if (!item) return;
     setAdjustSubmitting(true);
+
+    // Resolve the target: the base item or a specific variant.
+    const targetVariant = values.variantSku
+      ? variants.find((v) => v.variantSku === values.variantSku) ?? null
+      : null;
+    const currentQuantity = targetVariant ? targetVariant.quantity : item.quantity;
 
     try {
       let newQuantity: number;
       if (values.adjustmentType === 'set') {
         newQuantity = values.quantity;
       } else if (values.adjustmentType === 'add') {
-        newQuantity = item.quantity + values.quantity;
+        newQuantity = currentQuantity + values.quantity;
       } else {
-        newQuantity = item.quantity - values.quantity;
+        newQuantity = currentQuantity - values.quantity;
       }
 
-      const result = await window.electron.invoke(IpcChannel.UPDATE_INVENTORY_STOCK, {
-        id: item.id,
-        quantity: newQuantity,
-      });
+      const result = targetVariant
+        ? await window.electron.invoke(IpcChannel.SET_VARIANT_STOCK, {
+            id: targetVariant.id,
+            stockQty: newQuantity,
+          })
+        : await window.electron.invoke(IpcChannel.UPDATE_INVENTORY_STOCK, {
+            id: item.id,
+            quantity: newQuantity,
+          });
 
       if (result.success) {
-        // Create transaction record
+        const delta =
+          values.adjustmentType === 'set'
+            ? newQuantity - currentQuantity
+            : values.adjustmentType === 'add'
+            ? values.quantity
+            : -values.quantity;
+
+        // Create transaction record. For variants, sku stays the parent SKU and
+        // variantSku carries the variant (matching the schema convention).
         await window.electron.invoke(IpcChannel.CREATE_INVENTORY_TRANSACTION, {
           sku: item.sku,
+          variantSku: targetVariant ? targetVariant.variantSku : null,
           activity: 'ADJ',
           reference: values.reason || 'Manual adjustment',
-          quantity: values.adjustmentType === 'set' ? newQuantity - item.quantity : (values.adjustmentType === 'add' ? values.quantity : -values.quantity),
+          quantity: delta,
           activityDate: new Date().toISOString().split('T')[0],
         });
 
         notifications.show({
           title: 'Stock Adjusted',
-          message: `Quantity updated to ${newQuantity} ${item.unit}`,
+          message: targetVariant
+            ? `${targetVariant.variantSku} quantity updated to ${newQuantity}`
+            : `Quantity updated to ${newQuantity} ${item.unit}`,
           color: 'green',
           icon: <IconCheck size={16} />,
         });
 
-        setItem({ ...item, quantity: newQuantity });
+        if (targetVariant) {
+          // Reflect the new variant quantity locally.
+          setVariants((prev) =>
+            prev.map((v) => (v.id === targetVariant.id ? { ...v, quantity: newQuantity } : v))
+          );
+        } else {
+          setItem({ ...item, quantity: newQuantity });
+        }
         setStockAdjustOpen(false);
         stockAdjustForm.reset();
 
@@ -397,6 +481,7 @@ export function InventoryDetailPage() {
   const handleAddVariant = async (values: {
     variantSku: string;
     variantName: string;
+    location: string;
     description: string;
     quantity: number;
     cost: string;
@@ -414,6 +499,7 @@ export function InventoryDetailPage() {
         parentSku: item.sku,
         variantSku: values.variantSku,
         variantName: values.variantName || null,
+        location: values.location || null,
         description: values.description || null,
         quantity: values.quantity,
         cost: values.cost || null,
@@ -629,6 +715,25 @@ export function InventoryDetailPage() {
 
   const isLowStock = item && item.quantity <= item.minLevel;
 
+  // Options for the Activity/Sales variant filters: all, base item, then each variant.
+  const variantFilterOptions = [
+    { value: 'all', label: 'All variants' },
+    { value: '__base__', label: 'Base item only' },
+    ...variants.map((v) => ({
+      value: v.variantSku,
+      label: v.variantName ? `${v.variantSku} — ${v.variantName}` : v.variantSku,
+    })),
+  ];
+
+  // Options for the stock-adjustment target (empty value = base item).
+  const adjustVariantOptions = [
+    { value: '', label: `Base item (${item?.sku ?? ''})` },
+    ...variants.map((v) => ({
+      value: v.variantSku,
+      label: v.variantName ? `${v.variantSku} — ${v.variantName}` : v.variantSku,
+    })),
+  ];
+
   if (loading) {
     return (
       <Stack p="xl" align="center" justify="center" h={400}>
@@ -697,20 +802,17 @@ export function InventoryDetailPage() {
           </Stack>
         </Group>
         <Group>
-          <LookupTicketButton
-            source="inventory"
-            inventoryItem={{
-              sku: item.sku,
-              description1: item.description1,
-              description2: item.description2,
-              location: item.location,
-              quantity: item.quantity,
-            }}
+          <InventoryLookupTicketButton
+            inventoryId={item.id}
+            parentSku={item.sku}
           />
           <Button
             variant="outline"
             leftSection={<IconAdjustments size={16} />}
-            onClick={() => setStockAdjustOpen(true)}
+            onClick={() => {
+              stockAdjustForm.reset();
+              setStockAdjustOpen(true);
+            }}
           >
             Adjust Stock
           </Button>
@@ -724,7 +826,7 @@ export function InventoryDetailPage() {
       </Group>
 
       {/* Summary Cards */}
-      <SimpleGrid cols={{ base: 2, sm: 3, md: 6 }} spacing="md">
+      <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Quantity</Text>
           <Text size="xl" fw={700} c={isLowStock ? 'orange' : undefined}>
@@ -759,10 +861,6 @@ export function InventoryDetailPage() {
           <Text size="xl" fw={700}>
             {item.margin ? `${parseFloat(item.margin).toFixed(1)}%` : '-'}
           </Text>
-        </Card>
-        <Card withBorder radius="md" p="md">
-          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Location</Text>
-          <Text size="xl" fw={700}>{item.location || '-'}</Text>
         </Card>
       </SimpleGrid>
 
@@ -845,6 +943,9 @@ export function InventoryDetailPage() {
             onPageChange={setTransactionsPage}
             activity={transactionsActivity}
             onActivityChange={setTransactionsActivity}
+            variant={transactionsVariant}
+            onVariantChange={setTransactionsVariant}
+            variantOptions={variantFilterOptions}
             dateRange={transactionsDateRange}
             onDateRangeChange={setTransactionsDateRange}
             onOpenReference={handleOpenReference}
@@ -862,6 +963,12 @@ export function InventoryDetailPage() {
             unit={item.unit}
             onPageChange={setSalesPage}
             formatCurrency={formatCurrency}
+            variant={salesVariant}
+            onVariantChange={setSalesVariant}
+            variantOptions={variantFilterOptions}
+            dateRange={salesDateRange}
+            onDateRangeChange={setSalesDateRange}
+            onOpenDocument={handleOpenSaleDocument}
           />
         </Tabs.Panel>
 
@@ -888,8 +995,26 @@ export function InventoryDetailPage() {
       >
         <form onSubmit={stockAdjustForm.onSubmit(handleStockAdjust)}>
           <Stack gap="md">
+            {variants.length > 0 && (
+              <Select
+                label="Variant"
+                description="Adjust the base item or one of its variants"
+                data={adjustVariantOptions}
+                {...stockAdjustForm.getInputProps('variantSku')}
+              />
+            )}
+
             <Text size="sm" c="dimmed">
-              Current quantity: <Text span fw={700}>{item.quantity} {item.unit}</Text>
+              Current quantity:{' '}
+              <Text span fw={700}>
+                {adjustCurrentQuantity} {item.unit}
+              </Text>
+              {selectedAdjustVariant && (
+                <Text span c="dimmed">
+                  {' '}
+                  ({selectedAdjustVariant.variantSku})
+                </Text>
+              )}
             </Text>
 
             <Select
