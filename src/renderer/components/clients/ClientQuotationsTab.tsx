@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Paper, Text, ActionIcon, Group, Button } from '@mantine/core';
 import { IconEye, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
-import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
+import { DateRangeFilter, DateRangeValue, getLastNDaysRange } from '../common/DateRangeFilter';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface Quotation {
@@ -44,7 +44,7 @@ export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => getLastNDaysRange(30));
   const pageSize = 30;
 
   const [startDate, endDate] = dateRange;

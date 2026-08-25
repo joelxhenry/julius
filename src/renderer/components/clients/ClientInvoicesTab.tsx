@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Paper, Badge, Text, Group, Select, Button } from '@mantine/core';
 import { IconEye, IconCash, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
-import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
+import { DateRangeFilter, DateRangeValue, getLastNDaysRange } from '../common/DateRangeFilter';
 import { RecordPaymentModal } from '../invoices';
 import { IpcChannel } from '../../../shared/types/ipc';
 
@@ -69,7 +69,7 @@ export function ClientInvoicesTab({ clientId, clientName }: ClientInvoicesTabPro
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [status, setStatus] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => getLastNDaysRange(30));
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
   const pageSize = 30;
 
