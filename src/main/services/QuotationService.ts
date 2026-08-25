@@ -21,6 +21,9 @@ export interface QuotationQueryParams {
   status?: string;
   clientId?: number;
   includeArchived?: boolean;
+  archivedOnly?: boolean;
+  startDate?: string;
+  endDate?: string;
   sortField?: string;
   sortDirection?: 'asc' | 'desc';
 }
@@ -42,6 +45,9 @@ export class QuotationService extends BaseService<
       status,
       clientId,
       includeArchived = false,
+      archivedOnly = false,
+      startDate,
+      endDate,
       sortField = 'quoteDate',
       sortDirection = 'desc',
     } = params;
@@ -49,7 +55,9 @@ export class QuotationService extends BaseService<
 
     const conditions = [];
 
-    if (!includeArchived) {
+    if (archivedOnly) {
+      conditions.push(eq(schema.quotations.isArchived, true));
+    } else if (!includeArchived) {
       conditions.push(eq(schema.quotations.isArchived, false));
     }
 
@@ -70,6 +78,14 @@ export class QuotationService extends BaseService<
 
     if (clientId) {
       conditions.push(eq(schema.quotations.clientId, clientId));
+    }
+
+    if (startDate) {
+      conditions.push(gte(schema.quotations.quoteDate, startDate));
+    }
+
+    if (endDate) {
+      conditions.push(lte(schema.quotations.quoteDate, endDate));
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
