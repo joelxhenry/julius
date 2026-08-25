@@ -3,6 +3,7 @@ export { CollapsibleSection } from './CollapsibleSection';
 export { ConfirmDialog } from './ConfirmDialog';
 export { CopyButton } from './CopyButton';
 export { DataTable, type Column } from './DataTable';
+export { DateRangeFilter, type DateRangeValue } from './DateRangeFilter';
 export { EmptyState } from './EmptyState';
 export { ErrorBoundary } from './ErrorBoundary';
 export { ImageGalleryModal } from './ImageGalleryModal';

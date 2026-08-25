@@ -6,7 +6,6 @@ import {
   Group,
   TextInput,
   Autocomplete,
-  Button,
   Badge,
   ActionIcon,
   Text,
@@ -14,7 +13,6 @@ import {
 } from '@mantine/core';
 import {
   IconSearch,
-  IconPlus,
   IconRefresh,
   IconAlertTriangle,
   IconCategory,
@@ -168,7 +166,7 @@ export function InventoryListPage() {
       {
         key: 'category',
         header: 'Category/Model',
-        width: 280,
+        width: 560,
         render: (item) => {
           const categories = normalizeToArray(item.category);
           const models = normalizeToArray(item.model);
@@ -238,12 +236,7 @@ export function InventoryListPage() {
 
   return (
     <Stack p="xl" gap="lg">
-      <Group justify="space-between" align="center">
-        <Title order={2}>Inventory</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => replaceCurrentTab('/inventory/new')}>
-          Add Item
-        </Button>
-      </Group>
+      <Title order={2}>Inventory</Title>
 
       <Paper p="md" radius="md" withBorder>
         <Stack gap="md">

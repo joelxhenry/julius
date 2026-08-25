@@ -1,4 +1,5 @@
 export { OverviewTab } from './OverviewTab';
+export { PricingTab } from './PricingTab';
 export { VariantsTab } from './VariantsTab';
 export { AlternatesTab } from './AlternatesTab';
 export { TransactionsTab } from './TransactionsTab';

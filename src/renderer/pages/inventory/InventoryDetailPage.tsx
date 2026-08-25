@@ -34,6 +34,7 @@ import {
   IconCheck,
   IconPhoto,
   IconPackageImport,
+  IconCurrencyDollar,
 } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
@@ -41,7 +42,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
-import { OverviewTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, ReceivingTab, InventoryEditModal } from '../../components/inventory';
+import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, ReceivingTab, InventoryEditModal } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
 import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
 import { CopyButton, LookupTicketButton } from '../../components/common';
@@ -164,6 +165,8 @@ export function InventoryDetailPage() {
   const [transactionsPage, setTransactionsPage] = useState(1);
   const [transactionsTotalPages, setTransactionsTotalPages] = useState(1);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsActivity, setTransactionsActivity] = useState<string | null>('all');
+  const [transactionsDateRange, setTransactionsDateRange] = useState<[string | null, string | null]>([null, null]);
 
   // Sales state
   const [sales, setSales] = useState<SaleRecord[]>([]);
@@ -214,7 +217,12 @@ export function InventoryDetailPage() {
     if (item?.sku && activeTab === 'transactions') {
       loadTransactions(item.sku, transactionsPage);
     }
-  }, [item?.sku, activeTab, transactionsPage]);
+  }, [item?.sku, activeTab, transactionsPage, transactionsActivity, transactionsDateRange]);
+
+  // Reset to first page when transaction filters change
+  useEffect(() => {
+    setTransactionsPage(1);
+  }, [transactionsActivity, transactionsDateRange]);
 
   useEffect(() => {
     if (item?.sku && activeTab === 'sales') {
@@ -271,7 +279,15 @@ export function InventoryDetailPage() {
   const loadTransactions = async (sku: string, page: number) => {
     setTransactionsLoading(true);
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_TRANSACTIONS_BY_SKU, { sku, page, pageSize: 10 });
+      const [startDate, endDate] = transactionsDateRange;
+      const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_TRANSACTIONS_BY_SKU, {
+        sku,
+        page,
+        pageSize: 10,
+        activity: transactionsActivity && transactionsActivity !== 'all' ? transactionsActivity : undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
       if (result.success && result.data) {
         setTransactions(result.data.data);
         setTransactionsTotalPages(result.data.totalPages);
@@ -714,6 +730,9 @@ export function InventoryDetailPage() {
           <Tabs.Tab value="overview" leftSection={<IconPackage size={16} />}>
             Overview
           </Tabs.Tab>
+          <Tabs.Tab value="pricing" leftSection={<IconCurrencyDollar size={16} />}>
+            Pricing
+          </Tabs.Tab>
           <Tabs.Tab value="variants" leftSection={<IconVersions size={16} />}>
             Variants
           </Tabs.Tab>
@@ -721,7 +740,7 @@ export function InventoryDetailPage() {
             Alternates
           </Tabs.Tab>
           <Tabs.Tab value="transactions" leftSection={<IconHistory size={16} />}>
-            Transactions
+            Activity
           </Tabs.Tab>
           <Tabs.Tab value="sales" leftSection={<IconChartLine size={16} />}>
             Sales
@@ -736,7 +755,12 @@ export function InventoryDetailPage() {
 
         {/* Overview Tab */}
         <Tabs.Panel value="overview" pt="md">
-          <OverviewTab item={item} formatCurrency={formatCurrency} />
+          <OverviewTab item={item} />
+        </Tabs.Panel>
+
+        {/* Pricing Tab */}
+        <Tabs.Panel value="pricing" pt="md">
+          <PricingTab item={item} formatCurrency={formatCurrency} />
         </Tabs.Panel>
 
         {/* Variants Tab */}
@@ -769,7 +793,7 @@ export function InventoryDetailPage() {
           />
         </Tabs.Panel>
 
-        {/* Transactions Tab */}
+        {/* Activity Tab */}
         <Tabs.Panel value="transactions" pt="md">
           <TransactionsTab
             transactions={transactions}
@@ -777,6 +801,10 @@ export function InventoryDetailPage() {
             page={transactionsPage}
             totalPages={transactionsTotalPages}
             onPageChange={setTransactionsPage}
+            activity={transactionsActivity}
+            onActivityChange={setTransactionsActivity}
+            dateRange={transactionsDateRange}
+            onDateRangeChange={setTransactionsDateRange}
           />
         </Tabs.Panel>
 

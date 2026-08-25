@@ -144,7 +144,7 @@ export class InventoryService extends BaseService<
       .select()
       .from(schema.inventory)
       .where(whereCondition)
-      .orderBy(desc(schema.inventory.id))
+      .orderBy(asc(schema.inventory.sku))
       .limit(pageSize)
       .offset(offset);
 
