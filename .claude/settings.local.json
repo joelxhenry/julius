@@ -23,7 +23,12 @@
       "Bash(grep -A 4 -E \"\\(MarkedItemsTray\\\\.tsx|AppLayout\\\\.tsx\\)$\")",
       "Bash(grep -A 4 \"useTrayDraftIntegration\\\\.ts$\")",
       "Bash(grep -A 4 -E \"\\(MarkButton\\\\.tsx|resolveBaseVariant\\\\.ts|AlternatesTab\\\\.tsx|Spotlight\\\\.tsx|InventoryListPage\\\\.tsx|VariantsTab\\\\.tsx\\)$\")",
-      "Bash(grep -A 4 -E \"\\(MarkedItemsTray\\\\.tsx|MarkedItemsContext\\\\.tsx|useTrayDraftIntegration\\\\.ts\\)$\")"
+      "Bash(grep -A 4 -E \"\\(MarkedItemsTray\\\\.tsx|MarkedItemsContext\\\\.tsx|useTrayDraftIntegration\\\\.ts\\)$\")",
+      "Bash(npx eslint *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts, null, 2\\)\\)\")",
+      "Bash(node_modules/.bin/tsc --version)",
+      "Bash(node_modules/typescript/bin/tsc --noEmit -p .)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": [],

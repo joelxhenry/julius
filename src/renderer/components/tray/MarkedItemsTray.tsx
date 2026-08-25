@@ -155,6 +155,9 @@ export function MarkedItemsTray({ opened, onClose }: MarkedItemsTrayProps) {
         </Group>
       }
       styles={{
+        header: {
+          padding: 'var(--mantine-spacing-md)',
+        },
         body: {
           display: 'flex',
           flexDirection: 'column',
