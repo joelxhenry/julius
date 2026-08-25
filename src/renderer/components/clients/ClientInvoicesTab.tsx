@@ -1,14 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Paper, Badge, Text, ActionIcon } from '@mantine/core';
-import { IconEye } from '@tabler/icons-react';
+import { Paper, Badge, Text, Group, Select, Button } from '@mantine/core';
+import { IconEye, IconCash, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
+import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
+import { RecordPaymentModal } from '../invoices';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface Invoice {
   id: number;
   invNumber: string;
   invDate: string;
+  clientId: number | null;
+  clientName: string | null;
   total: string;
   totalPaid: string;
   status: string;
@@ -17,6 +21,7 @@ interface Invoice {
 
 interface ClientInvoicesTabProps {
   clientId: number;
+  clientName?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -32,6 +37,13 @@ const statusLabels: Record<string, string> = {
   paid: 'Paid',
   archived: 'Archived',
 };
+
+const statusOptions = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'partially_paid', label: 'Partial' },
+  { value: 'paid', label: 'Paid' },
+];
 
 const formatCurrency = (value: string | null) => {
   const num = parseFloat(value || '0');
@@ -50,17 +62,28 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-export function ClientInvoicesTab({ clientId }: ClientInvoicesTabProps) {
+export function ClientInvoicesTab({ clientId, clientName }: ClientInvoicesTabProps) {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const pageSize = 10;
+  const [status, setStatus] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
+  const pageSize = 30;
+
+  const [startDate, endDate] = dateRange;
+  const hasActiveFilters = status !== 'all' || startDate !== null || endDate !== null;
+
+  // Reset to first page whenever a filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [status, startDate, endDate]);
 
   useEffect(() => {
     loadInvoices();
-  }, [clientId, page]);
+  }, [clientId, page, status, startDate, endDate]);
 
   const loadInvoices = async () => {
     setLoading(true);
@@ -69,6 +92,9 @@ export function ClientInvoicesTab({ clientId }: ClientInvoicesTabProps) {
         clientId,
         page,
         pageSize,
+        status,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
       if (result.success && result.data) {
         setInvoices(result.data.data);
@@ -133,12 +159,40 @@ export function ClientInvoicesTab({ clientId }: ClientInvoicesTabProps) {
       {
         key: 'actions',
         header: 'Actions',
-        width: 80,
-        render: (invoice) => (
-          <ActionIcon variant="subtle" onClick={() => navigate(`/invoices/${invoice.id}`)}>
-            <IconEye size={16} />
-          </ActionIcon>
-        ),
+        width: 200,
+        render: (invoice) => {
+          const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
+          const canPay = balance > 0.001 && invoice.status !== 'archived';
+          return (
+            <Group gap="xs" wrap="nowrap">
+              <Button
+                variant="light"
+                size="xs"
+                leftSection={<IconEye size={14} />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/invoices/${invoice.id}`);
+                }}
+              >
+                View
+              </Button>
+              {canPay && (
+                <Button
+                  variant="light"
+                  color="green"
+                  size="xs"
+                  leftSection={<IconCash size={14} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPayInvoice(invoice);
+                  }}
+                >
+                  Pay
+                </Button>
+              )}
+            </Group>
+          );
+        },
       },
     ],
     [navigate]
@@ -146,6 +200,31 @@ export function ClientInvoicesTab({ clientId }: ClientInvoicesTabProps) {
 
   return (
     <Paper p="md" radius="md" withBorder>
+      <Group gap="md" align="flex-end" wrap="wrap" mb="md">
+        <Select
+          label="Status"
+          data={statusOptions}
+          value={status}
+          onChange={(value) => setStatus(value || 'all')}
+          allowDeselect={false}
+          w={180}
+        />
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        {hasActiveFilters && (
+          <Button
+            variant="subtle"
+            color="gray"
+            leftSection={<IconFilterOff size={16} />}
+            onClick={() => {
+              setStatus('all');
+              setDateRange([null, null]);
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </Group>
+
       <DataTable
         columns={columns}
         data={invoices}
@@ -158,6 +237,28 @@ export function ClientInvoicesTab({ clientId }: ClientInvoicesTabProps) {
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
+      />
+
+      <RecordPaymentModal
+        opened={payInvoice !== null}
+        onClose={() => setPayInvoice(null)}
+        onPaymentRecorded={() => {
+          setPayInvoice(null);
+          loadInvoices();
+        }}
+        onCreditApplied={loadInvoices}
+        invoice={
+          payInvoice
+            ? {
+                id: payInvoice.id,
+                invNumber: payInvoice.invNumber,
+                clientId: payInvoice.clientId ?? clientId,
+                clientName: payInvoice.clientName ?? clientName ?? null,
+                total: payInvoice.total,
+                totalPaid: payInvoice.totalPaid,
+              }
+            : null
+        }
       />
     </Paper>
   );

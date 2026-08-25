@@ -15,7 +15,7 @@ import {
   ActionIcon,
   Kbd,
   Tooltip,
-  Select,
+  Switch,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import {
@@ -46,24 +46,6 @@ interface Quotation {
   createdAt: string;
 }
 
-const statusColors: Record<string, string> = {
-  draft: 'gray',
-  sent: 'blue',
-  accepted: 'green',
-  expired: 'orange',
-  converted: 'violet',
-  archived: 'gray',
-};
-
-const statusLabels: Record<string, string> = {
-  draft: 'Draft',
-  sent: 'Sent',
-  accepted: 'Accepted',
-  expired: 'Expired',
-  converted: 'Converted',
-  archived: 'Archived',
-};
-
 const formatCurrency = (value: string | null) => {
   const num = parseFloat(value || '0');
   return new Intl.NumberFormat('en-US', {
@@ -88,7 +70,7 @@ export function QuotationsPage() {
   const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string | null>('all');
+  const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -105,8 +87,8 @@ export function QuotationsPage() {
   // Load quotations based on active tab and filters
   const loadQuotations = useCallback(async (params: {
     search?: string;
-    status?: string;
     includeArchived?: boolean;
+    archivedOnly?: boolean;
     page?: number;
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
@@ -115,8 +97,8 @@ export function QuotationsPage() {
     try {
       const result = await window.electron.invoke(IpcChannel.GET_QUOTATIONS_PAGINATED, {
         search: params.search || undefined,
-        status: params.status !== 'all' ? params.status : undefined,
         includeArchived: params.includeArchived || false,
+        archivedOnly: params.archivedOnly || false,
         page: params.page || 1,
         pageSize: 50,
         sortField: params.sortField,
@@ -135,28 +117,16 @@ export function QuotationsPage() {
 
   // Load quotations when tab or filters change
   useEffect(() => {
-    let status: string | undefined;
-    let includeArchived = false;
-
-    switch (activeTab) {
-      case 'recent':
-        status = undefined;
-        break;
-      case 'all':
-        status = statusFilter !== 'all' ? statusFilter || undefined : undefined;
-        includeArchived = true;
-        break;
-    }
+    const archivedOnly = activeTab === 'all' && showArchivedOnly;
 
     loadQuotations({
       search: searchQuery.length >= 2 ? searchQuery : undefined,
-      status,
-      includeArchived,
+      archivedOnly,
       page,
       sortField,
       sortDirection,
     });
-  }, [activeTab, statusFilter, page, loadQuotations, searchQuery, sortField, sortDirection]);
+  }, [activeTab, showArchivedOnly, page, loadQuotations, searchQuery, sortField, sortDirection]);
 
   // Debounced search
   const debouncedSearch = useDebouncedCallback((query: string) => {
@@ -251,16 +221,6 @@ export function QuotationsPage() {
         sortable: true,
         render: (quotation) => <Text ta="right">{formatCurrency(quotation.total)}</Text>,
       },
-      {
-        key: 'status',
-        header: 'Status',
-        width: 100,
-        render: (quotation) => (
-          <Badge color={statusColors[quotation.status] || 'gray'} variant="light">
-            {statusLabels[quotation.status] || quotation.status}
-          </Badge>
-        ),
-      },
     ],
     []
   );
@@ -340,19 +300,13 @@ export function QuotationsPage() {
             style={{ flex: 1 }}
           />
           {activeTab === 'all' && (
-            <Select
-              placeholder="Status"
-              value={statusFilter}
-              onChange={setStatusFilter}
-              data={[
-                { value: 'all', label: 'All Statuses' },
-                { value: 'draft', label: 'Draft' },
-                { value: 'sent', label: 'Sent' },
-                { value: 'accepted', label: 'Accepted' },
-                { value: 'expired', label: 'Expired' },
-                { value: 'converted', label: 'Converted' },
-              ]}
-              w={150}
+            <Switch
+              label="Archived only"
+              checked={showArchivedOnly}
+              onChange={(e) => {
+                setPage(1);
+                setShowArchivedOnly(e.currentTarget.checked);
+              }}
               size="md"
             />
           )}
@@ -393,37 +347,24 @@ export function QuotationsPage() {
 
             {/* All/Search Tab */}
             <Tabs.Panel value="all" p="md">
-              {searchQuery.length < 2 && statusFilter === 'all' ? (
-                <DataTable
-                  columns={viewColumns}
-                  data={activeTab === 'all' ? quotations : []}
-                  loading={isLoading && activeTab === 'all'}
-                  keyField="id"
-                  onRowClick={handleViewQuotation}
-                  emptyMessage="No quotations found"
-                  stickyActionsColumn
-                  sortField={sortField}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-              ) : (
-                <DataTable
-                  columns={viewColumns}
-                  data={activeTab === 'all' ? quotations : []}
-                  loading={isLoading && activeTab === 'all'}
-                  keyField="id"
-                  onRowClick={handleViewQuotation}
-                  emptyMessage={
-                    searchQuery.length >= 2
-                      ? `No quotations found for "${searchQuery}"`
+              <DataTable
+                columns={viewColumns}
+                data={activeTab === 'all' ? quotations : []}
+                loading={isLoading && activeTab === 'all'}
+                keyField="id"
+                onRowClick={handleViewQuotation}
+                emptyMessage={
+                  searchQuery.length >= 2
+                    ? `No quotations found for "${searchQuery}"`
+                    : showArchivedOnly
+                      ? 'No archived quotations found'
                       : 'No quotations found'
-                  }
-                  stickyActionsColumn
-                  sortField={sortField}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-              )}
+                }
+                stickyActionsColumn
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+              />
             </Tabs.Panel>
           </Tabs>
         </Paper>

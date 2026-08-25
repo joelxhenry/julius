@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Paper, Badge, Text, ActionIcon } from '@mantine/core';
-import { IconEye } from '@tabler/icons-react';
+import { Paper, Text, ActionIcon, Group, Button } from '@mantine/core';
+import { IconEye, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
+import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface Quotation {
@@ -18,24 +19,6 @@ interface Quotation {
 interface ClientQuotationsTabProps {
   clientId: number;
 }
-
-const statusColors: Record<string, string> = {
-  draft: 'gray',
-  sent: 'blue',
-  accepted: 'green',
-  rejected: 'red',
-  expired: 'orange',
-  converted: 'purple',
-};
-
-const statusLabels: Record<string, string> = {
-  draft: 'Draft',
-  sent: 'Sent',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  expired: 'Expired',
-  converted: 'Converted',
-};
 
 const formatCurrency = (value: string | null) => {
   const num = parseFloat(value || '0');
@@ -59,17 +42,36 @@ export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const pageSize = 30;
+
+  const [startDate, endDate] = dateRange;
+  const hasActiveFilters = startDate !== null || endDate !== null;
+
+  // Reset to first page whenever a filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [startDate, endDate]);
 
   useEffect(() => {
     loadQuotations();
-  }, [clientId]);
+  }, [clientId, page, startDate, endDate]);
 
   const loadQuotations = async () => {
     setLoading(true);
     try {
-      const result = await window.electron.invoke(IpcChannel.GET_QUOTATIONS_BY_CLIENT, { clientId });
+      const result = await window.electron.invoke(IpcChannel.GET_QUOTATIONS_PAGINATED, {
+        clientId,
+        page,
+        pageSize,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
       if (result.success && result.data) {
-        setQuotations(result.data);
+        setQuotations(result.data.data);
+        setTotalPages(result.data.totalPages);
       }
     } catch (error) {
       console.error('Failed to load quotations:', error);
@@ -105,16 +107,6 @@ export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
         render: (quotation) => <Text ta="right">{formatCurrency(quotation.total)}</Text>,
       },
       {
-        key: 'status',
-        header: 'Status',
-        width: 120,
-        render: (quotation) => (
-          <Badge color={statusColors[quotation.status] || 'gray'} variant="light">
-            {statusLabels[quotation.status] || quotation.status}
-          </Badge>
-        ),
-      },
-      {
         key: 'actions',
         header: 'Actions',
         width: 80,
@@ -130,6 +122,20 @@ export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
 
   return (
     <Paper p="md" radius="md" withBorder>
+      <Group gap="md" align="flex-end" wrap="wrap" mb="md">
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        {hasActiveFilters && (
+          <Button
+            variant="subtle"
+            color="gray"
+            leftSection={<IconFilterOff size={16} />}
+            onClick={() => setDateRange([null, null])}
+          >
+            Clear filters
+          </Button>
+        )}
+      </Group>
+
       <DataTable
         columns={columns}
         data={quotations}
@@ -139,6 +145,9 @@ export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
         minWidth={700}
         onRowClick={(quotation) => navigate(`/quotations/${quotation.id}`)}
         stickyActionsColumn
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
       />
     </Paper>
   );

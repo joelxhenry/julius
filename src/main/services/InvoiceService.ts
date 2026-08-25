@@ -24,6 +24,8 @@ export interface InvoiceQueryParams {
   search?: string;
   status?: string;
   clientId?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface InvoiceLineItemInput {
@@ -106,7 +108,7 @@ export class InvoiceService extends BaseService<
   }
 
   async findPaginated(params: InvoiceQueryParams = {}): Promise<PaginatedResult<schema.Invoice>> {
-    const { page = 1, pageSize = 50, includeArchived = false, search, status, clientId } = params;
+    const { page = 1, pageSize = 50, includeArchived = false, search, status, clientId, startDate, endDate } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -121,6 +123,14 @@ export class InvoiceService extends BaseService<
 
     if (status && status !== 'all') {
       conditions.push(eq(schema.invoices.status, status));
+    }
+
+    if (startDate) {
+      conditions.push(gte(schema.invoices.invDate, startDate));
+    }
+
+    if (endDate) {
+      conditions.push(lte(schema.invoices.invDate, endDate));
     }
 
     if (search && search.trim()) {
