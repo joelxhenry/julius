@@ -148,10 +148,10 @@ export function SalesTab({
   );
 
   return (
-    <Stack gap="lg">
+    <Stack gap="xl">
       {/* Sales Summary — reflects the active date-range filter */}
       {salesSummary && (
-        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="lg">
+        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xl">
           <Card withBorder radius="md" p="md">
             <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
               Total Sold
@@ -188,9 +188,9 @@ export function SalesTab({
       )}
 
       {/* Sales List */}
-      <Paper p="lg" radius="md" withBorder>
-        <Stack gap="lg">
-          <Group gap="md" align="flex-end" wrap="wrap">
+      <Paper p="xl" radius="md" withBorder>
+        <Stack gap="xl">
+          <Group gap="lg" align="flex-end" wrap="wrap">
             {hasVariants && (
               <Select
                 label="Variant"
