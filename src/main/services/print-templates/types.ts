@@ -85,6 +85,25 @@ export interface CreditNoteTemplateData {
   salespersonName: string | null;
 }
 
+export interface ReceivingReferenceItem {
+  sku: string;
+  description: string;
+  quantity: string;
+  unitCost: string;
+  amount: string;
+}
+
+export interface ReceivingReferenceTemplateData {
+  company: CompanyInfo;
+  reference: string;
+  supplier: string | null;
+  receivingDate: string | null;
+  printedAt: string;
+  items: ReceivingReferenceItem[];
+  totalQuantity: string;
+  totalCost: string;
+}
+
 export interface PaymentReceiptTemplateData {
   company: CompanyInfo;
   payment: {

@@ -338,4 +338,5 @@ export enum IpcChannel {
   GET_AVAILABLE_PRINTERS = 'print:get-printers',
   GET_PRINT_SETTINGS = 'print:get-settings',
   PRINT_LOOKUP_TICKET = 'print:lookup-ticket',
+  PRINT_RECEIVING_REFERENCE = 'print:receiving-reference',
 }

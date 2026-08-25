@@ -26,3 +26,9 @@ export interface PrintSettingsConfig {
   thermalPaperWidth: ThermalPaperWidth;
   thermalPrinterName: string;
 }
+
+export interface ReceivingReferenceRequest {
+  reference: string;
+  outputMode: PrintOutputMode;
+  printerName?: string;
+}
