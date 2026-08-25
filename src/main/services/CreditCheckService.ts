@@ -13,10 +13,11 @@ export interface CreditCheckResult {
   overdueAmount: number;
   overdueInvoiceCount: number;
   isBadCredit: boolean;
+  creditEnabled: boolean;
 }
 
 export interface CreditIssue {
-  type: 'overdue_invoices' | 'exceeded_credit_limit' | 'bad_credit_flag';
+  type: 'overdue_invoices' | 'exceeded_credit_limit' | 'bad_credit_flag' | 'credit_disabled';
   message: string;
   severity: 'warning' | 'block';
 }
@@ -55,6 +56,7 @@ export class CreditCheckService {
     const clientData = client[0];
     const creditLimit = parseFloat(clientData.creditLimit || '0');
     const isBadCredit = clientData.isBadCredit ?? false;
+    const creditEnabled = clientData.creditEnabled ?? true;
 
     // Get unpaid invoices for this client
     const unpaidInvoices = await this.db
@@ -86,7 +88,8 @@ export class CreditCheckService {
 
       // Check if invoice is overdue
       const invDate = new Date(invoice.invDate);
-      const creditTerms = parseInt(invoice.creditTerms || clientData.creditTerms || String(defaultCreditTermsDays), 10);
+      const parsedTerms = parseInt(invoice.creditTerms || clientData.creditTerms || '', 10);
+      const creditTerms = Number.isNaN(parsedTerms) ? defaultCreditTermsDays : parsedTerms;
       const dueDate = new Date(invDate);
       dueDate.setDate(dueDate.getDate() + creditTerms);
 
@@ -98,6 +101,16 @@ export class CreditCheckService {
 
     const reasons: CreditIssue[] = [];
     let requiresAdminOverride = false;
+
+    // Check whether credit is enabled at all for this client
+    if (!creditEnabled) {
+      reasons.push({
+        type: 'credit_disabled',
+        message: 'Credit purchasing is disabled for this client. Payment is required.',
+        severity: 'block',
+      });
+      requiresAdminOverride = true;
+    }
 
     // Check for bad credit flag
     if (isBadCredit) {
@@ -140,6 +153,7 @@ export class CreditCheckService {
       overdueAmount,
       overdueInvoiceCount,
       isBadCredit,
+      creditEnabled,
     };
   }
 
@@ -189,7 +203,8 @@ export class CreditCheckService {
 
       // Check if invoice is overdue
       const invDate = new Date(invoice.invDate);
-      const creditTerms = parseInt(invoice.creditTerms || clientData.creditTerms || String(defaultCreditTermsDays), 10);
+      const parsedTerms = parseInt(invoice.creditTerms || clientData.creditTerms || '', 10);
+      const creditTerms = Number.isNaN(parsedTerms) ? defaultCreditTermsDays : parsedTerms;
       const dueDate = new Date(invDate);
       dueDate.setDate(dueDate.getDate() + creditTerms);
 

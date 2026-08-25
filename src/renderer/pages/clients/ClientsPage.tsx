@@ -38,7 +38,6 @@ interface Client {
   creditLimit: string;
   isBadCredit: boolean;
   isTaxable: boolean;
-  discountPct: string;
 }
 
 interface PaginatedResult {

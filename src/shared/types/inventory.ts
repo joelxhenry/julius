@@ -102,7 +102,6 @@ export interface Client {
   address1: string | null;
   address2: string | null;
   isTaxable: boolean;
-  discountPct: string;
   creditLimit: string;
   creditTerms: string | null;
   isBadCredit: boolean;

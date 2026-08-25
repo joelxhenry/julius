@@ -101,26 +101,6 @@ export function determineInvoiceStatus(total: number, balance: number, dueDate?:
 }
 
 /**
- * Apply a client discount rate to line items
- */
-export function applyClientDiscount(
-  items: LineItem[],
-  discountRate: number
-): LineItem[] {
-  return items.map((item) => {
-    const quantity = Number(item.quantity) || 0;
-    const unitPrice = Number(item.unitPrice) || 0;
-    const lineSubtotal = quantity * unitPrice;
-    const discountAmount = lineSubtotal * (discountRate / 100);
-
-    return {
-      ...item,
-      discount: discountAmount.toString(),
-    };
-  });
-}
-
-/**
  * Format currency for display
  */
 export function formatCurrency(amount: number | string): string {

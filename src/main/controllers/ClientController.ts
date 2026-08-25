@@ -120,16 +120,4 @@ export class ClientController extends BaseController<ClientService> {
       return this.handleError(error);
     }
   }
-
-  async updateDiscountRate(id: number, discountRate: number) {
-    try {
-      const client = await this.service.updateDiscountRate(id, discountRate);
-      if (!client) {
-        return { success: false, error: 'Client not found' };
-      }
-      return this.wrapSuccess(client);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
 }

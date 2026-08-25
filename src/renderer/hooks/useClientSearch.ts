@@ -12,7 +12,6 @@ export interface Client {
   isTaxable: boolean;
   creditTerms: string | null;
   creditLimit: string | null;
-  discountPct: string | null;
   isBadCredit: boolean;
 }
 

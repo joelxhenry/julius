@@ -15,10 +15,14 @@ export const clients = pgTable('clients', {
   isTaxable: boolean('is_taxable').notNull().default(true),
   discountPct: numeric('discount_pct', { precision: 5, scale: 2 }).notNull().default('0'),
   creditLimit: numeric('credit_limit', { precision: 15, scale: 2 }).notNull().default('0'),
+  // Credit terms stored as a number of days (as text, e.g. "30")
   creditTerms: varchar('credit_terms', { length: 50 }),
   custom1: varchar('custom1', { length: 100 }),
   custom2: varchar('custom2', { length: 100 }),
   lbDisc: numeric('lb_disc', { precision: 5, scale: 2 }),
+
+  // Whether this client is allowed to purchase on credit at all
+  creditEnabled: boolean('credit_enabled').notNull().default(true),
 
   // Credit status flag (manually set by admin when client has bad credit history)
   isBadCredit: boolean('is_bad_credit').notNull().default(false),

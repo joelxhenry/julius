@@ -8,7 +8,6 @@ export const clientSchema = z.object({
   address1: z.string().optional(),
   address2: z.string().optional(),
   creditLimit: z.number().min(0, 'Credit limit must be positive').default(0),
-  discountRate: z.number().min(0, 'Discount must be positive').max(100, 'Discount cannot exceed 100%').default(0),
 });
 
 export type ClientFormData = z.infer<typeof clientSchema>;

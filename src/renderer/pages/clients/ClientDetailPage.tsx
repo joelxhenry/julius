@@ -47,12 +47,9 @@ interface Client {
   credit: string;
   creditDesc: string | null;
   isTaxable: boolean;
-  discountPct: string;
   creditLimit: string;
   creditTerms: string | null;
-  custom1: string | null;
-  custom2: string | null;
-  lbDisc: string | null;
+  creditEnabled: boolean;
   isBadCredit: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -320,9 +317,18 @@ export function ClientDetailPage() {
                     <Text size="sm" c="dimmed">
                       Credit Terms
                     </Text>
-                    <Badge variant="light">{client.creditTerms}</Badge>
+                    <Badge variant="light">{parseInt(client.creditTerms, 10)} days</Badge>
                   </Group>
                 )}
+
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Credit
+                  </Text>
+                  <Badge color={client.creditEnabled ? 'green' : 'gray'} variant="light">
+                    {client.creditEnabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                </Group>
 
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">
@@ -337,15 +343,6 @@ export function ClientDetailPage() {
 
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">
-                    Discount Percentage
-                  </Text>
-                  <Text size="sm" fw={500}>
-                    {parseFloat(client.discountPct).toFixed(2)}%
-                  </Text>
-                </Group>
-
-                <Group justify="space-between">
-                  <Text size="sm" c="dimmed">
                     Taxable
                   </Text>
                   <Badge color={client.isTaxable ? 'blue' : 'gray'} variant="light">
@@ -354,49 +351,6 @@ export function ClientDetailPage() {
                 </Group>
               </Stack>
             </Paper>
-
-            {/* Custom Fields */}
-            {(client.custom1 || client.custom2 || client.lbDisc) && (
-              <Paper p="lg" radius="md" withBorder>
-                <Stack gap="md">
-                  <Title order={4}>Custom Fields</Title>
-                  <Divider />
-
-                  {client.custom1 && (
-                    <Group justify="space-between">
-                      <Text size="sm" c="dimmed">
-                        Custom Field 1
-                      </Text>
-                      <Text size="sm" fw={500}>
-                        {client.custom1}
-                      </Text>
-                    </Group>
-                  )}
-
-                  {client.custom2 && (
-                    <Group justify="space-between">
-                      <Text size="sm" c="dimmed">
-                        Custom Field 2
-                      </Text>
-                      <Text size="sm" fw={500}>
-                        {client.custom2}
-                      </Text>
-                    </Group>
-                  )}
-
-                  {client.lbDisc && (
-                    <Group justify="space-between">
-                      <Text size="sm" c="dimmed">
-                        LB Disc
-                      </Text>
-                      <Text size="sm" fw={500}>
-                        {parseFloat(client.lbDisc).toFixed(2)}%
-                      </Text>
-                    </Group>
-                  )}
-                </Stack>
-              </Paper>
-            )}
 
             {/* Dates */}
             <Paper p="lg" radius="md" withBorder>
@@ -428,7 +382,7 @@ export function ClientDetailPage() {
 
         {/* Other Tabs */}
         <Tabs.Panel value="invoices" pt="md">
-          <ClientInvoicesTab clientId={client.id} />
+          <ClientInvoicesTab clientId={client.id} clientName={client.clientName} />
         </Tabs.Panel>
 
         <Tabs.Panel value="quotations" pt="md">

@@ -5,7 +5,7 @@ import { PINInput } from '../auth/PINInput';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 export interface CreditIssue {
-  type: 'overdue_invoices' | 'exceeded_credit_limit' | 'bad_credit_flag';
+  type: 'overdue_invoices' | 'exceeded_credit_limit' | 'bad_credit_flag' | 'credit_disabled';
   message: string;
   severity: 'warning' | 'block';
 }

@@ -23,7 +23,6 @@ interface Client {
   address1: string | null;
   address2: string | null;
   isTaxable: boolean;
-  discountPct: string | null;
   creditLimit: string | null;
   creditTerms: string | null;
   isBadCredit: boolean;

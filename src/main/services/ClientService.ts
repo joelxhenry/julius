@@ -124,8 +124,4 @@ export class ClientService extends BaseService<
   async updateCreditLimit(id: number, creditLimit: string): Promise<schema.Client | null> {
     return this.update(id, { creditLimit, updatedAt: new Date() });
   }
-
-  async updateDiscountPct(id: number, discountPct: string): Promise<schema.Client | null> {
-    return this.update(id, { discountPct, updatedAt: new Date() });
-  }
 }

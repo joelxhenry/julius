@@ -7,7 +7,6 @@ import {
   TextInput,
   Textarea,
   Button,
-  Select,
   Checkbox,
   NumberInput,
   Text,
@@ -39,13 +38,10 @@ interface Client {
   address2: string | null;
   notes: string | null;
   isTaxable: boolean;
-  discountPct: string;
   creditLimit: string;
   creditTerms: string | null;
+  creditEnabled: boolean;
   isBadCredit: boolean;
-  custom1: string | null;
-  custom2: string | null;
-  lbDisc: string | null;
 }
 
 interface ClientFormValues {
@@ -57,13 +53,10 @@ interface ClientFormValues {
   address2: string;
   notes: string;
   isTaxable: boolean;
-  discountPct: number;
   creditLimit: number;
-  creditTerms: string;
+  creditTerms: number | null;
+  creditEnabled: boolean;
   isBadCredit: boolean;
-  custom1: string;
-  custom2: string;
-  lbDisc: number | null;
 }
 
 interface ClientEditModalProps {
@@ -92,19 +85,18 @@ export function ClientEditModal({
       address2: "",
       notes: "",
       isTaxable: true,
-      discountPct: 0,
       creditLimit: 0,
-      creditTerms: "",
+      creditTerms: null,
+      creditEnabled: true,
       isBadCredit: false,
-      custom1: "",
-      custom2: "",
-      lbDisc: null,
     },
     validate: {
       clientName: (value) => (!value ? "Client name is required" : null),
-      discountPct: (value) =>
-        value < 0 || value > 100 ? "Must be between 0 and 100" : null,
       creditLimit: (value) => (value < 0 ? "Cannot be negative" : null),
+      creditTerms: (value) =>
+        value != null && (value < 0 || !Number.isInteger(value))
+          ? "Enter a whole number of days"
+          : null,
     },
   });
 
@@ -120,13 +112,13 @@ export function ClientEditModal({
         address2: client.address2 || "",
         notes: client.notes || "",
         isTaxable: client.isTaxable ?? true,
-        discountPct: client.discountPct ? parseFloat(client.discountPct) : 0,
         creditLimit: client.creditLimit ? parseFloat(client.creditLimit) : 0,
-        creditTerms: client.creditTerms || "",
+        creditTerms: (() => {
+          const parsed = parseInt(client.creditTerms || "", 10);
+          return Number.isNaN(parsed) ? null : parsed;
+        })(),
+        creditEnabled: client.creditEnabled ?? true,
         isBadCredit: client.isBadCredit || false,
-        custom1: client.custom1 || "",
-        custom2: client.custom2 || "",
-        lbDisc: client.lbDisc ? parseFloat(client.lbDisc) : null,
       });
       setError(null);
     }
@@ -146,13 +138,13 @@ export function ClientEditModal({
         address2: values.address2 || null,
         notes: values.notes || null,
         isTaxable: values.isTaxable,
-        discountPct: values.discountPct.toString(),
         creditLimit: values.creditLimit.toString(),
-        creditTerms: values.creditTerms || null,
+        creditTerms: (() => {
+          const parsed = parseInt(String(values.creditTerms ?? ''), 10);
+          return Number.isNaN(parsed) ? null : String(parsed);
+        })(),
+        creditEnabled: values.creditEnabled,
         isBadCredit: values.isBadCredit,
-        custom1: values.custom1 || null,
-        custom2: values.custom2 || null,
-        lbDisc: values.lbDisc?.toString() || null,
       };
 
       const result = await window.electron.invoke(IpcChannel.UPDATE_CLIENT, {
@@ -299,30 +291,27 @@ export function ClientEditModal({
                     thousandSeparator=","
                     {...form.getInputProps("creditLimit")}
                   />
-                  <Select
+                  <NumberInput
                     label="Credit Terms"
-                    placeholder="Select credit terms"
-                    data={[
-                      { value: "", label: "None" },
-                      { value: "Net 30", label: "Net 30" },
-                      { value: "Net 60", label: "Net 60" },
-                      { value: "COD", label: "COD (Cash on Delivery)" },
-                      { value: "Custom", label: "Custom" },
-                    ]}
+                    description="Number of days credit is extended"
+                    placeholder="e.g. 30"
+                    suffix=" days"
+                    min={0}
+                    step={1}
+                    allowDecimal={false}
+                    allowNegative={false}
                     {...form.getInputProps("creditTerms")}
                   />
                 </Group>
 
                 <Group grow>
-                  <NumberInput
-                    label="Discount Percentage"
-                    placeholder="0.00"
-                    suffix="%"
-                    min={0}
-                    max={100}
-                    decimalScale={2}
-                    {...form.getInputProps("discountPct")}
-                  />
+                  <Stack gap="xs" justify="flex-end">
+                    <Checkbox
+                      label="Enable Credit"
+                      description="Allow this client to purchase on credit"
+                      {...form.getInputProps("creditEnabled", { type: "checkbox" })}
+                    />
+                  </Stack>
                   <Stack gap="xs" justify="flex-end">
                     <Checkbox
                       label="Bad Credit"
@@ -346,36 +335,6 @@ export function ClientEditModal({
                   label="Taxable"
                   description="Check if this client is taxable"
                   {...form.getInputProps("isTaxable", { type: "checkbox" })}
-                />
-              </Stack>
-            </Paper>
-
-            {/* Additional Information */}
-            <Paper p="md" radius="md" withBorder>
-              <Stack gap="md">
-                <Title order={5}>Additional Information</Title>
-
-                <Group grow>
-                  <TextInput
-                    label="Custom Field 1"
-                    placeholder="Custom field 1"
-                    {...form.getInputProps("custom1")}
-                  />
-                  <TextInput
-                    label="Custom Field 2"
-                    placeholder="Custom field 2"
-                    {...form.getInputProps("custom2")}
-                  />
-                </Group>
-
-                <NumberInput
-                  label="LB Disc"
-                  placeholder="0.00"
-                  suffix="%"
-                  min={0}
-                  max={100}
-                  decimalScale={2}
-                  {...form.getInputProps("lbDisc")}
                 />
               </Stack>
             </Paper>
