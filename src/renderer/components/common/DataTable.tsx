@@ -41,6 +41,9 @@ export interface DataTableProps<T> {
   skeletonRows?: number;
   // Sticky actions column
   stickyActionsColumn?: boolean;
+  // Row/cell spacing (Mantine Table spacing tokens)
+  verticalSpacing?: string | number;
+  horizontalSpacing?: string | number;
   // Sorting
   sortField?: string;
   sortDirection?: SortDirection;
@@ -60,6 +63,8 @@ export function DataTable<T>({
   onPageChange,
   skeletonRows = 5,
   stickyActionsColumn = false,
+  verticalSpacing,
+  horizontalSpacing,
   sortField,
   sortDirection,
   onSort,
@@ -153,7 +158,12 @@ export function DataTable<T>({
   return (
     <Stack gap="md">
       <Table.ScrollContainer minWidth={minWidth}>
-        <Table striped highlightOnHover>
+        <Table
+          striped
+          highlightOnHover
+          verticalSpacing={verticalSpacing}
+          horizontalSpacing={horizontalSpacing}
+        >
           <Table.Thead>
             <Table.Tr>
               {columns.map((column) => (

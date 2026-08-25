@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
-import { Paper, Badge, Text, Group, Select, Button, Stack } from '@mantine/core';
-import { IconFilterOff } from '@tabler/icons-react';
+import { Paper, Badge, Text, Group, Select, Button, Stack, Anchor, Tooltip } from '@mantine/core';
+import { IconFilterOff, IconExternalLink } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
+import { CopyButton } from '../common/CopyButton';
 
 interface InventoryTransaction {
   id: number;
@@ -46,6 +47,7 @@ interface TransactionsTabProps {
   onActivityChange: (activity: string | null) => void;
   dateRange: DateRangeValue;
   onDateRangeChange: (range: DateRangeValue) => void;
+  onOpenReference: (reference: string) => void;
 }
 
 export function TransactionsTab({
@@ -58,6 +60,7 @@ export function TransactionsTab({
   onActivityChange,
   dateRange,
   onDateRangeChange,
+  onOpenReference,
 }: TransactionsTabProps) {
   const hasActiveFilters =
     (activity !== null && activity !== 'all') || dateRange[0] !== null || dateRange[1] !== null;
@@ -83,12 +86,13 @@ export function TransactionsTab({
       {
         key: 'variantSku',
         header: 'Variant',
-        width: 150,
+        width: 180,
         render: (trans) =>
           trans.variantSku ? (
-            <Badge color="grape" variant="light" size="sm">
-              {trans.variantSku}
-            </Badge>
+            <Group gap={4} wrap="nowrap">
+              <Text size="sm" fw={500}>{trans.variantSku}</Text>
+              <CopyButton value={trans.variantSku} tooltip="Copy variant" />
+            </Group>
           ) : (
             <Text size="sm" c="dimmed">-</Text>
           ),
@@ -107,7 +111,23 @@ export function TransactionsTab({
       {
         key: 'reference',
         header: 'Reference',
-        render: (trans) => trans.reference || '-',
+        render: (trans) =>
+          trans.reference ? (
+            <Tooltip label="Open in new tab" withArrow position="top">
+              <Anchor
+                component="button"
+                type="button"
+                size="sm"
+                onClick={() => onOpenReference(trans.reference!)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                {trans.reference}
+                <IconExternalLink size={14} />
+              </Anchor>
+            </Tooltip>
+          ) : (
+            <Text size="sm" c="dimmed">-</Text>
+          ),
       },
     ],
     []
@@ -148,6 +168,8 @@ export function TransactionsTab({
           keyField="id"
           emptyMessage="No activity found"
           minWidth={750}
+          verticalSpacing="md"
+          horizontalSpacing="lg"
           page={page}
           totalPages={totalPages}
           onPageChange={onPageChange}

@@ -105,6 +105,7 @@ interface InventoryTransaction {
 
 interface SaleRecord {
   id: number;
+  invoiceId?: number;
   documentNumber: string;
   documentType: string;
   quantity: number;
@@ -133,7 +134,7 @@ export function InventoryDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
 
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState<Inventory | null>(null);
@@ -174,6 +175,7 @@ export function InventoryDetailPage() {
   const [salesTotalPages, setSalesTotalPages] = useState(1);
   const [salesLoading, setSalesLoading] = useState(false);
   const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
+  const [salesDateRange, setSalesDateRange] = useState<[string | null, string | null]>([null, null]);
 
   // Stock adjustment modal
   const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
@@ -229,7 +231,12 @@ export function InventoryDetailPage() {
       loadSales(item.sku, salesPage);
       loadSalesSummary(item.sku);
     }
-  }, [item?.sku, activeTab, salesPage]);
+  }, [item?.sku, activeTab, salesPage, salesDateRange]);
+
+  // Reset to first page when sales date filter changes
+  useEffect(() => {
+    setSalesPage(1);
+  }, [salesDateRange]);
 
   const loadInventoryItem = async (id: number) => {
     setLoading(true);
@@ -567,6 +574,41 @@ export function InventoryDetailPage() {
     }).format(numAmount);
   };
 
+  // Handler for opening a transaction's referenced document in a new tab.
+  // Reference activity labels are legacy/free-form, so resolve by looking the
+  // reference number up as an invoice first, then as a credit note.
+  const handleOpenReference = async (reference: string) => {
+    const ref = reference?.trim();
+    if (!ref) return;
+
+    try {
+      const invoiceResult = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, { invNumber: ref });
+      if (invoiceResult.success && invoiceResult.data) {
+        openTab(`/invoices/${invoiceResult.data.id}`);
+        return;
+      }
+
+      const creditNoteResult = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTE_BY_NUMBER, { crNumber: ref });
+      if (creditNoteResult.success && creditNoteResult.data) {
+        openTab(`/credit-notes/${creditNoteResult.data.id}`);
+        return;
+      }
+
+      notifications.show({
+        title: 'Reference Not Found',
+        message: `No invoice or credit note found for reference: ${ref}`,
+        color: 'orange',
+      });
+    } catch (err) {
+      console.error('Failed to open reference:', err);
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to open reference',
+        color: 'red',
+      });
+    }
+  };
+
   // Handler for navigating to alternate SKU
   const handleNavigateToAlternate = async (alternateSku: string) => {
     try {
@@ -805,6 +847,7 @@ export function InventoryDetailPage() {
             onActivityChange={setTransactionsActivity}
             dateRange={transactionsDateRange}
             onDateRangeChange={setTransactionsDateRange}
+            onOpenReference={handleOpenReference}
           />
         </Tabs.Panel>
 
