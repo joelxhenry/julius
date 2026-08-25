@@ -5,7 +5,16 @@ import { NotFoundPage, ErrorPage } from '../pages/error';
 import { LandingPage } from '../pages/LandingPage';
 import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
 import { QuotationsPage, QuotationCreatePage, QuotationDetailPage } from '../pages/quotations';
-import { InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
+import {
+  InventoryListPage,
+  InventoryEditorPage,
+  InventoryDetailPage,
+  InventoryManagementPage,
+  BulkAddInventoryPage,
+  BulkStockUpdatePage,
+  BulkReceivingPage,
+  MassUpdatePage,
+} from '../pages/inventory';
 import { PaymentsPage, PaymentDetailPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import { DashboardPage } from '../pages/dashboard';
@@ -75,6 +84,26 @@ export const router = createHashRouter([
       {
         path: 'inventory/new',
         element: <InventoryEditorPage />,
+      },
+      {
+        path: 'inventory/manage',
+        element: <InventoryManagementPage />,
+      },
+      {
+        path: 'inventory/manage/add',
+        element: <BulkAddInventoryPage />,
+      },
+      {
+        path: 'inventory/manage/stock',
+        element: <BulkStockUpdatePage />,
+      },
+      {
+        path: 'inventory/manage/receive',
+        element: <BulkReceivingPage />,
+      },
+      {
+        path: 'inventory/manage/mass-update',
+        element: <MassUpdatePage />,
       },
       {
         path: 'inventory/:id',

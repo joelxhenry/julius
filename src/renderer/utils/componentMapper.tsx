@@ -1,6 +1,15 @@
 import { InvoicesPage, InvoiceCreatePage, InvoiceDetailPage } from '../pages/invoices';
 import { QuotationsPage, QuotationCreatePage, QuotationDetailPage } from '../pages/quotations';
-import { InventoryListPage, InventoryEditorPage, InventoryDetailPage } from '../pages/inventory';
+import {
+  InventoryListPage,
+  InventoryEditorPage,
+  InventoryDetailPage,
+  InventoryManagementPage,
+  BulkAddInventoryPage,
+  BulkStockUpdatePage,
+  BulkReceivingPage,
+  MassUpdatePage,
+} from '../pages/inventory';
 import { PaymentsPage, PaymentDetailPage } from '../pages/payments';
 import { AttendancePage } from '../pages/attendance';
 import {
@@ -43,6 +52,11 @@ export function getComponentForPath(path: string): React.ReactNode {
   // Inventory
   if (cleanPath === 'inventory') return <InventoryListPage />;
   if (cleanPath === 'inventory/new') return <InventoryEditorPage />;
+  if (cleanPath === 'inventory/manage') return <InventoryManagementPage />;
+  if (cleanPath === 'inventory/manage/add') return <BulkAddInventoryPage />;
+  if (cleanPath === 'inventory/manage/stock') return <BulkStockUpdatePage />;
+  if (cleanPath === 'inventory/manage/receive') return <BulkReceivingPage />;
+  if (cleanPath === 'inventory/manage/mass-update') return <MassUpdatePage />;
   if (cleanPath.match(/^inventory\/\d+$/)) {
     return <InventoryDetailPage />;
   }

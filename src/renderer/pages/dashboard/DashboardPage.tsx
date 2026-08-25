@@ -20,6 +20,13 @@ interface DashboardSection {
 
 const dashboardSections: DashboardSection[] = [
   {
+    title: 'Inventory Management',
+    description: 'Add items, adjust stock, receive from suppliers, and run mass updates',
+    icon: <IconPackages size={24} />,
+    color: 'yellow',
+    path: '/inventory/manage',
+  },
+  {
     title: 'Invoices',
     description: 'View and search all invoices',
     icon: <IconFileInvoice size={24} />,

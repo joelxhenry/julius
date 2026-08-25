@@ -77,6 +77,11 @@ function generateTitleFromPath(path: string): string {
   if (path.includes('/quotations/') && path.includes('/edit')) return 'Edit Quotation';
   if (path.includes('/quotations/')) return 'Quotation';
   if (path.includes('/inventory/new')) return 'New Item';
+  if (path.includes('/inventory/manage/add')) return 'Bulk Add Inventory';
+  if (path.includes('/inventory/manage/stock')) return 'Bulk Stock Update';
+  if (path.includes('/inventory/manage/receive')) return 'Bulk Receiving';
+  if (path.includes('/inventory/manage/mass-update')) return 'Mass Update';
+  if (path.includes('/inventory/manage')) return 'Inventory Management';
   if (path.includes('/inventory/') && path.includes('/edit')) return 'Edit Item';
   if (path.includes('/employees/new')) return 'New Employee';
   if (path.includes('/employees/') && path.includes('/edit')) return 'Edit Employee';

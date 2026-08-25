@@ -989,22 +989,22 @@ Insert into the `dashboardSections` array in [DashboardPage.tsx](../src/renderer
 ## Open Questions (Part C)
 
 - **Q-C1 — Landing-page layout.** Cards (matching the System Dashboard style) or tabs inside one page?
-  *Answer:* _(unanswered)_
+  *Answer:* _matching system dashboard_
 
 - **Q-C2 — Tile placement and color.** Where should the new tile sit in `dashboardSections` (next to Reports? next to System Settings? first?), and what Mantine color (the example uses `orange`)?
-  *Answer:* _(unanswered)_
+  *Answer:* _as the first option, yellow_
 
 - **Q-C3 — Add-mode shape.** Single quick-form with "save and add another", or a multi-row spreadsheet-style table from the start, or both (toggle)?
-  *Answer:* _(unanswered)_
+  *Answer:* _spreadsheet_
 
 - **Q-C4 — Stock adjustment semantics.** Set absolute new qty vs apply a delta (+5 / −2)? Is a reason / note required, and should an `inventory_transaction` row be created for each adjustment?
-  *Answer:* _(unanswered)_
+  *Answer:* _Yes this should be required and yes add inventory transaction_
 
 - **Q-C5 — Receiving session model.** One supplier per receiving session (recommended for clean reporting), or allow mixed-supplier sessions? Capture PO number / supplier invoice ref / received date as session metadata? Allow on-the-fly creation of an inventory item that doesn't yet exist?
-  *Answer:* _(unanswered)_
+  *Answer:* _yes one provider per session_
 
 - **Q-C6 — Mass update mechanism.** CSV import only, in-app spreadsheet grid only, or both? Max batch size to allow client-side (e.g. 500 rows)? Require a dry-run preview before applying?
-  *Answer:* _(unanswered)_
+  *Answer:* _accept csv / excel, provide a templete the user can download, yes require dry-run and preview before applying_
 
 - **Q-C7 — New batch IPC channel?** Default is no (iterate over existing per-row channels per Reference C-R3). Re-open only if measured performance is unacceptable. If yes, name and shape of the new channel.
   *Answer:* _(unanswered, deferred unless C-2/C-3/C-4/C-5 surface a real performance issue)_
