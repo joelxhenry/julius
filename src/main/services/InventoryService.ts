@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or, and, ilike, desc, asc, count, sql } from 'drizzle-orm';
+import { eq, like, or, and, ilike, asc, count, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -187,14 +187,16 @@ export class InventoryService extends BaseService<
     return this.db
       .select()
       .from(schema.inventory)
-      .where(eq(schema.inventory.category, category));
+      .where(eq(schema.inventory.category, category))
+      .orderBy(asc(schema.inventory.sku));
   }
 
   async findByLocation(location: string): Promise<schema.Inventory[]> {
     return this.db
       .select()
       .from(schema.inventory)
-      .where(eq(schema.inventory.location, location));
+      .where(eq(schema.inventory.location, location))
+      .orderBy(asc(schema.inventory.sku));
   }
 
   async search(query: string): Promise<schema.Inventory[]> {
@@ -209,7 +211,8 @@ export class InventoryService extends BaseService<
           like(schema.inventory.description2, searchTerm),
           like(schema.inventory.model, searchTerm)
         )
-      );
+      )
+      .orderBy(asc(schema.inventory.sku));
   }
 
   async searchForSelect(query: string, limit = 20): Promise<schema.Inventory[]> {
@@ -232,7 +235,7 @@ export class InventoryService extends BaseService<
       .select()
       .from(schema.inventory)
       .where(whereCondition)
-      .orderBy(desc(schema.inventory.id))
+      .orderBy(asc(schema.inventory.sku))
       .limit(limit);
   }
 
@@ -241,7 +244,7 @@ export class InventoryService extends BaseService<
       .select()
       .from(schema.variants)
       .where(and(eq(schema.variants.parentSku, parentSku), eq(schema.variants.isActive, true)))
-      .orderBy(asc(schema.variants.variantName));
+      .orderBy(asc(schema.variants.variantSku));
   }
 
   async hasVariants(parentSku: string): Promise<boolean> {
@@ -338,7 +341,7 @@ export class InventoryService extends BaseService<
           )
         )
       )
-      .orderBy(desc(schema.variants.id))
+      .orderBy(asc(schema.variants.variantSku))
       .limit(limit);
 
     // Add variant items to results
@@ -359,15 +362,12 @@ export class InventoryService extends BaseService<
       });
     }
 
-    // Sort by relevance (exact SKU matches first, then base variants before non-base)
+    // Exact SKU match first, then ascending by part number (SKU)
     results.sort((a, b) => {
       const aExact = a.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
       const bExact = b.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
       if (aExact !== bExact) return aExact - bExact;
-      // Base variants come before non-base variants
-      const aBase = a.isBase ? 0 : 1;
-      const bBase = b.isBase ? 0 : 1;
-      return aBase - bBase;
+      return a.sku.localeCompare(b.sku, undefined, { numeric: true });
     });
 
     return results.slice(0, limit);
