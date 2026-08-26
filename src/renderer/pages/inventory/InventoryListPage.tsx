@@ -10,6 +10,7 @@ import {
   ActionIcon,
   Text,
   NumberFormatter,
+  Button,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -17,13 +18,15 @@ import {
   IconAlertTriangle,
   IconCategory,
   IconCar,
+  IconPlus,
 } from '@tabler/icons-react';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { DataTable, Column, CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
+import { NewPartModal } from './NewPartModal';
 
 interface Inventory {
   id: number;
@@ -57,6 +60,7 @@ interface PaginatedResult {
 
 export function InventoryListPage() {
   const { replaceCurrentTab } = useTabContext();
+  const [newPartOpened, { open: openNewPart, close: closeNewPart }] = useDisclosure(false);
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [total, setTotal] = useState(0);
@@ -236,7 +240,12 @@ export function InventoryListPage() {
 
   return (
     <Stack p="xl" gap="lg">
-      <Title order={2}>Inventory</Title>
+      <Group justify="space-between" align="center">
+        <Title order={2}>Inventory</Title>
+        <Button leftSection={<IconPlus size={16} />} onClick={openNewPart}>
+          Add Part
+        </Button>
+      </Group>
 
       <Paper p="md" radius="md" withBorder>
         <Stack gap="md">
@@ -295,6 +304,12 @@ export function InventoryListPage() {
           />
         </Stack>
       </Paper>
+
+      <NewPartModal
+        opened={newPartOpened}
+        onClose={closeNewPart}
+        onCreated={() => fetchInventory()}
+      />
     </Stack>
   );
 }

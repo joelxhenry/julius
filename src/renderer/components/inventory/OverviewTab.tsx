@@ -1,4 +1,4 @@
-import { Paper, Stack, Title, SimpleGrid, Text, Badge, Group } from '@mantine/core';
+import { Paper, Stack, Title, SimpleGrid, Text, Group } from '@mantine/core';
 import { CopyButton } from '../common';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 
@@ -45,49 +45,24 @@ export function OverviewTab({ item }: OverviewTabProps) {
             </Stack>
             <Stack gap={2}>
               <Text size="xs" c="dimmed">
-                Categories
-              </Text>
-              {(() => {
-                const categories = normalizeToArray(item.category);
-                return categories.length > 0 ? (
-                  <Group gap={6} wrap="wrap">
-                    {categories.map((cat, idx) => (
-                      <Badge key={idx} variant="filled" size="md" radius="sm">
-                        {cat}
-                      </Badge>
-                    ))}
-                  </Group>
-                ) : (
-                  <Text fw={500}>-</Text>
-                );
-              })()}
-            </Stack>
-            <Stack gap={2}>
-              <Text size="xs" c="dimmed">
-                Models
-              </Text>
-              {(() => {
-                const models = normalizeToArray(item.model);
-                return models.length > 0 ? (
-                  <Group gap={6} wrap="wrap">
-                    {models.map((model, idx) => (
-                      <Badge key={idx} variant="light" color="gray" size="md" radius="sm">
-                        {model}
-                      </Badge>
-                    ))}
-                  </Group>
-                ) : (
-                  <Text fw={500}>-</Text>
-                );
-              })()}
-            </Stack>
-            <Stack gap={2}>
-              <Text size="xs" c="dimmed">
                 Unit
               </Text>
               <Text fw={500}>{item.unit}</Text>
             </Stack>
           </SimpleGrid>
+          {(() => {
+            const categories = normalizeToArray(item.category);
+            const models = normalizeToArray(item.model);
+            const values = [...categories, ...models];
+            return (
+              <Stack gap={2}>
+                <Text size="xs" c="dimmed">
+                  Category &amp; Models
+                </Text>
+                <Text fw={500}>{values.length > 0 ? values.join(', ') : '-'}</Text>
+              </Stack>
+            );
+          })()}
           {item.description2 && (
             <Stack gap={2}>
               <Text size="xs" c="dimmed">

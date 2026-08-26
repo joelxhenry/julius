@@ -1,10 +1,8 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useMemo } from 'react';
 import { Paper, Stack, Group, Text, Button, Badge, ActionIcon, Menu, NumberFormatter } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import { IconPlus, IconEdit, IconTrash, IconDotsVertical } from '@tabler/icons-react';
-import { DataTable, Column, ProductThumbnail, ImageGalleryModal, ImageUploader, CopyButton } from '../common';
+import { DataTable, Column, CopyButton } from '../common';
 import { MarkButton } from '../tray/MarkButton';
-import { usePreloadThumbnails } from '../../hooks';
 
 interface Variant {
   id: number;
@@ -33,55 +31,8 @@ interface VariantsTabProps {
 }
 
 export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, onEditVariant, onDeleteVariant }: VariantsTabProps) {
-  // Gallery modal state
-  const [galleryOpened, { open: openGallery, close: closeGallery }] = useDisclosure(false);
-  const [uploaderOpened, { open: openUploader, close: closeUploader }] = useDisclosure(false);
-  const [selectedVariantSku, setSelectedVariantSku] = useState<string | null>(null);
-
-  // Thumbnail preloading
-  const { preload, getThumbnail } = usePreloadThumbnails();
-
-  // Preload thumbnails when variants data changes
-  useEffect(() => {
-    if (variants.length > 0) {
-      preload(variants.map(v => ({ sku: v.variantSku, isVariant: true })));
-    }
-  }, [variants, preload]);
-
-  // Handlers for gallery modal
-  const handleThumbnailClick = useCallback((variantSku: string) => {
-    setSelectedVariantSku(variantSku);
-    openGallery();
-  }, [openGallery]);
-
-  const handleUploadClick = useCallback(() => {
-    closeGallery();
-    openUploader();
-  }, [closeGallery, openUploader]);
-
-  const handleImagesChange = useCallback(() => {
-    // Refresh thumbnails after image changes
-    if (variants.length > 0) {
-      preload(variants.map(v => ({ sku: v.variantSku, isVariant: true })));
-    }
-  }, [variants, preload]);
-
   const variantsColumns: Column<Variant>[] = useMemo(
     () => [
-      {
-        key: 'image',
-        header: '',
-        width: 50,
-        render: (variant) => (
-          <ProductThumbnail
-            sku={variant.variantSku}
-            isVariant={true}
-            size={40}
-            preloadedImage={getThumbnail(variant.variantSku, true)}
-            onClick={() => handleThumbnailClick(variant.variantSku)}
-          />
-        ),
-      },
       {
         key: 'variantSku',
         header: 'Variant Part Number',
@@ -168,7 +119,7 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
         ),
       },
     ],
-    [onEditVariant, onDeleteVariant, getThumbnail, handleThumbnailClick, parentIsTaxable]
+    [onEditVariant, onDeleteVariant, parentIsTaxable]
   );
 
   return (
@@ -190,33 +141,6 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
           stickyActionsColumn
         />
       </Stack>
-
-      {/* Image Gallery Modal */}
-      {selectedVariantSku && (
-        <ImageGalleryModal
-          opened={galleryOpened}
-          onClose={closeGallery}
-          sku={selectedVariantSku}
-          isVariant={true}
-          onUploadClick={handleUploadClick}
-          onImagesChange={handleImagesChange}
-        />
-      )}
-
-      {/* Image Uploader Modal */}
-      {selectedVariantSku && (
-        <ImageUploader
-          opened={uploaderOpened}
-          onClose={closeUploader}
-          sku={selectedVariantSku}
-          isVariant={true}
-          onUploadComplete={() => {
-            handleImagesChange();
-            closeUploader();
-            openGallery();
-          }}
-        />
-      )}
     </Paper>
   );
 }

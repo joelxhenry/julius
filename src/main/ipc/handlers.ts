@@ -38,7 +38,7 @@ import { InventoryImageService, UploadImageParams } from '../services/InventoryI
 import { PrintService } from '../services/PrintService';
 import { ReportService } from '../services/ReportService';
 import { ExportService } from '../services/ExportService';
-import { PrintDocumentRequest, ReceivingReferenceRequest } from '../../shared/types/print';
+import { PrintDocumentRequest, ReceivingReferenceRequest, ClientStatementRequest } from '../../shared/types/print';
 import { ExportRequest } from '../../shared/types/export';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
@@ -220,6 +220,7 @@ function registerDataHandlers() {
     quotationService,
     creditNoteService,
     paymentService,
+    clientService,
     documentLineItemService,
     employeeService,
     inventoryService,
@@ -894,6 +895,8 @@ function registerDataHandlers() {
     printController.printLookupTicket(params));
   ipcMain.handle(IpcChannel.PRINT_RECEIVING_REFERENCE, (_, params: ReceivingReferenceRequest) =>
     printController.printReceivingReference(params));
+  ipcMain.handle(IpcChannel.PRINT_CLIENT_STATEMENT, (_, params: ClientStatementRequest) =>
+    printController.printClientStatement(params));
 
   // ===== REPORT HANDLERS =====
   const reportService = new ReportService(db);

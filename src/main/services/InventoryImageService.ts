@@ -28,49 +28,23 @@ export class InventoryImageService {
   ) {}
 
   /**
-   * Upload and save a new image for an inventory item or variant
+   * Upload and save a new image for an inventory item or variant.
+   *
+   * The system supports a single image per SKU, so any existing image for the
+   * SKU is removed first — uploading always replaces.
    */
   async uploadImage(params: UploadImageParams): Promise<UploadImageResult> {
-    const { sku, isVariant, buffer, originalFileName, mimeType, isPrimary } = params;
+    const { sku, isVariant, buffer, originalFileName, mimeType } = params;
+
+    // Enforce a single image per SKU: drop any existing image (file + row)
+    // before saving the replacement.
+    await this.deleteAllImagesForSku(sku, isVariant);
 
     // Save the image to filesystem
     const saveResult = await this.imageStorage.saveImage(sku, buffer, originalFileName, mimeType);
 
-    // If this is marked as primary, unset any existing primary
-    if (isPrimary) {
-      await this.db
-        .update(schema.inventoryImages)
-        .set({ isPrimary: false })
-        .where(and(
-          eq(schema.inventoryImages.sku, sku),
-          eq(schema.inventoryImages.isVariant, isVariant)
-        ));
-    }
-
-    // Check if this is the first image for this SKU (make it primary by default)
-    const existingImages = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(schema.inventoryImages)
-      .where(and(
-        eq(schema.inventoryImages.sku, sku),
-        eq(schema.inventoryImages.isVariant, isVariant)
-      ));
-
-    const isFirstImage = existingImages[0]?.count === 0;
-    const shouldBePrimary = isPrimary ?? isFirstImage;
-
-    // Get the next sort order
-    const maxSortOrder = await this.db
-      .select({ max: sql<number>`COALESCE(MAX(sort_order), -1)` })
-      .from(schema.inventoryImages)
-      .where(and(
-        eq(schema.inventoryImages.sku, sku),
-        eq(schema.inventoryImages.isVariant, isVariant)
-      ));
-
-    const nextSortOrder = (maxSortOrder[0]?.max ?? -1) + 1;
-
-    // Insert the image record
+    // Insert the image record. With a single image per SKU it is always the
+    // primary and first in order.
     const [image] = await this.db
       .insert(schema.inventoryImages)
       .values({
@@ -81,8 +55,8 @@ export class InventoryImageService {
         fileName: saveResult.fileName,
         fileSize: saveResult.fileSize,
         mimeType: saveResult.mimeType,
-        isPrimary: shouldBePrimary,
-        sortOrder: nextSortOrder,
+        isPrimary: true,
+        sortOrder: 0,
       })
       .returning();
 

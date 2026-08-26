@@ -40,13 +40,6 @@ export type {
   UseInventoryImagesReturn,
 } from './useInventoryImages';
 
-export { useAllInventoryImages } from './useAllInventoryImages';
-export type {
-  AllProductImagesResult,
-  UseAllInventoryImagesOptions,
-  UseAllInventoryImagesReturn,
-} from './useAllInventoryImages';
-
 // System settings hooks
 export { useTaxRate } from './useTaxRate';
 
@@ -70,3 +63,5 @@ export { useInvoiceKeyboardShortcuts } from './useInvoiceKeyboardShortcuts';
 // Print hooks
 export { usePrint } from './usePrint';
 export { useReceivingReferencePrint } from './useReceivingReferencePrint';
+export { useClientStatementPrint } from './useClientStatementPrint';
+export type { ClientStatementParams } from './useClientStatementPrint';
