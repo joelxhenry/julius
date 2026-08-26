@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, desc, count } from 'drizzle-orm';
+import { eq, desc, count, or } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -31,6 +31,30 @@ export class InventoryReceivingService extends BaseService<
       .select()
       .from(schema.inventoryReceiving)
       .where(eq(schema.inventoryReceiving.supplier, supplier))
+      .orderBy(desc(schema.inventoryReceiving.receivingDate));
+  }
+
+  async findBySupplierId(supplierId: number): Promise<schema.InventoryReceiving[]> {
+    // Match on the numeric supplierId OR the supplier company name: legacy /
+    // migrated receiving records often carry only the name, with supplierId null.
+    const supplierRows = await this.db
+      .select({ company: schema.suppliers.company })
+      .from(schema.suppliers)
+      .where(eq(schema.suppliers.id, supplierId))
+      .limit(1);
+    const company = supplierRows[0]?.company;
+
+    const condition = company
+      ? or(
+          eq(schema.inventoryReceiving.supplierId, supplierId),
+          eq(schema.inventoryReceiving.supplier, company)
+        )
+      : eq(schema.inventoryReceiving.supplierId, supplierId);
+
+    return this.db
+      .select()
+      .from(schema.inventoryReceiving)
+      .where(condition)
       .orderBy(desc(schema.inventoryReceiving.receivingDate));
   }
 

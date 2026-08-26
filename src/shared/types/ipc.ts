@@ -278,6 +278,7 @@ export enum IpcChannel {
   GET_INVENTORY_RECEIVING_BY_SKU = 'db:get-inventory-receiving-by-sku',
   GET_INVENTORY_RECEIVING_BY_SKU_PAGINATED = 'db:get-inventory-receiving-by-sku-paginated',
   GET_INVENTORY_RECEIVING_BY_SUPPLIER = 'db:get-inventory-receiving-by-supplier-paginated',
+  GET_INVENTORY_RECEIVING_BY_SUPPLIER_ALL = 'db:get-inventory-receiving-by-supplier',
   CREATE_INVENTORY_RECEIVING = 'db:create-inventory-receiving',
   UPDATE_INVENTORY_RECEIVING = 'db:update-inventory-receiving',
   DELETE_INVENTORY_RECEIVING = 'db:delete-inventory-receiving',

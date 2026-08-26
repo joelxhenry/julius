@@ -220,6 +220,7 @@ function registerDataHandlers() {
     quotationService,
     creditNoteService,
     paymentService,
+    paymentMethodService,
     clientService,
     documentLineItemService,
     employeeService,
@@ -387,6 +388,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_SKU, (_, { sku }: { sku: string }) => inventoryReceivingController.getBySku(sku));
   ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_SKU_PAGINATED, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number }) => inventoryReceivingController.getBySkuPaginated(sku, params));
   ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_SUPPLIER, (_, { supplierId, ...params }: { supplierId: number; page?: number; pageSize?: number }) => inventoryReceivingController.getBySupplierIdPaginated(supplierId, params));
+  ipcMain.handle(IpcChannel.GET_INVENTORY_RECEIVING_BY_SUPPLIER_ALL, (_, { supplierId }: { supplierId: number }) => inventoryReceivingController.getBySupplierId(supplierId));
   ipcMain.handle(IpcChannel.CREATE_INVENTORY_RECEIVING, (_, data: any) => inventoryReceivingController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY_RECEIVING, (_, { id, data }: any) => inventoryReceivingController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVENTORY_RECEIVING, (_, { id }: { id: number }) => inventoryReceivingController.delete(id));
