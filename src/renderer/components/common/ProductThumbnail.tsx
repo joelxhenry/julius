@@ -110,7 +110,7 @@ export function ProductThumbnail({
 
     if (showTooltip && imageData) {
       return (
-        <Tooltip label="View gallery" position="right" withArrow>
+        <Tooltip label="View image" position="right" withArrow>
           {wrapped}
         </Tooltip>
       );

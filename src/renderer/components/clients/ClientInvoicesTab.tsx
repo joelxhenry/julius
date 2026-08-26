@@ -73,6 +73,24 @@ export function ClientInvoicesTab({ clientId, clientName }: ClientInvoicesTabPro
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
   const pageSize = 30;
 
+  // Stable object identity for the modal so unrelated app re-renders (e.g. the
+  // idle-timer activity refresh firing while the user types) don't recreate the
+  // prop and reset the payment form.
+  const payInvoiceForModal = useMemo(
+    () =>
+      payInvoice
+        ? {
+            id: payInvoice.id,
+            invNumber: payInvoice.invNumber,
+            clientId: payInvoice.clientId ?? clientId,
+            clientName: payInvoice.clientName ?? clientName ?? null,
+            total: payInvoice.total,
+            totalPaid: payInvoice.totalPaid,
+          }
+        : null,
+    [payInvoice, clientId, clientName]
+  );
+
   const [startDate, endDate] = dateRange;
   const hasActiveFilters = status !== 'all' || startDate !== null || endDate !== null;
 
@@ -247,18 +265,7 @@ export function ClientInvoicesTab({ clientId, clientName }: ClientInvoicesTabPro
           loadInvoices();
         }}
         onCreditApplied={loadInvoices}
-        invoice={
-          payInvoice
-            ? {
-                id: payInvoice.id,
-                invNumber: payInvoice.invNumber,
-                clientId: payInvoice.clientId ?? clientId,
-                clientName: payInvoice.clientName ?? clientName ?? null,
-                total: payInvoice.total,
-                totalPaid: payInvoice.totalPaid,
-              }
-            : null
-        }
+        invoice={payInvoiceForModal}
       />
     </Paper>
   );

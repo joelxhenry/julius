@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Paper, Badge, Text } from '@mantine/core';
+import { Paper, Badge, Text, Group, Stack } from '@mantine/core';
 import { DataTable, Column } from '../common/DataTable';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
@@ -40,7 +40,7 @@ export function ClientCreditNotesTab({ clientId }: ClientCreditNotesTabProps) {
       try {
         const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTES_BY_CLIENT, { clientId });
         if (result.success && result.data) {
-          setCreditNotes(result.data);
+          setCreditNotes(result.data.filter((cn: CreditNote) => !cn.isArchived));
         }
       } catch (error) {
         console.error('Failed to load credit notes:', error);
@@ -98,16 +98,58 @@ export function ClientCreditNotesTab({ clientId }: ClientCreditNotesTabProps) {
       header: 'Status',
       width: 100,
       render: (cn) => {
-        const effectiveStatus = cn.isArchived ? 'archived' : cn.status;
-        const color = effectiveStatus === 'A' ? 'green' : effectiveStatus === 'U' ? 'gray' : 'gray';
-        const label = effectiveStatus === 'A' ? 'Active' : effectiveStatus === 'U' ? 'Used' : 'Archived';
+        const color = cn.status === 'A' ? 'green' : 'gray';
+        const label = cn.status === 'A' ? 'Active' : 'Used';
         return <Badge size="sm" variant="light" color={color}>{label}</Badge>;
       },
     },
   ], []);
 
+  const totals = useMemo(() => {
+    return creditNotes.reduce(
+      (acc, cn) => {
+        const total = parseFloat(cn.total) || 0;
+        const used = parseFloat(cn.totalUsed) || 0;
+        acc.issued += total;
+        acc.available += Math.max(total - used, 0);
+        return acc;
+      },
+      { issued: 0, available: 0 }
+    );
+  }, [creditNotes]);
+
   return (
-    <Paper p="md" radius="md" withBorder>
+    <Stack gap="md">
+      <Group grow align="stretch">
+        <Paper p="md" radius="md" withBorder>
+          <Stack gap={4}>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+              Available Credit
+            </Text>
+            <Text size="xl" fw={700} c="green">
+              {formatCurrency(totals.available.toFixed(2))}
+            </Text>
+            <Text size="xs" c="dimmed">
+              Unused credit note value
+            </Text>
+          </Stack>
+        </Paper>
+        <Paper p="md" radius="md" withBorder>
+          <Stack gap={4}>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+              Total Issued
+            </Text>
+            <Text size="xl" fw={700}>
+              {formatCurrency(totals.issued.toFixed(2))}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {creditNotes.length} credit note{creditNotes.length === 1 ? '' : 's'}
+            </Text>
+          </Stack>
+        </Paper>
+      </Group>
+
+      <Paper p="md" radius="md" withBorder>
       <DataTable
         columns={columns}
         data={creditNotes}
@@ -117,6 +159,7 @@ export function ClientCreditNotesTab({ clientId }: ClientCreditNotesTabProps) {
         minWidth={700}
         onRowClick={(cn) => openTab(`/credit-notes/${cn.id}`)}
       />
-    </Paper>
+      </Paper>
+    </Stack>
   );
 }

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Burger, Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip } from '@mantine/core';
+import { useEffect, useState } from 'react';
+import { Burger, Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip, Stack } from '@mantine/core';
 import {
   IconLogout,
   IconUser,
@@ -15,6 +15,38 @@ import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSpotlight } from '../../contexts/SpotlightContext';
 import { PasswordVerificationModal } from '../auth/PasswordVerificationModal';
+
+function HeaderClock() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const time = now.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const date = now.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  return (
+    <Stack gap={0} align="flex-end" visibleFrom="sm" mr="xs">
+      <Text fw={600} size="sm" lh={1.1} style={{ fontVariantNumeric: 'tabular-nums' }}>
+        {time}
+      </Text>
+      <Text size="xs" c="dimmed" lh={1.1}>
+        {date}
+      </Text>
+    </Stack>
+  );
+}
 
 interface HeaderProps {
   desktopOpened: boolean;
@@ -91,6 +123,8 @@ export function Header({
       </Group>
 
       <Group gap="sm">
+        <HeaderClock />
+
         {/* Quick Search Button */}
         <Tooltip label="Quick Search (Ctrl+K)" position="bottom">
           <ActionIcon

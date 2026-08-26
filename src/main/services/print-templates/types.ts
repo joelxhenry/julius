@@ -104,6 +104,43 @@ export interface ReceivingReferenceTemplateData {
   totalCost: string;
 }
 
+export interface ClientStatementEntry {
+  date: string | null;
+  /** Transaction type label, e.g. "Invoice", "Payment", "Credit Note". */
+  type: string;
+  /** Source document number. */
+  reference: string;
+  description: string;
+  /** Formatted debit amount (increases balance owed), or '' when not a debit. */
+  debit: string;
+  /** Formatted credit amount (reduces balance owed), or '' when not a credit. */
+  credit: string;
+  /** Formatted running balance after this entry. */
+  balance: string;
+}
+
+export interface ClientStatementTemplateData {
+  company: CompanyInfo;
+  client: {
+    clientName: string | null;
+    clNumber: string | null;
+    address1: string | null;
+    address2: string | null;
+    phone: string | null;
+  };
+  periodLabel: string;
+  printedAt: string;
+  /** Balance carried into the period; null for an all-time statement. */
+  openingBalance: string | null;
+  entries: ClientStatementEntry[];
+  totals: {
+    totalDebits: string;
+    totalCredits: string;
+    closingBalance: string;
+    availableCredit: string;
+  };
+}
+
 export interface PaymentReceiptTemplateData {
   company: CompanyInfo;
   payment: {

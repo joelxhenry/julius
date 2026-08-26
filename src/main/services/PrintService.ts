@@ -6,9 +6,10 @@ import { InvoiceService } from './InvoiceService';
 import { QuotationService } from './QuotationService';
 import { CreditNoteService } from './CreditNoteService';
 import { PaymentService } from './PaymentService';
+import { ClientService } from './ClientService';
 import { DocumentLineItemService } from './DocumentLineItemService';
 import { EmployeeService } from './EmployeeService';
-import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest, ClientStatementRequest } from '../../shared/types/print';
 import {
   CompanyInfo,
   InvoiceTemplateData,
@@ -16,6 +17,7 @@ import {
   CreditNoteTemplateData,
   PaymentReceiptTemplateData,
   ReceivingReferenceTemplateData,
+  ClientStatementTemplateData,
 } from './print-templates/types';
 import { getInvoiceTemplate } from './print-templates/invoiceTemplate';
 import { getQuotationTemplate } from './print-templates/quotationTemplate';
@@ -30,6 +32,8 @@ import { InventoryService } from './InventoryService';
 import { VariantService } from './VariantService';
 import { InventoryReceivingService } from './InventoryReceivingService';
 import { getReceivingReferenceTemplate } from './print-templates/receivingReferenceTemplate';
+import { getClientStatementTemplate } from './print-templates/clientStatementTemplate';
+import { formatCurrency, formatDate } from './print-templates/baseStyles';
 import { LookupTicketRequest, LookupTicketData, LookupTicketItem } from '../../shared/types/lookupTicket';
 
 export interface PrintResult {
@@ -48,6 +52,7 @@ export class PrintService {
     private quotationService: QuotationService,
     private creditNoteService: CreditNoteService,
     private paymentService: PaymentService,
+    private clientService: ClientService,
     private documentLineItemService: DocumentLineItemService,
     private employeeService: EmployeeService,
     private inventoryService: InventoryService,
@@ -669,6 +674,166 @@ export class PrintService {
       totalCost: singleCurrency
         ? this.formatReceivingCurrency(totalCost.toFixed(2), totalCurrency)
         : '—',
+    };
+  }
+
+  // --- Client statement of account ---
+
+  async generateClientStatement(request: ClientStatementRequest): Promise<PrintResult> {
+    const data = await this.buildClientStatementData(request);
+    const html = getClientStatementTemplate(data);
+    const nameForFile = (data.client.clientName || `client-${request.clientId}`).replace(/[^\w-]+/g, '_');
+    return this.outputStandardHtml(
+      html,
+      request.outputMode,
+      `Statement ${nameForFile}`,
+      `Statement of Account — ${data.client.clientName || request.clientId}`,
+      request.printerName,
+    );
+  }
+
+  private buildStatementPeriodLabel(startDate?: string | null, endDate?: string | null): string {
+    if (startDate && endDate) return `${formatDate(startDate)} – ${formatDate(endDate)}`;
+    if (startDate) return `From ${formatDate(startDate)}`;
+    if (endDate) return `Through ${formatDate(endDate)}`;
+    return 'All Time';
+  }
+
+  /** Positive = owed by the client; a credit balance is shown in parentheses. */
+  private formatSignedCurrency(value: number, symbol: string): string {
+    const formatted = formatCurrency(Math.abs(value), symbol);
+    return value < 0 ? `(${formatted})` : formatted;
+  }
+
+  private async buildClientStatementData(request: ClientStatementRequest): Promise<ClientStatementTemplateData> {
+    const { clientId, startDate, endDate } = request;
+    const company = await this.loadCompanyInfo();
+    const symbol = company.currencySymbol;
+
+    const client = await this.clientService.findById(clientId);
+    if (!client) throw new Error(`Client with ID ${clientId} not found`);
+
+    // Fetch the full history; the date range is applied in-memory so we can
+    // also compute the balance carried into the period.
+    const [allInvoices, allPayments, allCreditNotes] = await Promise.all([
+      this.invoiceService.findByClient(clientId),
+      this.paymentService.findByClient(clientId),
+      this.creditNoteService.findByClient(clientId),
+    ]);
+
+    // Build a unified ledger of debits (increase what the client owes) and
+    // credits (reduce it). Credit notes are shown as their own credit line, so
+    // credit-note applications to invoices (payment documentType 'CREDIT') are
+    // excluded to avoid double-counting.
+    interface RawEntry {
+      date: string | null;
+      type: string;
+      reference: string;
+      description: string;
+      debit: number;
+      credit: number;
+    }
+    const raw: RawEntry[] = [];
+
+    for (const inv of allInvoices) {
+      if (inv.isArchived) continue;
+      raw.push({
+        date: inv.invDate,
+        type: 'Invoice',
+        reference: inv.invNumber,
+        description: inv.reference || '',
+        debit: parseFloat(inv.total) || 0,
+        credit: 0,
+      });
+    }
+
+    for (const p of allPayments) {
+      if (p.documentType !== 'INVOICE') continue;
+      raw.push({
+        date: p.paymentDate,
+        type: 'Payment',
+        reference: p.documentNumber,
+        description: p.paymentDesc || p.paymentDesc2 || '',
+        debit: 0,
+        credit: parseFloat(p.amount) || 0,
+      });
+    }
+
+    for (const cn of allCreditNotes) {
+      if (cn.isArchived) continue;
+      raw.push({
+        date: cn.crDate,
+        type: 'Credit Note',
+        reference: cn.crNumber,
+        description: cn.invNumber ? `Applied to ${cn.invNumber}` : (cn.reference || ''),
+        debit: 0,
+        credit: parseFloat(cn.total) || 0,
+      });
+    }
+
+    // Chronological order drives the running balance.
+    raw.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    const before = (date: string | null): boolean => !!startDate && !!date && date < startDate;
+    const inRange = (date: string | null): boolean => {
+      if (!date) return true;
+      if (startDate && date < startDate) return false;
+      if (endDate && date > endDate) return false;
+      return true;
+    };
+
+    // Balance carried in from transactions before the period start.
+    let openingBalanceNum = 0;
+    for (const e of raw) {
+      if (before(e.date)) openingBalanceNum += e.debit - e.credit;
+    }
+
+    let running = openingBalanceNum;
+    let totalDebits = 0;
+    let totalCredits = 0;
+    const entries = raw
+      .filter((e) => inRange(e.date))
+      .map((e) => {
+        running += e.debit - e.credit;
+        totalDebits += e.debit;
+        totalCredits += e.credit;
+        return {
+          date: e.date,
+          type: e.type,
+          reference: e.reference,
+          description: e.description,
+          debit: e.debit ? formatCurrency(e.debit, symbol) : '',
+          credit: e.credit ? formatCurrency(e.credit, symbol) : '',
+          balance: this.formatSignedCurrency(running, symbol),
+        };
+      });
+
+    // Available credit is a current standing figure across all live credit notes.
+    let availableCredit = 0;
+    for (const cn of allCreditNotes) {
+      if (cn.isArchived) continue;
+      availableCredit += (parseFloat(cn.total) || 0) - (parseFloat(cn.totalUsed) || 0);
+    }
+
+    return {
+      company,
+      client: {
+        clientName: client.clientName,
+        clNumber: client.clNumber,
+        address1: client.address1,
+        address2: client.address2,
+        phone: client.phone,
+      },
+      periodLabel: this.buildStatementPeriodLabel(startDate, endDate),
+      printedAt: new Date().toLocaleString(),
+      openingBalance: startDate ? this.formatSignedCurrency(openingBalanceNum, symbol) : null,
+      entries,
+      totals: {
+        totalDebits: formatCurrency(totalDebits, symbol),
+        totalCredits: formatCurrency(totalCredits, symbol),
+        closingBalance: this.formatSignedCurrency(running, symbol),
+        availableCredit: formatCurrency(availableCredit, symbol),
+      },
     };
   }
 

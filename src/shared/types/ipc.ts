@@ -339,4 +339,5 @@ export enum IpcChannel {
   GET_PRINT_SETTINGS = 'print:get-settings',
   PRINT_LOOKUP_TICKET = 'print:lookup-ticket',
   PRINT_RECEIVING_REFERENCE = 'print:receiving-reference',
+  PRINT_CLIENT_STATEMENT = 'print:client-statement',
 }

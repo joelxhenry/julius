@@ -16,11 +16,12 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconSearch, IconCash, IconDotsVertical, IconX, IconFileInvoice, IconReceipt } from '@tabler/icons-react';
+import { IconSearch, IconCash, IconDotsVertical, IconX, IconFileInvoice, IconReceipt, IconFilterOff } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
 import { DataTable, Column } from '../../components/common/DataTable';
+import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 
 interface Payment {
   id: number;
@@ -70,7 +71,8 @@ export function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [documentType, setDocumentType] = useState<string | null>(null);
+  const [documentType, setDocumentType] = useState<string | null>('INVOICE');
+  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -81,6 +83,10 @@ export function PaymentsPage() {
   const [voidReason, setVoidReason] = useState('');
   const [isVoiding, setIsVoiding] = useState(false);
 
+  const [startDate, endDate] = dateRange;
+  const hasActiveFilters =
+    search !== '' || documentType !== null || startDate !== null || endDate !== null;
+
   const loadPayments = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -89,6 +95,8 @@ export function PaymentsPage() {
         pageSize: 25,
         search: search || undefined,
         documentType: documentType || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
 
       if (result.success && result.data) {
@@ -107,7 +115,7 @@ export function PaymentsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, documentType]);
+  }, [page, search, documentType, startDate, endDate]);
 
   useEffect(() => {
     loadPayments();
@@ -116,7 +124,7 @@ export function PaymentsPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, documentType]);
+  }, [search, documentType, startDate, endDate]);
 
   const handleVoidClick = useCallback((payment: Payment) => {
     setSelectedPayment(payment);
@@ -381,13 +389,14 @@ export function PaymentsPage() {
 
       {/* Filters */}
       <Paper withBorder p="md" radius="md">
-        <Group gap="md">
+        <Group gap="md" align="flex-end" wrap="wrap">
           <TextInput
             placeholder="Search by document number, payer..."
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             style={{ flex: 1 }}
+            miw={220}
           />
           <Select
             placeholder="All Types"
@@ -401,6 +410,21 @@ export function PaymentsPage() {
             clearable
             w={200}
           />
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+          {hasActiveFilters && (
+            <Button
+              variant="subtle"
+              color="gray"
+              leftSection={<IconFilterOff size={16} />}
+              onClick={() => {
+                setSearch('');
+                setDocumentType(null);
+                setDateRange([null, null]);
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
         </Group>
       </Paper>
 

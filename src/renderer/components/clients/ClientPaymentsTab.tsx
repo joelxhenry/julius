@@ -1,8 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Paper, Badge, Text, Group } from '@mantine/core';
+import { Paper, Badge, Text, Group, Select, Button } from '@mantine/core';
+import { IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
+import { DateRangeFilter, DateRangeValue, getLastNDaysRange } from '../common/DateRangeFilter';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
+
+interface PaymentMethod {
+  id: number;
+  code: string;
+  name: string;
+  active: boolean;
+}
 
 interface Payment {
   id: number;
@@ -55,11 +64,37 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const pageSize = 10;
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => getLastNDaysRange(30));
+  const pageSize = 30;
+
+  const [startDate, endDate] = dateRange;
+  const hasActiveFilters = paymentMethod !== null || startDate !== null || endDate !== null;
+
+  // Load active payment methods for the method filter
+  useEffect(() => {
+    const loadMethods = async () => {
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_ACTIVE_PAYMENT_METHODS, {});
+        if (result.success && result.data) {
+          setPaymentMethods(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to load payment methods:', error);
+      }
+    };
+    loadMethods();
+  }, []);
+
+  // Reset to first page whenever a filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [paymentMethod, startDate, endDate]);
 
   useEffect(() => {
     loadPayments();
-  }, [clientId, page]);
+  }, [clientId, page, paymentMethod, startDate, endDate]);
 
   const loadPayments = async () => {
     setLoading(true);
@@ -68,6 +103,9 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
         clientId,
         page,
         pageSize,
+        paymentMethod: paymentMethod || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
 
       if (result.success && result.data) {
@@ -80,6 +118,17 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
       setLoading(false);
     }
   };
+
+  const paymentMethodOptions = useMemo(
+    () => paymentMethods.map((pm) => ({ value: pm.code, label: pm.name })),
+    [paymentMethods]
+  );
+
+  const methodNameByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    paymentMethods.forEach((pm) => map.set(pm.code, pm.name));
+    return map;
+  }, [paymentMethods]);
 
   const columns: Column<Payment>[] = useMemo(
     () => [
@@ -116,7 +165,14 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
         key: 'paymentDesc',
         header: 'Method',
         width: 120,
-        render: (payment) => payment.paymentDesc || '-',
+        // The method code lives in paymentDesc on some code paths and in
+        // paymentDesc2 on others; resolve whichever matches a known method.
+        render: (payment) => {
+          const code = [payment.paymentDesc, payment.paymentDesc2].find(
+            (v) => v && methodNameByCode.has(v)
+          );
+          return (code ? methodNameByCode.get(code) : payment.paymentDesc) || '-';
+        },
       },
       {
         key: 'reference',
@@ -124,11 +180,37 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
         render: (payment) => payment.paymentDesc2 || '-',
       },
     ],
-    []
+    [methodNameByCode]
   );
 
   return (
     <Paper p="md" radius="md" withBorder>
+      <Group gap="md" align="flex-end" wrap="wrap" mb="md">
+        <Select
+          label="Payment Method"
+          placeholder="All Methods"
+          data={paymentMethodOptions}
+          value={paymentMethod}
+          onChange={setPaymentMethod}
+          clearable
+          w={200}
+        />
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
+        {hasActiveFilters && (
+          <Button
+            variant="subtle"
+            color="gray"
+            leftSection={<IconFilterOff size={16} />}
+            onClick={() => {
+              setPaymentMethod(null);
+              setDateRange([null, null]);
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </Group>
+
       <DataTable
         columns={columns}
         data={payments}

@@ -28,11 +28,12 @@ import {
   IconFileDescription,
   IconReceipt,
   IconCash,
+  IconFileText,
 } from '@tabler/icons-react';
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal } from '../../components/clients';
+import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal, ClientStatementModal } from '../../components/clients';
 import { useTabContext } from '../../contexts/TabContext';
 
 interface Client {
@@ -65,6 +66,7 @@ export function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>('summary');
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
 
   const clientId = id ? parseInt(id, 10) : null;
 
@@ -164,6 +166,13 @@ export function ClientDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <Button
+            variant="light"
+            leftSection={<IconFileText size={16} />}
+            onClick={() => setStatementModalOpen(true)}
+          >
+            Balance Statement
+          </Button>
           <Button
             leftSection={<IconEdit size={16} />}
             onClick={() => setEditModalOpen(true)}
@@ -404,6 +413,13 @@ export function ClientDetailPage() {
         onClose={() => setEditModalOpen(false)}
         client={client}
         onSave={() => loadClient(client.id)}
+      />
+
+      {/* Balance Statement Modal */}
+      <ClientStatementModal
+        opened={statementModalOpen}
+        onClose={() => setStatementModalOpen(false)}
+        clientId={client.id}
       />
     </Stack>
   );

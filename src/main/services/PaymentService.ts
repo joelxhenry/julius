@@ -12,6 +12,9 @@ export interface PaymentQueryParams {
   search?: string;
   documentType?: PaymentDocumentType;
   clientId?: number;
+  startDate?: string;
+  endDate?: string;
+  paymentMethod?: string;
 }
 
 export class PaymentService extends BaseService<
@@ -24,7 +27,7 @@ export class PaymentService extends BaseService<
   }
 
   async findPaginated(params: PaymentQueryParams = {}): Promise<PaginatedResult<schema.Payment>> {
-    const { page = 1, pageSize = 50, search, documentType, clientId } = params;
+    const { page = 1, pageSize = 50, search, documentType, clientId, startDate, endDate, paymentMethod } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -42,6 +45,25 @@ export class PaymentService extends BaseService<
 
     if (documentType) {
       conditions.push(eq(schema.payments.documentType, documentType));
+    }
+
+    if (startDate) {
+      conditions.push(gte(schema.payments.paymentDate, startDate));
+    }
+
+    if (endDate) {
+      conditions.push(lte(schema.payments.paymentDate, endDate));
+    }
+
+    // The payment method code is stored in paymentDesc on some code paths and
+    // in paymentDesc2 on others, so match either.
+    if (paymentMethod) {
+      conditions.push(
+        or(
+          eq(schema.payments.paymentDesc, paymentMethod),
+          eq(schema.payments.paymentDesc2, paymentMethod)
+        )
+      );
     }
 
     // If clientId is provided, we need to join with invoices to filter by client
@@ -154,6 +176,35 @@ export class PaymentService extends BaseService<
         )
       )
       .orderBy(desc(schema.payments.paymentDate));
+  }
+
+  /**
+   * All payments belonging to a client, optionally bounded by a date range.
+   * Payments have no direct clientId, so we join through the invoice they were
+   * applied to (this includes both cash/card payments and credit-note
+   * applications, which carry the invoice number).
+   */
+  async findByClient(
+    clientId: number,
+    startDate?: string | null,
+    endDate?: string | null,
+  ): Promise<schema.Payment[]> {
+    const conditions = [eq(schema.invoices.clientId, clientId)];
+    if (startDate) {
+      conditions.push(gte(schema.payments.paymentDate, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(schema.payments.paymentDate, endDate));
+    }
+
+    const rows = await this.db
+      .select()
+      .from(schema.payments)
+      .leftJoin(schema.invoices, eq(schema.payments.invoiceNumber, schema.invoices.invNumber))
+      .where(and(...conditions))
+      .orderBy(desc(schema.payments.paymentDate));
+
+    return rows.map((row) => row.payments);
   }
 
   async findByDateRange(startDate: string, endDate: string): Promise<schema.Payment[]> {

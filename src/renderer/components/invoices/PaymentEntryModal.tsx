@@ -10,14 +10,12 @@ import {
   Textarea,
   TextInput,
   Alert,
-  Checkbox,
-  Badge,
   Divider,
   Loader,
+  ActionIcon,
 } from '@mantine/core';
 import { IconCash, IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { useAuth } from '../../contexts/AuthContext';
 
 export interface PaymentEntry {
   paymentMethodCode: string;
@@ -41,6 +39,9 @@ interface PaymentEntryModalProps {
   clientId: number | null;
 }
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+
 export function PaymentEntryModal({
   opened,
   onClose,
@@ -48,7 +49,6 @@ export function PaymentEntryModal({
   invoiceTotal,
   clientId,
 }: PaymentEntryModalProps) {
-  const { user } = useAuth();
   const [paymentEntries, setPaymentEntries] = useState<PaymentEntry[]>([
     { paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) },
   ]);
@@ -146,7 +146,7 @@ export function PaymentEntryModal({
     }
 
     if (total > invoiceTotal + 0.01) {
-      setError(`Total payment ($${total.toFixed(2)}) exceeds invoice total ($${invoiceTotal.toFixed(2)})`);
+      setError(`Total payment (${formatCurrency(total)}) exceeds invoice total (${formatCurrency(invoiceTotal)})`);
       return;
     }
 
@@ -176,94 +176,108 @@ export function PaymentEntryModal({
   const isPartiallyPaid = totalPayment > 0 && totalPayment < invoiceTotal - 0.01;
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Record Payment" size="lg" closeOnClickOutside={false}>
-      <Stack gap="md">
-        {/* Invoice total and balance info */}
-        <Group justify="space-between">
-          <div>
-            <Text size="sm" c="dimmed">
-              Invoice Total
-            </Text>
-            <Text size="lg" fw={700}>
-              ${invoiceTotal.toFixed(2)}
-            </Text>
-          </div>
-          <div>
-            <Text size="sm" c="dimmed">
-              Total Payment
-            </Text>
-            <Text size="lg" fw={700} c={isPaid ? 'green' : isPartiallyPaid ? 'orange' : undefined}>
-              ${totalPayment.toFixed(2)}
-            </Text>
-          </div>
-          <div>
-            <Text size="sm" c="dimmed">
-              Balance Remaining
-            </Text>
-            <Text size="lg" fw={700} c={balanceRemaining > 0.01 ? 'orange' : 'green'}>
-              ${balanceRemaining.toFixed(2)}
-            </Text>
-          </div>
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={
+        <Group gap="xs">
+          <IconCash size={20} />
+          <Text fw={600}>Record Payment</Text>
         </Group>
+      }
+      centered
+      size="lg"
+      closeOnClickOutside={false}
+      closeOnEscape
+    >
+      <Stack gap="md">
+        {/* Summary — matches RecordPaymentModal's info block */}
+        <Stack
+          gap={4}
+          p="sm"
+          style={{
+            backgroundColor: 'var(--mantine-color-gray-light)',
+            borderRadius: 'var(--mantine-radius-sm)',
+          }}
+        >
+          <Group justify="space-between">
+            <Text size="sm" c="dimmed">Invoice Total</Text>
+            <Text size="sm" fw={500}>{formatCurrency(invoiceTotal)}</Text>
+          </Group>
+          <Group justify="space-between">
+            <Text size="sm" c="dimmed">Total Payment</Text>
+            <Text size="sm" c={isPaid ? 'green' : isPartiallyPaid ? 'orange' : undefined}>
+              {formatCurrency(totalPayment)}
+            </Text>
+          </Group>
+          <Divider my={4} />
+          <Group justify="space-between">
+            <Text size="sm" fw={500}>Balance Remaining</Text>
+            <Text size="sm" fw={600} c={balanceRemaining > 0.01 ? 'red' : 'green'}>
+              {formatCurrency(balanceRemaining)}
+            </Text>
+          </Group>
+        </Stack>
 
-        {isPaid && (
-          <Badge color="green" size="lg" variant="light">
-            Invoice will be fully paid
-          </Badge>
-        )}
-        {isPartiallyPaid && (
-          <Badge color="orange" size="lg" variant="light">
-            Partial payment - invoice will remain active
-          </Badge>
+        {error && (
+          <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+            {error}
+          </Alert>
         )}
 
-        <Divider />
+        <Divider label="Payment" labelPosition="center" />
 
         {/* Payment entries */}
-        <Stack gap="sm">
-          <Text fw={500}>Payment Entries</Text>
-
+        <Stack gap="md">
           {paymentEntries.map((entry, index) => (
-            <Stack key={index} gap="xs">
-              <Group align="flex-start" gap="sm">
-                <Select
-                  label="Payment Method"
-                  value={entry.paymentMethodCode || null}
-                  onChange={(value) => handleUpdateEntry(index, 'paymentMethodCode', value)}
-                  data={paymentMethodOptions}
-                  disabled={isLoadingMethods}
-                  style={{ flex: 1 }}
-                  required
-                />
+            <Stack key={index} gap="sm">
+              {index > 0 && <Divider variant="dashed" />}
 
+              <Group align="flex-end" gap="sm">
                 <NumberInput
-                  label="Amount"
+                  label="Payment Amount"
+                  placeholder="0.00"
                   value={entry.amount}
-                  onChange={(value) => handleUpdateEntry(index, 'amount', typeof value === 'number' ? value.toFixed(2) : value)}
+                  onChange={(value) =>
+                    handleUpdateEntry(index, 'amount', typeof value === 'number' ? value.toFixed(2) : value)
+                  }
                   min={0}
                   decimalScale={2}
                   fixedDecimalScale
                   prefix="$"
+                  thousandSeparator=","
                   ref={(el) => {
                     amountInputRefs.current[index] = el;
                     if (index === 0 && amountInputRef) {
                       (amountInputRef as any).current = el;
                     }
                   }}
-                  style={{ width: 150 }}
+                  style={{ flex: 1 }}
+                  required
+                />
+
+                <Select
+                  label="Payment Method"
+                  placeholder="Select payment method"
+                  value={entry.paymentMethodCode || null}
+                  onChange={(value) => handleUpdateEntry(index, 'paymentMethodCode', value)}
+                  data={paymentMethodOptions}
+                  disabled={isLoadingMethods}
+                  rightSection={isLoadingMethods ? <Loader size={14} /> : undefined}
+                  style={{ flex: 1 }}
                   required
                 />
 
                 {paymentEntries.length > 1 && (
-                  <Button
+                  <ActionIcon
                     variant="subtle"
                     color="red"
-                    size="xs"
+                    size="lg"
                     onClick={() => handleRemovePaymentEntry(index)}
-                    style={{ marginTop: 24 }}
+                    aria-label="Remove payment method"
                   >
                     <IconTrash size={16} />
-                  </Button>
+                  </ActionIcon>
                 )}
               </Group>
 
@@ -276,10 +290,10 @@ export function PaymentEntryModal({
 
               <Textarea
                 label="Notes (optional)"
-                placeholder="Add payment notes..."
+                placeholder="Payment notes..."
                 value={entry.notes || ''}
                 onChange={(event) => handleUpdateEntry(index, 'notes', event.currentTarget.value)}
-                rows={2}
+                minRows={2}
               />
             </Stack>
           ))}
@@ -289,17 +303,11 @@ export function PaymentEntryModal({
           </Button>
         </Stack>
 
-        {error && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" title="Validation Error">
-            {error}
-          </Alert>
-        )}
-
         <Group justify="flex-end" gap="sm" mt="md">
-          <Button variant="default" onClick={onClose}>
+          <Button variant="subtle" onClick={onClose}>
             Cancel
           </Button>
-          <Button leftSection={<IconCash size={16} />} onClick={handleSubmit} color="green">
+          <Button leftSection={<IconCash size={16} />} onClick={handleSubmit}>
             Create Invoice & Record Payment
           </Button>
         </Group>

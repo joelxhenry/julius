@@ -32,3 +32,13 @@ export interface ReceivingReferenceRequest {
   outputMode: PrintOutputMode;
   printerName?: string;
 }
+
+export interface ClientStatementRequest {
+  clientId: number;
+  /** Inclusive start date (YYYY-MM-DD). Omit for an all-time statement. */
+  startDate?: string | null;
+  /** Inclusive end date (YYYY-MM-DD). Omit for an all-time statement. */
+  endDate?: string | null;
+  outputMode: PrintOutputMode;
+  printerName?: string;
+}

@@ -110,7 +110,10 @@ export class PaymentTransactionService {
           invoiceNumber,
           amount: entry.amount,
           payerName,
-          paymentDesc: entry.notes || entry.paymentMethodCode || undefined,
+          // Notes only — do NOT fall back to the payment method code. If the
+          // user leaves notes blank, paymentDesc stays blank (the method code
+          // still lives in paymentDesc2).
+          paymentDesc: entry.notes || undefined,
           paymentDesc2: entry.paymentMethodCode || undefined,
           transactionReference: entry.transactionReference || undefined,
           paymentDate,

@@ -101,7 +101,12 @@ export function RecordPaymentModal({
     loadPaymentMethods();
   }, [opened]);
 
-  // Reset form when modal opens
+  // Reset form when the modal opens or the target invoice changes.
+  // NOTE: depend on invoice.id (a stable primitive), NOT the invoice object.
+  // Callers may pass a freshly-constructed invoice object on every render
+  // (e.g. an inline literal), and unrelated app re-renders (idle-timer activity
+  // refresh, auth context) would otherwise re-fire this effect mid-typing,
+  // wiping the notes/amount fields and stealing focus back to the amount input.
   useEffect(() => {
     if (opened && invoice) {
       const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
@@ -115,7 +120,8 @@ export function RecordPaymentModal({
         amountInputRef.current?.select();
       }, 100);
     }
-  }, [opened, invoice]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, invoice?.id]);
 
   // Update cash amount when credits are applied
   const handleCreditApplied = useCallback(

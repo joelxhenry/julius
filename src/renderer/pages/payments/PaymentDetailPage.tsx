@@ -31,6 +31,7 @@ import {
   IconCalendar,
   IconHash,
   IconNotes,
+  IconBarcode,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
@@ -48,6 +49,7 @@ interface Payment {
   paymentDate: string | null;
   paymentDesc: string | null;
   paymentDesc2: string | null;
+  transactionReference: string | null;
   amount: string;
   currency: string | null;
   processedById: number | null;
@@ -453,7 +455,22 @@ export function PaymentDetailPage() {
                   )}
                 </Grid>
 
-                {payment.paymentDesc && (
+                {payment.transactionReference && (
+                  <>
+                    <Divider />
+                    <Group gap="xs">
+                      <IconBarcode size={16} color="gray" />
+                      <Text fw={600}>Reference</Text>
+                    </Group>
+                    <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
+                      {payment.transactionReference}
+                    </Text>
+                  </>
+                )}
+
+                {/* Only show notes when they carry real content — not the
+                    payment method code that older records duplicated here. */}
+                {payment.paymentDesc && payment.paymentDesc !== payment.paymentDesc2 && (
                   <>
                     <Divider />
                     <Group gap="xs">
