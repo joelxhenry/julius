@@ -141,6 +141,37 @@ export interface ClientStatementTemplateData {
   };
 }
 
+export interface PaymentReportRow {
+  date: string | null;
+  /** Document type label, e.g. "Invoice", "Credit Note". */
+  type: string;
+  /** Source document number. */
+  document: string;
+  /** Formatted amount, with a leading minus for refunds. */
+  amount: string;
+  /** True for refunds/voids (negative), so the template can style them. */
+  isNegative: boolean;
+  /** Payment method name. */
+  method: string;
+  /** Transaction reference. */
+  reference: string;
+  /** Free-text notes. */
+  notes: string;
+}
+
+export interface PaymentReportTemplateData {
+  company: CompanyInfo;
+  clientName: string;
+  periodLabel: string;
+  methodLabel: string;
+  printedAt: string;
+  rows: PaymentReportRow[];
+  count: number;
+  totalReceipts: string;
+  totalRefunds: string;
+  netTotal: string;
+}
+
 export interface PaymentReceiptTemplateData {
   company: CompanyInfo;
   payment: {

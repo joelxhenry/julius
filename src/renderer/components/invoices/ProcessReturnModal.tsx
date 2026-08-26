@@ -11,16 +11,33 @@ import {
   Divider,
   Box,
   Alert,
+  SegmentedControl,
+  TextInput,
+  ThemeIcon,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import { IconPackageExport, IconAlertCircle } from '@tabler/icons-react';
+import {
+  IconPackageExport,
+  IconAlertCircle,
+  IconCash,
+  IconBuildingBank,
+  IconReceipt,
+  IconCreditCardRefund,
+} from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTaxRate } from '../../hooks';
 
 interface Invoice {
   id: number;
   invNumber: string;
+  clientId: number | null;
   clientName: string | null;
+  clientAddress1: string | null;
+  clientAddress2: string | null;
+  clientPhone: string | null;
+  salespersonId: number | null;
   total: string;
   totalPaid: string;
   isTaxable: boolean;
@@ -47,6 +64,29 @@ interface ProcessReturnModalProps {
   lineItems: LineItem[];
 }
 
+type RefundMethod = 'CASH' | 'BANK_TRANSFER' | 'CREDIT_NOTE' | 'CARD_VOID';
+
+const REFUND_METHODS: { value: RefundMethod; label: string }[] = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+  { value: 'CREDIT_NOTE', label: 'Credit Note' },
+  { value: 'CARD_VOID', label: 'Card Void' },
+];
+
+const METHOD_LABELS: Record<RefundMethod, string> = {
+  CASH: 'Cash',
+  BANK_TRANSFER: 'Bank Transfer',
+  CREDIT_NOTE: 'Credit Note',
+  CARD_VOID: 'Card Void',
+};
+
+const METHOD_ICON: Record<RefundMethod, React.ReactNode> = {
+  CASH: <IconCash size={16} />,
+  BANK_TRANSFER: <IconBuildingBank size={16} />,
+  CREDIT_NOTE: <IconReceipt size={16} />,
+  CARD_VOID: <IconCreditCardRefund size={16} />,
+};
+
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
@@ -64,9 +104,15 @@ export function ProcessReturnModal({
   invoice,
   lineItems,
 }: ProcessReturnModalProps) {
+  const { user } = useAuth();
+  const { taxRate } = useTaxRate();
   const [selectedItems, setSelectedItems] = useState<Map<number, number>>(new Map());
   const [returnDate, setReturnDate] = useState<Date | null>(new Date());
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>('CASH');
+  const [reference, setReference] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const amountPaid = parseFloat(invoice.totalPaid || '0');
 
   // Reset state when modal opens
   useEffect(() => {
@@ -77,6 +123,8 @@ export function ProcessReturnModal({
       });
       setSelectedItems(defaultSelection);
       setReturnDate(new Date());
+      setRefundMethod('CASH');
+      setReference('');
     }
   }, [opened, lineItems]);
 
@@ -112,13 +160,39 @@ export function ProcessReturnModal({
         subTotal += computeLineAmount(qty, item.unitPrice, item.discount);
       }
     });
-    const taxRate = invoice.isTaxable ? 0.1 : 0;
-    const tax = subTotal * taxRate;
+    const effectiveRate = invoice.isTaxable ? taxRate : 0;
+    const tax = subTotal * effectiveRate;
     return { subTotal, tax, total: subTotal + tax };
-  }, [selectedItems, lineItems, invoice.isTaxable]);
+  }, [selectedItems, lineItems, invoice.isTaxable, taxRate]);
+
+  // Money can only be refunded up to what was actually paid. Any excess of the
+  // return value simply reduces the invoice balance (handled by the reduction).
+  const refundable = Math.min(totals.total, amountPaid);
+  const isMoneyMethod =
+    refundMethod === 'CASH' || refundMethod === 'BANK_TRANSFER' || refundMethod === 'CARD_VOID';
+  const moneyRefundAmount = isMoneyMethod ? refundable : 0;
+  const partialRefund = isMoneyMethod && refundable + 0.001 < totals.total;
+
+  // A credit note is store credit against paid funds, so it may not exceed the
+  // amount paid — mirrors the Create Credit Note rule.
+  const creditNoteDisabled = amountPaid <= 0.001 || totals.total > amountPaid + 0.001;
+  const creditNoteChosenButInvalid = refundMethod === 'CREDIT_NOTE' && creditNoteDisabled;
+
+  const canSubmit = totals.total > 0 && !creditNoteChosenButInvalid;
 
   const handleSubmit = useCallback(async () => {
     if (totals.total <= 0) return;
+    if (refundMethod === 'CREDIT_NOTE' && creditNoteDisabled) return;
+
+    // Both money refunds and credit notes attribute the action to an operator.
+    if (!user && (moneyRefundAmount > 0.001 || refundMethod === 'CREDIT_NOTE')) {
+      notifications.show({
+        title: 'Error',
+        message: 'You must be logged in to process a refund',
+        color: 'red',
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -128,7 +202,7 @@ export function ProcessReturnModal({
 
       const selectedLineItems = lineItems.filter((item) => selectedItems.has(item.id));
 
-      // Restore inventory for returned items
+      // 1. Restore inventory for returned items
       const inventoryLineItems = selectedLineItems
         .filter((item) => item.sku)
         .map((item) => ({
@@ -146,7 +220,7 @@ export function ProcessReturnModal({
         }
       }
 
-      // Update the source invoice line items
+      // 2. Update the source invoice line items (reverse the sale)
       let newSubTotal = 0;
       for (const item of lineItems) {
         const returnedQty = selectedItems.get(item.id);
@@ -171,9 +245,9 @@ export function ProcessReturnModal({
         }
       }
 
-      // Recalculate and update invoice totals
-      const taxRate = invoice.isTaxable ? 0.1 : 0;
-      const newTax = newSubTotal * taxRate;
+      // 3. Recalculate and update invoice totals
+      const effectiveRate = invoice.isTaxable ? taxRate : 0;
+      const newTax = newSubTotal * effectiveRate;
       const newTotal = newSubTotal + newTax;
       await window.electron.invoke(IpcChannel.UPDATE_INVOICE, {
         id: invoice.id,
@@ -184,9 +258,81 @@ export function ProcessReturnModal({
         },
       });
 
+      // 4. Process the refund according to the chosen method
+      let refundSummary = '';
+
+      if (refundMethod === 'CREDIT_NOTE') {
+        // Issue store credit for the returned value. Inventory was already
+        // restored above, so we do NOT restore it again here.
+        const creditNoteData = {
+          invNumber: invoice.invNumber,
+          crDate: returnDateStr,
+          salespersonId: invoice.salespersonId,
+          clientId: invoice.clientId,
+          clientName: invoice.clientName,
+          clientAddress1: invoice.clientAddress1,
+          clientAddress2: invoice.clientAddress2,
+          clientPhone: invoice.clientPhone,
+          reference: reference.trim() || 'Return',
+          subTotal: totals.subTotal.toFixed(2),
+          tax: totals.tax.toFixed(2),
+          total: totals.total.toFixed(2),
+          status: 'A',
+        };
+
+        const cnResult = await window.electron.invoke(IpcChannel.CREATE_CREDIT_NOTE, creditNoteData);
+        if (!cnResult.success || !cnResult.data) {
+          throw new Error(cnResult.error || 'Failed to create credit note');
+        }
+
+        const crNumber = cnResult.data.crNumber;
+        for (let i = 0; i < selectedLineItems.length; i++) {
+          const item = selectedLineItems[i];
+          const qty = selectedItems.get(item.id) ?? 0;
+          const amount = computeLineAmount(qty, item.unitPrice, item.discount);
+          await window.electron.invoke(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, {
+            documentType: 'CREDIT',
+            documentNumber: crNumber,
+            lineNumber: i + 1,
+            sku: item.sku || null,
+            description: item.description,
+            quantity: qty.toString(),
+            unitPrice: parseFloat(item.unitPrice).toFixed(2),
+            discount: parseFloat(item.discount).toFixed(2),
+            isTaxable: item.isTaxable,
+            amount: amount.toFixed(2),
+          });
+        }
+
+        refundSummary = `Credit note ${crNumber} for ${formatCurrency(totals.total)} issued as store credit.`;
+      } else if (moneyRefundAmount > 0.001) {
+        // Cash / bank transfer / card void — record a negative payment.
+        if (!user) return; // guaranteed by the guard above; narrows the type
+        const refundResult = await window.electron.invoke(IpcChannel.PROCESS_INVOICE_REFUND, {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invNumber,
+          processedById: user.id,
+          payerName: invoice.clientName,
+          amount: moneyRefundAmount.toFixed(2),
+          method: refundMethod,
+          methodLabel: METHOD_LABELS[refundMethod],
+          notes: reference.trim() || undefined,
+        });
+        if (!refundResult.success) {
+          throw new Error(refundResult.error || 'Failed to record refund');
+        }
+        refundSummary = `${formatCurrency(moneyRefundAmount)} refunded via ${METHOD_LABELS[refundMethod]}.`;
+        if (partialRefund) {
+          refundSummary += ` (Limited to the amount paid; the remaining ${formatCurrency(totals.total - moneyRefundAmount)} reduced the balance.)`;
+        }
+      } else {
+        // Nothing was paid — the return just reverses the sale.
+        refundSummary = 'No payment was on file, so the sale was reversed with no refund.';
+      }
+
       notifications.show({
         title: 'Return Processed',
-        message: `${selectedLineItems.length} item${selectedLineItems.length !== 1 ? 's' : ''} returned. Invoice reduced by ${formatCurrency(totals.total)}. Inventory has been restored.`,
+        message: `${selectedLineItems.length} item${selectedLineItems.length !== 1 ? 's' : ''} returned. Inventory restored. ${refundSummary}`,
         color: 'green',
       });
 
@@ -196,13 +342,28 @@ export function ProcessReturnModal({
       console.error('Failed to process return:', error);
       notifications.show({
         title: 'Error',
-        message: 'Failed to process return',
+        message: error instanceof Error ? error.message : 'Failed to process return',
         color: 'red',
       });
     } finally {
       setIsSubmitting(false);
     }
-  }, [totals, returnDate, invoice, lineItems, selectedItems, onProcessed, onClose]);
+  }, [
+    totals,
+    returnDate,
+    invoice,
+    lineItems,
+    selectedItems,
+    refundMethod,
+    creditNoteDisabled,
+    moneyRefundAmount,
+    partialRefund,
+    reference,
+    user,
+    taxRate,
+    onProcessed,
+    onClose,
+  ]);
 
   const selectedCount = selectedItems.size;
 
@@ -232,11 +393,15 @@ export function ProcessReturnModal({
               <Text fw={500}>{invoice.clientName}</Text>
             </Box>
           )}
+          <Box>
+            <Text size="xs" c="dimmed">Amount Paid</Text>
+            <Text fw={500} c="green">{formatCurrency(amountPaid)}</Text>
+          </Box>
         </Group>
 
         <Alert icon={<IconAlertCircle size={16} />} color="orange" variant="light" p="xs">
           <Text size="xs">
-            Select items and quantities to return. Inventory will be restored and the invoice will be reduced accordingly. No financial credit note will be issued.
+            Select items to return, then choose how to refund the customer. Inventory is restored and the invoice is reduced accordingly.
           </Text>
         </Alert>
 
@@ -323,10 +488,56 @@ export function ProcessReturnModal({
           </Box>
         </Box>
 
+        {/* Refund method */}
+        <Box>
+          <Text fw={500} size="sm" mb="xs">Refund Method</Text>
+          <SegmentedControl
+            fullWidth
+            value={refundMethod}
+            onChange={(v) => setRefundMethod(v as RefundMethod)}
+            data={REFUND_METHODS.map((m) => ({
+              value: m.value,
+              label: (
+                <Group gap={6} justify="center" wrap="nowrap">
+                  <ThemeIcon size={18} variant="transparent" c="inherit">
+                    {METHOD_ICON[m.value]}
+                  </ThemeIcon>
+                  <Text size="xs">{m.label}</Text>
+                </Group>
+              ),
+            }))}
+          />
+          <TextInput
+            mt="xs"
+            label={refundMethod === 'CREDIT_NOTE' ? 'Reference (optional)' : 'Reference / Note (optional)'}
+            placeholder="e.g. return reason, trace #"
+            value={reference}
+            onChange={(e) => setReference(e.currentTarget.value)}
+            size="sm"
+          />
+
+          {creditNoteChosenButInvalid && (
+            <Alert mt="xs" icon={<IconAlertCircle size={16} />} color="orange" variant="light" p="xs">
+              <Text size="xs">
+                A credit note can’t exceed the amount paid ({formatCurrency(amountPaid)}). Reduce the
+                selection or refund via cash, bank transfer, or card void.
+              </Text>
+            </Alert>
+          )}
+          {partialRefund && !creditNoteChosenButInvalid && (
+            <Alert mt="xs" icon={<IconAlertCircle size={16} />} color="yellow" variant="light" p="xs">
+              <Text size="xs">
+                Only {formatCurrency(refundable)} can be refunded (the amount paid). The remaining{' '}
+                {formatCurrency(totals.total - refundable)} will reduce the invoice balance.
+              </Text>
+            </Alert>
+          )}
+        </Box>
+
         {/* Totals */}
         <Divider />
         <Box style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Stack gap={4} style={{ minWidth: 200 }}>
+          <Stack gap={4} style={{ minWidth: 240 }}>
             <Group justify="space-between">
               <Text size="sm" c="dimmed">Subtotal Reduction</Text>
               <Text size="sm">{formatCurrency(totals.subTotal)}</Text>
@@ -337,11 +548,19 @@ export function ProcessReturnModal({
                 <Text size="sm">{formatCurrency(totals.tax)}</Text>
               </Group>
             )}
-            <Divider />
             <Group justify="space-between">
               <Text fw={600}>Invoice Reduction</Text>
               <Text fw={600} c={totals.total > 0 ? 'orange' : 'dimmed'}>
                 {formatCurrency(totals.total)}
+              </Text>
+            </Group>
+            <Divider />
+            <Group justify="space-between">
+              <Text fw={600}>
+                {refundMethod === 'CREDIT_NOTE' ? 'Credit Note' : 'Refund'} ({METHOD_LABELS[refundMethod]})
+              </Text>
+              <Text fw={700} c={refundMethod === 'CREDIT_NOTE' ? 'teal' : 'red'}>
+                {formatCurrency(refundMethod === 'CREDIT_NOTE' ? totals.total : moneyRefundAmount)}
               </Text>
             </Group>
           </Stack>
@@ -360,7 +579,7 @@ export function ProcessReturnModal({
               leftSection={<IconPackageExport size={16} />}
               onClick={handleSubmit}
               loading={isSubmitting}
-              disabled={totals.total <= 0}
+              disabled={!canSubmit}
               color="orange"
             >
               Process Return

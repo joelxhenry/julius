@@ -4,6 +4,7 @@ import * as schema from '../database/schema';
 import { PaymentService } from './PaymentService';
 import { InvoiceService } from './InvoiceService';
 import { CreditNoteService } from './CreditNoteService';
+import { STORE_CREDIT_METHOD_CODE } from '../../shared/constants/payments';
 
 export interface PaymentEntry {
   type: 'payment' | 'credit_note';
@@ -35,11 +36,67 @@ export interface VoidPaymentParams {
   voidReason: string;
 }
 
+export type RefundMethod = 'CASH' | 'BANK_TRANSFER' | 'CARD_VOID';
+
+export interface RefundInvoiceParams {
+  invoiceId: number;
+  invoiceNumber: string;
+  processedById: number;
+  payerName?: string | null;
+  amount: string; // positive refund amount
+  method: RefundMethod;
+  methodLabel: string; // human-readable label for the report (e.g. 'Cash')
+  transactionReference?: string;
+  notes?: string;
+}
+
+export interface RefundInvoiceResult {
+  refundPayment: schema.Payment;
+  invoice: schema.Invoice | null;
+}
+
 export interface VoidPaymentResult {
   originalPayment: schema.Payment;
   reversalPayment: schema.Payment;
   invoice: schema.Invoice | null;
   creditNoteRestored: schema.CreditNote | null;
+}
+
+/** An outstanding (active/partially-paid) invoice with its computed balance. */
+export interface OutstandingInvoice {
+  id: number;
+  invNumber: string;
+  invDate: string;
+  total: string;
+  totalPaid: string;
+  balance: string; // total - totalPaid, always > 0
+  status: string;
+}
+
+export interface ProcessClientBulkPaymentParams {
+  clientId: number;
+  processedById: number;
+  payerName: string;
+  amount: string; // total the client is paying
+  paymentMethodCode: string;
+  transactionReference?: string;
+  notes?: string;
+  // 'Select Payments' mode passes the chosen invoice ids; the amount is filled
+  // across them FIFO (oldest first). Omitted/empty → 'Automatic Payments' mode:
+  // apply FIFO across ALL of the client's outstanding invoices.
+  invoiceIds?: number[];
+}
+
+export interface BulkPaymentAllocation {
+  invoiceId: number;
+  invoiceNumber: string;
+  applied: string;
+}
+
+export interface ProcessClientBulkPaymentResult {
+  allocations: BulkPaymentAllocation[];
+  payments: schema.Payment[];
+  totalApplied: string;
 }
 
 export class PaymentTransactionService {
@@ -275,6 +332,283 @@ export class PaymentTransactionService {
       reversalPayment,
       invoice: updatedInvoice,
       creditNoteRestored: restoredCreditNote,
+    };
+  }
+
+  /**
+   * Refund money on an invoice (return of funds to the customer).
+   *
+   * Records a negative INVOICE payment — mirroring the void reversal pattern —
+   * and reduces the invoice's totalPaid so the sale's cash position stays
+   * correct. Used by the "Process Return" flow when the operator refunds via
+   * cash, bank transfer, or a card/credit void. Credit-note refunds do NOT come
+   * through here (no money leaves; store credit is issued instead).
+   */
+  async refundInvoicePayment(params: RefundInvoiceParams): Promise<RefundInvoiceResult> {
+    const { invoiceId, invoiceNumber, processedById, payerName, method, methodLabel, transactionReference, notes } = params;
+
+    const refundAmount = parseFloat(params.amount || '0');
+    if (refundAmount <= 0) {
+      throw new Error('Refund amount must be greater than 0');
+    }
+
+    const invoice = await this.invoiceService.findById(invoiceId);
+    if (!invoice) {
+      throw new Error('Invoice not found');
+    }
+
+    const currentPaid = parseFloat(invoice.totalPaid || '0');
+    if (refundAmount > currentPaid + 0.01) {
+      throw new Error(`Refund amount ($${refundAmount.toFixed(2)}) exceeds the amount paid ($${currentPaid.toFixed(2)})`);
+    }
+
+    const paymentDate = new Date().toISOString().split('T')[0];
+
+    // Negative payment row so the refund nets against collected payments and
+    // surfaces in the sales report. paymentDesc carries the human label (as the
+    // void flow does); paymentDesc2 carries the method code.
+    const refundPayment = await this.paymentService.create({
+      documentType: 'INVOICE',
+      documentNumber: invoiceNumber,
+      invoiceNumber,
+      amount: (-Math.abs(refundAmount)).toFixed(2),
+      payerName: payerName ?? invoice.clientName ?? undefined,
+      paymentDesc: `REFUND (${methodLabel})${notes ? ` - ${notes}` : ''}`,
+      paymentDesc2: method,
+      transactionReference: transactionReference || undefined,
+      paymentDate,
+      processedById,
+    });
+
+    const newTotalPaid = Math.max(0, currentPaid - refundAmount);
+    const total = parseFloat(invoice.total || '0');
+
+    let newStatus: string;
+    if (total > 0 && newTotalPaid >= total) {
+      newStatus = 'paid';
+    } else if (newTotalPaid > 0) {
+      newStatus = 'partially_paid';
+    } else {
+      newStatus = 'active';
+    }
+
+    const updatedInvoice = await this.invoiceService.update(invoiceId, {
+      totalPaid: newTotalPaid.toFixed(2),
+      status: newStatus,
+    });
+
+    return { refundPayment, invoice: updatedInvoice };
+  }
+
+  /**
+   * Get a client's outstanding invoices (any balance still due), ordered FIFO
+   * — oldest invoice date first, then by id. Used both to populate the bulk
+   * payment modal and, internally, as the target set for Automatic Payments.
+   */
+  async getClientOutstandingInvoices(clientId: number): Promise<OutstandingInvoice[]> {
+    const invoices = await this.invoiceService.findByClient(clientId);
+
+    return invoices
+      .filter(inv => {
+        if (inv.isArchived) return false;
+        if (inv.status === 'cancelled' || inv.status === 'archived') return false;
+        const balance = parseFloat(inv.total || '0') - parseFloat(inv.totalPaid || '0');
+        return balance > 0.001;
+      })
+      .sort((a, b) => {
+        // FIFO: oldest first by invoice date, tie-break on id.
+        if (a.invDate !== b.invDate) return a.invDate < b.invDate ? -1 : 1;
+        return a.id - b.id;
+      })
+      .map(inv => ({
+        id: inv.id,
+        invNumber: inv.invNumber,
+        invDate: inv.invDate,
+        total: inv.total,
+        totalPaid: inv.totalPaid,
+        balance: (parseFloat(inv.total || '0') - parseFloat(inv.totalPaid || '0')).toFixed(2),
+        status: inv.status,
+      }));
+  }
+
+  /**
+   * Apply a single client payment across multiple outstanding invoices.
+   *
+   * The amount is filled FIFO (oldest invoice first) over the target set:
+   *  - Automatic Payments: target set is ALL outstanding invoices.
+   *  - Select Payments: target set is the invoiceIds the operator chose.
+   *
+   * Each invoice that receives money gets its own INVOICE payment row (mirroring
+   * the single-invoice flow) and its totalPaid/status updated. Overpayment — an
+   * amount larger than the target set's total balance — is rejected.
+   *
+   * When the payment method is Store Credit, the amount is instead drawn from
+   * the client's credit notes (FIFO) and recorded as CREDIT applications —
+   * see applyClientStoreCredit.
+   */
+  async processClientBulkPayment(params: ProcessClientBulkPaymentParams): Promise<ProcessClientBulkPaymentResult> {
+    const { clientId, processedById, payerName, paymentMethodCode, transactionReference, notes, invoiceIds } = params;
+
+    const totalAmount = parseFloat(params.amount || '0');
+    if (totalAmount <= 0) {
+      throw new Error('Payment amount must be greater than 0');
+    }
+    if (!paymentMethodCode) {
+      throw new Error('A payment method is required');
+    }
+
+    const outstanding = await this.getClientOutstandingInvoices(clientId);
+
+    // Restrict to the selected invoices (preserving FIFO order) when provided.
+    let targets = outstanding;
+    if (invoiceIds && invoiceIds.length > 0) {
+      const idSet = new Set(invoiceIds);
+      targets = outstanding.filter(inv => idSet.has(inv.id));
+    }
+
+    if (targets.length === 0) {
+      throw new Error('There are no outstanding invoices to apply this payment to');
+    }
+
+    const totalOutstanding = targets.reduce((sum, inv) => sum + parseFloat(inv.balance), 0);
+    if (totalAmount > totalOutstanding + 0.01) {
+      throw new Error(
+        `Payment amount ($${totalAmount.toFixed(2)}) exceeds the outstanding balance ($${totalOutstanding.toFixed(2)})`
+      );
+    }
+
+    // Store credit is funded from the client's credit notes, not cash.
+    if (paymentMethodCode === STORE_CREDIT_METHOD_CODE) {
+      return this.applyClientStoreCredit(clientId, targets, totalAmount, payerName, processedById);
+    }
+
+    const paymentDate = new Date().toISOString().split('T')[0];
+    const allocations: BulkPaymentAllocation[] = [];
+    const createdPayments: schema.Payment[] = [];
+    let remaining = totalAmount;
+
+    for (const inv of targets) {
+      if (remaining <= 0.001) break;
+      const balance = parseFloat(inv.balance);
+      const applied = Math.min(remaining, balance);
+      const appliedStr = applied.toFixed(2);
+
+      // One payment row per invoice — same shape as the single-invoice cash
+      // payment path (notes → paymentDesc, method code → paymentDesc2).
+      const payment = await this.paymentService.create({
+        documentType: 'INVOICE',
+        documentNumber: inv.invNumber,
+        invoiceNumber: inv.invNumber,
+        amount: appliedStr,
+        payerName,
+        paymentDesc: notes || undefined,
+        paymentDesc2: paymentMethodCode,
+        transactionReference: transactionReference || undefined,
+        paymentDate,
+        processedById,
+      });
+      createdPayments.push(payment);
+
+      await this.invoiceService.recordPayment(inv.id, appliedStr);
+
+      allocations.push({ invoiceId: inv.id, invoiceNumber: inv.invNumber, applied: appliedStr });
+      remaining -= applied;
+    }
+
+    return {
+      allocations,
+      payments: createdPayments,
+      totalApplied: (totalAmount - remaining).toFixed(2),
+    };
+  }
+
+  /**
+   * Fund a bulk payment from the client's credit notes (Store Credit).
+   *
+   * Draws the amount from available credit notes FIFO (oldest note first) and
+   * applies it to the target invoices FIFO. Each (invoice, credit note) chunk
+   * becomes a CREDIT payment row — matching the single-invoice "Apply Credit
+   * Note" flow — and reduces the credit note's remaining balance. A single
+   * invoice may be covered by more than one note, and one note may span several
+   * invoices. Throws when the available store credit is less than the amount.
+   */
+  private async applyClientStoreCredit(
+    clientId: number,
+    targets: OutstandingInvoice[],
+    totalAmount: number,
+    payerName: string,
+    processedById: number
+  ): Promise<ProcessClientBulkPaymentResult> {
+    // Available credit notes, oldest first (FIFO), each with its remaining balance.
+    const creditNotes = (await this.getAvailableCreditNotes(clientId))
+      .map(cn => ({ cn, available: parseFloat(cn.total || '0') - parseFloat(cn.totalUsed || '0') }))
+      .filter(entry => entry.available > 0.001)
+      .sort((a, b) => {
+        if (a.cn.crDate !== b.cn.crDate) return a.cn.crDate < b.cn.crDate ? -1 : 1;
+        return a.cn.id - b.cn.id;
+      });
+
+    const totalCredit = creditNotes.reduce((sum, entry) => sum + entry.available, 0);
+    if (totalAmount > totalCredit + 0.01) {
+      throw new Error(
+        `Available store credit ($${totalCredit.toFixed(2)}) is less than the payment amount ($${totalAmount.toFixed(2)})`
+      );
+    }
+
+    const paymentDate = new Date().toISOString().split('T')[0];
+    const allocations: BulkPaymentAllocation[] = [];
+    const createdPayments: schema.Payment[] = [];
+
+    let cnIndex = 0;
+    let remainingTotal = totalAmount;
+
+    for (const inv of targets) {
+      if (remainingTotal <= 0.001) break;
+      let invNeed = Math.min(remainingTotal, parseFloat(inv.balance));
+      let invApplied = 0;
+
+      // Fill this invoice from credit notes in FIFO order.
+      while (invNeed > 0.001 && cnIndex < creditNotes.length) {
+        const entry = creditNotes[cnIndex];
+        if (entry.available <= 0.001) {
+          cnIndex++;
+          continue;
+        }
+        const chunk = Math.min(invNeed, entry.available);
+        const chunkStr = chunk.toFixed(2);
+
+        // CREDIT payment row tying this invoice to the funding credit note.
+        const payment = await this.paymentService.create({
+          documentType: 'CREDIT',
+          documentNumber: inv.invNumber,
+          invoiceNumber: inv.invNumber,
+          creditNoteNumber: entry.cn.crNumber,
+          amount: chunkStr,
+          payerName,
+          paymentDesc: `Applied credit note ${entry.cn.crNumber}`,
+          paymentDate,
+          processedById,
+        });
+        createdPayments.push(payment);
+
+        await this.creditNoteService.recordUsage(entry.cn.id, chunkStr);
+
+        entry.available -= chunk;
+        invApplied += chunk;
+        invNeed -= chunk;
+        remainingTotal -= chunk;
+      }
+
+      if (invApplied > 0.001) {
+        await this.invoiceService.recordPayment(inv.id, invApplied.toFixed(2));
+        allocations.push({ invoiceId: inv.id, invoiceNumber: inv.invNumber, applied: invApplied.toFixed(2) });
+      }
+    }
+
+    return {
+      allocations,
+      payments: createdPayments,
+      totalApplied: (totalAmount - remainingTotal).toFixed(2),
     };
   }
 

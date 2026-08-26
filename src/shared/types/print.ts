@@ -42,3 +42,17 @@ export interface ClientStatementRequest {
   outputMode: PrintOutputMode;
   printerName?: string;
 }
+
+export interface PaymentReportRequest {
+  clientId: number;
+  /** Client display name for the report heading / file name. */
+  clientName?: string | null;
+  /** Payment-method code filter; omit for all methods. */
+  paymentMethod?: string | null;
+  /** Inclusive start date (YYYY-MM-DD). */
+  startDate?: string | null;
+  /** Inclusive end date (YYYY-MM-DD). */
+  endDate?: string | null;
+  outputMode: PrintOutputMode;
+  printerName?: string;
+}

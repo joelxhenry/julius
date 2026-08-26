@@ -15,6 +15,8 @@ export interface SalesSummaryResult {
   totalTax: number;
   totalPaymentsReceived: number;
   totalOutstanding: number;
+  totalRefunds: number;
+  totalCreditNotesIssued: number;
   byPaymentMethod: Array<{ method: string; total: number; count: number }>;
 }
 
@@ -125,6 +127,27 @@ export class ReportService {
       .where(and(...payConditions))
       .groupBy(schema.payments.paymentDesc);
 
+    // Refunds: negative INVOICE payments in range (cash / bank / card-void
+    // refunds recorded by the Process Return flow, plus voided payments).
+    const refundResult = await this.db
+      .select({
+        totalRefunds: sql<string>`COALESCE(SUM(CAST(${schema.payments.amount} AS numeric)), 0)`,
+      })
+      .from(schema.payments)
+      .where(and(...payConditions, sql`CAST(${schema.payments.amount} AS numeric) < 0`));
+
+    // Credit notes issued in range (store credit given for returns).
+    const cnConditions = [];
+    if (startDate) cnConditions.push(gte(schema.creditNotes.crDate, startDate));
+    if (endDate) cnConditions.push(lte(schema.creditNotes.crDate, endDate));
+
+    const cnResult = await this.db
+      .select({
+        totalIssued: sql<string>`COALESCE(SUM(CAST(${schema.creditNotes.total} AS numeric)), 0)`,
+      })
+      .from(schema.creditNotes)
+      .where(cnConditions.length ? and(...cnConditions) : undefined);
+
     const totalRevenue = Number(invResult[0]?.totalRevenue ?? 0);
     const totalPaid = Number(invResult[0]?.totalPaid ?? 0);
 
@@ -134,6 +157,9 @@ export class ReportService {
       totalTax: Number(invResult[0]?.totalTax ?? 0),
       totalPaymentsReceived: totalPaid,
       totalOutstanding: totalRevenue - totalPaid,
+      // Report as a positive figure (the summed negative amounts flipped).
+      totalRefunds: Math.abs(Number(refundResult[0]?.totalRefunds ?? 0)),
+      totalCreditNotesIssued: Number(cnResult[0]?.totalIssued ?? 0),
       byPaymentMethod: payBreakdown.map((r) => ({
         method: r.method || 'Unknown',
         total: Number(r.total ?? 0),

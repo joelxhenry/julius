@@ -9,7 +9,7 @@ import { PaymentService, PaymentMethodService } from './PaymentService';
 import { ClientService } from './ClientService';
 import { DocumentLineItemService } from './DocumentLineItemService';
 import { EmployeeService } from './EmployeeService';
-import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest, ClientStatementRequest } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest } from '../../shared/types/print';
 import {
   CompanyInfo,
   InvoiceTemplateData,
@@ -18,6 +18,7 @@ import {
   PaymentReceiptTemplateData,
   ReceivingReferenceTemplateData,
   ClientStatementTemplateData,
+  PaymentReportTemplateData,
 } from './print-templates/types';
 import { getInvoiceTemplate } from './print-templates/invoiceTemplate';
 import { getQuotationTemplate } from './print-templates/quotationTemplate';
@@ -33,6 +34,7 @@ import { VariantService } from './VariantService';
 import { InventoryReceivingService } from './InventoryReceivingService';
 import { getReceivingReferenceTemplate } from './print-templates/receivingReferenceTemplate';
 import { getClientStatementTemplate } from './print-templates/clientStatementTemplate';
+import { getPaymentReportTemplate } from './print-templates/paymentReportTemplate';
 import { formatCurrency, formatDate } from './print-templates/baseStyles';
 import { LookupTicketRequest, LookupTicketData, LookupTicketItem } from '../../shared/types/lookupTicket';
 
@@ -691,6 +693,94 @@ export class PrintService {
       `Statement of Account — ${data.client.clientName || request.clientId}`,
       request.printerName,
     );
+  }
+
+  // --- Client payment report ---
+
+  async generatePaymentReport(request: PaymentReportRequest): Promise<PrintResult> {
+    const data = await this.buildPaymentReportData(request);
+    const html = getPaymentReportTemplate(data);
+    const nameForFile = data.clientName.replace(/[^\w-]+/g, '_');
+    return this.outputStandardHtml(
+      html,
+      request.outputMode,
+      `Payments ${nameForFile}`,
+      `Payment Report — ${data.clientName}`,
+      request.printerName,
+    );
+  }
+
+  private async buildPaymentReportData(request: PaymentReportRequest): Promise<PaymentReportTemplateData> {
+    const { clientId, paymentMethod, startDate, endDate } = request;
+    const company = await this.loadCompanyInfo();
+    const symbol = company.currencySymbol;
+
+    const client = await this.clientService.findById(clientId);
+    const clientName = request.clientName || client?.clientName || `Client ${clientId}`;
+
+    // Match the on-screen Payments tab: same client + method + date filters,
+    // fetched in full (not just the visible page).
+    const [paymentsResult, paymentMethods] = await Promise.all([
+      this.paymentService.findPaginated({
+        clientId,
+        paymentMethod: paymentMethod || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        page: 1,
+        pageSize: 100000,
+      }),
+      this.paymentMethodService.findAll(),
+    ]);
+
+    const methodMap = new Map<string, string>();
+    paymentMethods.forEach((pm) => methodMap.set(pm.code, pm.name));
+
+    const typeLabels: Record<string, string> = {
+      INVOICE: 'Invoice',
+      CREDIT: 'Credit Note',
+      BILL: 'Bill',
+    };
+
+    let totalReceipts = 0;
+    let totalRefunds = 0;
+
+    const rows = paymentsResult.data.map((p) => {
+      const num = parseFloat(p.amount || '0');
+      if (num < 0) totalRefunds += Math.abs(num);
+      else totalReceipts += num;
+
+      // The method code lives in paymentDesc or paymentDesc2; notes live in
+      // paymentDesc unless it held the code.
+      const codeMatch = [p.paymentDesc, p.paymentDesc2].find((v) => v && methodMap.has(v)) || null;
+      const method = codeMatch ? (methodMap.get(codeMatch) ?? '') : (p.paymentDesc ?? '');
+      let notes = p.paymentDesc && !methodMap.has(p.paymentDesc) ? p.paymentDesc : '';
+      if (notes && notes === method) notes = '';
+
+      const isNegative = num < 0;
+      return {
+        date: p.paymentDate,
+        type: typeLabels[p.documentType] || p.documentType,
+        document: p.documentNumber,
+        amount: (isNegative ? '-' : '') + formatCurrency(Math.abs(num), symbol),
+        isNegative,
+        method,
+        reference: p.transactionReference || '',
+        notes,
+      };
+    });
+
+    return {
+      company,
+      clientName,
+      periodLabel: this.buildStatementPeriodLabel(startDate, endDate),
+      methodLabel: paymentMethod ? (methodMap.get(paymentMethod) || paymentMethod) : 'All Methods',
+      printedAt: new Date().toLocaleString(),
+      rows,
+      count: rows.length,
+      totalReceipts: formatCurrency(totalReceipts, symbol),
+      totalRefunds: formatCurrency(totalRefunds, symbol),
+      netTotal: formatCurrency(totalReceipts - totalRefunds, symbol),
+    };
   }
 
   private buildStatementPeriodLabel(startDate?: string | null, endDate?: string | null): string {

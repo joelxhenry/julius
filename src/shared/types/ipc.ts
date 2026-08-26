@@ -212,6 +212,9 @@ export enum IpcChannel {
   UPDATE_PAYMENT = 'db:update-payment',
   DELETE_PAYMENT = 'db:delete-payment',
   PROCESS_INVOICE_PAYMENT = 'db:process-invoice-payment',
+  PROCESS_INVOICE_REFUND = 'db:process-invoice-refund',
+  PROCESS_CLIENT_BULK_PAYMENT = 'db:process-client-bulk-payment',
+  GET_CLIENT_OUTSTANDING_INVOICES = 'db:get-client-outstanding-invoices',
   VOID_PAYMENT = 'db:void-payment',
   GET_CLIENT_AVAILABLE_CREDIT_NOTES = 'db:get-client-available-credit-notes',
 
@@ -341,4 +344,5 @@ export enum IpcChannel {
   PRINT_LOOKUP_TICKET = 'print:lookup-ticket',
   PRINT_RECEIVING_REFERENCE = 'print:receiving-reference',
   PRINT_CLIENT_STATEMENT = 'print:client-statement',
+  PRINT_PAYMENT_REPORT = 'print:payment-report',
 }

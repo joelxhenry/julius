@@ -1,7 +1,6 @@
 import { Paper, Group, Text, Badge, ActionIcon, Button, Menu } from '@mantine/core';
 import {
   IconCash,
-  IconFileText,
   IconUser,
   IconChevronLeft,
   IconChevronRight,
@@ -28,8 +27,6 @@ interface CompactDetailHeaderProps {
   adjacentIds: { previousId: number | null; nextId: number | null };
   onNavigateAdjacent?: (id: number | null) => void;
   onRecordPayment: () => void;
-  onCreateCreditNote: () => void;
-  canCreateCreditNote?: boolean;
   onProcessReturn?: () => void;
   onViewClient: () => void;
   onArchive: () => void;
@@ -65,8 +62,6 @@ export function CompactDetailHeader({
   adjacentIds,
   onNavigateAdjacent,
   onRecordPayment,
-  onCreateCreditNote,
-  canCreateCreditNote = true,
   onProcessReturn,
   onViewClient,
   onArchive,
@@ -137,6 +132,17 @@ export function CompactDetailHeader({
               Record Payment
             </Button>
           )}
+          {['active', 'partially_paid', 'paid'].includes(invoice.status) && onProcessReturn && (
+            <Button
+              size="xs"
+              variant="light"
+              color="orange"
+              leftSection={<IconPackageExport size={14} />}
+              onClick={onProcessReturn}
+            >
+              Process Return
+            </Button>
+          )}
 
           <Menu shadow="md" width={200}>
             <Menu.Target>
@@ -145,23 +151,6 @@ export function CompactDetailHeader({
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-              {['active', 'partially_paid', 'paid'].includes(invoice.status) && (
-                <Menu.Item
-                  leftSection={<IconFileText size={16} />}
-                  onClick={canCreateCreditNote ? onCreateCreditNote : undefined}
-                  disabled={!canCreateCreditNote}
-                >
-                  {canCreateCreditNote ? 'Create Credit Note' : 'Credit Note (no payments)'}
-                </Menu.Item>
-              )}
-              {['active', 'partially_paid', 'paid'].includes(invoice.status) && onProcessReturn && (
-                <Menu.Item
-                  leftSection={<IconPackageExport size={16} />}
-                  onClick={onProcessReturn}
-                >
-                  Process Return
-                </Menu.Item>
-              )}
               {invoice.clientId && (
                 <Menu.Item leftSection={<IconUser size={16} />} onClick={onViewClient}>
                   View Client

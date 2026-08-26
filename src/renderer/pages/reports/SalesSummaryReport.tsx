@@ -17,6 +17,8 @@ interface SalesSummaryData {
   totalTax: number;
   totalPaymentsReceived: number;
   totalOutstanding: number;
+  totalRefunds: number;
+  totalCreditNotesIssued: number;
   byPaymentMethod: Array<{ method: string; total: number; count: number }>;
 }
 
@@ -72,7 +74,7 @@ export function SalesSummaryReport() {
 
         {data && (
           <>
-            <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md" mb="lg">
+            <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md" mb="lg">
               <MetricCard label="Total Invoices" value={data.totalInvoices} />
               <MetricCard label="Revenue" value={formatCurrency(data.totalRevenue)} color="blue" />
               <MetricCard label="Tax Collected" value={formatCurrency(data.totalTax)} />
@@ -81,6 +83,16 @@ export function SalesSummaryReport() {
                 label="Outstanding"
                 value={formatCurrency(data.totalOutstanding)}
                 color={data.totalOutstanding > 0 ? 'red' : 'green'}
+              />
+              <MetricCard
+                label="Refunds"
+                value={formatCurrency(data.totalRefunds)}
+                color={data.totalRefunds > 0 ? 'red' : undefined}
+              />
+              <MetricCard
+                label="Credit Notes Issued"
+                value={formatCurrency(data.totalCreditNotesIssued)}
+                color={data.totalCreditNotesIssued > 0 ? 'orange' : undefined}
               />
             </SimpleGrid>
 
