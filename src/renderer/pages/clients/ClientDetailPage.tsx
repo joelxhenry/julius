@@ -33,7 +33,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal, ClientStatementModal } from '../../components/clients';
+import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal, ClientStatementModal, ClientBulkPaymentModal } from '../../components/clients';
 import { useTabContext } from '../../contexts/TabContext';
 
 interface Client {
@@ -67,6 +67,9 @@ export function ClientDetailPage() {
   const [activeTab, setActiveTab] = useState<string | null>('summary');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [statementModalOpen, setStatementModalOpen] = useState(false);
+  const [bulkPaymentOpen, setBulkPaymentOpen] = useState(false);
+  // Bumped after a bulk payment so the Invoices/Payments tabs reload their data.
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const clientId = id ? parseInt(id, 10) : null;
 
@@ -166,6 +169,14 @@ export function ClientDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <Button
+            variant="light"
+            color="green"
+            leftSection={<IconCash size={16} />}
+            onClick={() => setBulkPaymentOpen(true)}
+          >
+            Receive Payment
+          </Button>
           <Button
             variant="light"
             leftSection={<IconFileText size={16} />}
@@ -391,7 +402,7 @@ export function ClientDetailPage() {
 
         {/* Other Tabs */}
         <Tabs.Panel value="invoices" pt="md">
-          <ClientInvoicesTab clientId={client.id} clientName={client.clientName} />
+          <ClientInvoicesTab clientId={client.id} clientName={client.clientName} refreshToken={refreshToken} />
         </Tabs.Panel>
 
         <Tabs.Panel value="quotations" pt="md">
@@ -403,7 +414,7 @@ export function ClientDetailPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="payments" pt="md">
-          <ClientPaymentsTab clientId={client.id} />
+          <ClientPaymentsTab clientId={client.id} clientName={client.clientName} refreshToken={refreshToken} />
         </Tabs.Panel>
       </Tabs>
 
@@ -420,6 +431,15 @@ export function ClientDetailPage() {
         opened={statementModalOpen}
         onClose={() => setStatementModalOpen(false)}
         clientId={client.id}
+      />
+
+      {/* Receive Payment (bulk / FIFO) Modal */}
+      <ClientBulkPaymentModal
+        opened={bulkPaymentOpen}
+        onClose={() => setBulkPaymentOpen(false)}
+        onSuccess={() => setRefreshToken((t) => t + 1)}
+        clientId={client.id}
+        clientName={client.clientName}
       />
     </Stack>
   );

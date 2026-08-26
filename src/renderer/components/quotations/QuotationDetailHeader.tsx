@@ -26,6 +26,7 @@ interface QuotationDetailHeaderProps {
   adjacentIds: { previousId: number | null; nextId: number | null };
   onNavigateAdjacent?: (id: number | null) => void;
   onConvertToInvoice: () => void;
+  isConvertLoading?: boolean;
   onEdit: () => void;
   onViewClient: () => void;
   onExpire: () => void;
@@ -45,6 +46,7 @@ export function QuotationDetailHeader({
   adjacentIds,
   onNavigateAdjacent,
   onConvertToInvoice,
+  isConvertLoading = false,
   onEdit,
   onViewClient,
   onExpire,
@@ -95,7 +97,7 @@ export function QuotationDetailHeader({
         <Group gap="sm" wrap="nowrap">
           {!quotation.isArchived && (
             <>
-              <Button size="xs" color="green" leftSection={<IconFileInvoice size={14} />} onClick={onConvertToInvoice}>
+              <Button size="xs" color="green" leftSection={<IconFileInvoice size={14} />} onClick={onConvertToInvoice} loading={isConvertLoading}>
                 Convert to Invoice
               </Button>
               <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={onEdit}>

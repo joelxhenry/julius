@@ -22,6 +22,8 @@ interface Invoice {
 interface ClientInvoicesTabProps {
   clientId: number;
   clientName?: string;
+  /** Bump to force a reload (e.g. after a client-level bulk payment). */
+  refreshToken?: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -65,7 +67,7 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-export function ClientInvoicesTab({ clientId, clientName }: ClientInvoicesTabProps) {
+export function ClientInvoicesTab({ clientId, clientName, refreshToken }: ClientInvoicesTabProps) {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +106,7 @@ export function ClientInvoicesTab({ clientId, clientName }: ClientInvoicesTabPro
 
   useEffect(() => {
     loadInvoices();
-  }, [clientId, page, status, startDate, endDate]);
+  }, [clientId, page, status, startDate, endDate, refreshToken]);
 
   const loadInvoices = async () => {
     setLoading(true);

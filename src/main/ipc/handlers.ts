@@ -32,13 +32,13 @@ import {
   SpotlightService,
   SystemSettingsService,
 } from '../services';
-import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams } from '../services/PaymentTransactionService';
+import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams, RefundInvoiceParams, ProcessClientBulkPaymentParams } from '../services/PaymentTransactionService';
 import { ImageStorageService } from '../services/ImageStorageService';
 import { InventoryImageService, UploadImageParams } from '../services/InventoryImageService';
 import { PrintService } from '../services/PrintService';
 import { ReportService } from '../services/ReportService';
 import { ExportService } from '../services/ExportService';
-import { PrintDocumentRequest, ReceivingReferenceRequest, ClientStatementRequest } from '../../shared/types/print';
+import { PrintDocumentRequest, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest } from '../../shared/types/print';
 import { ExportRequest } from '../../shared/types/export';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
@@ -720,12 +720,39 @@ function registerDataHandlers() {
     }
   });
 
+  ipcMain.handle(IpcChannel.PROCESS_INVOICE_REFUND, async (_, params: RefundInvoiceParams) => {
+    try {
+      const result = await paymentTransactionService.refundInvoicePayment(params);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Refund processing failed' };
+    }
+  });
+
   ipcMain.handle(IpcChannel.GET_CLIENT_AVAILABLE_CREDIT_NOTES, async (_, { clientId }: { clientId: number }) => {
     try {
       const creditNotes = await paymentTransactionService.getAvailableCreditNotes(clientId);
       return { success: true, data: creditNotes };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get available credit notes' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.GET_CLIENT_OUTSTANDING_INVOICES, async (_, { clientId }: { clientId: number }) => {
+    try {
+      const invoices = await paymentTransactionService.getClientOutstandingInvoices(clientId);
+      return { success: true, data: invoices };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to get outstanding invoices' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.PROCESS_CLIENT_BULK_PAYMENT, async (_, params: ProcessClientBulkPaymentParams) => {
+    try {
+      const result = await paymentTransactionService.processClientBulkPayment(params);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Payment processing failed' };
     }
   });
 
@@ -939,6 +966,8 @@ function registerDataHandlers() {
     printController.printReceivingReference(params));
   ipcMain.handle(IpcChannel.PRINT_CLIENT_STATEMENT, (_, params: ClientStatementRequest) =>
     printController.printClientStatement(params));
+  ipcMain.handle(IpcChannel.PRINT_PAYMENT_REPORT, (_, params: PaymentReportRequest) =>
+    printController.printPaymentReport(params));
 
   // ===== REPORT HANDLERS =====
   const reportService = new ReportService(db);

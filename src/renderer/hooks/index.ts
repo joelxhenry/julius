@@ -65,3 +65,5 @@ export { usePrint } from './usePrint';
 export { useReceivingReferencePrint } from './useReceivingReferencePrint';
 export { useClientStatementPrint } from './useClientStatementPrint';
 export type { ClientStatementParams } from './useClientStatementPrint';
+export { usePaymentReportPrint } from './usePaymentReportPrint';
+export type { PaymentReportParams } from './usePaymentReportPrint';

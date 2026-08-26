@@ -1,5 +1,5 @@
 import { PrintService, PrintResult } from '../services/PrintService';
-import { PrintDocumentType, PrintOutputMode, ReceivingReferenceRequest, ClientStatementRequest } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest } from '../../shared/types/print';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
 export class PrintController {
@@ -76,6 +76,15 @@ export class PrintController {
   async printClientStatement(params: ClientStatementRequest) {
     try {
       const result = await this.printService.generateClientStatement(params);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async printPaymentReport(params: PaymentReportRequest) {
+    try {
+      const result = await this.printService.generatePaymentReport(params);
       return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);

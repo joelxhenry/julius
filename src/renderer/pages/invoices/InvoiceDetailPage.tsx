@@ -2,17 +2,16 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
 import { useTabParams } from '../../hooks/useTabParams';
-import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Button, Tooltip, Table } from '@mantine/core';
+import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Tooltip, Table } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye, IconPackageExport } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
   CompactDetailHeader,
   CompactDetailInfoBar,
   InvoiceLineItemsReadOnly,
-  CreateCreditNoteModal,
   ProcessReturnModal,
 } from '../../components/invoices';
 import { PaymentHistoryCard } from '../../components/payments';
@@ -97,7 +96,6 @@ export function InvoiceDetailPage() {
     nextId: null,
   });
   const [paymentModalOpen, { open: openPaymentModal, close: closePaymentModal }] = useDisclosure(false);
-  const [cnModalOpen, { open: openCnModal, close: closeCnModal }] = useDisclosure(false);
   const [returnModalOpen, { open: openReturnModal, close: closeReturnModal }] = useDisclosure(false);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [salespersonName, setSalespersonName] = useState<string | null>(null);
@@ -311,15 +309,6 @@ export function InvoiceDetailPage() {
     loadCreditNotes(invoice.invNumber);
   }, [invoice, loadCreditNotes]);
 
-  // Credit note requires at least one payment — capped at amount paid
-  const creditNoteAllowed = invoice ? parseFloat(invoice.totalPaid) > 0 : false;
-  const maxCreditAllowed = invoice ? parseFloat(invoice.totalPaid) : 0;
-
-  const handleCreateCreditNote = useCallback(() => {
-    if (!invoice || parseFloat(invoice.totalPaid) <= 0) return;
-    openCnModal();
-  }, [openCnModal, invoice]);
-
   // Process return — available on any invoice regardless of payment
   const handleProcessReturn = useCallback(() => {
     if (!invoice) return;
@@ -349,34 +338,9 @@ export function InvoiceDetailPage() {
       const cached = cache.get(invoice.id);
       if (cached) cache.set(invoice.id, { ...cached, lineItems: updatedItems.data });
     }
-  }, [invoice]);
 
-  // Refresh invoice, line items, and credit notes after a credit note is created
-  const handleCreditNoteCreated = useCallback(async () => {
-    if (!invoice) return;
-    const cache = invoiceCacheRef.current;
-
-    // Reload credit notes
+    // A credit-note refund creates a credit note; reload so it appears.
     loadCreditNotes(invoice.invNumber);
-
-    // Reload invoice totals (they change when items are credited)
-    const updatedInv = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoice.id });
-    if (updatedInv.success && updatedInv.data) {
-      setInvoice(updatedInv.data);
-      const cached = cache.get(invoice.id);
-      if (cached) cache.set(invoice.id, { ...cached, invoice: updatedInv.data });
-    }
-
-    // Reload line items (quantities/items may have changed)
-    const updatedItems = await window.electron.invoke(
-      IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE,
-      { invNumber: invoice.invNumber }
-    );
-    if (updatedItems.success && updatedItems.data) {
-      setLineItems(updatedItems.data);
-      const cached = cache.get(invoice.id);
-      if (cached) cache.set(invoice.id, { ...cached, lineItems: updatedItems.data });
-    }
   }, [invoice, loadCreditNotes]);
 
   // Navigate to client
@@ -435,8 +399,6 @@ export function InvoiceDetailPage() {
               adjacentIds={fromListing ? adjacentIds : { previousId: null, nextId: null }}
               onNavigateAdjacent={fromListing ? handleNavigateAdjacent : undefined}
               onRecordPayment={handleRecordPayment}
-              onCreateCreditNote={handleCreateCreditNote}
-              canCreateCreditNote={creditNoteAllowed}
               onProcessReturn={handleProcessReturn}
               onViewClient={handleViewClient}
               onArchive={handleArchive}
@@ -519,35 +481,6 @@ export function InvoiceDetailPage() {
           }
         >
           <Stack gap="xs">
-            {!invoice.isArchived && (
-              <Group justify="flex-end">
-                <Button
-                  size="xs"
-                  variant="light"
-                  color="orange"
-                  leftSection={<IconPackageExport size={14} />}
-                  onClick={handleProcessReturn}
-                >
-                  Process Return
-                </Button>
-                <Tooltip
-                  label="No payments recorded — a credit note requires at least one payment"
-                  disabled={creditNoteAllowed}
-                  withArrow
-                >
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="teal"
-                    leftSection={<IconPlus size={14} />}
-                    onClick={handleCreateCreditNote}
-                    disabled={!creditNoteAllowed}
-                  >
-                    Create Credit Note
-                  </Button>
-                </Tooltip>
-              </Group>
-            )}
             {creditNotes.length === 0 ? (
               <Text c="dimmed" size="sm" ta="center" py="sm">
                 No credit notes issued for this invoice
@@ -606,16 +539,6 @@ export function InvoiceDetailPage() {
         onPaymentRecorded={handlePaymentRecorded}
         onCreditApplied={handlePaymentRecorded}
         invoice={invoice}
-      />
-
-      {/* Create Credit Note Modal */}
-      <CreateCreditNoteModal
-        opened={cnModalOpen}
-        onClose={closeCnModal}
-        onCreated={handleCreditNoteCreated}
-        invoice={invoice}
-        lineItems={lineItems}
-        maxCreditAllowed={maxCreditAllowed}
       />
 
       {/* Process Return Modal */}

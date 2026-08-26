@@ -19,7 +19,6 @@ export { CompactQuotationToolbar } from './CompactQuotationToolbar';
 export { CompactFormBar } from './CompactFormBar';
 export { CompactDetailHeader } from './CompactDetailHeader';
 export { CompactDetailInfoBar } from './CompactDetailInfoBar';
-export { CreateCreditNoteModal } from './CreateCreditNoteModal';
 export { ProcessReturnModal } from './ProcessReturnModal';
 export { ApplyCreditNoteModal, type ApplyCreditNoteModalProps } from './ApplyCreditNoteModal';
 export * from './types';

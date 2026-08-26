@@ -34,9 +34,17 @@ interface Payment {
   paymentDate: string | null;
   paymentDesc: string | null;
   paymentDesc2: string | null;
+  transactionReference: string | null;
   amount: string;
   processedById: number | null;
   createdAt: string;
+}
+
+interface PaymentMethod {
+  id: number;
+  code: string;
+  name: string;
+  active: boolean;
 }
 
 interface PaginatedResult {
@@ -69,6 +77,7 @@ export function PaymentsPage() {
   const { user } = useAuth();
   const { openTab, replaceCurrentTab } = useTabContext();
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [documentType, setDocumentType] = useState<string | null>('INVOICE');
@@ -120,6 +129,36 @@ export function PaymentsPage() {
   useEffect(() => {
     loadPayments();
   }, [loadPayments]);
+
+  // Load active payment methods so we can resolve stored codes to display names
+  useEffect(() => {
+    window.electron
+      .invoke(IpcChannel.GET_ACTIVE_PAYMENT_METHODS, {})
+      .then((result) => {
+        if (result.success && result.data) setPaymentMethods(result.data);
+      })
+      .catch((error) => console.error('Failed to load payment methods:', error));
+  }, []);
+
+  // The method code lives in paymentDesc on some code paths and paymentDesc2 on
+  // others; notes live in paymentDesc unless that field held the method code.
+  const methodNameByCode = useMemo(() => {
+    const map = new Map<string, string>();
+    paymentMethods.forEach((pm) => map.set(pm.code, pm.name));
+    return map;
+  }, [paymentMethods]);
+
+  const resolveMethod = useCallback((payment: Payment) => {
+    const code = [payment.paymentDesc, payment.paymentDesc2].find(
+      (v) => v && methodNameByCode.has(v)
+    );
+    return (code ? methodNameByCode.get(code) : payment.paymentDesc2 || payment.paymentDesc) || '-';
+  }, [methodNameByCode]);
+
+  const resolveNotes = useCallback((payment: Payment) =>
+    payment.paymentDesc && !methodNameByCode.has(payment.paymentDesc) ? payment.paymentDesc : '',
+    [methodNameByCode]
+  );
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -310,7 +349,7 @@ export function PaymentsPage() {
         key: 'payerName',
         header: 'Payer',
         render: (payment) => (
-          <Text size="sm" truncate maw={150}>
+          <Text size="sm" truncate maw={280}>
             {payment.payerName || '-'}
           </Text>
         ),
@@ -318,12 +357,31 @@ export function PaymentsPage() {
       {
         key: 'paymentDesc',
         header: 'Method',
-        width: 150,
+        width: 160,
         render: (payment) => (
-          <Text size="sm">
-            {payment.paymentDesc2 || payment.paymentDesc || '-'}
-          </Text>
+          <Stack gap={0}>
+            <Text size="sm">{resolveMethod(payment)}</Text>
+            {payment.transactionReference && (
+              <Text size="xs" c="dimmed" truncate maw={150}>
+                Ref: {payment.transactionReference}
+              </Text>
+            )}
+          </Stack>
         ),
+      },
+      {
+        key: 'notes',
+        header: 'Notes',
+        render: (payment) => {
+          const notes = resolveNotes(payment);
+          return notes ? (
+            <Text size="sm" c="dimmed" truncate maw={240}>
+              {notes}
+            </Text>
+          ) : (
+            <Text size="sm" c="dimmed">-</Text>
+          );
+        },
       },
       {
         key: 'amount',
@@ -373,7 +431,7 @@ export function PaymentsPage() {
         },
       },
     ],
-    [handleViewDocument, handleVoidClick]
+    [handleViewDocument, handleVoidClick, resolveMethod, resolveNotes]
   );
 
   return (
