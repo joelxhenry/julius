@@ -89,8 +89,12 @@ export function EmployeeInvoicesTab({ employeeId, isActive }: Props) {
                   <Table.Td>{inv.clientName || '-'}</Table.Td>
                   <Table.Td>{formatCurrency(parseFloat(inv.total || '0'))}</Table.Td>
                   <Table.Td>
-                    <Badge color={inv.status === 'A' ? 'green' : 'gray'} variant="light" size="sm">
-                      {inv.status === 'A' ? 'Active' : inv.status}
+                    <Badge
+                      color={inv.status === 'cancelled' ? 'red' : inv.status === 'A' ? 'green' : 'gray'}
+                      variant="light"
+                      size="sm"
+                    >
+                      {inv.status === 'cancelled' ? 'Cancelled' : inv.status === 'A' ? 'Active' : inv.status}
                     </Badge>
                   </Table.Td>
                 </Table.Tr>

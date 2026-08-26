@@ -23,22 +23,28 @@ type PeriodMode = 'all' | 'range';
 export function ClientStatementModal({ opened, onClose, clientId }: ClientStatementModalProps) {
   const [periodMode, setPeriodMode] = useState<PeriodMode>('all');
   const [range, setRange] = useState<DateRangeValue>(getLastNDaysRange(30));
+  const [activeMode, setActiveMode] = useState<PrintOutputMode | null>(null);
   const { printClientStatement, isPrinting } = useClientStatementPrint();
 
   const [start, end] = range;
   const rangeIncomplete = periodMode === 'range' && (!start || !end);
 
   const handleGenerate = async (outputMode: PrintOutputMode) => {
-    await printClientStatement(
-      {
-        clientId,
-        startDate: periodMode === 'range' ? start : null,
-        endDate: periodMode === 'range' ? end : null,
-      },
-      outputMode,
-    );
-    if (outputMode !== 'preview') {
-      onClose();
+    setActiveMode(outputMode);
+    try {
+      await printClientStatement(
+        {
+          clientId,
+          startDate: periodMode === 'range' ? start : null,
+          endDate: periodMode === 'range' ? end : null,
+        },
+        outputMode,
+      );
+      if (outputMode !== 'preview') {
+        onClose();
+      }
+    } finally {
+      setActiveMode(null);
     }
   };
 
@@ -67,8 +73,8 @@ export function ClientStatementModal({ opened, onClose, clientId }: ClientStatem
           <Button
             variant="default"
             leftSection={<IconEye size={16} />}
-            loading={isPrinting}
-            disabled={rangeIncomplete}
+            loading={activeMode === 'preview'}
+            disabled={rangeIncomplete || (isPrinting && activeMode !== 'preview')}
             onClick={() => handleGenerate('preview')}
           >
             Preview
@@ -76,16 +82,16 @@ export function ClientStatementModal({ opened, onClose, clientId }: ClientStatem
           <Button
             variant="light"
             leftSection={<IconFileTypePdf size={16} />}
-            loading={isPrinting}
-            disabled={rangeIncomplete}
+            loading={activeMode === 'pdf'}
+            disabled={rangeIncomplete || (isPrinting && activeMode !== 'pdf')}
             onClick={() => handleGenerate('pdf')}
           >
             Save PDF
           </Button>
           <Button
             leftSection={<IconPrinter size={16} />}
-            loading={isPrinting}
-            disabled={rangeIncomplete}
+            loading={activeMode === 'print'}
+            disabled={rangeIncomplete || (isPrinting && activeMode !== 'print')}
             onClick={() => handleGenerate('print')}
           >
             Print

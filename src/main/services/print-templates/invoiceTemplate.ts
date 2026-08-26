@@ -15,17 +15,22 @@ export function getInvoiceTemplate(data: InvoiceTemplateData): string {
   const { company, invoice, lineItems, salespersonName } = data;
   const sym = company.currencySymbol;
 
+  const isCancelled = invoice.status === 'cancelled';
   const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
-  const statusBadge = invoice.status === 'paid'
-    ? '<span class="badge badge-green">Paid</span>'
-    : balance > 0
-      ? `<span class="badge badge-yellow">Balance: ${formatCurrency(balance.toString(), sym)}</span>`
-      : '<span class="badge badge-gray">—</span>';
+  const statusBadge = isCancelled
+    ? '<span class="badge badge-red">Cancelled</span>'
+    : invoice.status === 'paid'
+      ? '<span class="badge badge-green">Paid</span>'
+      : balance > 0
+        ? `<span class="badge badge-yellow">Balance: ${formatCurrency(balance.toString(), sym)}</span>`
+        : '<span class="badge badge-gray">—</span>';
 
   const body = `
+    ${isCancelled ? '<div class="cancelled-watermark">Cancelled</div>' : ''}
     ${getHeader(company)}
 
     <div class="doc-title">Invoice</div>
+    ${isCancelled ? '<div class="cancelled-banner">Cancelled &mdash; No Line Items</div>' : ''}
 
     <div class="info-grid">
       ${getClientBlock(invoice.clientName, invoice.clientAddress1, invoice.clientAddress2, invoice.clientPhone)}

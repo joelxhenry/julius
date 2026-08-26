@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import * as schema from './schema/index';
 import { seedBaseVariants } from './seedBaseVariants';
 import { seedMultiValueFields } from './seedMultiValueFields';
+import { seedCancelEmptyInvoices } from './seedCancelEmptyInvoices';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -121,6 +122,7 @@ export async function runBackgroundSeeds(
   const tasks: { task: string; label: string; run: () => Promise<void> }[] = [
     { task: 'baseVariants', label: 'Updating inventory variants', run: () => seedBaseVariants(db) },
     { task: 'multiValueFields', label: 'Updating multi-value fields', run: () => seedMultiValueFields(db) },
+    { task: 'cancelEmptyInvoices', label: 'Cancelling empty invoices', run: () => seedCancelEmptyInvoices(db) },
   ];
 
   for (const { task, label, run } of tasks) {

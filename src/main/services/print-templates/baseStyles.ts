@@ -61,6 +61,21 @@ export function getBaseStyles(): string {
     .badge-gray { background: #e9ecef; color: #495057; }
     .badge-yellow { background: #fff3cd; color: #856404; }
 
+    /* Cancelled indicators */
+    .cancelled-banner {
+      margin: 14px 0; padding: 12px 16px; background: #e03131; color: #fff;
+      font-size: 20pt; font-weight: 800; text-align: center; letter-spacing: 10px;
+      text-transform: uppercase; border-radius: 4px;
+      box-shadow: 0 0 0 3px #fff, 0 0 0 5px #e03131;
+    }
+    .cancelled-watermark {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-32deg);
+      font-size: 130pt; font-weight: 900; color: rgba(224, 49, 49, 0.13);
+      letter-spacing: 16px; text-transform: uppercase; white-space: nowrap;
+      z-index: -1; pointer-events: none;
+    }
+
     /* Notes */
     .notes { margin-top: 16px; padding: 8px 12px; background: #f9f9f9; border-left: 3px solid #ddd; font-size: 9pt; }
     .notes-label { font-weight: 600; margin-bottom: 4px; }

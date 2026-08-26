@@ -57,7 +57,7 @@ export function OverviewTab({ item }: OverviewTabProps) {
             return (
               <Stack gap={2}>
                 <Text size="xs" c="dimmed">
-                  Category &amp; Models
+                  Vehicle &amp; Models
                 </Text>
                 <Text fw={500}>{values.length > 0 ? values.join(', ') : '-'}</Text>
               </Stack>

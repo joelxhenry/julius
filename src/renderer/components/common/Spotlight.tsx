@@ -34,6 +34,7 @@ const statusColors: Record<string, string> = {
   partially_paid: 'yellow',
   paid: 'green',
   archived: 'gray',
+  cancelled: 'red',
   pending: 'yellow',
   accepted: 'green',
   expired: 'red',

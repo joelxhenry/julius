@@ -29,6 +29,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import { SafeEmployee } from '../../contexts/AuthContext';
 import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
+import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 
 interface Invoice {
   id: number;
@@ -48,6 +49,7 @@ const statusColors: Record<string, string> = {
   partially_paid: 'yellow',
   paid: 'green',
   archived: 'gray',
+  cancelled: 'red',
 };
 
 const statusLabels: Record<string, string> = {
@@ -55,6 +57,7 @@ const statusLabels: Record<string, string> = {
   partially_paid: 'Partial',
   paid: 'Paid',
   archived: 'Archived',
+  cancelled: 'Cancelled',
 };
 
 // Format currency
@@ -89,6 +92,8 @@ export function InvoicesPage() {
   const [sortField, setSortField] = useState<string>('invDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [startDate, endDate] = dateRange;
 
   // Handle sort change
   const handleSort = useCallback((field: string, direction: SortDirection) => {
@@ -116,6 +121,8 @@ export function InvoicesPage() {
           limit: 20,
           sortField,
           sortDirection,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
         });
         if (result.success && result.data) {
           setRecentInvoices(result.data);
@@ -127,7 +134,7 @@ export function InvoicesPage() {
       }
     };
     loadRecent();
-  }, [sortField, sortDirection]);
+  }, [sortField, sortDirection, startDate, endDate]);
 
   // Search invoices
   const searchInvoices = useCallback(async (query: string) => {
@@ -144,6 +151,8 @@ export function InvoicesPage() {
         limit: 50,
         sortField,
         sortDirection,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
       });
       if (result.success && result.data) {
         setSearchResults(result.data);
@@ -153,7 +162,7 @@ export function InvoicesPage() {
     } finally {
       setIsSearching(false);
     }
-  }, [sortField, sortDirection]);
+  }, [sortField, sortDirection, startDate, endDate]);
 
   const debouncedSearch = useDebouncedCallback(searchInvoices, 400);
 
@@ -305,6 +314,7 @@ export function InvoicesPage() {
             size="md"
             style={{ flex: 1 }}
           />
+          <DateRangeFilter value={dateRange} onChange={setDateRange} size="md" />
           <SegmentedControl
             size="md"
             value={statusFilter}
@@ -315,6 +325,7 @@ export function InvoicesPage() {
               { label: 'Partial', value: 'partially_paid' },
               { label: 'Paid', value: 'paid' },
               { label: 'Archived', value: 'archived' },
+              { label: 'Cancelled', value: 'cancelled' },
             ]}
           />
         </Group>

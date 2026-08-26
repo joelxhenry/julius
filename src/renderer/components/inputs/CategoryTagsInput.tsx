@@ -55,7 +55,7 @@ export function CategoryTagsInput({
 
   return (
     <TagsInput
-      label="Categories"
+      label="Vehicles"
       placeholder="Type and press Enter to add"
       data={suggestions}
       onSearchChange={handleSearchChange}

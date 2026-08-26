@@ -78,7 +78,7 @@ const COLUMN_HEADERS: Record<FieldKey, string> = {
   quantity: 'Quantity On Hand',
   price: 'Unit Price',
   cost: 'Cost Price',
-  category: 'Category',
+  category: 'Vehicle',
   model: 'Model',
   minLevel: 'Min Level',
 };
@@ -98,6 +98,7 @@ const HEADER_ALIASES: Record<string, FieldKey | 'sku'> = {
   price: 'price',
   'cost price': 'cost',
   cost: 'cost',
+  vehicle: 'category',
   category: 'category',
   model: 'model',
   'min level': 'minLevel',
@@ -691,7 +692,7 @@ export function MassUpdatePage() {
         <Stack gap={4}>
           <Title order={2}>Mass Update</Title>
           <Text c="dimmed" size="sm">
-            Bulk-edit price, cost, quantity, category, model, and min level for many items via
+            Bulk-edit price, cost, quantity, vehicle, model, and min level for many items via
             CSV / Excel import. Every change is previewed before any data is written.
           </Text>
         </Stack>
@@ -744,7 +745,7 @@ export function MassUpdatePage() {
               <Divider my="xs" />
               <Text size="xs" c="dimmed">
                 Editable columns: <strong>Part Number</strong> (required, used to match the
-                existing item), Quantity On Hand, Unit Price, Cost Price, Category, Model, Min
+                existing item), Quantity On Hand, Unit Price, Cost Price, Vehicle, Model, Min
                 Level.
               </Text>
             </Stack>
