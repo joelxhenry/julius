@@ -4,6 +4,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Stack, Loader, Center, Modal, Text, Group, Button, Paper, Badge, ScrollArea, UnstyledButton } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
+import { modals } from '@mantine/modals';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
@@ -486,11 +487,17 @@ export function InvoiceCreatePage() {
   // Issue invoice after verification
   const handleIssueVerified = useCallback(
     async (override?: AdminOverrideResult) => {
-      if (lineItems.length === 0) {
+      // Editing an existing invoice down to zero line items cancels it.
+      // Creating a new invoice still requires at least one line item.
+      const isCancelling =
+        isEditing && !!id && !!formState.originalInvNumber && lineItems.length === 0;
+
+      if (lineItems.length === 0 && !isCancelling) {
         notifications.show({ title: 'Error', message: 'Please add at least one line item', color: 'red' });
         return;
       }
 
+      const proceed = async () => {
       setIsSaving(true);
       try {
         let invoiceId: number;
@@ -514,6 +521,8 @@ export function InvoiceCreatePage() {
             isTaxable: formState.isTaxable,
             pricing: formState.pricing,
             creditTerms: formState.creditTerms || null,
+            // Zero line items on edit cancels the invoice; otherwise status is preserved.
+            ...(isCancelling && { status: 'cancelled' }),
             ...(override && {
               adminOverrideById: override.adminId,
               adminOverrideNotes: override.notes,
@@ -602,7 +611,13 @@ export function InvoiceCreatePage() {
           }
         }
 
-        notifications.show({ title: 'Success', message: `Invoice ${invNumber} ${isEditing ? 'updated' : 'created and issued'}`, color: 'green' });
+        notifications.show({
+          title: isCancelling ? 'Invoice Cancelled' : 'Success',
+          message: isCancelling
+            ? `Invoice ${invNumber} has been cancelled`
+            : `Invoice ${invNumber} ${isEditing ? 'updated' : 'created and issued'}`,
+          color: isCancelling ? 'orange' : 'green',
+        });
         replaceCurrentTab(`/invoices/${invoiceId}`);
       } catch (error) {
         console.error('Failed to issue invoice:', error);
@@ -614,8 +629,28 @@ export function InvoiceCreatePage() {
       } finally {
         setIsSaving(false);
       }
+      };
+
+      if (isCancelling) {
+        modals.openConfirmModal({
+          title: 'Cancel Invoice',
+          children: (
+            <Text size="sm">
+              This invoice has no line items. Saving will mark invoice{' '}
+              <strong>{formState.originalInvNumber}</strong> as <strong>Cancelled</strong>.
+              This action cannot be undone.
+            </Text>
+          ),
+          labels: { confirm: 'Cancel Invoice', cancel: 'Keep Editing' },
+          confirmProps: { color: 'red' },
+          onConfirm: () => { void proceed(); },
+        });
+        return;
+      }
+
+      await proceed();
     },
-    [formState, client, totals, lineItems, replaceCurrentTab]
+    [formState, client, totals, lineItems, replaceCurrentTab, isEditing, id]
   );
 
   if (isLoading) {

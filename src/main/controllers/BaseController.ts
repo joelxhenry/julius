@@ -10,9 +10,18 @@ export abstract class BaseController<TService> {
 
   async handleError(error: any): Promise<{ success: false; error: string }> {
     console.error('Controller error:', error);
+    // Drizzle wraps driver failures in a "Failed query: ..." error and puts the
+    // real reason (e.g. a dropped/timed-out DB connection) on `.cause`. Surface
+    // that underlying cause so the renderer shows why the query failed, not just
+    // the SQL text.
+    const cause = (error as { cause?: unknown })?.cause;
+    const causeMessage =
+      cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : undefined;
+    const baseMessage = error?.message || 'An error occurred';
+
     return {
       success: false,
-      error: error.message || 'An error occurred',
+      error: causeMessage ? `${baseMessage} (${causeMessage})` : baseMessage,
     };
   }
 

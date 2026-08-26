@@ -32,6 +32,7 @@ import { PinVerificationModal } from '../../components/auth/PinVerificationModal
 import { SafeEmployee } from '../../contexts/AuthContext';
 import { useSpotlight } from '../../contexts/SpotlightContext';
 import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
+import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 
 interface Quotation {
   id: number;
@@ -77,6 +78,8 @@ export function QuotationsPage() {
   const [accessModalOpen, { open: openAccessModal, close: closeAccessModal }] = useDisclosure(false);
   const [sortField, setSortField] = useState<string>('quoteDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [startDate, endDate] = dateRange;
 
   // Handle sort change
   const handleSort = useCallback((field: string, direction: SortDirection) => {
@@ -92,6 +95,8 @@ export function QuotationsPage() {
     page?: number;
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
+    startDate?: string;
+    endDate?: string;
   } = {}) => {
     setIsLoading(true);
     try {
@@ -103,6 +108,8 @@ export function QuotationsPage() {
         pageSize: 50,
         sortField: params.sortField,
         sortDirection: params.sortDirection,
+        startDate: params.startDate || undefined,
+        endDate: params.endDate || undefined,
       });
       if (result.success && result.data) {
         setQuotations(result.data.data || []);
@@ -125,8 +132,10 @@ export function QuotationsPage() {
       page,
       sortField,
       sortDirection,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
     });
-  }, [activeTab, showArchivedOnly, page, loadQuotations, searchQuery, sortField, sortDirection]);
+  }, [activeTab, showArchivedOnly, page, loadQuotations, searchQuery, sortField, sortDirection, startDate, endDate]);
 
   // Debounced search
   const debouncedSearch = useDebouncedCallback((query: string) => {
@@ -290,7 +299,7 @@ export function QuotationsPage() {
         </Group>
 
         {/* Search */}
-        <Group gap="md">
+        <Group gap="md" align="flex-end">
           <TextInput
             placeholder="Search by quote number, client name, or reference..."
             leftSection={isLoading ? <Loader size={14} /> : <IconSearch size={14} />}
@@ -298,6 +307,14 @@ export function QuotationsPage() {
             onChange={(e) => handleSearchChange(e.currentTarget.value)}
             size="md"
             style={{ flex: 1 }}
+          />
+          <DateRangeFilter
+            value={dateRange}
+            onChange={(range) => {
+              setPage(1);
+              setDateRange(range);
+            }}
+            size="md"
           />
           {activeTab === 'all' && (
             <Switch

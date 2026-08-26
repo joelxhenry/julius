@@ -416,9 +416,9 @@ function registerDataHandlers() {
   // ===== INVOICE STATUS HANDLERS =====
   ipcMain.handle(
     IpcChannel.GET_RECENT_INVOICES,
-    async (_, { limit, sortField, sortDirection }: { limit?: number; sortField?: string; sortDirection?: 'asc' | 'desc' } = {}) => {
+    async (_, { limit, sortField, sortDirection, startDate, endDate }: { limit?: number; sortField?: string; sortDirection?: 'asc' | 'desc'; startDate?: string; endDate?: string } = {}) => {
       try {
-        const data = await invoiceService.findRecentInvoices(limit, sortField, sortDirection);
+        const data = await invoiceService.findRecentInvoices(limit, sortField, sortDirection, startDate, endDate);
         return { success: true, data };
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -435,9 +435,9 @@ function registerDataHandlers() {
   });
   ipcMain.handle(
     IpcChannel.SEARCH_INVOICES,
-    async (_, { query, limit, sortField, sortDirection }: { query: string; limit?: number; sortField?: string; sortDirection?: 'asc' | 'desc' }) => {
+    async (_, { query, limit, sortField, sortDirection, startDate, endDate }: { query: string; limit?: number; sortField?: string; sortDirection?: 'asc' | 'desc'; startDate?: string; endDate?: string }) => {
       try {
-        const data = await invoiceService.searchInvoices(query, limit, sortField, sortDirection);
+        const data = await invoiceService.searchInvoices(query, limit, sortField, sortDirection, startDate, endDate);
         return { success: true, data };
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -627,11 +627,51 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, (_, { invNumber }: { invNumber: string }) => documentLineItemController.getByInvoice(invNumber));
   ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_QUOTATION, (_, { quoteNum }: { quoteNum: string }) => documentLineItemController.getByQuotation(quoteNum));
   ipcMain.handle(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_CREDIT_NOTE, (_, { crNumber }: { crNumber: string }) => documentLineItemController.getByCreditNote(crNumber));
-  ipcMain.handle(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, (_, data: any) => documentLineItemController.create(data));
-  ipcMain.handle(IpcChannel.CREATE_DOCUMENT_LINE_ITEMS_BULK, (_, { items }: { items: any[] }) => documentLineItemController.bulkCreate(items));
+  // Keep an invoice's status in sync whenever its line items change. Best-effort:
+  // a sync failure must not fail the underlying line-item operation.
+  const syncInvoiceStatusIfNeeded = async (documentType?: string, documentNumber?: string) => {
+    if (documentType !== 'INVOICE' || !documentNumber) return;
+    try {
+      await invoiceService.syncStatusFromLineItems(documentNumber);
+    } catch (error) {
+      console.error(`Failed to sync invoice status for ${documentNumber} after line item change:`, error);
+    }
+  };
+
+  ipcMain.handle(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, async (_, data: any) => {
+    const result = await documentLineItemController.create(data);
+    if (result.success) await syncInvoiceStatusIfNeeded(data?.documentType, data?.documentNumber);
+    return result;
+  });
+  ipcMain.handle(IpcChannel.CREATE_DOCUMENT_LINE_ITEMS_BULK, async (_, { items }: { items: any[] }) => {
+    const result = await documentLineItemController.bulkCreate(items);
+    if (result.success) {
+      const invNumbers = [
+        ...new Set(
+          (items || [])
+            .filter((i) => i?.documentType === 'INVOICE' && i?.documentNumber)
+            .map((i) => i.documentNumber as string)
+        ),
+      ];
+      for (const invNumber of invNumbers) await syncInvoiceStatusIfNeeded('INVOICE', invNumber);
+    }
+    return result;
+  });
   ipcMain.handle(IpcChannel.UPDATE_DOCUMENT_LINE_ITEM, (_, { id, data }: any) => documentLineItemController.update(id, data));
-  ipcMain.handle(IpcChannel.DELETE_DOCUMENT_LINE_ITEM, (_, { id }: { id: number }) => documentLineItemController.delete(id));
-  ipcMain.handle(IpcChannel.DELETE_DOCUMENT_LINE_ITEMS_BY_DOCUMENT, (_, { documentType, documentNumber }: { documentType: 'INVOICE' | 'QUOTE' | 'CREDIT'; documentNumber: string }) => documentLineItemController.deleteByDocument(documentType, documentNumber));
+  ipcMain.handle(IpcChannel.DELETE_DOCUMENT_LINE_ITEM, async (_, { id }: { id: number }) => {
+    // Capture the parent document before deleting so we know which invoice to re-sync.
+    const existing = await documentLineItemController.getById(id);
+    const result = await documentLineItemController.delete(id);
+    if (result.success && existing.success && existing.data?.documentType === 'INVOICE') {
+      await syncInvoiceStatusIfNeeded('INVOICE', existing.data.documentNumber);
+    }
+    return result;
+  });
+  ipcMain.handle(IpcChannel.DELETE_DOCUMENT_LINE_ITEMS_BY_DOCUMENT, async (_, { documentType, documentNumber }: { documentType: 'INVOICE' | 'QUOTE' | 'CREDIT'; documentNumber: string }) => {
+    const result = await documentLineItemController.deleteByDocument(documentType, documentNumber);
+    if (result.success) await syncInvoiceStatusIfNeeded(documentType, documentNumber);
+    return result;
+  });
 
   // ===== BILL HANDLERS =====
   ipcMain.handle(IpcChannel.GET_BILLS, () => billController.getAll());

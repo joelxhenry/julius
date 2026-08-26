@@ -3,7 +3,8 @@ import { clients } from './clients';
 import { employees } from './employees';
 
 // Invoice status flow: active -> partially_paid -> paid -> archived
-export type InvoiceStatus = 'active' | 'partially_paid' | 'paid' | 'archived';
+// 'cancelled' is a terminal state set when an invoice is edited down to zero line items
+export type InvoiceStatus = 'active' | 'partially_paid' | 'paid' | 'archived' | 'cancelled';
 
 // INVOICE table - sales invoices
 export const invoices = pgTable('invoices', {

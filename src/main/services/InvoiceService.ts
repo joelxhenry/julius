@@ -323,15 +323,25 @@ export class InvoiceService extends BaseService<
   async findRecentInvoices(
     limit: number = 20,
     sortField: string = 'invDate',
-    sortDirection: 'asc' | 'desc' = 'desc'
+    sortDirection: 'asc' | 'desc' = 'desc',
+    startDate?: string,
+    endDate?: string
   ): Promise<schema.Invoice[]> {
     const sortColumn = this.getSortColumn(sortField);
     const orderFn = sortDirection === 'asc' ? asc : desc;
 
+    const conditions = [eq(schema.invoices.isArchived, false)];
+    if (startDate) {
+      conditions.push(gte(schema.invoices.invDate, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(schema.invoices.invDate, endDate));
+    }
+
     return this.db
       .select()
       .from(schema.invoices)
-      .where(eq(schema.invoices.isArchived, false))
+      .where(and(...conditions))
       .orderBy(orderFn(sortColumn))
       .limit(limit);
   }
@@ -592,7 +602,9 @@ export class InvoiceService extends BaseService<
     query: string,
     limit: number = 20,
     sortField: string = 'invDate',
-    sortDirection: 'asc' | 'desc' = 'desc'
+    sortDirection: 'asc' | 'desc' = 'desc',
+    startDate?: string,
+    endDate?: string
   ): Promise<schema.Invoice[]> {
     if (!query || query.trim().length < 2) {
       return [];
@@ -602,16 +614,24 @@ export class InvoiceService extends BaseService<
     const sortColumn = this.getSortColumn(sortField);
     const orderFn = sortDirection === 'asc' ? asc : desc;
 
+    const conditions = [
+      or(
+        ilike(schema.invoices.invNumber, searchTerm),
+        ilike(schema.invoices.clientName, searchTerm),
+        ilike(schema.invoices.reference, searchTerm)
+      ),
+    ];
+    if (startDate) {
+      conditions.push(gte(schema.invoices.invDate, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(schema.invoices.invDate, endDate));
+    }
+
     return this.db
       .select()
       .from(schema.invoices)
-      .where(
-        or(
-          ilike(schema.invoices.invNumber, searchTerm),
-          ilike(schema.invoices.clientName, searchTerm),
-          ilike(schema.invoices.reference, searchTerm)
-        )
-      )
+      .where(and(...conditions))
       .orderBy(orderFn(sortColumn))
       .limit(limit);
   }
@@ -621,6 +641,53 @@ export class InvoiceService extends BaseService<
       status,
       updatedAt: new Date(),
     });
+  }
+
+  /**
+   * Re-evaluate an invoice's status from its current line items. Call this after
+   * any line-item mutation (create/delete) so the stored status stays in sync:
+   *   - zero line items                     -> 'cancelled'
+   *   - line items exist and status is       -> restored to a payment-based status
+   *     'cancelled' (i.e. re-populated)         (paid / partially_paid / active)
+   * Any other status with line items present is left untouched, so this never
+   * clobbers a paid/partially_paid/archived invoice that still has line items.
+   */
+  async syncStatusFromLineItems(invNumber: string): Promise<schema.Invoice | null> {
+    const [invoice] = await this.db
+      .select()
+      .from(schema.invoices)
+      .where(eq(schema.invoices.invNumber, invNumber))
+      .limit(1);
+    if (!invoice) return null;
+
+    const [{ value: lineItemCount }] = await this.db
+      .select({ value: count() })
+      .from(schema.documentLineItems)
+      .where(
+        and(
+          eq(schema.documentLineItems.documentType, 'INVOICE'),
+          eq(schema.documentLineItems.documentNumber, invNumber)
+        )
+      );
+    const hasLineItems = Number(lineItemCount) > 0;
+
+    if (!hasLineItems) {
+      // No line items left -> cancel (unless already cancelled).
+      if (invoice.status === 'cancelled') return invoice;
+      return this.updateInvoiceStatus(invoice.id, 'cancelled');
+    }
+
+    // Line items are present again -> restore a previously cancelled invoice to a
+    // payment-appropriate status. Leave every other status as-is.
+    if (invoice.status === 'cancelled') {
+      const total = parseFloat(invoice.total || '0');
+      const totalPaid = parseFloat(invoice.totalPaid || '0');
+      const restored: InvoiceStatus =
+        total > 0 && totalPaid >= total ? 'paid' : totalPaid > 0 ? 'partially_paid' : 'active';
+      return this.updateInvoiceStatus(invoice.id, restored);
+    }
+
+    return invoice;
   }
 
   /**

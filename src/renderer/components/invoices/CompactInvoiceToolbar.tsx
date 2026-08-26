@@ -1,5 +1,5 @@
 import { Group, Text, Button, ActionIcon, Paper } from '@mantine/core';
-import { IconCheck, IconKeyboard, IconCash } from '@tabler/icons-react';
+import { IconCheck, IconKeyboard, IconCash, IconBan } from '@tabler/icons-react';
 
 interface InvoiceTotals {
   subTotal: number;
@@ -37,6 +37,9 @@ export function CompactInvoiceToolbar({
   onSaveAndPay,
   onOpenShortcuts,
 }: CompactInvoiceToolbarProps) {
+  // Editing an existing invoice down to zero line items cancels it.
+  const isCancelling = isEditing && !hasLineItems;
+
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 48 }}>
       <Group justify="space-between" wrap="nowrap" h="100%">
@@ -76,13 +79,13 @@ export function CompactInvoiceToolbar({
           </ActionIcon>
           <Button
             size="xs"
-            color="green"
-            leftSection={<IconCheck size={14} />}
+            color={isCancelling ? 'red' : 'green'}
+            leftSection={isCancelling ? <IconBan size={14} /> : <IconCheck size={14} />}
             onClick={onIssueInvoice}
             loading={isSaving}
-            disabled={!hasLineItems}
+            disabled={!hasLineItems && !isCancelling}
           >
-            Save & Issue
+            {isCancelling ? 'Cancel Invoice' : 'Save & Issue'}
           </Button>
           <Button
             size="xs"

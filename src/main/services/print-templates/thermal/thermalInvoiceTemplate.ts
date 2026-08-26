@@ -15,8 +15,10 @@ export function getThermalInvoiceTemplate(data: InvoiceTemplateData, paperWidth:
   const { company, invoice, lineItems, salespersonName } = data;
   const sym = company.currencySymbol;
 
+  const isCancelled = invoice.status === 'cancelled';
   const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
-  const statusText = invoice.status === 'paid' ? 'PAID'
+  const statusText = isCancelled ? 'CANCELLED'
+    : invoice.status === 'paid' ? 'PAID'
     : balance > 0 ? `BAL: ${formatCurrency(balance.toString(), sym)}`
     : invoice.status.toUpperCase();
 
@@ -24,6 +26,7 @@ export function getThermalInvoiceTemplate(data: InvoiceTemplateData, paperWidth:
     ${getThermalHeader(company)}
 
     <div class="thermal-title">Invoice</div>
+    ${isCancelled ? '<div style="text-align: center; font-weight: 800; font-size: 13pt; background: #000; color: #fff; padding: 5px 2px; margin: 5px 0; letter-spacing: 5px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">CANCELLED</div>' : ''}
 
     <hr class="sep">
 

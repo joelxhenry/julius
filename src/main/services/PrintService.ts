@@ -5,7 +5,7 @@ import { SystemSettingsService, SystemSettingKeys } from './SystemSettingsServic
 import { InvoiceService } from './InvoiceService';
 import { QuotationService } from './QuotationService';
 import { CreditNoteService } from './CreditNoteService';
-import { PaymentService } from './PaymentService';
+import { PaymentService, PaymentMethodService } from './PaymentService';
 import { ClientService } from './ClientService';
 import { DocumentLineItemService } from './DocumentLineItemService';
 import { EmployeeService } from './EmployeeService';
@@ -52,6 +52,7 @@ export class PrintService {
     private quotationService: QuotationService,
     private creditNoteService: CreditNoteService,
     private paymentService: PaymentService,
+    private paymentMethodService: PaymentMethodService,
     private clientService: ClientService,
     private documentLineItemService: DocumentLineItemService,
     private employeeService: EmployeeService,
@@ -705,6 +706,40 @@ export class PrintService {
     return value < 0 ? `(${formatted})` : formatted;
   }
 
+  /**
+   * Human-readable payment detail: the payment method (type), its transaction
+   * reference, and any note. The method code is stored in either paymentDesc or
+   * paymentDesc2, so we resolve whichever matches a known method and treat the
+   * remaining descriptive fields as notes.
+   */
+  private buildPaymentDescription(
+    p: { paymentDesc: string | null; paymentDesc2: string | null; transactionReference: string | null },
+    methodMap: Map<string, string>,
+  ): string {
+    const codeMatch = [p.paymentDesc, p.paymentDesc2].find((v) => v && methodMap.has(v)) || null;
+    const methodName = codeMatch ? (methodMap.get(codeMatch) ?? null) : (p.paymentDesc || null);
+
+    const parts: string[] = [];
+    const seen = new Set<string>();
+    if (methodName) {
+      parts.push(methodName);
+      seen.add(methodName);
+    }
+    if (codeMatch) seen.add(codeMatch);
+    if (p.transactionReference) {
+      parts.push(`Ref: ${p.transactionReference}`);
+      seen.add(p.transactionReference);
+    }
+    // Any leftover desc field that isn't the method code or already shown is a note.
+    for (const v of [p.paymentDesc, p.paymentDesc2]) {
+      if (v && !seen.has(v)) {
+        parts.push(v);
+        seen.add(v);
+      }
+    }
+    return parts.join(' • ');
+  }
+
   private async buildClientStatementData(request: ClientStatementRequest): Promise<ClientStatementTemplateData> {
     const { clientId, startDate, endDate } = request;
     const company = await this.loadCompanyInfo();
@@ -715,11 +750,14 @@ export class PrintService {
 
     // Fetch the full history; the date range is applied in-memory so we can
     // also compute the balance carried into the period.
-    const [allInvoices, allPayments, allCreditNotes] = await Promise.all([
+    const [allInvoices, allPayments, allCreditNotes, paymentMethods] = await Promise.all([
       this.invoiceService.findByClient(clientId),
       this.paymentService.findByClient(clientId),
       this.creditNoteService.findByClient(clientId),
+      this.paymentMethodService.findAll(),
     ]);
+
+    const methodMap = new Map<string, string>(paymentMethods.map((m) => [m.code, m.name]));
 
     // Build a unified ledger of debits (increase what the client owes) and
     // credits (reduce it). Credit notes are shown as their own credit line, so
@@ -753,7 +791,7 @@ export class PrintService {
         date: p.paymentDate,
         type: 'Payment',
         reference: p.documentNumber,
-        description: p.paymentDesc || p.paymentDesc2 || '',
+        description: this.buildPaymentDescription(p, methodMap),
         debit: 0,
         credit: parseFloat(p.amount) || 0,
       });

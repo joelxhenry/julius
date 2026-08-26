@@ -169,7 +169,7 @@ export function InventoryListPage() {
       },
       {
         key: 'category',
-        header: 'Category/Model',
+        header: 'Vehicle/Model',
         width: 560,
         render: (item) => {
           const categories = normalizeToArray(item.category);
@@ -259,7 +259,7 @@ export function InventoryListPage() {
               style={{ flex: 2, minWidth: 240 }}
             />
             <Autocomplete
-              placeholder="Filter by category"
+              placeholder="Filter by vehicle"
               leftSection={<IconCategory size={16} />}
               value={categoryFilter}
               onChange={setCategoryFilter}

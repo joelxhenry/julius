@@ -29,6 +29,7 @@ const statusColors: Record<string, string> = {
   partially_paid: 'yellow',
   paid: 'green',
   archived: 'gray',
+  cancelled: 'red',
 };
 
 const statusLabels: Record<string, string> = {
@@ -36,6 +37,7 @@ const statusLabels: Record<string, string> = {
   partially_paid: 'Partial',
   paid: 'Paid',
   archived: 'Archived',
+  cancelled: 'Cancelled',
 };
 
 const statusOptions = [
@@ -43,6 +45,7 @@ const statusOptions = [
   { value: 'active', label: 'Active' },
   { value: 'partially_paid', label: 'Partial' },
   { value: 'paid', label: 'Paid' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const formatCurrency = (value: string | null) => {
