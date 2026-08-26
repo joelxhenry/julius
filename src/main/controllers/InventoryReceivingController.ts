@@ -46,6 +46,15 @@ export class InventoryReceivingController extends BaseController<InventoryReceiv
     }
   }
 
+  async getBySupplierId(supplierId: number) {
+    try {
+      const items = await this.service.findBySupplierId(supplierId);
+      return this.wrapSuccess(items);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async getBySupplierIdPaginated(supplierId: number, params: ReceivingQueryParams = {}) {
     try {
       const result = await this.service.findBySupplierIdPaginated(supplierId, params);

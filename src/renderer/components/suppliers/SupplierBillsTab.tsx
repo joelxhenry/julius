@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Paper, Badge, Text, ActionIcon } from '@mantine/core';
-import { IconEye } from '@tabler/icons-react';
+import { Paper, Badge, Text, ActionIcon, Stack, Group, Select, Button } from '@mantine/core';
+import { IconEye, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
+import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface Bill {
@@ -54,6 +55,8 @@ export function SupplierBillsTab({ supplierId }: SupplierBillsTabProps) {
   const navigate = useNavigate();
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
 
   useEffect(() => {
     loadBills();
@@ -73,6 +76,38 @@ export function SupplierBillsTab({ supplierId }: SupplierBillsTabProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Build status options from the statuses actually present on this supplier's
+  // bills so the filter never offers a value that would hide every row.
+  const statusOptions = useMemo(() => {
+    const present = Array.from(new Set(bills.map((b) => b.status).filter(Boolean)));
+    present.sort();
+    return [
+      { value: 'all', label: 'All Statuses' },
+      ...present.map((value) => ({ value, label: statusLabels[value] || value })),
+    ];
+  }, [bills]);
+
+  const [startDate, endDate] = dateRange;
+  const hasActiveFilters = status !== 'all' || startDate !== null || endDate !== null;
+
+  const filteredBills = useMemo(() => {
+    return bills.filter((bill) => {
+      if (status !== 'all' && bill.status !== status) return false;
+      if (startDate || endDate) {
+        if (!bill.billDate) return false;
+        const day = bill.billDate.slice(0, 10);
+        if (startDate && day < startDate) return false;
+        if (endDate && day > endDate) return false;
+      }
+      return true;
+    });
+  }, [bills, status, startDate, endDate]);
+
+  const clearFilters = () => {
+    setStatus('all');
+    setDateRange([null, null]);
   };
 
   const columns: Column<Bill>[] = useMemo(
@@ -143,17 +178,43 @@ export function SupplierBillsTab({ supplierId }: SupplierBillsTabProps) {
   );
 
   return (
-    <Paper p="md" radius="md" withBorder>
-      <DataTable
-        columns={columns}
-        data={bills}
-        loading={loading}
-        keyField="id"
-        emptyMessage="No bills found for this supplier"
-        minWidth={700}
-        onRowClick={(bill) => navigate(`/bills/${bill.id}`)}
-        stickyActionsColumn
-      />
-    </Paper>
+    <Stack gap="md">
+      <Paper p="md" radius="md" withBorder>
+        <Group gap="md" align="flex-end" wrap="wrap">
+          <Select
+            label="Status"
+            data={statusOptions}
+            value={status}
+            onChange={(value) => setStatus(value || 'all')}
+            allowDeselect={false}
+            w={180}
+          />
+          <DateRangeFilter value={dateRange} onChange={setDateRange} />
+          {hasActiveFilters && (
+            <Button
+              variant="subtle"
+              color="gray"
+              leftSection={<IconFilterOff size={16} />}
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          )}
+        </Group>
+      </Paper>
+
+      <Paper p="md" radius="md" withBorder>
+        <DataTable
+          columns={columns}
+          data={filteredBills}
+          loading={loading}
+          keyField="id"
+          emptyMessage="No bills found for this supplier"
+          minWidth={700}
+          onRowClick={(bill) => navigate(`/bills/${bill.id}`)}
+          stickyActionsColumn
+        />
+      </Paper>
+    </Stack>
   );
 }
