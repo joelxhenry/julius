@@ -47,14 +47,9 @@ export function useInventorySearch(config: UseInventorySearchOptions = {}) {
       if (result.success && result.data) {
         setItemOptions(
           result.data.map((item: InventorySearchItem) => {
-            let label: string;
-            if (item.isBase) {
-              // Base variant - show as regular item (no prefix)
-              label = `${item.sku}    —    ${item.description1 || item.variantName || 'No description'}`;
-            } else {
-              // Non-base variant - show variant indicator
-              label = `[V] ${item.sku}    —    ${item.variantName || item.description1 || 'No name'}`;
-            }
+            // Every product has at least one variant, so there's no distinct
+            // "base product" to flag — all results render identically as variants.
+            const label = `${item.sku}    —    ${item.variantName || item.description1 || 'No description'}`;
             return { value: item.sku, label, item };
           })
         );

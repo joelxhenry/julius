@@ -32,7 +32,6 @@ import {
   IconChartLine,
   IconAlertTriangle,
   IconCheck,
-  IconPhoto,
   IconPackageImport,
   IconCurrencyDollar,
 } from '@tabler/icons-react';
@@ -42,9 +41,9 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
-import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, GalleryTab, ReceivingTab, InventoryEditModal, InventoryLookupTicketButton } from '../../components/inventory';
+import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, ReceivingTab, InventoryEditModal, InventoryLookupTicketButton } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
-import { ImageGalleryModal } from '../../components/common/ImageGalleryModal';
+import { ProductImageModal } from '../../components/common/ProductImageModal';
 import { CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
 
@@ -85,6 +84,7 @@ interface Variant {
   priceCurrency: string;
   wholesalePrice: string | null;
   isActive: boolean;
+  isBase: boolean;
 }
 
 interface InventoryAlternate {
@@ -190,8 +190,8 @@ export function InventoryDetailPage() {
   // Edit modal
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // Gallery modal for header image
-  const [headerGalleryOpen, setHeaderGalleryOpen] = useState(false);
+  // Image modal for header thumbnail (upload/replace/remove)
+  const [headerImageOpen, setHeaderImageOpen] = useState(false);
 
   const itemId = id ? parseInt(id, 10) : null;
 
@@ -725,14 +725,12 @@ export function InventoryDetailPage() {
     })),
   ];
 
-  // Options for the stock-adjustment target (empty value = base item).
-  const adjustVariantOptions = [
-    { value: '', label: `Base item (${item?.sku ?? ''})` },
-    ...variants.map((v) => ({
-      value: v.variantSku,
-      label: v.variantName ? `${v.variantSku} — ${v.variantName}` : v.variantSku,
-    })),
-  ];
+  // Options for the stock-adjustment target — every product has at least one
+  // variant, so there's no separate "base item" to adjust; only variants show.
+  const adjustVariantOptions = variants.map((v) => ({
+    value: v.variantSku,
+    label: v.variantName ? `${v.variantSku} — ${v.variantName}` : v.variantSku,
+  }));
 
   if (loading) {
     return (
@@ -777,7 +775,7 @@ export function InventoryDetailPage() {
             sku={item.sku}
             isVariant={false}
             size={100}
-            onClick={() => setHeaderGalleryOpen(true)}
+            onClick={() => setHeaderImageOpen(true)}
             showTooltip
           />
           <Stack gap={4}>
@@ -810,7 +808,15 @@ export function InventoryDetailPage() {
             variant="outline"
             leftSection={<IconAdjustments size={16} />}
             onClick={() => {
-              stockAdjustForm.reset();
+              // Default the target to the base variant (falling back to the first
+              // variant) so a real variant is always selected — there is no base item.
+              const defaultVariant = variants.find((v) => v.isBase) ?? variants[0];
+              stockAdjustForm.setValues({
+                variantSku: defaultVariant?.variantSku ?? '',
+                adjustmentType: 'set',
+                quantity: 0,
+                reason: '',
+              });
               setStockAdjustOpen(true);
             }}
           >
@@ -887,9 +893,6 @@ export function InventoryDetailPage() {
           </Tabs.Tab>
           <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
             Receiving
-          </Tabs.Tab>
-          <Tabs.Tab value="gallery" leftSection={<IconPhoto size={16} />}>
-            Gallery
           </Tabs.Tab>
         </Tabs.List>
 
@@ -976,14 +979,6 @@ export function InventoryDetailPage() {
         <Tabs.Panel value="receiving" pt="md">
           <ReceivingTab sku={item.sku} />
         </Tabs.Panel>
-
-        {/* Gallery Tab */}
-        <Tabs.Panel value="gallery" pt="md">
-          <GalleryTab
-            item={item}
-            variants={variants}
-          />
-        </Tabs.Panel>
       </Tabs>
 
       {/* Stock Adjustment Modal */}
@@ -998,7 +993,7 @@ export function InventoryDetailPage() {
             {variants.length > 0 && (
               <Select
                 label="Variant"
-                description="Adjust the base item or one of its variants"
+                description="Select the variant to adjust"
                 data={adjustVariantOptions}
                 {...stockAdjustForm.getInputProps('variantSku')}
               />
@@ -1101,13 +1096,13 @@ export function InventoryDetailPage() {
         }}
       />
 
-      {/* Header Image Gallery Modal */}
-      <ImageGalleryModal
-        opened={headerGalleryOpen}
-        onClose={() => setHeaderGalleryOpen(false)}
+      {/* Header Image Modal (upload / replace / remove) */}
+      <ProductImageModal
+        opened={headerImageOpen}
+        onClose={() => setHeaderImageOpen(false)}
         sku={item.sku}
         isVariant={false}
-        title={`${item.sku} - Images`}
+        title={`${item.sku} - Image`}
       />
     </Stack>
   );
