@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Select, Loader, Text, Group, Stack } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { ProductDisplay } from '../common';
 
 interface InventoryItem {
   id: number;
@@ -9,6 +10,7 @@ interface InventoryItem {
   description1: string | null;
   description2: string | null;
   category: string | null;
+  model: string | null;
   quantity: number;
   price: string;
 }
@@ -144,9 +146,9 @@ export function InventorySelect({
 
     return (
       <Stack gap={2}>
-        <Group justify="space-between">
-          <Text size="sm" fw={500}>{item.sku}</Text>
-          <Text size="xs" c="dimmed">Qty: {item.quantity}</Text>
+        <Group justify="space-between" wrap="nowrap" align="flex-start">
+          <ProductDisplay product={item} size="xs" showCopyButton={false} />
+          <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>Qty: {item.quantity}</Text>
         </Group>
         <Text size="xs" c="dimmed" lineClamp={1}>
           {item.description1 || 'No description'}
