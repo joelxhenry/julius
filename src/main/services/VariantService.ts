@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, ilike, desc, count, or } from 'drizzle-orm';
+import { eq, and, ilike, asc, count, or } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -125,7 +125,7 @@ export class VariantService extends BaseService<
       .select()
       .from(schema.variants)
       .where(whereCondition)
-      .orderBy(desc(schema.variants.id))
+      .orderBy(asc(schema.variants.variantSku))
       .limit(pageSize)
       .offset(offset);
 
@@ -142,7 +142,8 @@ export class VariantService extends BaseService<
     return this.db
       .select()
       .from(schema.variants)
-      .where(eq(schema.variants.parentSku, parentSku));
+      .where(eq(schema.variants.parentSku, parentSku))
+      .orderBy(asc(schema.variants.variantSku));
   }
 
   async findByInventoryId(inventoryId: number): Promise<schema.Variant[]> {
@@ -189,7 +190,8 @@ export class VariantService extends BaseService<
     return this.db
       .select()
       .from(schema.variants)
-      .where(and(...conditions));
+      .where(and(...conditions))
+      .orderBy(asc(schema.variants.variantSku));
   }
 
   async searchForSelect(query: string, limit = 20): Promise<VariantWithInventory[]> {
@@ -238,7 +240,7 @@ export class VariantService extends BaseService<
       .from(schema.variants)
       .innerJoin(schema.inventory, eq(schema.variants.parentSku, schema.inventory.sku))
       .where(whereCondition)
-      .orderBy(desc(schema.variants.id))
+      .orderBy(asc(schema.variants.variantSku))
       .limit(limit);
 
     return results;

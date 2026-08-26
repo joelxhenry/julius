@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { or, ilike, desc, eq } from 'drizzle-orm';
+import { or, ilike, asc, desc, eq } from 'drizzle-orm';
 import * as schema from '../database/schema';
 
 export interface SpotlightResult {
@@ -119,7 +119,7 @@ export class SpotlightService {
               ilike(schema.variants.description, searchTerm)
             )
           )
-          .orderBy(desc(schema.variants.createdAt))
+          .orderBy(asc(schema.variants.variantSku))
           .limit(limitPerType);
 
         for (const { variant, parent } of variantsWithParent) {
