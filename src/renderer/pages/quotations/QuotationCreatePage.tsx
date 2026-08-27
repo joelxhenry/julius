@@ -29,10 +29,10 @@ import {
   TargetTotalModal,
   KeyboardShortcutsModal,
   Client,
-  InventoryItem,
   LineItem,
   formatCurrency,
 } from '../../components/invoices';
+import type { ProductSearchItem } from '../../hooks';
 import { useVariants } from '../../hooks/useVariants';
 import { useTaxRate } from '../../hooks/useTaxRate';
 import { useTrayDraftIntegration } from '../../hooks/useTrayDraftIntegration';
@@ -84,10 +84,6 @@ export function QuotationCreatePage() {
   const [clientOptions, setClientOptions] = useState<{ value: string; label: string; client: Client }[]>([]);
   const [isSearchingClients, setIsSearchingClients] = useState(false);
 
-  const [itemSearch, setItemSearch] = useState('');
-  const [itemOptions, setItemOptions] = useState<{ value: string; label: string; item: InventoryItem }[]>([]);
-  const [isSearchingItems, setIsSearchingItems] = useState(false);
-
   // Loading state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -117,7 +113,7 @@ export function QuotationCreatePage() {
 
   // Variant selection
   const [variantModalOpen, { open: openVariantModal, close: closeVariantModal }] = useDisclosure(false);
-  const [pendingItem, setPendingItem] = useState<InventoryItem | null>(null);
+  const [pendingItem, setPendingItem] = useState<ProductSearchItem | null>(null);
   const { variants, isLoading: isLoadingVariants, checkHasVariants, loadVariants, clearVariants } = useVariants();
 
   // Bulk discount modal
@@ -295,32 +291,6 @@ export function QuotationCreatePage() {
     }
   }, 300);
 
-  // Search inventory items
-  const searchItems = useDebouncedCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setItemOptions([]);
-      return;
-    }
-
-    setIsSearchingItems(true);
-    try {
-      const result = await window.electron.invoke(IpcChannel.SEARCH_INVENTORY_FOR_SELECT, { query, limit: 15 });
-      if (result.success && result.data) {
-        setItemOptions(
-          result.data.map((item: InventoryItem) => ({
-            value: item.sku,
-            label: `${item.sku} - ${item.description1 || 'No description'}`,
-            item,
-          }))
-        );
-      }
-    } catch (error) {
-      console.error('Failed to search items:', error);
-    } finally {
-      setIsSearchingItems(false);
-    }
-  }, 300);
-
   // Handle client selection
   const handleClientSelect = useCallback(
     (value: string) => {
@@ -337,7 +307,7 @@ export function QuotationCreatePage() {
 
   // Add line item from inventory item
   const addLineItemFromInventory = useCallback(
-    (item: InventoryItem, sku?: string, description?: string, isVariant: boolean = false) => {
+    (item: ProductSearchItem, sku?: string, description?: string, isVariant = false) => {
       const unitPrice = pricing === 'W' ? parseFloat(item.cost || '0') * 1.15 : parseFloat(item.price || '0');
 
       const newLineItem: LineItem = {
@@ -354,8 +324,9 @@ export function QuotationCreatePage() {
       };
 
       setLineItems((prev) => [...prev, newLineItem]);
-      setItemSearch('');
-      setItemOptions([]);
+      // Move focus straight into the new line's quantity field.
+      setSelectedLineItemId(newLineItem.id);
+      setFocusTrigger({ field: 'quantity', timestamp: Date.now() });
     },
     [pricing]
   );
@@ -377,30 +348,25 @@ export function QuotationCreatePage() {
     [pendingItem, addLineItemFromInventory, clearVariants]
   );
 
-  // Handle item selection
-  const handleItemSelect = useCallback(
-    async (value: string) => {
-      const option = itemOptions.find((o) => o.value === value);
-      if (option) {
-        const item = option.item;
+  // Handle product selection from the multi-field search results
+  const handleProductSelect = useCallback(
+    async (item: ProductSearchItem) => {
+      if (item.isVariant) {
+        addLineItemFromInventory(item, item.sku, item.variantName || item.description1 || '', true);
+        return;
+      }
 
-        if ((item as any).isVariant) {
-          addLineItemFromInventory(item, item.sku, (item as any).variantName || item.description1 || '', true);
-          return;
-        }
+      const hasVariants = await checkHasVariants(item.sku);
 
-        const hasVariants = await checkHasVariants(item.sku);
-
-        if (hasVariants) {
-          setPendingItem(item);
-          await loadVariants(item.sku);
-          openVariantModal();
-        } else {
-          addLineItemFromInventory(item);
-        }
+      if (hasVariants) {
+        setPendingItem(item);
+        await loadVariants(item.sku);
+        openVariantModal();
+      } else {
+        addLineItemFromInventory(item);
       }
     },
-    [itemOptions, checkHasVariants, loadVariants, addLineItemFromInventory, openVariantModal]
+    [checkHasVariants, loadVariants, addLineItemFromInventory, openVariantModal]
   );
 
   // Update line item
@@ -750,7 +716,7 @@ export function QuotationCreatePage() {
           pricing={pricing}
           setPricing={setPricing}
           creditTerms=""
-          setCreditTerms={() => {}}
+          setCreditTerms={() => { /* quotations have no credit terms */ }}
           isTaxable={isTaxable}
           setIsTaxable={setIsTaxable}
           taxRate={taxRate}
@@ -761,12 +727,7 @@ export function QuotationCreatePage() {
         {/* Line Items - Primary Focus */}
         <InvoiceLineItemsTable
           lineItems={lineItems}
-          itemSearch={itemSearch}
-          setItemSearch={setItemSearch}
-          itemOptions={itemOptions}
-          isSearchingItems={isSearchingItems}
-          onItemSearchChange={searchItems}
-          onItemSelect={handleItemSelect}
+          onProductSelect={handleProductSelect}
           onUpdateLineItem={updateLineItem}
           onRemoveLineItem={removeLineItem}
           formatCurrency={formatCurrency}

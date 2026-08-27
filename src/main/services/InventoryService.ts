@@ -30,6 +30,8 @@ export interface UnifiedSearchResult {
   isBase?: boolean; // True if this is a base variant
   parentSku: string | null;
   variantName: string | null;
+  category: string | null;
+  model: string | null;
 }
 
 export class InventoryService extends BaseService<
@@ -310,14 +312,47 @@ export class InventoryService extends BaseService<
    * All inventory items have base variants, so this covers all products
    * Useful for invoice line item selection
    */
-  async searchWithVariants(query: string, limit = 20): Promise<UnifiedSearchResult[]> {
+  async searchWithVariants(
+    query: string,
+    limit = 20,
+    filters: { category?: string; model?: string } = {}
+  ): Promise<UnifiedSearchResult[]> {
     const results: UnifiedSearchResult[] = [];
 
-    if (!query || !query.trim()) {
+    const trimmedQuery = query?.trim() ?? '';
+    const category = filters.category?.trim() ?? '';
+    const model = filters.model?.trim() ?? '';
+
+    // Require at least one active filter — otherwise this would scan everything.
+    if (!trimmedQuery && !category && !model) {
       return results;
     }
 
-    const searchTerm = `%${query.trim()}%`;
+    // Build AND-combined conditions: free-text query (across sku/description/model)
+    // plus optional category/model narrowing from the parent inventory record.
+    const conditions = [eq(schema.variants.isActive, true)];
+
+    if (trimmedQuery) {
+      const searchTerm = `%${trimmedQuery}%`;
+      conditions.push(
+        or(
+          ilike(schema.variants.variantSku, searchTerm),
+          ilike(schema.variants.variantName, searchTerm),
+          ilike(schema.variants.description, searchTerm),
+          ilike(schema.variants.parentSku, searchTerm),
+          ilike(schema.inventory.description1, searchTerm),
+          ilike(schema.inventory.model, searchTerm)
+        )!
+      );
+    }
+
+    if (category) {
+      conditions.push(ilike(schema.inventory.category, `%${category}%`)!);
+    }
+
+    if (model) {
+      conditions.push(ilike(schema.inventory.model, `%${model}%`)!);
+    }
 
     // Search variants only (includes base variants for all inventory items)
     // Also search by parent inventory fields (sku, description1, model)
@@ -328,19 +363,7 @@ export class InventoryService extends BaseService<
       })
       .from(schema.variants)
       .leftJoin(schema.inventory, eq(schema.variants.parentSku, schema.inventory.sku))
-      .where(
-        and(
-          eq(schema.variants.isActive, true),
-          or(
-            ilike(schema.variants.variantSku, searchTerm),
-            ilike(schema.variants.variantName, searchTerm),
-            ilike(schema.variants.description, searchTerm),
-            ilike(schema.variants.parentSku, searchTerm),
-            ilike(schema.inventory.description1, searchTerm),
-            ilike(schema.inventory.model, searchTerm)
-          )
-        )
-      )
+      .where(and(...conditions))
       .orderBy(asc(schema.variants.variantSku))
       .limit(limit);
 
@@ -359,14 +382,20 @@ export class InventoryService extends BaseService<
         isBase: variant.isBase,
         parentSku: variant.parentSku,
         variantName: variant.variantName,
+        category: parent?.category ?? null,
+        model: parent?.model ?? null,
       });
     }
 
-    // Exact SKU match first, then ascending by part number (SKU)
+    // Exact SKU match first (only meaningful when a text query was given),
+    // then ascending by part number (SKU)
+    const lowerQuery = trimmedQuery.toLowerCase();
     results.sort((a, b) => {
-      const aExact = a.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
-      const bExact = b.sku.toLowerCase() === query.toLowerCase() ? 0 : 1;
-      if (aExact !== bExact) return aExact - bExact;
+      if (lowerQuery) {
+        const aExact = a.sku.toLowerCase() === lowerQuery ? 0 : 1;
+        const bExact = b.sku.toLowerCase() === lowerQuery ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+      }
       return a.sku.localeCompare(b.sku, undefined, { numeric: true });
     });
 

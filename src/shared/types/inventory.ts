@@ -56,6 +56,8 @@ export interface InventorySearchResult {
   isBase?: boolean; // True if this is a base variant
   parentSku?: string | null;
   variantName?: string | null;
+  category?: string | null;
+  model?: string | null;
 }
 
 /**
