@@ -1,15 +1,13 @@
-import React, { useRef, useEffect, RefObject } from 'react';
+import React, { useRef, useEffect, KeyboardEvent } from 'react';
 import {
   Stack,
   Text,
   Paper,
   Table,
   ActionIcon,
-  Loader,
   Center,
   TextInput,
   NumberInput,
-  Autocomplete,
   Badge,
   Group,
   Tooltip,
@@ -19,8 +17,10 @@ import {
   useMantineColorScheme,
   Box,
 } from '@mantine/core';
-import { IconPlus, IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
+import { IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
 import { CopyButton } from '../common';
+import { ProductSearchPanel, type ProductSearchPanelHandle } from './ProductSearchPanel';
+import { useProductSearch, type ProductSearchItem } from '../../hooks/useProductSearch';
 import type { InventoryWarning } from './InventoryWarningModal';
 import type { LineItem } from '../../../shared/types/inventory';
 import type { EditingCell, EditableField } from '../../hooks/useLineItems';
@@ -30,12 +30,8 @@ export type { LineItem };
 
 interface InvoiceLineItemsTableProps {
   lineItems: LineItem[];
-  itemSearch: string;
-  setItemSearch: (value: string) => void;
-  itemOptions: { value: string; label: string; item: unknown }[];
-  isSearchingItems: boolean;
-  onItemSearchChange: (value: string) => void;
-  onItemSelect: (value: string) => void;
+  /** Called when a product is chosen from the multi-field search results. */
+  onProductSelect: (item: ProductSearchItem) => void;
   onUpdateLineItem: (itemId: string, field: keyof LineItem, value: any) => void;
   onRemoveLineItem: (itemId: string) => void;
   formatCurrency: (value: number) => string;
@@ -44,7 +40,6 @@ interface InvoiceLineItemsTableProps {
   selectedLineItemId?: string | null;
   onSelectLineItem?: (itemId: string | null) => void;
   focusTrigger?: { field: 'quantity' | 'discount' | null; timestamp: number };
-  inventorySearchRef?: RefObject<HTMLInputElement | null>;
   // Enhanced editing support
   editingCell?: EditingCell;
   onStartEditing?: (rowId: string, field: EditableField) => void;
@@ -55,12 +50,7 @@ interface InvoiceLineItemsTableProps {
 
 export function InvoiceLineItemsTable({
   lineItems,
-  itemSearch,
-  setItemSearch,
-  itemOptions,
-  isSearchingItems,
-  onItemSearchChange,
-  onItemSelect,
+  onProductSelect,
   onUpdateLineItem,
   onRemoveLineItem,
   formatCurrency,
@@ -69,7 +59,6 @@ export function InvoiceLineItemsTable({
   selectedLineItemId,
   onSelectLineItem,
   focusTrigger,
-  inventorySearchRef,
   editingCell,
   onStartEditing,
   onStopEditing,
@@ -84,6 +73,66 @@ export function InvoiceLineItemsTable({
   // Refs for quantity and discount inputs (for keyboard focus shortcuts)
   const quantityRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const discountRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Multi-field product search (part#/description, category, model).
+  const productSearch = useProductSearch();
+  const searchPanelRef = useRef<ProductSearchPanelHandle>(null);
+
+  const handleProductSelect = (item: ProductSearchItem) => {
+    onProductSelect(item);
+    // Clear the free-text query so the next search starts fresh; any active
+    // category/model filter is kept so the user can keep browsing.
+    productSearch.setQuery('');
+  };
+
+  // --- Keyboard navigation between line-item cells and the search fields ---
+  // quantity <-> discount (horizontal), rows (vertical), wrapping back up to
+  // the search/filter fields at the top or bottom of the list.
+  const focusSearch = () => searchPanelRef.current?.focus();
+
+  const focusCell = (rowId: string, field: 'quantity' | 'discount') => {
+    const refs = field === 'quantity' ? quantityRefs : discountRefs;
+    const input = refs.current[rowId];
+    if (input) {
+      input.focus();
+      input.select();
+    }
+    onSelectLineItem?.(rowId);
+    onStartEditing?.(rowId, field);
+  };
+
+  const handleCellKeyDown = (
+    e: KeyboardEvent<HTMLInputElement>,
+    idx: number,
+    field: 'quantity' | 'discount'
+  ) => {
+    const input = e.currentTarget;
+    const atStart = input.selectionStart === 0 && input.selectionEnd === 0;
+    const atEnd =
+      input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
+
+    if (e.key === 'ArrowRight' && field === 'quantity' && atEnd) {
+      e.preventDefault();
+      focusCell(lineItems[idx].id, 'discount');
+    } else if (e.key === 'ArrowLeft' && field === 'discount' && atStart) {
+      e.preventDefault();
+      focusCell(lineItems[idx].id, 'quantity');
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (idx < lineItems.length - 1) {
+        focusCell(lineItems[idx + 1].id, field);
+      } else {
+        focusSearch();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (idx > 0) {
+        focusCell(lineItems[idx - 1].id, field);
+      } else {
+        focusSearch();
+      }
+    }
+  };
 
   // Handle focus triggers from parent (legacy)
   useEffect(() => {
@@ -138,24 +187,26 @@ export function InvoiceLineItemsTable({
   };
   return (
     <Box>
+      <Stack gap="md">
+        {/* Multi-field product search + navigable results list */}
+        <ProductSearchPanel
+          ref={searchPanelRef}
+          query={productSearch.query}
+          setQuery={productSearch.setQuery}
+          category={productSearch.category}
+          setCategory={productSearch.setCategory}
+          model={productSearch.model}
+          setModel={productSearch.setModel}
+          results={productSearch.results}
+          isSearching={productSearch.isSearching}
+          categoryOptions={productSearch.categoryOptions}
+          modelOptions={productSearch.modelOptions}
+          onSelectProduct={handleProductSelect}
+          compact={compact}
+        />
+
       <Paper withBorder p="md" radius="md">
         <Stack gap="md">
-          {/* Add item search */}
-          <Autocomplete
-            placeholder="Search part number or description to add item..."
-            value={itemSearch}
-            onChange={(value) => {
-              setItemSearch(value);
-              onItemSearchChange(value);
-            }}
-            onOptionSubmit={onItemSelect}
-            data={itemOptions.map((o) => ({ value: o.value, label: o.label }))}
-            leftSection={<IconPlus size={16} />}
-            rightSection={isSearchingItems ? <Loader size={16} /> : null}
-            ref={inventorySearchRef}
-            size={compact ? 'xs' : 'sm'}
-          />
-
         {lineItems.length > 0 ? (
           <Table>
             <Table.Thead>
@@ -244,6 +295,7 @@ export function InvoiceLineItemsTable({
                           value={item.quantity}
                           onChange={(value) => onUpdateLineItem(item.id, 'quantity', value || 0)}
                           onBlur={handleInputBlur}
+                          onKeyDown={(e) => handleCellKeyDown(e, idx, 'quantity')}
                           min={0}
                           ta="center"
                           styles={{ input: { fontSize: compact ? 12 : 14, fontWeight: 600 } }}
@@ -269,6 +321,7 @@ export function InvoiceLineItemsTable({
                           value={item.discount}
                           onChange={(value) => onUpdateLineItem(item.id, 'discount', value || 0)}
                           onBlur={handleInputBlur}
+                          onKeyDown={(e) => handleCellKeyDown(e, idx, 'discount')}
                           min={0}
                           max={100}
                           ta="right"
@@ -354,6 +407,7 @@ export function InvoiceLineItemsTable({
         )}
         </Stack>
       </Paper>
+      </Stack>
     </Box>
   );
 }

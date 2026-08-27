@@ -19,7 +19,6 @@ import {
   KeyboardShortcutsModal,
   PaymentEntryModal,
   FloatingAlerts,
-  InventoryItem,
   CreditCheckResult,
   AdminOverrideResult,
   PaymentEntry,
@@ -30,11 +29,11 @@ import { useVariants } from '../../hooks/useVariants';
 import { useTaxRate } from '../../hooks/useTaxRate';
 import {
   useClientSearch,
-  useInventorySearch,
   useLineItems,
   useInvoiceForm,
   useInvoiceKeyboardShortcuts,
 } from '../../hooks';
+import type { ProductSearchItem } from '../../hooks';
 import { useTrayDraftIntegration } from '../../hooks/useTrayDraftIntegration';
 import { useTabPath } from '../../components/layout/TabContainer';
 
@@ -86,7 +85,6 @@ export function InvoiceCreatePage() {
 
   // Refs for auto-focus
   const referenceInputRef = useRef<HTMLInputElement>(null);
-  const inventorySearchRef = useRef<HTMLInputElement>(null);
   const pricingSelectRef = useRef<HTMLInputElement>(null);
 
   // Credit check
@@ -190,16 +188,6 @@ export function InvoiceCreatePage() {
     },
   });
 
-  // Inventory search hook
-  const {
-    search: itemSearch,
-    setSearch: setItemSearch,
-    options: itemOptions,
-    isSearching: isSearchingItems,
-    searchItems,
-    clearSearch: clearItemSearch,
-  } = useInventorySearch();
-
   // Modals
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
   const [issueModalOpen, { open: openIssueModal, close: closeIssueModal }] = useDisclosure(false);
@@ -209,7 +197,7 @@ export function InvoiceCreatePage() {
 
   // Variant selection
   const [variantModalOpen, setVariantModalOpen] = useState(false);
-  const [pendingItem, setPendingItem] = useState<InventoryItem | null>(null);
+  const [pendingItem, setPendingItem] = useState<ProductSearchItem | null>(null);
   const { variants, isLoading: isLoadingVariants, checkHasVariants, loadVariants, clearVariants } = useVariants();
 
   // Inventory check hook
@@ -317,10 +305,10 @@ export function InvoiceCreatePage() {
 
   // Add line item from inventory
   const addLineItemFromInventory = useCallback(
-    (item: InventoryItem, sku?: string, description?: string, isVariant = false) => {
+    (item: ProductSearchItem, sku?: string, description?: string, isVariant = false) => {
       const unitPrice = formState.pricing === 'W' ? parseFloat(item.cost || '0') * 1.15 : parseFloat(item.price || '0');
 
-      addLineItem({
+      const newItem = addLineItem({
         sku: sku || item.sku,
         description: description || item.description1 || '',
         quantity: 1,
@@ -330,13 +318,11 @@ export function InvoiceCreatePage() {
         inventoryId: item.id,
         isVariant,
       });
-      clearItemSearch();
 
-      setTimeout(() => {
-        inventorySearchRef.current?.focus();
-      }, 100);
+      // Move focus straight into the new line's quantity field.
+      startEditing(newItem.id, 'quantity');
     },
-    [formState.pricing, addLineItem, clearItemSearch]
+    [formState.pricing, addLineItem, startEditing]
   );
 
   // Handle variant selection
@@ -356,32 +342,27 @@ export function InvoiceCreatePage() {
     [pendingItem, addLineItemFromInventory, clearVariants]
   );
 
-  // Handle item selection
-  const handleItemSelect = useCallback(
-    async (value: string) => {
-      const option = itemOptions.find((o) => o.value === value);
-      if (option) {
-        const item = option.item;
+  // Handle product selection from the multi-field search results
+  const handleProductSelect = useCallback(
+    async (item: ProductSearchItem) => {
+      // If the item is already a variant (from unified search), add it directly
+      if (item.isVariant) {
+        addLineItemFromInventory(item, item.sku, item.variantName || item.description1 || '', true);
+        return;
+      }
 
-        // If the item is already a variant (from unified search), add it directly
-        if ((item as any).isVariant) {
-          addLineItemFromInventory(item, item.sku, (item as any).variantName || item.description1 || '', true);
-          return;
-        }
+      // Otherwise check if inventory item has variants
+      const hasVariants = await checkHasVariants(item.sku);
 
-        // Otherwise check if inventory item has variants
-        const hasVariants = await checkHasVariants(item.sku);
-
-        if (hasVariants) {
-          setPendingItem(item);
-          await loadVariants(item.sku);
-          setVariantModalOpen(true);
-        } else {
-          addLineItemFromInventory(item);
-        }
+      if (hasVariants) {
+        setPendingItem(item);
+        await loadVariants(item.sku);
+        setVariantModalOpen(true);
+      } else {
+        addLineItemFromInventory(item);
       }
     },
-    [itemOptions, checkHasVariants, loadVariants, addLineItemFromInventory]
+    [checkHasVariants, loadVariants, addLineItemFromInventory]
   );
 
   // Apply bulk discount
@@ -747,12 +728,7 @@ export function InvoiceCreatePage() {
         {/* Line Items - Primary Focus */}
         <InvoiceLineItemsTable
           lineItems={lineItems}
-          itemSearch={itemSearch}
-          setItemSearch={setItemSearch}
-          itemOptions={itemOptions}
-          isSearchingItems={isSearchingItems}
-          onItemSearchChange={searchItems}
-          onItemSelect={handleItemSelect}
+          onProductSelect={handleProductSelect}
           onUpdateLineItem={updateLineItem}
           onRemoveLineItem={removeLineItem}
           formatCurrency={formatCurrency}
@@ -761,7 +737,6 @@ export function InvoiceCreatePage() {
           selectedLineItemId={selectedLineItemId}
           onSelectLineItem={setSelectedLineItemId}
           focusTrigger={shortcutsHook.focusTrigger}
-          inventorySearchRef={inventorySearchRef}
           editingCell={editingCell}
           onStartEditing={startEditing}
           onStopEditing={stopEditing}

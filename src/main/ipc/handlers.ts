@@ -341,7 +341,11 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_ACTIVE_INVENTORY, () => inventoryController.getActive());
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY, (_, { query }: { query: string }) => inventoryController.search(query));
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => inventoryController.searchForSelect(query, limit));
-  ipcMain.handle(IpcChannel.SEARCH_INVENTORY_WITH_VARIANTS, (_, { query, limit }: { query: string; limit?: number }) => inventoryController.searchWithVariants(query, limit));
+  ipcMain.handle(
+    IpcChannel.SEARCH_INVENTORY_WITH_VARIANTS,
+    (_, { query, limit, category, model }: { query: string; limit?: number; category?: string; model?: string }) =>
+      inventoryController.searchWithVariants(query, limit, { category, model })
+  );
   ipcMain.handle(IpcChannel.GET_DISTINCT_CATEGORIES, (_, { search, limit }: { search?: string; limit?: number } = {}) =>
     inventoryController.getDistinctCategories(search, limit));
   ipcMain.handle(IpcChannel.GET_DISTINCT_MODELS, (_, { search, limit }: { search?: string; limit?: number } = {}) =>

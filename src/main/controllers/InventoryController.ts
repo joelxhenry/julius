@@ -76,9 +76,9 @@ export class InventoryController extends BaseController<InventoryService> {
     }
   }
 
-  async searchWithVariants(query: string, limit = 20) {
+  async searchWithVariants(query: string, limit = 20, filters: { category?: string; model?: string } = {}) {
     try {
-      const items = await this.service.searchWithVariants(query, limit);
+      const items = await this.service.searchWithVariants(query, limit, filters);
       return this.wrapSuccess(items);
     } catch (error) {
       return this.handleError(error);

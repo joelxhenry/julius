@@ -50,6 +50,9 @@ export type { Client, ClientOption } from './useClientSearch';
 export { useInventorySearch } from './useInventorySearch';
 export type { InventorySearchItem, InventoryOption } from './useInventorySearch';
 
+export { useProductSearch } from './useProductSearch';
+export type { ProductSearchItem } from './useProductSearch';
+
 export { useLineItems } from './useLineItems';
 export type { LineItem } from './useLineItems';
 
