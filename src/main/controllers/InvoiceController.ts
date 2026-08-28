@@ -176,6 +176,15 @@ export class InvoiceController extends BaseController<InvoiceService> {
     }
   }
 
+  async adjustStockBySku(sku: string, quantity: number, employeeId?: number) {
+    try {
+      const result = await this.service.adjustStockBySku(sku, quantity, employeeId);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async createInventoryTransactions(
     invNumber: string,
     lineItems: Array<{ sku: string | null; quantity: number }>,
@@ -184,6 +193,19 @@ export class InvoiceController extends BaseController<InvoiceService> {
     try {
       await this.service.createInventoryTransactions(invNumber, lineItems, invDate);
       return this.wrapSuccess({ created: true });
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async reissueInventoryTransactions(
+    invNumber: string,
+    lineItems: Array<{ sku: string | null; quantity: number }>,
+    invDate: string
+  ) {
+    try {
+      await this.service.reissueInventoryTransactions(invNumber, lineItems, invDate);
+      return this.wrapSuccess({ reissued: true });
     } catch (error) {
       return this.handleError(error);
     }

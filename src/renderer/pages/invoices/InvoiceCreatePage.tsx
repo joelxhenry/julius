@@ -10,6 +10,7 @@ import { useTabContext } from '../../contexts/TabContext';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import {
   AdminOverrideModal,
+  StockOverrideModal,
   CompactInvoiceToolbar,
   CompactFormBar,
   InvoiceLineItemsTable,
@@ -21,6 +22,7 @@ import {
   FloatingAlerts,
   CreditCheckResult,
   AdminOverrideResult,
+  StockShortItem,
   PaymentEntry,
   formatCurrency,
 } from '../../components/invoices';
@@ -92,7 +94,8 @@ export function InvoiceCreatePage() {
 
   // Loading/saving state
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  // Which save action is in flight, so only the clicked button shows a spinner.
+  const [savingAction, setSavingAction] = useState<'issue' | 'pay' | null>(null);
 
   // Marked-items tray integration: prefill on `state.fromTray`, register draft handler.
   useTrayDraftIntegration({
@@ -192,8 +195,14 @@ export function InvoiceCreatePage() {
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
   const [issueModalOpen, { open: openIssueModal, close: closeIssueModal }] = useDisclosure(false);
   const [paymentEntryModalOpen, { open: openPaymentEntryModal, close: closePaymentEntryModal }] = useDisclosure(false);
+  const [stockModalOpen, { open: openStockModal, close: closeStockModal }] = useDisclosure(false);
+  const [stockShortItems, setStockShortItems] = useState<StockShortItem[]>([]);
   const [isPaymentFlow, setIsPaymentFlow] = useState(false);
   const [adminOverride, setAdminOverride] = useState<AdminOverrideResult | undefined>(undefined);
+  // Admin who authorised a negative-stock bypass, and which flow to resume after
+  // the stock gate clears. Refs so callbacks read the current value synchronously.
+  const stockOverrideRef = useRef<AdminOverrideResult | undefined>(undefined);
+  const pendingFlowRef = useRef<'issue' | 'pay' | null>(null);
 
   // Variant selection
   const [variantModalOpen, setVariantModalOpen] = useState(false);
@@ -205,8 +214,31 @@ export function InvoiceCreatePage() {
     lineItems.map(item => ({ sku: item.sku, quantity: item.quantity }))
   );
 
-  // Issue invoice handler
-  const handleIssueInvoice = useCallback(() => {
+  // Fresh, blocking inventory availability check at submit time. Unlike the
+  // passive FloatingAlerts, a shortage here stops the submit and forces an
+  // admin override before stock is allowed to go negative.
+  const runBlockingStockCheck = useCallback(async (): Promise<StockShortItem[]> => {
+    const items = lineItems
+      .filter((i) => i.sku && i.quantity > 0)
+      .map((i) => ({ sku: i.sku, quantity: i.quantity }));
+    if (items.length === 0) return [];
+    try {
+      const res = await window.electron.invoke(IpcChannel.CHECK_INVOICE_INVENTORY, { lineItems: items });
+      if (!res.success || !res.data) return [];
+      return (res.data as Array<{ sku: string; requestedQty: number; availableQty: number }>).map((w) => ({
+        sku: w.sku,
+        description: lineItems.find((li) => li.sku === w.sku)?.description || w.sku,
+        requestedQty: w.requestedQty,
+        availableQty: w.availableQty,
+      }));
+    } catch (error) {
+      console.error('Blocking inventory check failed:', error);
+      return [];
+    }
+  }, [lineItems]);
+
+  // Continue the issue / save-and-pay flows once any stock gate has been cleared.
+  const continueIssueFlow = useCallback(() => {
     if (creditCheck?.requiresAdminOverride) {
       openOverrideModal();
       return;
@@ -214,16 +246,40 @@ export function InvoiceCreatePage() {
     openIssueModal();
   }, [creditCheck, openOverrideModal, openIssueModal]);
 
-  // Save & pay handler
-  const handleSaveAndProcessPayment = useCallback(() => {
+  const continuePayFlow = useCallback(() => {
+    setIsPaymentFlow(true);
     if (creditCheck?.requiresAdminOverride) {
-      setIsPaymentFlow(true);
       openOverrideModal();
       return;
     }
-    setIsPaymentFlow(true);
     openIssueModal();
   }, [creditCheck, openOverrideModal, openIssueModal]);
+
+  // Issue invoice handler
+  const handleIssueInvoice = useCallback(async () => {
+    stockOverrideRef.current = undefined;
+    const short = await runBlockingStockCheck();
+    if (short.length > 0) {
+      setStockShortItems(short);
+      pendingFlowRef.current = 'issue';
+      openStockModal();
+      return;
+    }
+    continueIssueFlow();
+  }, [runBlockingStockCheck, continueIssueFlow, openStockModal]);
+
+  // Save & pay handler
+  const handleSaveAndProcessPayment = useCallback(async () => {
+    stockOverrideRef.current = undefined;
+    const short = await runBlockingStockCheck();
+    if (short.length > 0) {
+      setStockShortItems(short);
+      pendingFlowRef.current = 'pay';
+      openStockModal();
+      return;
+    }
+    continuePayFlow();
+  }, [runBlockingStockCheck, continuePayFlow, openStockModal]);
 
   // Keyboard shortcuts hook
   const shortcutsHook = useInvoiceKeyboardShortcuts({
@@ -395,7 +451,7 @@ export function InvoiceCreatePage() {
   // Create invoice with payment
   const handleCreateInvoiceWithPayment = useCallback(
     async (paymentEntries: PaymentEntry[]) => {
-      setIsSaving(true);
+      setSavingAction('pay');
       try {
         const result = await window.electron.invoke(IpcChannel.CREATE_INVOICE_WITH_PAYMENT, {
           invoiceData: {
@@ -458,7 +514,7 @@ export function InvoiceCreatePage() {
           color: 'red',
         });
       } finally {
-        setIsSaving(false);
+        setSavingAction(null);
         closePaymentEntryModal();
       }
     },
@@ -479,7 +535,7 @@ export function InvoiceCreatePage() {
       }
 
       const proceed = async () => {
-      setIsSaving(true);
+      setSavingAction('issue');
       try {
         let invoiceId: number;
         let invNumber: string;
@@ -578,18 +634,22 @@ export function InvoiceCreatePage() {
           });
         }
 
-        // Create inventory transactions (only for new invoices)
-        if (!isEditing) {
-          const transactionResult = await window.electron.invoke(IpcChannel.CREATE_INVOICE_TRANSACTIONS, {
+        // Reconcile inventory & activity records.
+        // - New invoice: create SALE transactions and deduct stock.
+        // - Edit: reverse the original SALE deductions and re-apply from the new
+        //   line items (empty line items = cancel, which just restores stock).
+        const transactionResult = await window.electron.invoke(
+          isEditing ? IpcChannel.REISSUE_INVOICE_TRANSACTIONS : IpcChannel.CREATE_INVOICE_TRANSACTIONS,
+          {
             invNumber,
             lineItems: lineItems.map(item => ({ sku: item.sku, quantity: item.quantity })),
             invDate: formState.invDate.toISOString().split('T')[0],
-          });
-
-          if (!transactionResult.success) {
-            console.error('Warning: Failed to create inventory transactions:', transactionResult.error);
-            notifications.show({ title: 'Warning', message: 'Invoice created but inventory may not have been updated', color: 'yellow' });
           }
+        );
+
+        if (!transactionResult.success) {
+          console.error('Warning: Failed to update inventory transactions:', transactionResult.error);
+          notifications.show({ title: 'Warning', message: 'Invoice saved but inventory may not have been updated', color: 'yellow' });
         }
 
         notifications.show({
@@ -608,7 +668,7 @@ export function InvoiceCreatePage() {
           color: 'red',
         });
       } finally {
-        setIsSaving(false);
+        setSavingAction(null);
       }
       };
 
@@ -692,7 +752,8 @@ export function InvoiceCreatePage() {
           originalInvNumber={formState.originalInvNumber}
           totals={totals}
           isTaxable={formState.isTaxable}
-          isSaving={isSaving}
+          isIssuing={savingAction === 'issue'}
+          isProcessingPayment={savingAction === 'pay'}
           hasLineItems={lineItems.length > 0}
           onOpenShortcuts={shortcutsHook.openShortcutsModal}
           onIssueInvoice={handleIssueInvoice}
@@ -762,17 +823,38 @@ export function InvoiceCreatePage() {
         />
       )}
 
+      {/* Negative-stock Admin Override Modal */}
+      <StockOverrideModal
+        opened={stockModalOpen}
+        onClose={() => { closeStockModal(); pendingFlowRef.current = null; }}
+        shortItems={stockShortItems}
+        onApproved={(result) => {
+          stockOverrideRef.current = result;
+          closeStockModal();
+          const flow = pendingFlowRef.current;
+          pendingFlowRef.current = null;
+          if (flow === 'pay') {
+            continuePayFlow();
+          } else {
+            continueIssueFlow();
+          }
+        }}
+      />
+
       {/* Issue Verification Modal */}
       <PinVerificationModal
         opened={issueModalOpen}
         onClose={() => { closeIssueModal(); setIsPaymentFlow(false); }}
         onVerified={() => {
           closeIssueModal();
+          // Record the negative-stock override admin (if any) when there was no
+          // credit override to carry it.
+          const override = stockOverrideRef.current;
           if (isPaymentFlow) {
-            handleShowPaymentEntry();
+            handleShowPaymentEntry(override);
             setIsPaymentFlow(false);
           } else {
-            handleIssueVerified();
+            handleIssueVerified(override);
           }
         }}
         title="Issue Invoice"

@@ -127,7 +127,9 @@ export enum IpcChannel {
   GET_OVERDUE_INVOICES = 'db:get-overdue-invoices',
   SEARCH_INVOICES = 'db:search-invoices',
   CHECK_INVOICE_INVENTORY = 'db:check-invoice-inventory',
+  ADJUST_STOCK_BY_SKU = 'db:adjust-stock-by-sku',
   CREATE_INVOICE_TRANSACTIONS = 'db:create-invoice-transactions',
+  REISSUE_INVOICE_TRANSACTIONS = 'db:reissue-invoice-transactions',
   CREATE_INVOICE_WITH_PAYMENT = 'db:create-invoice-with-payment',
 
   // Spotlight search

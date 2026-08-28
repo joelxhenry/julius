@@ -456,6 +456,14 @@ function registerDataHandlers() {
   );
 
   ipcMain.handle(
+    IpcChannel.ADJUST_STOCK_BY_SKU,
+    async (
+      _,
+      { sku, quantity, employeeId }: { sku: string; quantity: number; employeeId?: number }
+    ) => invoiceController.adjustStockBySku(sku, quantity, employeeId)
+  );
+
+  ipcMain.handle(
     IpcChannel.CREATE_INVOICE_TRANSACTIONS,
     async (
       _,
@@ -465,6 +473,18 @@ function registerDataHandlers() {
         invDate,
       }: { invNumber: string; lineItems: Array<{ sku: string | null; quantity: number }>; invDate: string }
     ) => invoiceController.createInventoryTransactions(invNumber, lineItems, invDate)
+  );
+
+  ipcMain.handle(
+    IpcChannel.REISSUE_INVOICE_TRANSACTIONS,
+    async (
+      _,
+      {
+        invNumber,
+        lineItems,
+        invDate,
+      }: { invNumber: string; lineItems: Array<{ sku: string | null; quantity: number }>; invDate: string }
+    ) => invoiceController.reissueInventoryTransactions(invNumber, lineItems, invDate)
   );
 
   // Create invoice with payment (atomic transaction)

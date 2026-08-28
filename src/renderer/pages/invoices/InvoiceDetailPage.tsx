@@ -99,6 +99,7 @@ export function InvoiceDetailPage() {
   const [returnModalOpen, { open: openReturnModal, close: closeReturnModal }] = useDisclosure(false);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [salespersonName, setSalespersonName] = useState<string | null>(null);
+  const [overrideAdminName, setOverrideAdminName] = useState<string | null>(null);
 
   // Cache for adjacent invoices
   const invoiceCacheRef = useRef<Map<number, InvoiceCache>>(new Map());
@@ -114,6 +115,18 @@ export function InvoiceDetailPage() {
       }
     });
   }, [invoice?.salespersonId]);
+
+  // Fetch the authorising admin's name for any override applied to this invoice
+  useEffect(() => {
+    if (!invoice?.adminOverrideById) { setOverrideAdminName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: invoice.adminOverrideById }).then((res) => {
+      if (res.success && res.data) {
+        const emp = res.data;
+        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        setOverrideAdminName(name);
+      }
+    });
+  }, [invoice?.adminOverrideById]);
 
   // Update tab title when invoice loads (only when this tab is active)
   useEffect(() => {
@@ -421,7 +434,9 @@ export function InvoiceDetailPage() {
         {invoice.adminOverrideById && (
           <Alert icon={<IconAlertTriangle size={16} />} color="yellow" variant="light" title="Admin Override Applied" p="xs">
             <Text size="sm">
-              This invoice was issued with an admin override.
+              This invoice was issued with an admin override
+              {overrideAdminName ? <> authorised by <strong>{overrideAdminName}</strong></> : ''}
+              {invoice.adminOverrideAt ? ` on ${new Date(invoice.adminOverrideAt).toLocaleString()}` : ''}.
               {invoice.adminOverrideNotes && ` Notes: ${invoice.adminOverrideNotes}`}
             </Text>
           </Alert>
