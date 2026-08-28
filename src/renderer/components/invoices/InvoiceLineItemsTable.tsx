@@ -18,9 +18,10 @@ import {
   Box,
 } from '@mantine/core';
 import { IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
-import { CopyButton } from '../common';
+import { CopyButton, PartLabels } from '../common';
 import { ProductSearchPanel, type ProductSearchPanelHandle } from './ProductSearchPanel';
 import { useProductSearch, type ProductSearchItem } from '../../hooks/useProductSearch';
+import { usePartLabels } from '../../hooks/usePartLabels';
 import type { InventoryWarning } from './InventoryWarningModal';
 import type { LineItem } from '../../../shared/types/inventory';
 import type { EditingCell, EditableField } from '../../hooks/useLineItems';
@@ -77,6 +78,10 @@ export function InvoiceLineItemsTable({
   // Multi-field product search (part#/description, category, model).
   const productSearch = useProductSearch();
   const searchPanelRef = useRef<ProductSearchPanelHandle>(null);
+
+  // Category/model labels for the parts on the current lines, so make/category
+  // always show on a line item regardless of how it was entered.
+  const partLabels = usePartLabels(lineItems.map((li) => li.sku));
 
   const handleProductSelect = (item: ProductSearchItem) => {
     onProductSelect(item);
@@ -271,14 +276,20 @@ export function InvoiceLineItemsTable({
                         </Group>
                       </Table.Td>
                       <Table.Td style={{ height: rowHeight }}>
-                        <TextInput
-                          size={compact ? 'xs' : 'sm'}
-                          variant="unstyled"
-                          value={item.description}
-                          onChange={(e) => onUpdateLineItem(item.id, 'description', e.currentTarget.value)}
-                          placeholder="Description"
-                          styles={{ input: { fontSize: compact ? 12 : 16, fontWeight: 500 } }}
-                        />
+                        <Stack gap={0}>
+                          <TextInput
+                            size={compact ? 'xs' : 'sm'}
+                            variant="unstyled"
+                            value={item.description}
+                            onChange={(e) => onUpdateLineItem(item.id, 'description', e.currentTarget.value)}
+                            placeholder="Description"
+                            styles={{ input: { fontSize: compact ? 12 : 16, fontWeight: 500 } }}
+                          />
+                          <PartLabels
+                            category={partLabels[item.sku]?.category}
+                            model={partLabels[item.sku]?.model}
+                          />
+                        </Stack>
                       </Table.Td>
                       <Table.Td
                         style={{ height: rowHeight, cursor: 'text' }}

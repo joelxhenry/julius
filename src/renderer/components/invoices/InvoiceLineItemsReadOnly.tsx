@@ -1,6 +1,7 @@
-import { Paper, Box, Group, Text, Badge, Table, useMantineTheme, useMantineColorScheme } from '@mantine/core';
+import { Paper, Box, Group, Stack, Text, Badge, Table, useMantineTheme, useMantineColorScheme } from '@mantine/core';
 import { IconPackage } from '@tabler/icons-react';
-import { CopyButton } from '../common';
+import { CopyButton, PartLabels } from '../common';
+import { usePartLabels } from '../../hooks/usePartLabels';
 
 interface LineItem {
   id: number;
@@ -44,6 +45,9 @@ export function InvoiceLineItemsReadOnly({
   const { colorScheme } = useMantineColorScheme();
   const hasTax = parseFloat(tax) > 0;
   const rowHeight = compact ? 40 : 52;
+
+  // Category/model labels so make/category always show on each part.
+  const partLabels = usePartLabels(lineItems.map((li) => li.sku));
 
   return (
     <Box style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -113,9 +117,15 @@ export function InvoiceLineItemsReadOnly({
                       </Group>
                     </Table.Td>
                     <Table.Td style={{ height: rowHeight }}>
-                      <Text size={compact ? 'sm' : 'md'} fw={compact ? 400 : 500} lineClamp={1}>
-                        {item.description || '-'}
-                      </Text>
+                      <Stack gap={0}>
+                        <Text size={compact ? 'sm' : 'md'} fw={compact ? 400 : 500} lineClamp={1}>
+                          {item.description || '-'}
+                        </Text>
+                        <PartLabels
+                          category={partLabels[item.sku]?.category}
+                          model={partLabels[item.sku]?.model}
+                        />
+                      </Stack>
                     </Table.Td>
                     <Table.Td style={{ height: rowHeight }}>
                       <Text size={compact ? 'sm' : 'md'} ta="center" fw={600}>{item.quantity}</Text>

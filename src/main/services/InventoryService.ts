@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or, and, ilike, asc, count, sql } from 'drizzle-orm';
+import { eq, like, or, and, ilike, asc, count, sql, inArray } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -57,17 +57,30 @@ export class InventoryService extends BaseService<
   }
 
   /**
-   * Override update to keep the base variant's location in sync. Location is
-   * conceptually a per-variant property; the product-level column mirrors the
-   * base variant so existing product-facing edits keep a single source of truth.
+   * Override update to keep the base variant in sync with product-level fields.
+   * Location and pricing (cost/price/wholesale, incl. currencies) are mirrored on
+   * the base variant so downstream consumers that read the variant row — e.g. the
+   * quote-to-invoice price check, which always references the base variant — see
+   * fresh prices instead of the snapshot taken at product-create time.
    */
   async update(id: number, data: Partial<schema.InsertInventory>): Promise<schema.Inventory | null> {
     const item = await super.update(id, data);
-    if (item && data.location !== undefined) {
-      await this.db
-        .update(schema.variants)
-        .set({ location: (data.location as string | null) ?? null, updatedAt: new Date() })
-        .where(and(eq(schema.variants.parentSku, item.sku), eq(schema.variants.isBase, true)));
+    if (item) {
+      const baseSync: Partial<schema.InsertVariant> = {};
+      if (data.location !== undefined) baseSync.location = (data.location as string | null) ?? undefined;
+      if (data.cost !== undefined) baseSync.cost = data.cost;
+      if (data.costCurrency !== undefined) baseSync.costCurrency = data.costCurrency;
+      if (data.price !== undefined) baseSync.price = data.price;
+      if (data.priceCurrency !== undefined) baseSync.priceCurrency = data.priceCurrency;
+      if (data.wholesalePrice !== undefined) baseSync.wholesalePrice = data.wholesalePrice ?? undefined;
+
+      if (Object.keys(baseSync).length > 0) {
+        baseSync.updatedAt = new Date();
+        await this.db
+          .update(schema.variants)
+          .set(baseSync)
+          .where(and(eq(schema.variants.parentSku, item.sku), eq(schema.variants.isBase, true)));
+      }
     }
     return item;
   }
@@ -183,6 +196,42 @@ export class InventoryService extends BaseService<
       .where(eq(schema.inventory.sku, sku))
       .limit(1);
     return results[0] || null;
+  }
+
+  /**
+   * Resolve display labels (category + model) for a set of SKUs, handling both
+   * inventory SKUs and variant SKUs (which inherit their parent inventory item's
+   * labels). Lets line items always show make/category regardless of how the
+   * part was entered. Runs in two queries regardless of how many SKUs are asked
+   * for, and returns a row per requested SKU.
+   */
+  async getPartLabelsBySkus(
+    skus: string[]
+  ): Promise<Array<{ sku: string; category: string | null; model: string | null }>> {
+    const unique = Array.from(new Set(skus.filter((s) => !!s)));
+    if (unique.length === 0) return [];
+
+    // Map any variant SKUs to their parent inventory SKU.
+    const variantRows = await this.db
+      .select({ variantSku: schema.variants.variantSku, parentSku: schema.variants.parentSku })
+      .from(schema.variants)
+      .where(inArray(schema.variants.variantSku, unique));
+    const variantParent = new Map(variantRows.map((v) => [v.variantSku, v.parentSku]));
+
+    // The inventory SKUs whose labels we actually need.
+    const inventorySkus = Array.from(new Set(unique.map((s) => variantParent.get(s) ?? s)));
+
+    const inventoryRows = await this.db
+      .select({ sku: schema.inventory.sku, category: schema.inventory.category, model: schema.inventory.model })
+      .from(schema.inventory)
+      .where(inArray(schema.inventory.sku, inventorySkus));
+    const labels = new Map(inventoryRows.map((r) => [r.sku, { category: r.category, model: r.model }]));
+
+    return unique.map((s) => {
+      const parent = variantParent.get(s) ?? s;
+      const l = labels.get(parent);
+      return { sku: s, category: l?.category ?? null, model: l?.model ?? null };
+    });
   }
 
   async findByCategory(category: string): Promise<schema.Inventory[]> {

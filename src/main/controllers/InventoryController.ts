@@ -49,6 +49,15 @@ export class InventoryController extends BaseController<InventoryService> {
     }
   }
 
+  async getPartLabelsBySkus(skus: string[]) {
+    try {
+      const labels = await this.service.getPartLabelsBySkus(skus);
+      return this.wrapSuccess(labels);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async getBySupplier(supplierId: number) {
     try {
       const items = await this.service.findBySupplier(supplierId);

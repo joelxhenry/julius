@@ -9,6 +9,7 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { KeyboardShortcutHelp } from './KeyboardShortcutHelp';
 export { LookupTicketButton } from './LookupTicketButton';
 export { PrintButton } from './PrintButton';
+export { PartLabels } from './PartLabels';
 export { ProductDisplay, type ProductDisplayData } from './ProductDisplay';
 export { ProductImageModal } from './ProductImageModal';
 export { ProductThumbnail, ProductThumbnailPlaceholder } from './ProductThumbnail';

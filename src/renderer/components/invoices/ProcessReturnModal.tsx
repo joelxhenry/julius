@@ -28,6 +28,8 @@ import {
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTaxRate } from '../../hooks';
+import { usePartLabels } from '../../hooks/usePartLabels';
+import { PartLabels } from '../common';
 
 interface Invoice {
   id: number;
@@ -106,6 +108,7 @@ export function ProcessReturnModal({
 }: ProcessReturnModalProps) {
   const { user } = useAuth();
   const { taxRate } = useTaxRate();
+  const partLabels = usePartLabels(lineItems.map((li) => li.sku));
   const [selectedItems, setSelectedItems] = useState<Map<number, number>>(new Map());
   const [returnDate, setReturnDate] = useState<Date | null>(new Date());
   const [refundMethod, setRefundMethod] = useState<RefundMethod>('CASH');
@@ -454,7 +457,15 @@ export function ProcessReturnModal({
                         <Text size="xs" c="dimmed">{item.sku || '—'}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <Text size="xs" truncate maw={160}>{item.description || '—'}</Text>
+                        <Stack gap={0}>
+                          <Text size="xs" truncate maw={160}>{item.description || '—'}</Text>
+                          {item.sku && (
+                            <PartLabels
+                              category={partLabels[item.sku]?.category}
+                              model={partLabels[item.sku]?.model}
+                            />
+                          )}
+                        </Stack>
                       </Table.Td>
                       <Table.Td>
                         <NumberInput
