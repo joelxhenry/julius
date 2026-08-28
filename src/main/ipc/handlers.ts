@@ -337,6 +337,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_INVENTORY_PAGINATED, (_, params: any = {}) => inventoryController.getPaginated(params));
   ipcMain.handle(IpcChannel.GET_INVENTORY_ITEM, (_, { id }: { id: number }) => inventoryController.getById(id));
   ipcMain.handle(IpcChannel.GET_INVENTORY_BY_SKU, (_, { sku }: { sku: string }) => inventoryController.getBySku(sku));
+  ipcMain.handle(IpcChannel.GET_PART_LABELS_BY_SKUS, (_, { skus }: { skus: string[] }) => inventoryController.getPartLabelsBySkus(skus));
   ipcMain.handle(IpcChannel.GET_LOW_STOCK_INVENTORY, () => inventoryController.getLowStock());
   ipcMain.handle(IpcChannel.GET_ACTIVE_INVENTORY, () => inventoryController.getActive());
   ipcMain.handle(IpcChannel.SEARCH_INVENTORY, (_, { query }: { query: string }) => inventoryController.search(query));

@@ -76,6 +76,7 @@ export enum IpcChannel {
   GET_INVENTORY_PAGINATED = 'db:get-inventory-paginated',
   GET_INVENTORY_ITEM = 'db:get-inventory-item',
   GET_INVENTORY_BY_SKU = 'db:get-inventory-by-sku',
+  GET_PART_LABELS_BY_SKUS = 'db:get-part-labels-by-skus',
   GET_LOW_STOCK_INVENTORY = 'db:get-low-stock-inventory',
   GET_ACTIVE_INVENTORY = 'db:get-active-inventory',
   SEARCH_INVENTORY = 'db:search-inventory',
