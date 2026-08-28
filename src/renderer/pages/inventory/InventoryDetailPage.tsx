@@ -713,7 +713,19 @@ export function InventoryDetailPage() {
     }
   };
 
-  const isLowStock = item && item.quantity <= item.minLevel;
+  // Category/model may be persisted as JSON array strings (e.g. '["HONDA ACURA"]').
+  // Parse those back into a readable, comma-separated string; fall back to the raw
+  // value if it isn't JSON.
+  const formatListValue = (value: string | null): string => {
+    if (!value) return '';
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.filter(Boolean).join(', ');
+    } catch {
+      // Not JSON — use as-is.
+    }
+    return value;
+  };
 
   // Options for the Activity/Sales variant filters: all, base item, then each variant.
   const variantFilterOptions = [
@@ -758,6 +770,108 @@ export function InventoryDetailPage() {
     );
   }
 
+  // Pricing is owned by the base variant, so display it (not the dormant
+  // product-level columns) on the summary cards and Pricing tab. Falls back to
+  // the product row while variants are still loading.
+  const baseVariant = variants.find((v) => v.isBase);
+  const displayCost = baseVariant?.cost ?? item.cost;
+  const displayPrice = baseVariant?.price ?? item.price;
+  const displayWholesale = baseVariant ? baseVariant.wholesalePrice : item.wholesalePrice;
+  const displayCostCurrency = baseVariant?.costCurrency ?? item.costCurrency;
+  const displayPriceCurrency = baseVariant?.priceCurrency ?? item.priceCurrency;
+  const displayMargin = (() => {
+    const c = parseFloat(displayCost || '0');
+    const p = parseFloat(displayPrice || '0');
+    if (!Number.isFinite(c) || c <= 0) return null;
+    return (((p - c) / c) * 100).toFixed(1);
+  })();
+  const pricingItem = {
+    ...item,
+    cost: displayCost,
+    price: displayPrice,
+    wholesalePrice: displayWholesale,
+    costCurrency: displayCostCurrency,
+    priceCurrency: displayPriceCurrency,
+    margin: displayMargin,
+  };
+
+  // Stock, cost and price live on the variants, not the parent row — so the
+  // summary cards aggregate across them. Quantity sums, while cost/price/
+  // wholesale/margin collapse to a single value when uniform or a min–max range
+  // when they vary. Prefer active variants; fall back to all (then the product
+  // row) so the cards still read while variants are loading or all inactive.
+  const activeVariants = variants.filter((v) => v.isActive);
+  const summaryVariants = activeVariants.length > 0 ? activeVariants : variants;
+
+  const totalQuantity =
+    summaryVariants.length > 0
+      ? summaryVariants.reduce((sum, v) => sum + (v.quantity ?? 0), 0)
+      : item.quantity;
+
+  // Collapse a numeric field across the summary variants into a {min, max} span.
+  // Returns null when no variant carries a usable value.
+  const numericRange = (pick: (v: Variant) => string | null): { min: number; max: number } | null => {
+    const nums = summaryVariants
+      .map(pick)
+      .map((val) => (val == null ? NaN : parseFloat(val)))
+      .filter((n) => Number.isFinite(n));
+    if (nums.length === 0) return null;
+    return { min: Math.min(...nums), max: Math.max(...nums) };
+  };
+
+  const costRange = summaryVariants.length > 0 ? numericRange((v) => v.cost) : null;
+  const priceRange = summaryVariants.length > 0 ? numericRange((v) => v.price) : null;
+  const wholesaleRange = summaryVariants.length > 0 ? numericRange((v) => v.wholesalePrice) : null;
+
+  // Margin derives from each variant's own cost/price pair, then we take the span.
+  const marginValues = summaryVariants
+    .map((v) => {
+      const c = parseFloat(v.cost ?? '');
+      const p = parseFloat(v.price ?? '');
+      if (!Number.isFinite(c) || c <= 0 || !Number.isFinite(p)) return null;
+      return ((p - c) / c) * 100;
+    })
+    .filter((m): m is number => m != null);
+  const marginRange =
+    marginValues.length > 0
+      ? { min: Math.min(...marginValues), max: Math.max(...marginValues) }
+      : null;
+
+  // Render a currency range: a single formatted value when uniform, else min–max.
+  // Falls back to the base-variant/product value when variants carry no figure.
+  const renderCurrencyRange = (
+    range: { min: number; max: number } | null,
+    fallback?: string | null
+  ) => {
+    if (!range) {
+      return fallback != null && fallback !== '' ? (
+        <NumberFormatter value={fallback} prefix="$" thousandSeparator decimalScale={2} />
+      ) : (
+        '-'
+      );
+    }
+    const fmt = (n: number) => (
+      <NumberFormatter value={n} prefix="$" thousandSeparator decimalScale={2} />
+    );
+    return range.min === range.max ? (
+      fmt(range.min)
+    ) : (
+      <>
+        {fmt(range.min)} – {fmt(range.max)}
+      </>
+    );
+  };
+
+  const marginLabel = marginRange
+    ? marginRange.min === marginRange.max
+      ? `${marginRange.min.toFixed(1)}%`
+      : `${marginRange.min.toFixed(1)}% – ${marginRange.max.toFixed(1)}%`
+    : displayMargin
+    ? `${displayMargin}%`
+    : '-';
+
+  const isLowStock = totalQuantity <= item.minLevel;
+
   return (
     <Stack p="xl" gap="lg">
       {/* Header */}
@@ -797,6 +911,16 @@ export function InventoryDetailPage() {
             <Text c="dimmed" size="sm">
               {item.description1}
             </Text>
+            {item.category && (
+              <Text c="dimmed" size="sm">
+                {formatListValue(item.category)}
+              </Text>
+            )}
+            {item.model && (
+              <Text c="dimmed" size="sm">
+                {formatListValue(item.model)}
+              </Text>
+            )}
           </Stack>
         </Group>
         <Group>
@@ -836,36 +960,34 @@ export function InventoryDetailPage() {
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Quantity</Text>
           <Text size="xl" fw={700} c={isLowStock ? 'orange' : undefined}>
-            {item.quantity} {item.unit}
+            {totalQuantity} {item.unit}
           </Text>
           <Text size="xs" c="dimmed">Min: {item.minLevel}</Text>
         </Card>
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Cost</Text>
           <Text size="xl" fw={700}>
-            <NumberFormatter value={item.cost} prefix="$" thousandSeparator decimalScale={2} />
+            {renderCurrencyRange(costRange, displayCost)}
           </Text>
-          <Text size="xs" c="dimmed">{item.costCurrency}</Text>
+          <Text size="xs" c="dimmed">{displayCostCurrency}</Text>
         </Card>
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Price</Text>
           <Text size="xl" fw={700}>
-            <NumberFormatter value={item.price} prefix="$" thousandSeparator decimalScale={2} />
+            {renderCurrencyRange(priceRange, displayPrice)}
           </Text>
-          <Text size="xs" c="dimmed">{item.priceCurrency}</Text>
+          <Text size="xs" c="dimmed">{displayPriceCurrency}</Text>
         </Card>
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Wholesale</Text>
           <Text size="xl" fw={700}>
-            {item.wholesalePrice ? (
-              <NumberFormatter value={item.wholesalePrice} prefix="$" thousandSeparator decimalScale={2} />
-            ) : '-'}
+            {renderCurrencyRange(wholesaleRange, displayWholesale)}
           </Text>
         </Card>
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Margin</Text>
           <Text size="xl" fw={700}>
-            {item.margin ? `${parseFloat(item.margin).toFixed(1)}%` : '-'}
+            {marginLabel}
           </Text>
         </Card>
       </SimpleGrid>
@@ -903,7 +1025,7 @@ export function InventoryDetailPage() {
 
         {/* Pricing Tab */}
         <Tabs.Panel value="pricing" pt="md">
-          <PricingTab item={item} formatCurrency={formatCurrency} />
+          <PricingTab item={pricingItem} formatCurrency={formatCurrency} />
         </Tabs.Panel>
 
         {/* Variants Tab */}
