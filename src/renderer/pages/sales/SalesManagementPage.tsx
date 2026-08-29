@@ -1,20 +1,30 @@
 import { useState } from 'react';
-import { Box, NavLink, Text, Stack, ThemeIcon, ScrollArea, ActionIcon, Tooltip, Button } from '@mantine/core';
 import {
-  IconCash,
-  IconClockDollar,
-  IconCreditCard,
-  IconChartBar,
+  Box,
+  NavLink,
+  Text,
+  Stack,
+  ThemeIcon,
+  ScrollArea,
+  ActionIcon,
+  Tooltip,
+  Button,
+} from '@mantine/core';
+import {
+  IconFileInvoice,
+  IconFileText,
+  IconReceipt,
+  IconReceiptDollar,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconArrowLeft,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
-import { SalesSummaryReport } from './SalesSummaryReport';
-import { ReceivablesAgingReport } from './ReceivablesAgingReport';
-import { PaymentCollectionReport } from './PaymentCollectionReport';
+import { InvoicesPage } from '../invoices';
+import { QuotationsPage } from '../quotations';
+import { CreditNotesPage } from '../credit-notes';
 
-interface ReportEntry {
+interface SalesSection {
   key: string;
   label: string;
   description: string;
@@ -23,39 +33,39 @@ interface ReportEntry {
   component: React.ReactNode;
 }
 
-const reports: ReportEntry[] = [
+const salesSections: SalesSection[] = [
   {
-    key: 'sales',
-    label: 'Sales Summary',
-    description: 'Revenue, tax, payments & outstanding',
-    icon: <IconCash size={20} />,
+    key: 'invoices',
+    label: 'Invoices',
+    description: 'View and search all invoices',
+    icon: <IconFileInvoice size={20} />,
     color: 'teal',
-    component: <SalesSummaryReport />,
+    component: <InvoicesPage />,
   },
   {
-    key: 'receivables',
-    label: 'Receivables Aging',
-    description: 'Outstanding invoices by age bucket',
-    icon: <IconClockDollar size={20} />,
-    color: 'orange',
-    component: <ReceivablesAgingReport />,
+    key: 'quotations',
+    label: 'Quotations',
+    description: 'View and search all quotations',
+    icon: <IconFileText size={20} />,
+    color: 'blue',
+    component: <QuotationsPage />,
   },
   {
-    key: 'payments',
-    label: 'Payment Collection',
-    description: 'Payments by method and processor',
-    icon: <IconCreditCard size={20} />,
+    key: 'credit-notes',
+    label: 'Credit Notes',
+    description: 'View and manage issued credit notes',
+    icon: <IconReceipt size={20} />,
     color: 'green',
-    component: <PaymentCollectionReport />,
+    component: <CreditNotesPage />,
   },
 ];
 
-export function ReportsPage() {
+export function SalesManagementPage() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  const activeReport = reports.find((r) => r.key === selected);
+  const activeSection = salesSections.find((s) => s.key === selected);
 
   return (
     <Box style={{ display: 'flex', height: '100%' }}>
@@ -70,14 +80,25 @@ export function ReportsPage() {
           transition: 'width 200ms ease, min-width 200ms ease',
         }}
       >
-        <Box p="xs" style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between' }}>
+        <Box
+          p="xs"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'space-between',
+          }}
+        >
           {!collapsed && (
             <Text fw={700} size="sm" tt="uppercase" c="dimmed" pl={4}>
-              Reports
+              Sales Management
             </Text>
           )}
           <ActionIcon variant="subtle" size="sm" onClick={() => setCollapsed((c) => !c)}>
-            {collapsed ? <IconLayoutSidebarLeftExpand size={18} /> : <IconLayoutSidebarLeftCollapse size={18} />}
+            {collapsed ? (
+              <IconLayoutSidebarLeftExpand size={18} />
+            ) : (
+              <IconLayoutSidebarLeftCollapse size={18} />
+            )}
           </ActionIcon>
         </Box>
         <Box px={collapsed ? 4 : 'sm'} pb="xs">
@@ -110,39 +131,39 @@ export function ReportsPage() {
         </Box>
         <ScrollArea style={{ flex: 1 }} px={collapsed ? 4 : 'sm'} pb="sm">
           <Stack gap={2}>
-            {reports.map((report) =>
+            {salesSections.map((section) =>
               collapsed ? (
-                <Tooltip key={report.key} label={report.label} position="right" withArrow>
+                <Tooltip key={section.key} label={section.label} position="right" withArrow>
                   <ActionIcon
-                    variant={selected === report.key ? 'light' : 'subtle'}
-                    color={selected === report.key ? report.color : 'gray'}
+                    variant={selected === section.key ? 'light' : 'subtle'}
+                    color={selected === section.key ? section.color : 'gray'}
                     size="lg"
-                    onClick={() => setSelected(report.key)}
+                    onClick={() => setSelected(section.key)}
                     style={{ width: '100%' }}
                   >
-                    <ThemeIcon size={28} variant="light" color={report.color} radius="md">
-                      {report.icon}
+                    <ThemeIcon size={28} variant="light" color={section.color} radius="md">
+                      {section.icon}
                     </ThemeIcon>
                   </ActionIcon>
                 </Tooltip>
               ) : (
                 <NavLink
-                  key={report.key}
-                  label={report.label}
-                  description={report.description}
+                  key={section.key}
+                  label={section.label}
+                  description={section.description}
                   leftSection={
-                    <ThemeIcon size={28} variant="light" color={report.color} radius="md">
-                      {report.icon}
+                    <ThemeIcon size={28} variant="light" color={section.color} radius="md">
+                      {section.icon}
                     </ThemeIcon>
                   }
-                  active={selected === report.key}
-                  onClick={() => setSelected(report.key)}
+                  active={selected === section.key}
+                  onClick={() => setSelected(section.key)}
                   variant="light"
                   styles={{
                     root: { borderRadius: 'var(--mantine-radius-md)' },
                   }}
                 />
-              ),
+              )
             )}
           </Stack>
         </ScrollArea>
@@ -150,18 +171,18 @@ export function ReportsPage() {
 
       {/* Content */}
       <Box style={{ flex: 1, overflow: 'auto' }}>
-        {activeReport ? (
-          activeReport.component
+        {activeSection ? (
+          activeSection.component
         ) : (
           <Stack align="center" justify="center" h="100%" gap="md">
             <ThemeIcon size={64} variant="light" color="gray" radius="xl">
-              <IconChartBar size={32} />
+              <IconReceiptDollar size={32} />
             </ThemeIcon>
             <Text size="lg" fw={500} c="dimmed">
-              Select a report from the sidebar
+              Select a tool from the sidebar
             </Text>
-            <Text size="sm" c="dimmed" maw={300} ta="center">
-              Choose one of the available reports to generate and view your business data.
+            <Text size="sm" c="dimmed" maw={320} ta="center">
+              Browse and manage invoices, quotations, and credit notes.
             </Text>
           </Stack>
         )}

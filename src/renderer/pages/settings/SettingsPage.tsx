@@ -4,6 +4,8 @@ import {
   Title,
   Paper,
   Tabs,
+  Button,
+  Group,
 } from '@mantine/core';
 import {
   IconDatabase,
@@ -12,7 +14,9 @@ import {
   IconReceipt,
   IconLayout,
   IconFolder,
+  IconArrowLeft,
 } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
 import { InterfaceSettingsTab } from './InterfaceSettingsTab';
 import { CompanySettingsTab } from './CompanySettingsTab';
@@ -21,10 +25,22 @@ import { StorageSettingsTab } from './StorageSettingsTab';
 import { DocumentSettingsTab } from './DocumentSettingsTab';
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string | null>('database');
 
   return (
     <Stack p="xl" gap="lg">
+      <Group>
+        <Button
+          variant="subtle"
+          color="gray"
+          size="sm"
+          leftSection={<IconArrowLeft size={16} />}
+          onClick={() => navigate('/dashboard')}
+        >
+          Back to Dashboard
+        </Button>
+      </Group>
       <Title order={2}>Settings</Title>
 
       <Paper p="md" radius="md" withBorder>

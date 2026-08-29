@@ -15,8 +15,10 @@ import {
   IconSearch,
   IconPlus,
   IconRefresh,
+  IconArrowLeft,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
@@ -45,6 +47,7 @@ interface PaginatedResult {
 
 export function EmployeesPage() {
   const navigate = useNavigate();
+  const { replaceCurrentTab } = useTabContext();
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [total, setTotal] = useState(0);
@@ -152,6 +155,17 @@ export function EmployeesPage() {
 
   return (
     <Stack p="xl" gap="lg">
+      <Group>
+        <Button
+          variant="subtle"
+          color="gray"
+          size="sm"
+          leftSection={<IconArrowLeft size={16} />}
+          onClick={() => navigate('/dashboard')}
+        >
+          Back to Dashboard
+        </Button>
+      </Group>
       <Group justify="space-between" align="center">
         <Title order={2}>Employees</Title>
         <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/employees/new')}>
@@ -196,7 +210,7 @@ export function EmployeesPage() {
             data={employees}
             loading={loading}
             keyField="id"
-            onRowClick={(employee) => navigate(`/employees/${employee.id}`)}
+            onRowClick={(employee) => replaceCurrentTab(`/employees/${employee.id}`)}
             emptyMessage="No employees found"
             page={page}
             totalPages={totalPages}

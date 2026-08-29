@@ -10,9 +10,8 @@ import {
   InventoryEditorPage,
   InventoryDetailPage,
   InventoryManagementPage,
-  BulkAddInventoryPage,
   BulkStockUpdatePage,
-  BulkReceivingPage,
+  GoodsReceivalPage,
   MassUpdatePage,
 } from '../pages/inventory';
 import { PaymentsPage, PaymentDetailPage } from '../pages/payments';
@@ -29,6 +28,8 @@ import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/client
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
 import { SettingsPage } from '../pages/settings';
 import { ReportsPage } from '../pages/reports';
+import { SalesManagementPage } from '../pages/sales';
+import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
 
 export const router = createHashRouter([
   {
@@ -77,6 +78,20 @@ export const router = createHashRouter([
         path: 'quotations/:id/edit',
         element: <QuotationCreatePage />,
       },
+      // Credit Notes
+      {
+        path: 'credit-notes',
+        element: <CreditNotesPage />,
+      },
+      {
+        path: 'credit-notes/:id',
+        element: <CreditNoteDetailPage />,
+      },
+      // Sales Management
+      {
+        path: 'sales',
+        element: <SalesManagementPage />,
+      },
       {
         path: 'inventory',
         element: <InventoryListPage />,
@@ -90,16 +105,12 @@ export const router = createHashRouter([
         element: <InventoryManagementPage />,
       },
       {
-        path: 'inventory/manage/add',
-        element: <BulkAddInventoryPage />,
-      },
-      {
         path: 'inventory/manage/stock',
         element: <BulkStockUpdatePage />,
       },
       {
         path: 'inventory/manage/receive',
-        element: <BulkReceivingPage />,
+        element: <GoodsReceivalPage />,
       },
       {
         path: 'inventory/manage/mass-update',
