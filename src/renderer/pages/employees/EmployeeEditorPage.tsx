@@ -53,7 +53,7 @@ interface EmployeeFormValues {
 export function EmployeeEditorPage() {
   const navigate = useNavigate();
   const { id } = useTabParams<{ id: string }>();
-  const isEditing = Boolean(id);
+  const isEditing = Boolean(id) && /^\d+$/.test(id!);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
