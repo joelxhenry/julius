@@ -1,85 +1,194 @@
-import { Stack, Title, Text, Paper, SimpleGrid, ThemeIcon, Group } from '@mantine/core';
+import { useState, cloneElement, type ReactElement } from 'react';
 import {
-  IconPlus,
+  Box,
+  NavLink,
+  Text,
+  Stack,
+  ThemeIcon,
+  ScrollArea,
+  ActionIcon,
+  Tooltip,
+  Button,
+} from '@mantine/core';
+import {
   IconAdjustmentsHorizontal,
   IconTruckDelivery,
   IconTableImport,
+  IconPackages,
+  IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarLeftExpand,
+  IconArrowLeft,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import { BulkStockUpdatePage } from './BulkStockUpdatePage';
+import { GoodsReceivalPage } from './GoodsReceivalPage';
+import { MassUpdatePage } from './MassUpdatePage';
 
 interface ManagementSection {
-  title: string;
+  key: string;
+  label: string;
   description: string;
   icon: React.ReactNode;
   color: string;
-  path: string;
+  component: React.ReactNode;
 }
 
 const managementSections: ManagementSection[] = [
   {
-    title: 'Add Inventory',
-    description: 'Create new inventory items in bulk',
-    icon: <IconPlus size={24} />,
-    color: 'green',
-    path: '/inventory/manage/add',
-  },
-  {
-    title: 'Update Stock',
+    key: 'stock',
+    label: 'Update Stock',
     description: 'Adjust on-hand quantities for one or many items',
-    icon: <IconAdjustmentsHorizontal size={24} />,
+    icon: <IconAdjustmentsHorizontal size={20} />,
     color: 'blue',
-    path: '/inventory/manage/stock',
+    component: <BulkStockUpdatePage />,
   },
   {
-    title: 'Receive from Suppliers',
-    description: 'Record incoming stock against a supplier',
-    icon: <IconTruckDelivery size={24} />,
+    key: 'receive',
+    label: 'Receive Parts',
+    description: 'Record a supplier receival - add parts, create inline, or import',
+    icon: <IconTruckDelivery size={20} />,
     color: 'teal',
-    path: '/inventory/manage/receive',
+    component: <GoodsReceivalPage />,
   },
   {
-    title: 'Mass Update',
+    key: 'mass-update',
+    label: 'Mass Update',
     description: 'Bulk-edit price, stock, supplier, vehicle, and more',
-    icon: <IconTableImport size={24} />,
+    icon: <IconTableImport size={20} />,
     color: 'orange',
-    path: '/inventory/manage/mass-update',
+    component: <MassUpdatePage />,
   },
 ];
 
 export function InventoryManagementPage() {
   const navigate = useNavigate();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const activeSection = managementSections.find((s) => s.key === selected);
 
   return (
-    <Stack p="xl" gap="lg">
-      <Title order={2}>Inventory Management</Title>
-      <Text c="dimmed">
-        Add items, adjust stock, receive from suppliers, and run mass updates
-      </Text>
+    <Box style={{ display: 'flex', height: '100%' }}>
+      {/* Sidebar */}
+      <Box
+        style={{
+          width: collapsed ? 56 : 260,
+          minWidth: collapsed ? 56 : 260,
+          borderRight: '1px solid var(--mantine-color-default-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: 'width 200ms ease, min-width 200ms ease',
+        }}
+      >
+        <Box
+          p="xs"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'space-between',
+          }}
+        >
+          {!collapsed && (
+            <Text fw={700} size="sm" tt="uppercase" c="dimmed" pl={4}>
+              Manage Inventory
+            </Text>
+          )}
+          <ActionIcon variant="subtle" size="sm" onClick={() => setCollapsed((c) => !c)}>
+            {collapsed ? (
+              <IconLayoutSidebarLeftExpand size={18} />
+            ) : (
+              <IconLayoutSidebarLeftCollapse size={18} />
+            )}
+          </ActionIcon>
+        </Box>
+        <Box px={collapsed ? 4 : 'sm'} pb="xs">
+          {collapsed ? (
+            <Tooltip label="Back to Dashboard" position="right" withArrow>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="lg"
+                onClick={() => navigate('/dashboard')}
+                style={{ width: '100%' }}
+                aria-label="Back to Dashboard"
+              >
+                <IconArrowLeft size={18} />
+              </ActionIcon>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="subtle"
+              color="gray"
+              size="sm"
+              leftSection={<IconArrowLeft size={16} />}
+              onClick={() => navigate('/dashboard')}
+              fullWidth
+              justify="flex-start"
+            >
+              Back to Dashboard
+            </Button>
+          )}
+        </Box>
+        <ScrollArea style={{ flex: 1 }} px={collapsed ? 4 : 'sm'} pb="sm">
+          <Stack gap={2}>
+            {managementSections.map((section) =>
+              collapsed ? (
+                <Tooltip key={section.key} label={section.label} position="right" withArrow>
+                  <ActionIcon
+                    variant={selected === section.key ? 'light' : 'subtle'}
+                    color={selected === section.key ? section.color : 'gray'}
+                    size="lg"
+                    onClick={() => setSelected(section.key)}
+                    style={{ width: '100%' }}
+                  >
+                    <ThemeIcon size={28} variant="light" color={section.color} radius="md">
+                      {section.icon}
+                    </ThemeIcon>
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <NavLink
+                  key={section.key}
+                  label={section.label}
+                  description={section.description}
+                  leftSection={
+                    <ThemeIcon size={28} variant="light" color={section.color} radius="md">
+                      {section.icon}
+                    </ThemeIcon>
+                  }
+                  active={selected === section.key}
+                  onClick={() => setSelected(section.key)}
+                  variant="light"
+                  styles={{
+                    root: { borderRadius: 'var(--mantine-radius-md)' },
+                  }}
+                />
+              )
+            )}
+          </Stack>
+        </ScrollArea>
+      </Box>
 
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-        {managementSections.map((section) => (
-          <Paper
-            key={section.title}
-            p="lg"
-            radius="md"
-            withBorder
-            style={{ cursor: 'pointer' }}
-            onClick={() => navigate(section.path)}
-          >
-            <Stack gap="sm">
-              <Group>
-                <ThemeIcon size={40} radius="md" variant="light" color={section.color}>
-                  {section.icon}
-                </ThemeIcon>
-                <Text fw={600}>{section.title}</Text>
-              </Group>
-              <Text size="sm" c="dimmed">
-                {section.description}
-              </Text>
-            </Stack>
-          </Paper>
-        ))}
-      </SimpleGrid>
-    </Stack>
+      {/* Content */}
+      <Box style={{ flex: 1, overflow: 'auto' }}>
+        {activeSection ? (
+          cloneElement(activeSection.component as ReactElement<{ onBack?: () => void }>, {
+            onBack: () => setSelected(null),
+          })
+        ) : (
+          <Stack align="center" justify="center" h="100%" gap="md">
+            <ThemeIcon size={64} variant="light" color="gray" radius="xl">
+              <IconPackages size={32} />
+            </ThemeIcon>
+            <Text size="lg" fw={500} c="dimmed">
+              Select a tool from the sidebar
+            </Text>
+            <Text size="sm" c="dimmed" maw={320} ta="center">
+              Add inventory, update stock, receive parts from suppliers, or run a mass update.
+            </Text>
+          </Stack>
+        )}
+      </Box>
+    </Box>
   );
 }

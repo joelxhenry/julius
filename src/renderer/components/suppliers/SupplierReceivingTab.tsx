@@ -86,6 +86,19 @@ export function SupplierReceivingTab({ supplierId }: SupplierReceivingTabProps) 
   const [page, setPage] = useState(1);
   const [viewGroup, setViewGroup] = useState<ReceivingGroup | null>(null);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
+  const [printingKey, setPrintingKey] = useState<string | null>(null);
+
+  const handlePrint = useCallback(
+    async (reference: string, mode: 'print' | 'pdf' | 'preview') => {
+      setPrintingKey(reference);
+      try {
+        await printReceivingReference(reference, mode);
+      } finally {
+        setPrintingKey(null);
+      }
+    },
+    [printReceivingReference]
+  );
 
   const loadReceiving = useCallback(async () => {
     setLoading(true);
@@ -358,7 +371,8 @@ export function SupplierReceivingTab({ supplierId }: SupplierReceivingTabProps) 
                             size="xs"
                             variant="light"
                             leftSection={<IconPrinter size={14} />}
-                            loading={isPrinting}
+                            loading={printingKey === reference}
+                            disabled={isPrinting && printingKey !== reference}
                           >
                             Print
                           </Button>
@@ -366,19 +380,19 @@ export function SupplierReceivingTab({ supplierId }: SupplierReceivingTabProps) 
                         <Menu.Dropdown>
                           <Menu.Item
                             leftSection={<IconPrinter size={16} />}
-                            onClick={() => printReceivingReference(reference, 'print')}
+                            onClick={() => handlePrint(reference, 'print')}
                           >
                             Print
                           </Menu.Item>
                           <Menu.Item
                             leftSection={<IconFileTypePdf size={16} />}
-                            onClick={() => printReceivingReference(reference, 'pdf')}
+                            onClick={() => handlePrint(reference, 'pdf')}
                           >
                             Save as PDF
                           </Menu.Item>
                           <Menu.Item
                             leftSection={<IconEye size={16} />}
-                            onClick={() => printReceivingReference(reference, 'preview')}
+                            onClick={() => handlePrint(reference, 'preview')}
                           >
                             Preview
                           </Menu.Item>

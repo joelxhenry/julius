@@ -16,6 +16,14 @@ export { VariantService, type VariantQueryParams, type VariantWithInventory } fr
 export { InventoryAlternateService } from './InventoryAlternateService';
 export { InventoryTransactionService, type InventoryTransactionQueryParams } from './InventoryTransactionService';
 export { InventoryReceivingService } from './InventoryReceivingService';
+export {
+  GoodsReceivalService,
+  type ReceivalQueryParams,
+  type PostReceivalInput,
+  type ReceivalLineInput,
+  type ReceivalHeaderInput,
+} from './GoodsReceivalService';
+export { ReceivalImportService } from './ReceivalImportService';
 export { ImageStorageService, type SaveImageResult } from './ImageStorageService';
 export { InventoryImageService, type UploadImageParams, type UploadImageResult, type ImageWithBase64 } from './InventoryImageService';
 
