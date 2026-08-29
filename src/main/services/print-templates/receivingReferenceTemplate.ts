@@ -31,7 +31,7 @@ export function getReceivingReferenceTemplate(data: ReceivingReferenceTemplateDa
         <div class="info-label">Received From</div>
         ${supplier
           ? `<div class="info-value" style="font-weight:600;">${escapeHtml(supplier)}</div>`
-          : '<div class="info-value" style="color:#999;">—</div>'}
+          : '<div class="info-value" style="color:#999;">-</div>'}
       </div>
 
       <div class="info-block right">

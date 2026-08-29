@@ -71,7 +71,7 @@ export function getClientStatementTemplate(data: ClientStatementTemplateData): s
     <div class="info-grid">
       <div class="info-block">
         <div class="info-label">Statement For</div>
-        ${clientLines || '<div class="info-value" style="color:#999;">—</div>'}
+        ${clientLines || '<div class="info-value" style="color:#999;">-</div>'}
       </div>
 
       <div class="info-block right">

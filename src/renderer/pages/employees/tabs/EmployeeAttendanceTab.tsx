@@ -105,7 +105,7 @@ function StatCard({ label, icon, days, hours, loading }: StatCardProps) {
           </>
         ) : (
           <>
-            <Text size="xl" fw={700}>{hours > 0 ? formatHours(hours) : '—'}</Text>
+            <Text size="xl" fw={700}>{hours > 0 ? formatHours(hours) : '-'}</Text>
             <Text size="xs" c="dimmed">{days} day{days !== 1 ? 's' : ''} present</Text>
           </>
         )}
@@ -233,12 +233,12 @@ export function EmployeeAttendanceTab({ employeeId, isActive }: Props) {
                           {shift.clockOutAt ? (
                             <Text c="red.7" fw={500} size="sm">{formatTime(shift.clockOutAt)}</Text>
                           ) : (
-                            <Text c="dimmed" size="sm">—</Text>
+                            <Text c="dimmed" size="sm">-</Text>
                           )}
                         </Table.Td>
                         <Table.Td>
                           <Text c="dimmed" size="sm">
-                            {durationMs != null ? formatDuration(durationMs) : '—'}
+                            {durationMs != null ? formatDuration(durationMs) : '-'}
                           </Text>
                         </Table.Td>
                         <Table.Td>

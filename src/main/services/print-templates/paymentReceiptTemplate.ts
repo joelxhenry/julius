@@ -52,7 +52,7 @@ export function getPaymentReceiptTemplate(data: PaymentReceiptTemplateData): str
           <td style="padding: 6px 0;">${escapeHtml(
             payment.documentType === 'CREDIT' && payment.creditNoteNumber
               ? `Credit Note ${payment.creditNoteNumber}`
-              : payment.paymentDesc2 || payment.paymentDesc || '—'
+              : payment.paymentDesc2 || payment.paymentDesc || '-'
           )}</td>
         </tr>
         ${payment.invoiceNumber ? `

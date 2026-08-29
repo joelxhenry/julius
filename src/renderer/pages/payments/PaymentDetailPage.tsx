@@ -422,7 +422,7 @@ export function PaymentDetailPage() {
                     </Badge>
                   </Grid.Col>
 
-                  {/* Invoice link — shown for all payment types that have an invoice */}
+                  {/* Invoice link - shown for all payment types that have an invoice */}
                   {payment.invoiceNumber && (
                     <Grid.Col span={6}>
                       <Text size="sm" c="dimmed">Invoice</Text>
@@ -438,7 +438,7 @@ export function PaymentDetailPage() {
                     </Grid.Col>
                   )}
 
-                  {/* Credit note link — shown when a credit note was the payment source */}
+                  {/* Credit note link - shown when a credit note was the payment source */}
                   {payment.creditNoteNumber && (
                     <Grid.Col span={6}>
                       <Text size="sm" c="dimmed">Credit Note</Text>
@@ -468,7 +468,7 @@ export function PaymentDetailPage() {
                   </>
                 )}
 
-                {/* Only show notes when they carry real content — not the
+                {/* Only show notes when they carry real content - not the
                     payment method code that older records duplicated here. */}
                 {payment.paymentDesc && payment.paymentDesc !== payment.paymentDesc2 && (
                   <>
@@ -541,7 +541,7 @@ export function PaymentDetailPage() {
               <Stack gap="sm">
                 <Text fw={600}>Quick Actions</Text>
 
-                {/* For credit note application payments — show both links */}
+                {/* For credit note application payments - show both links */}
                 {payment.documentType === 'CREDIT' && payment.invoiceNumber && payment.creditNoteNumber ? (
                   <>
                     <Button

@@ -33,7 +33,7 @@ export function usePrint() {
             });
           }
         } else {
-          // User cancelled (e.g. save dialog) — don't show error
+          // User cancelled (e.g. save dialog) - don't show error
           if (result.error?.includes('cancelled') || result.error?.includes('canceled')) {
             return;
           }

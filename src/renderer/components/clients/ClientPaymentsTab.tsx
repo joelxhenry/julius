@@ -272,7 +272,7 @@ export function ClientPaymentsTab({ clientId, clientName, refreshToken }: Client
         key: 'amount',
         header: 'Amount',
         width: 120,
-        // Refunds/voids are negative — show them red, actual receipts green.
+        // Refunds/voids are negative - show them red, actual receipts green.
         render: (payment) => (
           <Text ta="right" fw={500} c={parseFloat(payment.amount) < 0 ? 'red' : 'green'}>
             {formatCurrency(payment.amount)}
@@ -300,7 +300,7 @@ export function ClientPaymentsTab({ clientId, clientName, refreshToken }: Client
       {
         key: 'notes',
         header: 'Notes',
-        // Notes live in paymentDesc — but on legacy rows that field held the
+        // Notes live in paymentDesc - but on legacy rows that field held the
         // method code, so don't surface a method code as a note.
         render: (payment) => {
           const desc = payment.paymentDesc;

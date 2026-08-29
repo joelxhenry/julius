@@ -69,7 +69,7 @@ export function ProductImageModal({
       });
       if (result.success && result.data) {
         // The system keeps a single image per SKU, but legacy items may still
-        // have several — prefer the primary, falling back to the first.
+        // have several - prefer the primary, falling back to the first.
         const images = result.data as InventoryImage[];
         setImage(images.find((img) => img.isPrimary) ?? images[0] ?? null);
       } else {

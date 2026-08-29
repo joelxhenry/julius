@@ -59,8 +59,8 @@ export class InventoryService extends BaseService<
   /**
    * Override update to keep the base variant in sync with product-level fields.
    * Location and pricing (cost/price/wholesale, incl. currencies) are mirrored on
-   * the base variant so downstream consumers that read the variant row — e.g. the
-   * quote-to-invoice price check, which always references the base variant — see
+   * the base variant so downstream consumers that read the variant row - e.g. the
+   * quote-to-invoice price check, which always references the base variant - see
    * fresh prices instead of the snapshot taken at product-create time.
    */
   async update(id: number, data: Partial<schema.InsertInventory>): Promise<schema.Inventory | null> {
@@ -372,7 +372,7 @@ export class InventoryService extends BaseService<
     const category = filters.category?.trim() ?? '';
     const model = filters.model?.trim() ?? '';
 
-    // Require at least one active filter — otherwise this would scan everything.
+    // Require at least one active filter - otherwise this would scan everything.
     if (!trimmedQuery && !category && !model) {
       return results;
     }

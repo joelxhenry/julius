@@ -21,7 +21,7 @@ export function getThermalPaymentReceiptTemplate(data: PaymentReceiptTemplateDat
 
   const paymentMethod = payment.documentType === 'CREDIT' && payment.creditNoteNumber
     ? `Credit Note ${payment.creditNoteNumber}`
-    : payment.paymentDesc2 || payment.paymentDesc || '—';
+    : payment.paymentDesc2 || payment.paymentDesc || '-';
 
   const body = `
     ${getThermalHeader(company)}

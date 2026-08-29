@@ -158,7 +158,7 @@ export function ReceivablesAgingReport() {
                 {filteredInvoices.map((inv) => (
                   <Table.Tr key={inv.invoiceId}>
                     <Table.Td>{inv.invNumber}</Table.Td>
-                    <Table.Td>{inv.clientName || '—'}</Table.Td>
+                    <Table.Td>{inv.clientName || '-'}</Table.Td>
                     <Table.Td>{inv.invDate}</Table.Td>
                     <Table.Td ta="right">{formatCurrency(inv.total)}</Table.Td>
                     <Table.Td ta="right">{formatCurrency(inv.totalPaid)}</Table.Td>

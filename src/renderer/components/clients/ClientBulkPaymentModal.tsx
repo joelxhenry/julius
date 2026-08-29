@@ -178,7 +178,7 @@ export function ClientBulkPaymentModal({
     [targetInvoices]
   );
 
-  // FIFO allocation preview — mirrors PaymentTransactionService.processClientBulkPayment.
+  // FIFO allocation preview - mirrors PaymentTransactionService.processClientBulkPayment.
   const allocations = useMemo(() => {
     const map = new Map<number, number>();
     let remaining = cashAmount;
@@ -208,8 +208,8 @@ export function ClientBulkPaymentModal({
     [creditNotes]
   );
 
-  // The most that can be paid: capped by the target invoices' balance, and — for
-  // store credit — by the credit available to draw from.
+  // The most that can be paid: capped by the target invoices' balance, and - for
+  // store credit - by the credit available to draw from.
   const maxPayable = isStoreCredit ? Math.min(targetOutstanding, availableStoreCredit) : targetOutstanding;
   const isOverpayment = cashAmount > maxPayable + 0.01;
   const noSelection = mode === 'select' && selectedIds.size === 0;
@@ -345,7 +345,7 @@ export function ClientBulkPaymentModal({
               {isPartial && <Badge size="xs" color="yellow" variant="light">Partial</Badge>}
             </Group>
           ) : (
-            <Text size="sm" c="dimmed">—</Text>
+            <Text size="sm" c="dimmed">-</Text>
           )}
         </Table.Td>
       </Table.Tr>
@@ -464,7 +464,7 @@ export function ClientBulkPaymentModal({
                 ) : (
                   <Group justify="space-between" wrap="nowrap">
                     <Text size="sm">
-                      Paying from store credit — drawn from available credit notes oldest-first.
+                      Paying from store credit - drawn from available credit notes oldest-first.
                     </Text>
                     <Text size="sm" fw={600} c="teal" style={{ whiteSpace: 'nowrap' }}>
                       {formatCurrency(availableStoreCredit)} available

@@ -6,7 +6,7 @@ import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
 import { STORE_CREDIT_METHOD_CODE } from '../../shared/constants/payments';
 
-// The service db or an open transaction — both expose the same query builder,
+// The service db or an open transaction - both expose the same query builder,
 // so stock-mutation helpers can run against either.
 type DbExecutor =
   | NodePgDatabase<typeof schema>
@@ -667,11 +667,11 @@ export class InvoiceService extends BaseService<
             need -= chunk;
           }
           if (need > 0.01) {
-            // Should not happen — validated above — but guard against races.
+            // Should not happen - validated above - but guard against races.
             throw new Error('Insufficient store credit to cover the payment');
           }
         } else {
-          // Cash / card / etc. — method code in paymentDesc, notes in paymentDesc2.
+          // Cash / card / etc. - method code in paymentDesc, notes in paymentDesc2.
           const [payment] = await tx
             .insert(schema.payments)
             .values({
@@ -811,9 +811,9 @@ export class InvoiceService extends BaseService<
       if (!item.sku) continue;
 
       // Resolve the stock a sale would actually decrement (variant-aware), not the
-      // legacy inventory row — line items are usually variant SKUs.
+      // legacy inventory row - line items are usually variant SKUs.
       const stock = await this.getEffectiveStock(this.db, item.sku);
-      if (!stock) continue; // unknown SKU — nothing to warn about
+      if (!stock) continue; // unknown SKU - nothing to warn about
 
       // Check if quantity exceeds available
       if (item.quantity > stock.onHand) {
@@ -880,7 +880,7 @@ export class InvoiceService extends BaseService<
       return { variantSku: variant.variantSku, parentSku: variant.parentSku, onHand: variant.quantity };
     }
 
-    // Inventory item — resolve to its base variant when present
+    // Inventory item - resolve to its base variant when present
     const [inventoryItem] = await exec
       .select({ sku: schema.inventory.sku, quantity: schema.inventory.quantity })
       .from(schema.inventory)
@@ -1055,7 +1055,7 @@ export class InvoiceService extends BaseService<
   /**
    * Reconcile inventory for an edited invoice. Editing an issued invoice
    * replaces its line items, so the original SALE deductions must be undone and
-   * re-applied from the new line items — otherwise stock stays deducted at the
+   * re-applied from the new line items - otherwise stock stays deducted at the
    * old quantities and the activity log keeps the stale SALE rows.
    *
    * Runs atomically: the invoice's existing SALE transactions are reversed

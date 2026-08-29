@@ -134,7 +134,7 @@ export function formatCurrency(value: string | number, symbol: string): string {
 }
 
 export function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—';
+  if (!dateStr) return '-';
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -148,7 +148,7 @@ export function getLineItemsTable(lineItems: PrintLineItem[], currencySymbol: st
       <td>${escapeHtml(item.description || '')}</td>
       <td class="right">${parseFloat(item.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 })}</td>
       <td class="right">${formatCurrency(item.unitPrice, currencySymbol)}</td>
-      <td class="right">${parseFloat(item.discount) > 0 ? formatCurrency(item.discount, currencySymbol) : '—'}</td>
+      <td class="right">${parseFloat(item.discount) > 0 ? formatCurrency(item.discount, currencySymbol) : '-'}</td>
       <td class="right">${formatCurrency(item.amount, currencySymbol)}</td>
     </tr>
   `).join('');
@@ -212,7 +212,7 @@ export function getClientBlock(
   return `
     <div class="info-block">
       <div class="info-label">Bill To</div>
-      ${lines || '<div class="info-value" style="color:#999;">—</div>'}
+      ${lines || '<div class="info-value" style="color:#999;">-</div>'}
     </div>
   `;
 }

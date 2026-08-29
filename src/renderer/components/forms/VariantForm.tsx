@@ -191,7 +191,7 @@ export function VariantForm({
             description={
               isEditing
                 ? undefined
-                : 'Suffix is optional — defaults to the variant name if left blank'
+                : 'Suffix is optional - defaults to the variant name if left blank'
             }
           >
             <Group gap={0} wrap="nowrap" align="center" mt={4}>
@@ -261,7 +261,7 @@ export function VariantForm({
             label="Margin"
             decimalScale={2}
             suffix="%"
-            placeholder="—"
+            placeholder="-"
             value={form.values.margin}
             onChange={handleMarginChange}
           />

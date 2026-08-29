@@ -214,7 +214,7 @@ export class CreditNoteService extends BaseService<
           .limit(1);
 
         if (inventoryItem.length === 0) {
-          console.warn(`SKU ${item.sku} not found in inventory or variants — inventory not restored`);
+          console.warn(`SKU ${item.sku} not found in inventory or variants - inventory not restored`);
           continue;
         }
 
@@ -239,7 +239,7 @@ export class CreditNoteService extends BaseService<
           );
         } else {
           // Fallback: no base variant, update inventory directly
-          console.warn(`No base variant found for ${item.sku} — using legacy inventory`);
+          console.warn(`No base variant found for ${item.sku} - using legacy inventory`);
           await this.db.insert(schema.inventoryTransactions).values({
             sku: item.sku,
             activity: activityType,

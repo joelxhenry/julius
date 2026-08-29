@@ -431,7 +431,7 @@ export function AttendancePage() {
                             {durationMs ? (
                               <Text size="sm" c="dimmed">{formatDuration(durationMs)}</Text>
                             ) : (
-                              <Text size="sm" c="dimmed">—</Text>
+                              <Text size="sm" c="dimmed">-</Text>
                             )}
                           </Table.Td>
                         </Table.Tr>

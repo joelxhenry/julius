@@ -167,7 +167,7 @@ export class PaymentTransactionService {
           invoiceNumber,
           amount: entry.amount,
           payerName,
-          // Notes only — do NOT fall back to the payment method code. If the
+          // Notes only - do NOT fall back to the payment method code. If the
           // user leaves notes blank, paymentDesc stays blank (the method code
           // still lives in paymentDesc2).
           paymentDesc: entry.notes || undefined,
@@ -338,7 +338,7 @@ export class PaymentTransactionService {
   /**
    * Refund money on an invoice (return of funds to the customer).
    *
-   * Records a negative INVOICE payment — mirroring the void reversal pattern —
+   * Records a negative INVOICE payment - mirroring the void reversal pattern -
    * and reduces the invoice's totalPaid so the sale's cash position stays
    * correct. Used by the "Process Return" flow when the operator refunds via
    * cash, bank transfer, or a card/credit void. Credit-note refunds do NOT come
@@ -402,7 +402,7 @@ export class PaymentTransactionService {
 
   /**
    * Get a client's outstanding invoices (any balance still due), ordered FIFO
-   * — oldest invoice date first, then by id. Used both to populate the bulk
+   * - oldest invoice date first, then by id. Used both to populate the bulk
    * payment modal and, internally, as the target set for Automatic Payments.
    */
   async getClientOutstandingInvoices(clientId: number): Promise<OutstandingInvoice[]> {
@@ -439,11 +439,11 @@ export class PaymentTransactionService {
    *  - Select Payments: target set is the invoiceIds the operator chose.
    *
    * Each invoice that receives money gets its own INVOICE payment row (mirroring
-   * the single-invoice flow) and its totalPaid/status updated. Overpayment — an
-   * amount larger than the target set's total balance — is rejected.
+   * the single-invoice flow) and its totalPaid/status updated. Overpayment - an
+   * amount larger than the target set's total balance - is rejected.
    *
    * When the payment method is Store Credit, the amount is instead drawn from
-   * the client's credit notes (FIFO) and recorded as CREDIT applications —
+   * the client's credit notes (FIFO) and recorded as CREDIT applications -
    * see applyClientStoreCredit.
    */
   async processClientBulkPayment(params: ProcessClientBulkPaymentParams): Promise<ProcessClientBulkPaymentResult> {
@@ -493,7 +493,7 @@ export class PaymentTransactionService {
       const applied = Math.min(remaining, balance);
       const appliedStr = applied.toFixed(2);
 
-      // One payment row per invoice — same shape as the single-invoice cash
+      // One payment row per invoice - same shape as the single-invoice cash
       // payment path (notes → paymentDesc, method code → paymentDesc2).
       const payment = await this.paymentService.create({
         documentType: 'INVOICE',
@@ -527,8 +527,8 @@ export class PaymentTransactionService {
    *
    * Draws the amount from available credit notes FIFO (oldest note first) and
    * applies it to the target invoices FIFO. Each (invoice, credit note) chunk
-   * becomes a CREDIT payment row — matching the single-invoice "Apply Credit
-   * Note" flow — and reduces the credit note's remaining balance. A single
+   * becomes a CREDIT payment row - matching the single-invoice "Apply Credit
+   * Note" flow - and reduces the credit note's remaining balance. A single
    * invoice may be covered by more than one note, and one note may span several
    * invoices. Throws when the available store credit is less than the amount.
    */

@@ -177,7 +177,7 @@ export function ProcessReturnModal({
   const partialRefund = isMoneyMethod && refundable + 0.001 < totals.total;
 
   // A credit note is store credit against paid funds, so it may not exceed the
-  // amount paid — mirrors the Create Credit Note rule.
+  // amount paid - mirrors the Create Credit Note rule.
   const creditNoteDisabled = amountPaid <= 0.001 || totals.total > amountPaid + 0.001;
   const creditNoteChosenButInvalid = refundMethod === 'CREDIT_NOTE' && creditNoteDisabled;
 
@@ -228,13 +228,13 @@ export function ProcessReturnModal({
       for (const item of lineItems) {
         const returnedQty = selectedItems.get(item.id);
         if (returnedQty === undefined) {
-          // Item not returned — keep as-is
+          // Item not returned - keep as-is
           newSubTotal += computeLineAmount(item.quantity, item.unitPrice, item.discount);
         } else if (returnedQty >= item.quantity) {
-          // Fully returned — remove the line item from the invoice
+          // Fully returned - remove the line item from the invoice
           await window.electron.invoke(IpcChannel.DELETE_DOCUMENT_LINE_ITEM, { id: item.id });
         } else {
-          // Partially returned — reduce quantity and recalculate amount
+          // Partially returned - reduce quantity and recalculate amount
           const remainingQty = item.quantity - returnedQty;
           const newAmount = computeLineAmount(remainingQty, item.unitPrice, item.discount);
           await window.electron.invoke(IpcChannel.UPDATE_DOCUMENT_LINE_ITEM, {
@@ -309,7 +309,7 @@ export function ProcessReturnModal({
 
         refundSummary = `Credit note ${crNumber} for ${formatCurrency(totals.total)} issued as store credit.`;
       } else if (moneyRefundAmount > 0.001) {
-        // Cash / bank transfer / card void — record a negative payment.
+        // Cash / bank transfer / card void - record a negative payment.
         if (!user) return; // guaranteed by the guard above; narrows the type
         const refundResult = await window.electron.invoke(IpcChannel.PROCESS_INVOICE_REFUND, {
           invoiceId: invoice.id,
@@ -329,7 +329,7 @@ export function ProcessReturnModal({
           refundSummary += ` (Limited to the amount paid; the remaining ${formatCurrency(totals.total - moneyRefundAmount)} reduced the balance.)`;
         }
       } else {
-        // Nothing was paid — the return just reverses the sale.
+        // Nothing was paid - the return just reverses the sale.
         refundSummary = 'No payment was on file, so the sale was reversed with no refund.';
       }
 
@@ -454,11 +454,11 @@ export function ProcessReturnModal({
                         />
                       </Table.Td>
                       <Table.Td style={{ whiteSpace: 'nowrap' }}>
-                        <Text size="xs" c="dimmed">{item.sku || '—'}</Text>
+                        <Text size="xs" c="dimmed">{item.sku || '-'}</Text>
                       </Table.Td>
                       <Table.Td>
                         <Stack gap={0}>
-                          <Text size="xs" truncate maw={160}>{item.description || '—'}</Text>
+                          <Text size="xs" truncate maw={160}>{item.description || '-'}</Text>
                           {item.sku && (
                             <PartLabels
                               category={partLabels[item.sku]?.category}

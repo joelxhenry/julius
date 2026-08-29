@@ -155,7 +155,7 @@ export function CreditNotesPage() {
         key: 'invNumber',
         header: 'Invoice #',
         width: 120,
-        render: (note) => <Text size="sm">{note.invNumber || '—'}</Text>,
+        render: (note) => <Text size="sm">{note.invNumber || '-'}</Text>,
       },
       {
         key: 'crDate',
@@ -169,7 +169,7 @@ export function CreditNotesPage() {
         header: 'Client',
         render: (note) => (
           <Text truncate maw={200}>
-            {note.clientName || '—'}
+            {note.clientName || '-'}
           </Text>
         ),
       },

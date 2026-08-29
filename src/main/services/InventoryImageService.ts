@@ -31,7 +31,7 @@ export class InventoryImageService {
    * Upload and save a new image for an inventory item or variant.
    *
    * The system supports a single image per SKU, so any existing image for the
-   * SKU is removed first — uploading always replaces.
+   * SKU is removed first - uploading always replaces.
    */
   async uploadImage(params: UploadImageParams): Promise<UploadImageResult> {
     const { sku, isVariant, buffer, originalFileName, mimeType } = params;

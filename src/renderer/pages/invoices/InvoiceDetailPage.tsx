@@ -317,12 +317,12 @@ export function InvoiceDetailPage() {
       }
     }
 
-    // Also reload credit notes — a void may have restored a credit note's balance,
+    // Also reload credit notes - a void may have restored a credit note's balance,
     // and a credit application changes its used amount
     loadCreditNotes(invoice.invNumber);
   }, [invoice, loadCreditNotes]);
 
-  // Process return — available on any invoice regardless of payment
+  // Process return - available on any invoice regardless of payment
   const handleProcessReturn = useCallback(() => {
     if (!invoice) return;
     openReturnModal();

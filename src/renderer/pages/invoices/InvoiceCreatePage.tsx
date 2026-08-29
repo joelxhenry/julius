@@ -351,7 +351,7 @@ export function InvoiceCreatePage() {
     }
   };
 
-  // Track dirty state — must target the OWNING tab's path. `location.pathname` here
+  // Track dirty state - must target the OWNING tab's path. `location.pathname` here
   // returns the *active* tab's URL (this page can be mounted but not active inside
   // TabContainer), so using it would mark a sibling tab dirty.
   useEffect(() => {

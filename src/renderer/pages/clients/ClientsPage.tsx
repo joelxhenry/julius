@@ -163,7 +163,7 @@ export function ClientsPage() {
             </Badge>
           ) : (
             <Text size="sm" c="dimmed">
-              —
+              -
             </Text>
           ),
       },
@@ -172,7 +172,7 @@ export function ClientsPage() {
         header: 'Phone',
         accessor: 'phone',
         render: (client) => (
-          <Text size="sm">{client.phone || '—'}</Text>
+          <Text size="sm">{client.phone || '-'}</Text>
         ),
       },
       {

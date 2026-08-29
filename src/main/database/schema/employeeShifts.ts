@@ -10,7 +10,7 @@ export const employeeShifts = pgTable('employee_shifts', {
   // The calendar date of the shift (for easy date-range queries)
   shiftDate: date('shift_date').notNull(),
 
-  // Timestamptz for accuracy — clock_out_at is null while the shift is open
+  // Timestamptz for accuracy - clock_out_at is null while the shift is open
   clockInAt: timestamp('clock_in_at', { withTimezone: true }).notNull(),
   clockOutAt: timestamp('clock_out_at', { withTimezone: true }),
 

@@ -391,7 +391,7 @@ export class PrintService {
       const previewWin = new BrowserWindow({
         width: previewWidth,
         height: 700,
-        title: `Thermal Preview — ${documentType}`,
+        title: `Thermal Preview - ${documentType}`,
         webPreferences: {
           contextIsolation: true,
           nodeIntegration: false,
@@ -449,7 +449,7 @@ export class PrintService {
       const previewWin = new BrowserWindow({
         width: 850,
         height: 1100,
-        title: `Print Preview — ${documentType}`,
+        title: `Print Preview - ${documentType}`,
         webPreferences: {
           contextIsolation: true,
           nodeIntegration: false,
@@ -586,7 +586,7 @@ export class PrintService {
       html,
       request.outputMode,
       `Receiving ${request.reference}`,
-      `Receiving Report — ${request.reference}`,
+      `Receiving Report - ${request.reference}`,
       request.printerName,
     );
   }
@@ -676,7 +676,7 @@ export class PrintService {
       totalQuantity: totalQuantity.toLocaleString('en-US'),
       totalCost: singleCurrency
         ? this.formatReceivingCurrency(totalCost.toFixed(2), totalCurrency)
-        : '—',
+        : '-',
     };
   }
 
@@ -690,7 +690,7 @@ export class PrintService {
       html,
       request.outputMode,
       `Statement ${nameForFile}`,
-      `Statement of Account — ${data.client.clientName || request.clientId}`,
+      `Statement of Account - ${data.client.clientName || request.clientId}`,
       request.printerName,
     );
   }
@@ -705,7 +705,7 @@ export class PrintService {
       html,
       request.outputMode,
       `Payments ${nameForFile}`,
-      `Payment Report — ${data.clientName}`,
+      `Payment Report - ${data.clientName}`,
       request.printerName,
     );
   }
