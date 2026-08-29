@@ -250,7 +250,7 @@ export function ApplyCreditNoteModal({
                 });
                 return {
                   value: cn.id.toString(),
-                  label: `${cn.crNumber} — ${formatCurrency(avail)} available (${date})`,
+                  label: `${cn.crNumber} - ${formatCurrency(avail)} available (${date})`,
                 };
               })}
               disabled={isLoading || isLoadingCN}

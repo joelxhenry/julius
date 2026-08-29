@@ -156,7 +156,7 @@ export function MarkedItemsProvider({ children }: { children: ReactNode }) {
   const registerDraftHandler = useCallback((handler: DraftHandler) => {
     setDraftHandler(handler);
     return () => {
-      // Only deregister if this is still the registered handler — guards against
+      // Only deregister if this is still the registered handler - guards against
       // out-of-order unmounts when another page registered after this one.
       setDraftHandler((current) => (current === handler ? null : current));
     };

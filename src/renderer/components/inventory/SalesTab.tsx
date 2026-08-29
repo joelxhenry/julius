@@ -149,7 +149,7 @@ export function SalesTab({
 
   return (
     <Stack gap="xl">
-      {/* Sales Summary — reflects the active date-range filter */}
+      {/* Sales Summary - reflects the active date-range filter */}
       {salesSummary && (
         <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xl">
           <Card withBorder radius="md" p="md">

@@ -24,7 +24,7 @@ interface FetchedVariant {
 /**
  * Resolves the base variant for an inventory item to a tray-ready MarkButtonItem.
  *
- * Line items in invoices/quotations always reference variants — never base inventory items —
+ * Line items in invoices/quotations always reference variants - never base inventory items -
  * so when a user marks a base item we silently substitute its base variant. Every inventory
  * item is expected to have exactly one variant flagged `is_base = true` (see schema +
  * `seedBaseVariants`). Returns null if the inventory item or its base variant is missing.

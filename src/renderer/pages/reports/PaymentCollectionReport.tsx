@@ -114,12 +114,12 @@ export function PaymentCollectionReport() {
               <Table.Tbody>
                 {data.payments.map((p) => (
                   <Table.Tr key={p.paymentId}>
-                    <Table.Td>{p.paymentDate || '—'}</Table.Td>
-                    <Table.Td>{p.invoiceNumber || '—'}</Table.Td>
-                    <Table.Td>{p.clientName || '—'}</Table.Td>
-                    <Table.Td>{p.paymentMethod || '—'}</Table.Td>
+                    <Table.Td>{p.paymentDate || '-'}</Table.Td>
+                    <Table.Td>{p.invoiceNumber || '-'}</Table.Td>
+                    <Table.Td>{p.clientName || '-'}</Table.Td>
+                    <Table.Td>{p.paymentMethod || '-'}</Table.Td>
                     <Table.Td ta="right" fw={500}>{formatCurrency(p.amount)}</Table.Td>
-                    <Table.Td>{p.processedBy || '—'}</Table.Td>
+                    <Table.Td>{p.processedBy || '-'}</Table.Td>
                   </Table.Tr>
                 ))}
                 {data.payments.length === 0 && (

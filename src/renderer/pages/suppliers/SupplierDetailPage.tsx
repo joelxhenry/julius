@@ -104,7 +104,7 @@ export function SupplierDetailPage() {
   };
 
   const formatCurrency = (value: string | number | null): string => {
-    if (value === null) return '—';
+    if (value === null) return '-';
     const num = typeof value === 'string' ? parseFloat(value) : value;
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

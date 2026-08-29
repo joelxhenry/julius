@@ -15,7 +15,7 @@ export function getThermalLookupTicketTemplate(
         <div class="lt-desc">${escapeHtml(item.description || item.sku)}</div>
         <div class="lt-sku">${escapeHtml(item.sku)}</div>
       </td>
-      <td class="lt-loc"><b>${escapeHtml(item.location || '—')}</b></td>
+      <td class="lt-loc"><b>${escapeHtml(item.location || '-')}</b></td>
       <td class="lt-qty">${item.quantity}</td>
     </tr>
   `).join('');

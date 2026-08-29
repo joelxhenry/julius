@@ -722,7 +722,7 @@ export function InventoryDetailPage() {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) return parsed.filter(Boolean).join(', ');
     } catch {
-      // Not JSON — use as-is.
+      // Not JSON - use as-is.
     }
     return value;
   };
@@ -733,15 +733,15 @@ export function InventoryDetailPage() {
     { value: '__base__', label: 'Base item only' },
     ...variants.map((v) => ({
       value: v.variantSku,
-      label: v.variantName ? `${v.variantSku} — ${v.variantName}` : v.variantSku,
+      label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
     })),
   ];
 
-  // Options for the stock-adjustment target — every product has at least one
+  // Options for the stock-adjustment target - every product has at least one
   // variant, so there's no separate "base item" to adjust; only variants show.
   const adjustVariantOptions = variants.map((v) => ({
     value: v.variantSku,
-    label: v.variantName ? `${v.variantSku} — ${v.variantName}` : v.variantSku,
+    label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
   }));
 
   if (loading) {
@@ -795,7 +795,7 @@ export function InventoryDetailPage() {
     margin: displayMargin,
   };
 
-  // Stock, cost and price live on the variants, not the parent row — so the
+  // Stock, cost and price live on the variants, not the parent row - so the
   // summary cards aggregate across them. Quantity sums, while cost/price/
   // wholesale/margin collapse to a single value when uniform or a min–max range
   // when they vary. Prefer active variants; fall back to all (then the product
@@ -933,7 +933,7 @@ export function InventoryDetailPage() {
             leftSection={<IconAdjustments size={16} />}
             onClick={() => {
               // Default the target to the base variant (falling back to the first
-              // variant) so a real variant is always selected — there is no base item.
+              // variant) so a real variant is always selected - there is no base item.
               const defaultVariant = variants.find((v) => v.isBase) ?? variants[0];
               stockAdjustForm.setValues({
                 variantSku: defaultVariant?.variantSku ?? '',

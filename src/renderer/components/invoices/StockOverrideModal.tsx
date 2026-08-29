@@ -36,7 +36,7 @@ interface StockOverrideModalProps {
 /**
  * Blocks issuing an invoice that would drive stock negative. An administrator
  * must authorise the bypass (recorded on the invoice). Optionally the admin can
- * correct the on-hand quantity for a short item inline — e.g. stock that
+ * correct the on-hand quantity for a short item inline - e.g. stock that
  * physically arrived but was never booked in. Any item still short after
  * adjustments will go negative on issue, which is called out clearly.
  */
@@ -187,7 +187,7 @@ export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: 
       title={
         <Group gap="xs">
           <IconPackage size={20} color="orange" />
-          <Text fw={600}>Insufficient Stock — Admin Override Required</Text>
+          <Text fw={600}>Insufficient Stock - Admin Override Required</Text>
         </Group>
       }
       centered
@@ -271,7 +271,7 @@ export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: 
             <Stack gap={2}>
               {negativeItems.map((i) => (
                 <Text key={i.sku} size="sm">
-                  • {i.sku} —{' '}
+                  • {i.sku} -{' '}
                   <Text span fw={600} c="red">
                     {i.current - i.requestedQty}
                   </Text>

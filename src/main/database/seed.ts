@@ -112,7 +112,7 @@ export interface SeedProgressEvent {
 export type SeedProgressReporter = (event: SeedProgressEvent) => void;
 
 /**
- * Run idempotent background seeds. Safe to run after the window is shown — these
+ * Run idempotent background seeds. Safe to run after the window is shown - these
  * backfills can take a while on large datasets and must not block startup.
  */
 export async function runBackgroundSeeds(

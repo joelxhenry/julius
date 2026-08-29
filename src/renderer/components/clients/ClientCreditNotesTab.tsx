@@ -70,7 +70,7 @@ export function ClientCreditNotesTab({ clientId }: ClientCreditNotesTabProps) {
       width: 140,
       render: (cn) => (
         <Text size="sm" c={cn.invNumber ? undefined : 'dimmed'}>
-          {cn.invNumber || '—'}
+          {cn.invNumber || '-'}
         </Text>
       ),
     },

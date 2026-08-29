@@ -48,8 +48,8 @@ export function useInventorySearch(config: UseInventorySearchOptions = {}) {
         setItemOptions(
           result.data.map((item: InventorySearchItem) => {
             // Every product has at least one variant, so there's no distinct
-            // "base product" to flag — all results render identically as variants.
-            const label = `${item.sku}    —    ${item.variantName || item.description1 || 'No description'}`;
+            // "base product" to flag - all results render identically as variants.
+            const label = `${item.sku}    -    ${item.variantName || item.description1 || 'No description'}`;
             return { value: item.sku, label, item };
           })
         );

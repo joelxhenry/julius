@@ -47,7 +47,7 @@ export function MarkedItemsTray({ opened, onClose }: MarkedItemsTrayProps) {
 
   // Selection model: track which keys are EXcluded. New items default to selected
   // (i.e. not in the unselected set). The set may contain stale keys for items the
-  // user has since unmarked — that's harmless because `selectedKeys` filters from
+  // user has since unmarked - that's harmless because `selectedKeys` filters from
   // the current `items` list; stale entries can never appear in the result.
   const [unselectedKeys, setUnselectedKeys] = useState<Set<string>>(new Set());
 
@@ -214,7 +214,7 @@ export function MarkedItemsTray({ opened, onClose }: MarkedItemsTrayProps) {
               disabled={noneSelected || isCurrent('invoice')}
               tooltip={
                 isCurrent('invoice')
-                  ? 'You are already on an invoice draft — use "Add to current invoice" above.'
+                  ? 'You are already on an invoice draft - use "Add to current invoice" above.'
                   : undefined
               }
               onClick={() => navigateToCreate('/invoices/form')}
@@ -225,7 +225,7 @@ export function MarkedItemsTray({ opened, onClose }: MarkedItemsTrayProps) {
               disabled={noneSelected || isCurrent('quotation')}
               tooltip={
                 isCurrent('quotation')
-                  ? 'You are already on a quotation draft — use "Add to current quotation" above.'
+                  ? 'You are already on a quotation draft - use "Add to current quotation" above.'
                   : undefined
               }
               onClick={() => navigateToCreate('/quotations/new')}

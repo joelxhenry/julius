@@ -108,7 +108,7 @@ export function getThermalLineItems(items: PrintLineItem[], currencySymbol: stri
 
     return `
       <div class="item">
-        <div class="item-name">${escapeHtml(item.description || item.sku || '—')}</div>
+        <div class="item-name">${escapeHtml(item.description || item.sku || '-')}</div>
         <div class="item-detail">
           <span>${qty} x ${price}${discount > 0 ? ` (-${formatCurrency(item.discount, currencySymbol)})` : ''}</span>
           <span>${amount}</span>

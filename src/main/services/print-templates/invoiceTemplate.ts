@@ -23,7 +23,7 @@ export function getInvoiceTemplate(data: InvoiceTemplateData): string {
       ? '<span class="badge badge-green">Paid</span>'
       : balance > 0
         ? `<span class="badge badge-yellow">Balance: ${formatCurrency(balance.toString(), sym)}</span>`
-        : '<span class="badge badge-gray">—</span>';
+        : '<span class="badge badge-gray">-</span>';
 
   const body = `
     ${isCancelled ? '<div class="cancelled-watermark">Cancelled</div>' : ''}

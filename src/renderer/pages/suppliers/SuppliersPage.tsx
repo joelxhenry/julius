@@ -171,17 +171,17 @@ export function SuppliersPage() {
       {
         key: 'contact1',
         header: 'Contact',
-        render: (supplier) => <Text size="sm">{supplier.contact1 || '—'}</Text>,
+        render: (supplier) => <Text size="sm">{supplier.contact1 || '-'}</Text>,
       },
       {
         key: 'phone1',
         header: 'Phone',
-        render: (supplier) => <Text size="sm">{supplier.phone1 || '—'}</Text>,
+        render: (supplier) => <Text size="sm">{supplier.phone1 || '-'}</Text>,
       },
       {
         key: 'email1',
         header: 'Email',
-        render: (supplier) => <Text size="sm">{supplier.email1 || '—'}</Text>,
+        render: (supplier) => <Text size="sm">{supplier.email1 || '-'}</Text>,
       },
       {
         key: 'isActive',
