@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Stack,
   Title,
@@ -69,7 +69,6 @@ interface InventoryFormValues {
   price: number;
   priceCurrency: string;
   wholesalePrice: number | null;
-  margin: number | null;
   isTaxable: boolean;
 }
 
@@ -119,7 +118,6 @@ export function InventoryEditorPage() {
       price: 0,
       priceCurrency: 'JA',
       wholesalePrice: null,
-      margin: null,
       isTaxable: true,
     },
     validate: {
@@ -129,18 +127,6 @@ export function InventoryEditorPage() {
       cost: (value) => (value < 0 ? 'Cost cannot be negative' : null),
     },
   });
-
-  // Calculate margin when cost or price changes
-  useEffect(() => {
-    const cost = form.values.cost;
-    const price = form.values.price;
-    if (cost > 0 && price > 0) {
-      const margin = ((price - cost) / cost) * 100;
-      form.setFieldValue('margin', parseFloat(margin.toFixed(2)));
-    } else {
-      form.setFieldValue('margin', null);
-    }
-  }, [form.values.cost, form.values.price]);
 
   // Variant handlers
   const handleAddVariant = () => {
@@ -208,7 +194,6 @@ export function InventoryEditorPage() {
         price: values.price.toString(),
         priceCurrency: values.priceCurrency,
         wholesalePrice: values.wholesalePrice?.toString() || null,
-        margin: values.margin?.toString() || null,
         isTaxable: values.isTaxable,
       };
 
@@ -415,7 +400,7 @@ export function InventoryEditorPage() {
                 </Group>
               </SimpleGrid>
 
-              <SimpleGrid cols={{ base: 1, md: 3 }}>
+              <SimpleGrid cols={{ base: 1, md: 2 }}>
                 <NumberInput
                   label="Wholesale Price"
                   placeholder="0.00"
@@ -424,14 +409,6 @@ export function InventoryEditorPage() {
                   fixedDecimalScale
                   thousandSeparator
                   {...form.getInputProps('wholesalePrice')}
-                />
-                <NumberInput
-                  label="Margin %"
-                  placeholder="Auto-calculated"
-                  disabled
-                  decimalScale={2}
-                  suffix="%"
-                  value={form.values.margin ?? undefined}
                 />
                 <Stack gap="xs" justify="flex-end">
                   <Checkbox
@@ -477,7 +454,7 @@ export function InventoryEditorPage() {
                   <Table striped highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
-                        <Table.Th>Part Number</Table.Th>
+                        <Table.Th>Part ID</Table.Th>
                         <Table.Th>Name</Table.Th>
                         <Table.Th>Qty</Table.Th>
                         <Table.Th>Price</Table.Th>
@@ -539,7 +516,7 @@ export function InventoryEditorPage() {
                 ) : (
                   form.values.sku && (
                     <Text size="sm" c="dimmed" ta="center" py="md">
-                      No variants added yet. Click "Add Variant" to create one.
+                      No variants added yet. Click &quot;Add Variant&quot; to create one.
                     </Text>
                   )
                 )}
