@@ -35,7 +35,7 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
     () => [
       {
         key: 'variantSku',
-        header: 'Variant Part Number',
+        header: 'Variant Part ID',
         width: 180,
         render: (variant) => (
           <Group gap="xs">
