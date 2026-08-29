@@ -1,0 +1,1 @@
+export { SalesManagementPage } from './SalesManagementPage';

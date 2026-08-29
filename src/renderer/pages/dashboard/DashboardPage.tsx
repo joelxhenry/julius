@@ -3,10 +3,8 @@ import {
   IconChartBar,
   IconSettings,
   IconUserCog,
-  IconLock,
   IconFileInvoice,
   IconPackages,
-  IconReceipt,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,25 +25,11 @@ const dashboardSections: DashboardSection[] = [
     path: '/inventory/manage',
   },
   {
-    title: 'Invoices',
-    description: 'View and search all invoices',
+    title: 'Sales Management',
+    description: 'View and manage invoices, quotations, and credit notes',
     icon: <IconFileInvoice size={24} />,
     color: 'teal',
-    path: '/invoices',
-  },
-  {
-    title: 'Quotations',
-    description: 'View and search all quotations',
-    icon: <IconFileInvoice size={24} />,
-    color: 'teal',
-    path: '/quotations',
-  },
-  {
-    title: 'Credit Notes',
-    description: 'View and manage issued credit notes',
-    icon: <IconReceipt size={24} />,
-    color: 'green',
-    path: '/credit-notes',
+    path: '/sales',
   },
   {
     title: 'Reports',
@@ -67,12 +51,6 @@ const dashboardSections: DashboardSection[] = [
     icon: <IconUserCog size={24} />,
     color: 'violet',
     path: '/employees',
-  },
-  {
-    title: 'Access Management',
-    description: 'Permissions and access control',
-    icon: <IconLock size={24} />,
-    color: 'red',
   },
 ];
 

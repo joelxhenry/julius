@@ -5,9 +5,8 @@ import {
   InventoryEditorPage,
   InventoryDetailPage,
   InventoryManagementPage,
-  BulkAddInventoryPage,
   BulkStockUpdatePage,
-  BulkReceivingPage,
+  GoodsReceivalPage,
   MassUpdatePage,
 } from '../pages/inventory';
 import { PaymentsPage, PaymentDetailPage } from '../pages/payments';
@@ -21,6 +20,7 @@ import {
 import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
 import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
+import { SalesManagementPage } from '../pages/sales';
 /**
  * Maps a route path to its corresponding React component
  * Used by the tab system to create components for tabbed routes
@@ -53,9 +53,8 @@ export function getComponentForPath(path: string): React.ReactNode {
   if (cleanPath === 'inventory') return <InventoryListPage />;
   if (cleanPath === 'inventory/new') return <InventoryEditorPage />;
   if (cleanPath === 'inventory/manage') return <InventoryManagementPage />;
-  if (cleanPath === 'inventory/manage/add') return <BulkAddInventoryPage />;
   if (cleanPath === 'inventory/manage/stock') return <BulkStockUpdatePage />;
-  if (cleanPath === 'inventory/manage/receive') return <BulkReceivingPage />;
+  if (cleanPath === 'inventory/manage/receive') return <GoodsReceivalPage />;
   if (cleanPath === 'inventory/manage/mass-update') return <MassUpdatePage />;
   if (cleanPath.match(/^inventory\/\d+$/)) {
     return <InventoryDetailPage />;
@@ -109,6 +108,9 @@ export function getComponentForPath(path: string): React.ReactNode {
   // Credit Notes
   if (cleanPath === 'credit-notes') return <CreditNotesPage />;
   if (cleanPath.match(/^credit-notes\/\d+$/)) return <CreditNoteDetailPage />;
+
+  // Sales Management
+  if (cleanPath === 'sales') return <SalesManagementPage />;
 
   // Default fallback
   return <div>Page not found: {path}</div>;
