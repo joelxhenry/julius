@@ -18,6 +18,8 @@ import {
   InventoryTransactionService,
   InventoryAlternateService,
   InventoryReceivingService,
+  GoodsReceivalService,
+  ReceivalImportService,
   InvoiceService,
   QuotationService,
   CreditNoteService,
@@ -54,6 +56,7 @@ import {
   InventoryTransactionController,
   InventoryAlternateController,
   InventoryReceivingController,
+  GoodsReceivalController,
   InvoiceController,
   QuotationController,
   CreditNoteController,
@@ -191,6 +194,8 @@ function registerDataHandlers() {
   const inventoryTransactionService = new InventoryTransactionService(db);
   const inventoryAlternateService = new InventoryAlternateService(db);
   const inventoryReceivingService = new InventoryReceivingService(db);
+  const goodsReceivalService = new GoodsReceivalService(db);
+  const receivalImportService = new ReceivalImportService(db);
   const quotationService = new QuotationService(db);
   const creditNoteService = new CreditNoteService(db);
   const documentLineItemService = new DocumentLineItemService(db);
@@ -240,6 +245,7 @@ function registerDataHandlers() {
   const inventoryTransactionController = new InventoryTransactionController(inventoryTransactionService);
   const inventoryAlternateController = new InventoryAlternateController(inventoryAlternateService);
   const inventoryReceivingController = new InventoryReceivingController(inventoryReceivingService);
+  const goodsReceivalController = new GoodsReceivalController(goodsReceivalService, receivalImportService);
   const invoiceController = new InvoiceController(invoiceService);
   const quotationController = new QuotationController(quotationService);
   const creditNoteController = new CreditNoteController(creditNoteService);
@@ -397,6 +403,12 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.CREATE_INVENTORY_RECEIVING, (_, data: any) => inventoryReceivingController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY_RECEIVING, (_, { id, data }: any) => inventoryReceivingController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVENTORY_RECEIVING, (_, { id }: { id: number }) => inventoryReceivingController.delete(id));
+
+  // ===== GOODS RECEIVING HANDLERS =====
+  ipcMain.handle(IpcChannel.POST_GOODS_RECEIVAL, (_, data: any) => goodsReceivalController.post(data));
+  ipcMain.handle(IpcChannel.GET_GOODS_RECEIVALS, (_, params: any = {}) => goodsReceivalController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_GOODS_RECEIVAL_BY_ID, (_, { id }: { id: number }) => goodsReceivalController.getById(id));
+  ipcMain.handle(IpcChannel.PARSE_RECEIVAL_IMPORT, () => goodsReceivalController.parseImport());
 
   // ===== INVENTORY SALES HANDLERS =====
   ipcMain.handle(IpcChannel.GET_VARIANT_SALES, (_, { sku, ...params }: { sku: string; page?: number; pageSize?: number; startDate?: string; endDate?: string; variantSku?: string }) => documentLineItemController.getVariantSales(sku, params));

@@ -118,9 +118,33 @@ export const inventoryTransactions = pgTable('inventory_transactions', {
   index('idx_inv_trans_reference').on(table.reference),
 ]);
 
-// INVENTORY_RECEIVING table - receiving records from suppliers
+// GOODS_RECEIVALS table - receival header/document. One reference (PO / supplier
+// invoice #) groups multiple received line items into a single posted document so
+// the whole receival can be reviewed, audited and reprinted as a unit.
+export const goodsReceivals = pgTable('goods_receivals', {
+  id: serial('id').primaryKey(),
+  reference: varchar('reference', { length: 50 }),
+  supplierId: integer('supplier_id')
+    .references(() => suppliers.id, { onDelete: 'set null' }),
+  supplier: varchar('supplier', { length: 100 }),
+  receivingDate: date('receiving_date'),
+  status: varchar('status', { length: 20 }).notNull().default('posted'),
+  notes: text('notes'),
+  lineCount: integer('line_count').notNull().default(0),
+  totalQuantity: integer('total_quantity').notNull().default(0),
+  totalCost: numeric('total_cost', { precision: 15, scale: 2 }).notNull().default('0'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('idx_goods_rec_reference').on(table.reference),
+  index('idx_goods_rec_supplier_id').on(table.supplierId),
+  index('idx_goods_rec_date').on(table.receivingDate),
+]);
+
+// INVENTORY_RECEIVING table - receiving records from suppliers (one row per line)
 export const inventoryReceiving = pgTable('inventory_receiving', {
   id: serial('id').primaryKey(),
+  receivalId: integer('receival_id')
+    .references(() => goodsReceivals.id, { onDelete: 'set null' }),
   sku: varchar('sku', { length: 50 }).notNull()
     .references(() => inventory.sku, { onDelete: 'cascade' }),
   variantSku: varchar('variant_sku', { length: 50 })
@@ -145,6 +169,7 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   index('idx_inv_rec_variant_sku').on(table.variantSku),
   index('idx_inv_rec_supplier').on(table.supplier),
   index('idx_inv_rec_supplier_id').on(table.supplierId),
+  index('idx_inv_rec_receival_id').on(table.receivalId),
 ]);
 
 // INVENTORY_IMAGES table - product gallery images
@@ -190,3 +215,6 @@ export type InsertInventoryTransaction = typeof inventoryTransactions.$inferInse
 
 export type InventoryReceiving = typeof inventoryReceiving.$inferSelect;
 export type InsertInventoryReceiving = typeof inventoryReceiving.$inferInsert;
+
+export type GoodsReceival = typeof goodsReceivals.$inferSelect;
+export type InsertGoodsReceival = typeof goodsReceivals.$inferInsert;

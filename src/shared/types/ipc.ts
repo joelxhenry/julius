@@ -289,6 +289,12 @@ export enum IpcChannel {
   UPDATE_INVENTORY_RECEIVING = 'db:update-inventory-receiving',
   DELETE_INVENTORY_RECEIVING = 'db:delete-inventory-receiving',
 
+  // Goods receiving module (atomic receival documents + import)
+  POST_GOODS_RECEIVAL = 'db:post-goods-receival',
+  GET_GOODS_RECEIVALS = 'db:get-goods-receivals',
+  GET_GOODS_RECEIVAL_BY_ID = 'db:get-goods-receival-by-id',
+  PARSE_RECEIVAL_IMPORT = 'db:parse-receival-import',
+
   // Inventory sales queries
   GET_VARIANT_SALES = 'db:get-variant-sales',
   GET_INVENTORY_SALES_SUMMARY = 'db:get-inventory-sales-summary',
