@@ -43,6 +43,15 @@ export interface ClientStatementRequest {
   printerName?: string;
 }
 
+export interface SalesReportPrintRequest {
+  /** Inclusive start date (YYYY-MM-DD). Omit for all dates. */
+  startDate?: string | null;
+  /** Inclusive end date (YYYY-MM-DD). Omit for all dates. */
+  endDate?: string | null;
+  outputMode: PrintOutputMode;
+  printerName?: string;
+}
+
 export interface PaymentReportRequest {
   clientId: number;
   /** Client display name for the report heading / file name. */

@@ -19,6 +19,7 @@ import {
 import { IconCash, IconAlertCircle, IconReceipt, IconCheck } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { isCashMethod } from '../../../shared/constants/payments';
 import { useAuth } from '../../contexts/AuthContext';
 import { ApplyCreditNoteModal } from './ApplyCreditNoteModal';
 
@@ -58,6 +59,7 @@ export function RecordPaymentModal({
 }: RecordPaymentModalProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number | string>('');
+  const [cashHandover, setCashHandover] = useState<number | string>('');
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [transactionReference, setTransactionReference] = useState('');
   const [notes, setNotes] = useState('');
@@ -78,6 +80,15 @@ export function RecordPaymentModal({
   const totalCreditApplied = appliedCredits.reduce((sum, c) => sum + c.amount, 0);
   const effectiveBalance = Math.max(0, balanceDue - totalCreditApplied);
   const cashPayment = typeof amount === 'number' ? amount : parseFloat(amount as string) || 0;
+
+  // Cash tendering (display-only): when the selected method is cash, the cashier
+  // can record the cash handed over and see the change to give back. The amount
+  // actually recorded against the invoice stays `cashPayment` regardless.
+  const selectedMethod = paymentMethods.find((pm) => pm.id.toString() === paymentMethodId);
+  const isCash = selectedMethod ? isCashMethod(selectedMethod) : false;
+  const handoverAmount =
+    typeof cashHandover === 'number' ? cashHandover : parseFloat(cashHandover as string) || 0;
+  const changeDue = Math.max(0, handoverAmount - cashPayment);
 
   // Load payment methods
   useEffect(() => {
@@ -111,6 +122,7 @@ export function RecordPaymentModal({
     if (opened && invoice) {
       const balance = parseFloat(invoice.total) - parseFloat(invoice.totalPaid);
       setAmount(balance > 0 ? balance : '');
+      setCashHandover('');
       setTransactionReference('');
       setNotes('');
       setError(null);
@@ -165,7 +177,6 @@ export function RecordPaymentModal({
       return;
     }
 
-    const selectedMethod = paymentMethods.find((pm) => pm.id.toString() === paymentMethodId);
     if (!selectedMethod) {
       setError('Selected payment method is invalid');
       return;
@@ -214,7 +225,7 @@ export function RecordPaymentModal({
     effectiveBalance,
     cashPayment,
     paymentMethodId,
-    paymentMethods,
+    selectedMethod,
     transactionReference,
     notes,
     onPaymentRecorded,
@@ -378,6 +389,38 @@ export function RecordPaymentModal({
                 rightSection={isLoadingMethods ? <Loader size={14} /> : undefined}
                 required
               />
+
+              {isCash && (
+                <>
+                  <NumberInput
+                    label="Cash Handover"
+                    description="Cash received from the customer"
+                    placeholder="0.00"
+                    value={cashHandover}
+                    onChange={setCashHandover}
+                    onKeyDown={handleKeyDown}
+                    min={0}
+                    decimalScale={2}
+                    fixedDecimalScale
+                    prefix="$"
+                    thousandSeparator=","
+                    disabled={isLoading}
+                  />
+                  <Group
+                    justify="space-between"
+                    p="sm"
+                    style={{
+                      backgroundColor: 'var(--mantine-color-gray-light)',
+                      borderRadius: 'var(--mantine-radius-sm)',
+                    }}
+                  >
+                    <Text size="sm" fw={500}>Change Due</Text>
+                    <Text size="sm" fw={600} c={changeDue > 0 ? 'orange' : 'dimmed'}>
+                      {formatCurrency(changeDue)}
+                    </Text>
+                  </Group>
+                </>
+              )}
 
               <TextInput
                 label="Reference #"

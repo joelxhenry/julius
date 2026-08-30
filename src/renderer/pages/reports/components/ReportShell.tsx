@@ -1,6 +1,6 @@
 import { ReactNode, useCallback, useState } from 'react';
 import { Stack, Group, Title, Button, Menu } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import { DateInput, DatePickerInput } from '@mantine/dates';
 import { IconDownload, IconFileTypeCsv, IconFileSpreadsheet } from '@tabler/icons-react';
 import { IpcChannel } from '../../../../shared/types/ipc';
 import type { ExportColumn, ExportFormat, ExportRequest } from '../../../../shared/types/export';
@@ -19,6 +19,26 @@ interface ReportShellProps {
   exportColumns?: ExportColumn[];
   exportRows?: Record<string, unknown>[];
   exportFileName?: string;
+  /** Use a single range picker instead of separate From/To inputs. */
+  rangePicker?: boolean;
+}
+
+/** Local-midnight Date -> 'YYYY-MM-DD' (Mantine 8 dates use string values). */
+function toDateString(date: Date | string | null | undefined): string | null {
+  if (!date) return null;
+  if (typeof date === 'string') return date;
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** 'YYYY-MM-DD' -> local-midnight Date, avoiding UTC day-shift. */
+function parseLocalDate(value: string | null): Date | null {
+  if (!value) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
 }
 
 export function ReportShell({
@@ -35,6 +55,7 @@ export function ReportShell({
   exportColumns,
   exportRows,
   exportFileName,
+  rangePicker = false,
 }: ReportShellProps) {
   const [exporting, setExporting] = useState(false);
 
@@ -111,30 +132,48 @@ export function ReportShell({
 
       {/* Date range */}
       {showDateRange && (
-        <Group gap="md" className="no-print">
-          <DateInput
-            label="From"
-            value={startDate}
-            onChange={onStartDateChange}
-            clearable
-            size="sm"
-            maw={180}
-          />
-          <DateInput
-            label="To"
-            value={endDate}
-            onChange={onEndDateChange}
-            clearable
-            size="sm"
-            maw={180}
-          />
+        <Group gap="md" className="no-print" align="flex-end">
+          {rangePicker ? (
+            <DatePickerInput
+              type="range"
+              label="Date range"
+              placeholder="Pick dates"
+              value={[toDateString(startDate), toDateString(endDate)]}
+              onChange={(value) => {
+                onStartDateChange?.(parseLocalDate(value[0]));
+                onEndDateChange?.(parseLocalDate(value[1]));
+              }}
+              clearable
+              allowSingleDateInRange
+              size="sm"
+              miw={260}
+            />
+          ) : (
+            <>
+              <DateInput
+                label="From"
+                value={startDate}
+                onChange={onStartDateChange}
+                clearable
+                size="sm"
+                maw={180}
+              />
+              <DateInput
+                label="To"
+                value={endDate}
+                onChange={onEndDateChange}
+                clearable
+                size="sm"
+                maw={180}
+              />
+            </>
+          )}
           {onRefresh && (
             <Button
               variant="filled"
               size="sm"
               onClick={onRefresh}
               loading={loading}
-              mt={24}
             >
               Generate
             </Button>

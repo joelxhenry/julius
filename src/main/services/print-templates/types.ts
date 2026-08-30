@@ -172,6 +172,49 @@ export interface PaymentReportTemplateData {
   netTotal: string;
 }
 
+export interface SalesReportPaymentTypeRow {
+  method: string;
+  count: string;
+  total: string;
+}
+
+export interface SalesReportDetailRow {
+  invoiceNumber: string;
+  /** Payment method name, e.g. "CASH". */
+  paymentType: string;
+  clientName: string;
+  date: string | null;
+  /** Formatted amount, with a leading minus for refunds. */
+  amount: string;
+  /** True for refunds (negative amounts). */
+  isNegative: boolean;
+}
+
+export interface SalesReportTemplateData {
+  company: CompanyInfo;
+  periodLabel: string;
+  printedAt: string;
+  // Summary block
+  netSales: string;
+  taxCollected: string;
+  grossSales: string;
+  // Stats
+  numCustomers: string;
+  averageSale: string;
+  numPayments: string;
+  valuePayments: string;
+  numRefunds: string;
+  valueRefunds: string;
+  numDiscounts: string;
+  valueDiscounts: string;
+  // Payment Report breakdown
+  paymentTypes: SalesReportPaymentTypeRow[];
+  paymentTypesTotalCount: string;
+  paymentTypesTotal: string;
+  // Per-payment detail listing
+  detail: SalesReportDetailRow[];
+}
+
 export interface PaymentReceiptTemplateData {
   company: CompanyInfo;
   payment: {

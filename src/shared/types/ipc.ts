@@ -351,7 +351,6 @@ export enum IpcChannel {
 
   // Report operations
   GET_SALES_REPORT = 'db:get-sales-report',
-  GET_RECEIVABLES_AGING_REPORT = 'db:get-receivables-aging-report',
   GET_PAYMENT_COLLECTION_REPORT = 'db:get-payment-collection-report',
 
   // Export operations
@@ -367,4 +366,5 @@ export enum IpcChannel {
   PRINT_RECEIVING_REFERENCE = 'print:receiving-reference',
   PRINT_CLIENT_STATEMENT = 'print:client-statement',
   PRINT_PAYMENT_REPORT = 'print:payment-report',
+  PRINT_SALES_REPORT = 'print:sales-report',
 }

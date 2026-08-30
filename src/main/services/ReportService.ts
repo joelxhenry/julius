@@ -1,6 +1,7 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { and, gte, lte, eq, count, sql, inArray, desc } from 'drizzle-orm';
+import { and, gte, lte, eq, count, sql, desc } from 'drizzle-orm';
 import * as schema from '../database/schema';
+import { canonicalizePaymentType, CANONICAL_PAYMENT_TYPES } from '../../shared/constants/payments';
 
 // ── Param / Result types ────────────────────────────────────────────
 
@@ -9,39 +10,40 @@ export interface DateRangeParams {
   endDate?: string;
 }
 
-export interface SalesSummaryResult {
-  totalInvoices: number;
-  totalRevenue: number;
-  totalTax: number;
-  totalPaymentsReceived: number;
-  totalOutstanding: number;
-  totalRefunds: number;
-  totalCreditNotesIssued: number;
-  byPaymentMethod: Array<{ method: string; total: number; count: number }>;
-}
-
-export interface AgingBucket {
-  label: string;
-  total: number;
+export interface SalesReportPaymentType {
+  method: string;
   count: number;
-}
-
-export interface AgingLineItem {
-  invoiceId: number;
-  invNumber: string;
-  invDate: string;
-  clientName: string | null;
   total: number;
-  totalPaid: number;
-  balance: number;
-  daysOutstanding: number;
-  bucket: string;
 }
 
-export interface ReceivablesAgingResult {
-  buckets: AgingBucket[];
-  invoices: AgingLineItem[];
-  grandTotal: number;
+export interface SalesReportDetailItem {
+  invoiceNumber: string | null;
+  paymentType: string;
+  clientName: string | null;
+  date: string | null;
+  amount: number;
+}
+
+export interface SalesSummaryResult {
+  startDate: string | null;
+  endDate: string | null;
+  // Summary block
+  netSales: number; // pre-tax (invoice sub_total)
+  taxCollected: number;
+  grossSales: number; // net + tax (invoice total)
+  // Customer stats
+  numCustomers: number; // distinct clients that bought in the period
+  averageSale: number; // netSales / numCustomers
+  // Payment stats
+  numPayments: number;
+  valuePayments: number;
+  numRefunds: number;
+  valueRefunds: number;
+  numDiscounts: number;
+  valueDiscounts: number;
+  // Payment breakdown + per-payment detail listing
+  paymentTypes: SalesReportPaymentType[];
+  detail: SalesReportDetailItem[];
 }
 
 export interface SalespersonRow {
@@ -97,136 +99,131 @@ export class ReportService {
   async getSalesSummary(params: DateRangeParams): Promise<SalesSummaryResult> {
     const { startDate, endDate } = params;
 
-    // Invoice totals
+    // ── Invoice aggregates (Net / Tax / Gross + distinct customers) ──
     const invConditions = [];
     if (startDate) invConditions.push(gte(schema.invoices.invDate, startDate));
     if (endDate) invConditions.push(lte(schema.invoices.invDate, endDate));
 
     const invResult = await this.db
       .select({
-        count: count(),
-        totalRevenue: sql<string>`COALESCE(SUM(CAST(${schema.invoices.total} AS numeric)), 0)`,
-        totalTax: sql<string>`COALESCE(SUM(CAST(${schema.invoices.tax} AS numeric)), 0)`,
-        totalPaid: sql<string>`COALESCE(SUM(CAST(${schema.invoices.totalPaid} AS numeric)), 0)`,
+        netSales: sql<string>`COALESCE(SUM(CAST(${schema.invoices.subTotal} AS numeric)), 0)`,
+        taxCollected: sql<string>`COALESCE(SUM(CAST(${schema.invoices.tax} AS numeric)), 0)`,
+        grossSales: sql<string>`COALESCE(SUM(CAST(${schema.invoices.total} AS numeric)), 0)`,
+        // Distinct customers: dedupe by client, falling back to the invoice's
+        // own number for anonymous / walk-in sales so each still counts once.
+        numCustomers: sql<string>`COUNT(DISTINCT COALESCE(CAST(${schema.invoices.clientId} AS text), ${schema.invoices.clientName}, ${schema.invoices.invNumber}))`,
       })
       .from(schema.invoices)
       .where(invConditions.length ? and(...invConditions) : undefined);
 
-    // Payment method breakdown (only INVOICE payments)
+    // ── Line-item discounts on invoices in range ─────────────────────
+    const discConditions = [
+      eq(schema.documentLineItems.documentType, 'INVOICE'),
+      sql`CAST(${schema.documentLineItems.discount} AS numeric) > 0`,
+    ];
+    if (startDate) discConditions.push(gte(schema.invoices.invDate, startDate));
+    if (endDate) discConditions.push(lte(schema.invoices.invDate, endDate));
+
+    const discResult = await this.db
+      .select({
+        count: count(),
+        total: sql<string>`COALESCE(SUM(CAST(${schema.documentLineItems.discount} AS numeric)), 0)`,
+      })
+      .from(schema.documentLineItems)
+      .innerJoin(schema.invoices, eq(schema.documentLineItems.documentNumber, schema.invoices.invNumber))
+      .where(and(...discConditions));
+
+    // ── Payments in range (INVOICE) with client + method resolution ──
     const payConditions = [eq(schema.payments.documentType, 'INVOICE')];
     if (startDate) payConditions.push(gte(schema.payments.paymentDate, startDate));
     if (endDate) payConditions.push(lte(schema.payments.paymentDate, endDate));
 
-    const payBreakdown = await this.db
-      .select({
-        method: schema.payments.paymentDesc,
-        total: sql<string>`COALESCE(SUM(CAST(${schema.payments.amount} AS numeric)), 0)`,
-        count: count(),
-      })
-      .from(schema.payments)
-      .where(and(...payConditions))
-      .groupBy(schema.payments.paymentDesc);
+    const [payRows, methods] = await Promise.all([
+      this.db
+        .select({ payment: schema.payments, clientName: schema.invoices.clientName })
+        .from(schema.payments)
+        .leftJoin(schema.invoices, eq(schema.payments.invoiceNumber, schema.invoices.invNumber))
+        .where(and(...payConditions))
+        .orderBy(schema.payments.invoiceNumber),
+      this.db.select().from(schema.paymentMethods),
+    ]);
 
-    // Refunds: negative INVOICE payments in range (cash / bank / card-void
-    // refunds recorded by the Process Return flow, plus voided payments).
-    const refundResult = await this.db
-      .select({
-        totalRefunds: sql<string>`COALESCE(SUM(CAST(${schema.payments.amount} AS numeric)), 0)`,
-      })
-      .from(schema.payments)
-      .where(and(...payConditions, sql`CAST(${schema.payments.amount} AS numeric) < 0`));
+    // Method code lives in paymentDesc or paymentDesc2; resolve to a name, then
+    // fold it into one of the fixed canonical report payment types so the report
+    // only ever shows Cash / Bank Transfer / Cheque / Credit-Debit Card / Store
+    // Credit regardless of the varied labels stored on individual payments.
+    const methodMap = new Map<string, string>();
+    methods.forEach((m) => methodMap.set(m.code, m.name));
+    const resolveMethod = (p: schema.Payment): string => {
+      const codeMatch = [p.paymentDesc, p.paymentDesc2].find((v) => v && methodMap.has(v)) || null;
+      const name = codeMatch ? (methodMap.get(codeMatch) ?? '') : '';
+      return canonicalizePaymentType(name || p.paymentDesc || p.paymentDesc2);
+    };
 
-    // Credit notes issued in range (store credit given for returns).
-    const cnConditions = [];
-    if (startDate) cnConditions.push(gte(schema.creditNotes.crDate, startDate));
-    if (endDate) cnConditions.push(lte(schema.creditNotes.crDate, endDate));
+    let numPayments = 0;
+    let valuePayments = 0;
+    let numRefunds = 0;
+    let valueRefunds = 0;
+    const typeMap = new Map<string, SalesReportPaymentType>();
+    const detail: SalesReportDetailItem[] = [];
 
-    const cnResult = await this.db
-      .select({
-        totalIssued: sql<string>`COALESCE(SUM(CAST(${schema.creditNotes.total} AS numeric)), 0)`,
-      })
-      .from(schema.creditNotes)
-      .where(cnConditions.length ? and(...cnConditions) : undefined);
+    for (const row of payRows) {
+      const p = row.payment;
+      const amount = Number(p.amount ?? 0);
+      const method = resolveMethod(p);
 
-    const totalRevenue = Number(invResult[0]?.totalRevenue ?? 0);
-    const totalPaid = Number(invResult[0]?.totalPaid ?? 0);
+      if (amount < 0) {
+        numRefunds += 1;
+        valueRefunds += Math.abs(amount);
+      } else {
+        numPayments += 1;
+        valuePayments += amount;
+        // Payment Report breakdown groups positive receipts by type.
+        const existing = typeMap.get(method);
+        if (existing) {
+          existing.count += 1;
+          existing.total += amount;
+        } else {
+          typeMap.set(method, { method, count: 1, total: amount });
+        }
+      }
+
+      detail.push({
+        invoiceNumber: p.invoiceNumber,
+        paymentType: method,
+        clientName: row.clientName ?? null,
+        date: p.paymentDate,
+        amount,
+      });
+    }
+
+    const netSales = Number(invResult[0]?.netSales ?? 0);
+    const numCustomers = Number(invResult[0]?.numCustomers ?? 0);
 
     return {
-      totalInvoices: Number(invResult[0]?.count ?? 0),
-      totalRevenue,
-      totalTax: Number(invResult[0]?.totalTax ?? 0),
-      totalPaymentsReceived: totalPaid,
-      totalOutstanding: totalRevenue - totalPaid,
-      // Report as a positive figure (the summed negative amounts flipped).
-      totalRefunds: Math.abs(Number(refundResult[0]?.totalRefunds ?? 0)),
-      totalCreditNotesIssued: Number(cnResult[0]?.totalIssued ?? 0),
-      byPaymentMethod: payBreakdown.map((r) => ({
-        method: r.method || 'Unknown',
-        total: Number(r.total ?? 0),
-        count: Number(r.count ?? 0),
-      })),
+      startDate: startDate ?? null,
+      endDate: endDate ?? null,
+      netSales,
+      taxCollected: Number(invResult[0]?.taxCollected ?? 0),
+      grossSales: Number(invResult[0]?.grossSales ?? 0),
+      numCustomers,
+      averageSale: numCustomers > 0 ? netSales / numCustomers : 0,
+      numPayments,
+      valuePayments,
+      numRefunds,
+      valueRefunds,
+      numDiscounts: Number(discResult[0]?.count ?? 0),
+      valueDiscounts: Number(discResult[0]?.total ?? 0),
+      paymentTypes: Array.from(typeMap.values()).sort(
+        (a, b) =>
+          CANONICAL_PAYMENT_TYPES.indexOf(a.method as (typeof CANONICAL_PAYMENT_TYPES)[number]) -
+          CANONICAL_PAYMENT_TYPES.indexOf(b.method as (typeof CANONICAL_PAYMENT_TYPES)[number]),
+      ),
+      detail,
     };
   }
 
-  // ── 2. Accounts Receivable Aging ───────────────────────────────
-
-  async getReceivablesAging(): Promise<ReceivablesAgingResult> {
-    const unpaid = await this.db
-      .select()
-      .from(schema.invoices)
-      .where(inArray(schema.invoices.status, ['active', 'partially_paid']));
-
-    const today = new Date();
-    const bucketMap: Record<string, AgingBucket> = {
-      'Current (0-30)': { label: 'Current (0-30)', total: 0, count: 0 },
-      '31-60 days': { label: '31-60 days', total: 0, count: 0 },
-      '61-90 days': { label: '61-90 days', total: 0, count: 0 },
-      '90+ days': { label: '90+ days', total: 0, count: 0 },
-    };
-
-    const invoices: AgingLineItem[] = unpaid.map((inv) => {
-      const invDate = new Date(inv.invDate);
-      const diffMs = today.getTime() - invDate.getTime();
-      const daysOutstanding = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-      const total = Number(inv.total ?? 0);
-      const totalPaid = Number(inv.totalPaid ?? 0);
-      const balance = total - totalPaid;
-
-      let bucket: string;
-      if (daysOutstanding <= 30) bucket = 'Current (0-30)';
-      else if (daysOutstanding <= 60) bucket = '31-60 days';
-      else if (daysOutstanding <= 90) bucket = '61-90 days';
-      else bucket = '90+ days';
-
-      bucketMap[bucket].total += balance;
-      bucketMap[bucket].count += 1;
-
-      return {
-        invoiceId: inv.id,
-        invNumber: inv.invNumber,
-        invDate: inv.invDate,
-        clientName: inv.clientName,
-        total,
-        totalPaid,
-        balance,
-        daysOutstanding,
-        bucket,
-      };
-    });
-
-    // Sort by days outstanding descending
-    invoices.sort((a, b) => b.daysOutstanding - a.daysOutstanding);
-
-    const grandTotal = invoices.reduce((sum, inv) => sum + inv.balance, 0);
-
-    return {
-      buckets: Object.values(bucketMap),
-      invoices,
-      grandTotal,
-    };
-  }
-
-  // ── 3. Payment Collection ──────────────────────────────────────
+  // ── 2. Payment Collection ──────────────────────────────────────
 
   async getPaymentCollection(params: DateRangeParams): Promise<PaymentCollectionResult> {
     const { startDate, endDate } = params;
