@@ -12,7 +12,10 @@ interface CompactInvoiceToolbarProps {
   originalInvNumber?: string | null;
   totals: InvoiceTotals;
   isTaxable: boolean;
-  isSaving: boolean;
+  /** Save & Issue action in flight. */
+  isIssuing: boolean;
+  /** Save & Pay action in flight. */
+  isProcessingPayment: boolean;
   hasLineItems: boolean;
   onIssueInvoice: () => void;
   onSaveAndPay: () => void;
@@ -31,7 +34,8 @@ export function CompactInvoiceToolbar({
   originalInvNumber,
   totals,
   isTaxable,
-  isSaving,
+  isIssuing,
+  isProcessingPayment,
   hasLineItems,
   onIssueInvoice,
   onSaveAndPay,
@@ -82,8 +86,8 @@ export function CompactInvoiceToolbar({
             color={isCancelling ? 'red' : 'green'}
             leftSection={isCancelling ? <IconBan size={14} /> : <IconCheck size={14} />}
             onClick={onIssueInvoice}
-            loading={isSaving}
-            disabled={!hasLineItems && !isCancelling}
+            loading={isIssuing}
+            disabled={(!hasLineItems && !isCancelling) || isProcessingPayment}
           >
             {isCancelling ? 'Cancel Invoice' : 'Save & Issue'}
           </Button>
@@ -92,8 +96,8 @@ export function CompactInvoiceToolbar({
             color="teal"
             leftSection={<IconCash size={14} />}
             onClick={onSaveAndPay}
-            loading={isSaving}
-            disabled={!hasLineItems}
+            loading={isProcessingPayment}
+            disabled={!hasLineItems || isIssuing}
           >
             Save & Pay
           </Button>

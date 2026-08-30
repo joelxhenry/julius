@@ -36,6 +36,12 @@ export * from './EmployeeShiftsController';
 export * from './DatabaseSettingsController';
 export * from './SystemSettingsController';
 
+// Access Override Controller (permission audit)
+export * from './AccessOverrideController';
+
+// RBAC Role Controller
+export * from './RoleController';
+
 // Report Controller
 export * from './ReportController';
 

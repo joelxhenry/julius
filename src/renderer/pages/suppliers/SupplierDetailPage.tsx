@@ -31,6 +31,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { SupplierEditModal, SupplierReceivingTab, SupplierBillsTab } from '../../components/suppliers';
 import { useTabContext } from '../../contexts/TabContext';
+import { PermissionButton } from '../../permissions';
 
 interface Supplier {
   id: number;
@@ -165,9 +166,16 @@ export function SupplierDetailPage() {
           </Stack>
         </Group>
         <Group>
-          <Button leftSection={<IconEdit size={16} />} onClick={() => setEditModalOpen(true)}>
+          <PermissionButton
+            permission="EDIT_SUPPLIER"
+            whenDenied="elevate"
+            actionLabel={`Edit supplier ${supplier.company}`}
+            context={{ entity: 'supplier', id: supplier.id }}
+            leftSection={<IconEdit size={16} />}
+            onClick={() => setEditModalOpen(true)}
+          >
             Edit Supplier
-          </Button>
+          </PermissionButton>
         </Group>
       </Group>
 

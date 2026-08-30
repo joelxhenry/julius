@@ -111,7 +111,7 @@ const FIELD_KEYS: FieldKey[] = ['quantity', 'price', 'cost', 'category', 'model'
 const REASON_MAX = 50;
 
 const blankCell = (val: string | number | null | undefined): string => {
-  if (val === null || val === undefined || val === '') return '—';
+  if (val === null || val === undefined || val === '') return '-';
   return String(val);
 };
 
@@ -265,8 +265,9 @@ const downloadErrorReport = (rows: ParsedRow[]) => {
   URL.revokeObjectURL(url);
 };
 
-export function MassUpdatePage() {
+export function MassUpdatePage({ onBack }: { onBack?: () => void } = {}) {
   const navigate = useNavigate();
+  const handleBack = onBack ?? (() => navigate('/inventory/manage'));
   const [stage, setStage] = useState<Stage>('upload');
   const [parseError, setParseError] = useState<string | null>(null);
   const [unknownColumns, setUnknownColumns] = useState<string[]>([]);
@@ -707,7 +708,7 @@ export function MassUpdatePage() {
               Start Over
             </Button>
           )}
-          <Button variant="subtle" onClick={() => navigate('/inventory/manage')}>
+          <Button variant="subtle" onClick={handleBack}>
             Back
           </Button>
         </Group>
@@ -719,7 +720,7 @@ export function MassUpdatePage() {
             <Stack gap="sm">
               <Group justify="space-between">
                 <Stack gap={2}>
-                  <Text fw={600}>Step 1 — Download a template</Text>
+                  <Text fw={600}>Step 1 - Download a template</Text>
                   <Text size="sm" c="dimmed">
                     Use the Part Number column to look up items. Leave a column blank to keep the
                     current value. Unknown columns are ignored with a warning.
@@ -756,9 +757,9 @@ export function MassUpdatePage() {
               <ThemeIcon size={56} radius="xl" variant="light" color="blue">
                 <IconUpload size={28} />
               </ThemeIcon>
-              <Text fw={600}>Step 2 — Upload your file</Text>
+              <Text fw={600}>Step 2 - Upload your file</Text>
               <Text size="sm" c="dimmed" ta="center" maw={500}>
-                Choose a .csv, .xlsx, or .xls file. Nothing is written yet — you&apos;ll see
+                Choose a .csv, .xlsx, or .xls file. Nothing is written yet - you&apos;ll see
                 a preview of every row before applying changes.
               </Text>
               <FileButton
@@ -812,7 +813,7 @@ export function MassUpdatePage() {
               <Alert color="blue" variant="light" mb="sm" icon={<IconAlertCircle size={14} />}>
                 <Stack gap="xs">
                   <Text size="sm" fw={500}>
-                    Quantity changes detected — reason note required
+                    Quantity changes detected - reason note required
                   </Text>
                   <Text size="xs" c="dimmed">
                     Each quantity change writes an audit-trail transaction with this reason.
@@ -832,7 +833,7 @@ export function MassUpdatePage() {
             {stage === 'applying' && (
               <Stack gap={4} mb="sm">
                 <Text size="sm" fw={500}>
-                  Applying changes — {progress.done} of {progress.total}
+                  Applying changes - {progress.done} of {progress.total}
                 </Text>
                 <Progress
                   value={progress.total === 0 ? 0 : (progress.done / progress.total) * 100}
@@ -870,7 +871,7 @@ export function MassUpdatePage() {
                       <Table.Td>
                         <Text size="sm" lineClamp={2}>
                           {row.current?.description1 || (
-                            <span style={{ opacity: 0.5 }}>—</span>
+                            <span style={{ opacity: 0.5 }}>-</span>
                           )}
                         </Text>
                       </Table.Td>
@@ -910,7 +911,7 @@ export function MassUpdatePage() {
         <Stack gap="md">
           <Text size="sm">
             About to update <strong>{validRows.length}</strong> inventory item
-            {validRows.length === 1 ? '' : 's'}. This action cannot be undone in bulk — failed
+            {validRows.length === 1 ? '' : 's'}. This action cannot be undone in bulk - failed
             rows will remain on screen so you can fix and re-apply.
           </Text>
           <List size="sm" spacing={4}>

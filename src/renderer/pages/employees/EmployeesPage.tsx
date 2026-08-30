@@ -10,6 +10,7 @@ import {
   ActionIcon,
   Text,
   Checkbox,
+  Select,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -22,6 +23,8 @@ import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
+import { PermissionButton } from '../../permissions';
+import { employeeDisplayName } from '../../utils/employeeName';
 
 interface Employee {
   id: number;
@@ -33,8 +36,15 @@ interface Employee {
   username: string | null;
   status: string | null;
   isSalesperson: boolean | null;
+  roleId: number | null;
   startDate: string | null;
   createdAt: Date;
+}
+
+interface Role {
+  id: number;
+  name: string;
+  isSuperAdmin: boolean;
 }
 
 interface PaginatedResult {
@@ -56,9 +66,23 @@ export function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebouncedValue(search, 300);
   const [activeOnly, setActiveOnly] = useState(true);
-  const [salespersonOnly, setSalespersonOnly] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [roles, setRoles] = useState<Role[]>([]);
 
   const pageSize = 20;
+
+  // Load roles once for the filter dropdown and role-name lookup.
+  useEffect(() => {
+    window.electron.invoke(IpcChannel.GET_ROLES).then((result) => {
+      if (result.success && result.data) setRoles(result.data);
+    });
+  }, []);
+
+  const roleNameById = useMemo(() => {
+    const map = new Map<number, Role>();
+    roles.forEach((r) => map.set(r.id, r));
+    return map;
+  }, [roles]);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -68,7 +92,7 @@ export function EmployeesPage() {
         pageSize,
         search: debouncedSearch,
         activeOnly,
-        salespersonOnly,
+        roleId: roleFilter ? parseInt(roleFilter, 10) : null,
       });
 
       if (result.success && result.data) {
@@ -82,7 +106,7 @@ export function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, activeOnly, salespersonOnly]);
+  }, [page, pageSize, debouncedSearch, activeOnly, roleFilter]);
 
   useEffect(() => {
     fetchEmployees();
@@ -91,7 +115,7 @@ export function EmployeesPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, activeOnly, salespersonOnly]);
+  }, [debouncedSearch, activeOnly, roleFilter]);
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -106,12 +130,7 @@ export function EmployeesPage() {
     }
   };
 
-  const getEmployeeName = (employee: Employee) => {
-    if (employee.firstName || employee.lastName) {
-      return `${employee.firstName || ''} ${employee.lastName || ''}`.trim();
-    }
-    return employee.code;
-  };
+  const getEmployeeName = (employee: Employee) => employeeDisplayName(employee);
 
   const columns: Column<Employee>[] = useMemo(
     () => [
@@ -140,17 +159,26 @@ export function EmployeesPage() {
         ),
       },
       {
-        key: 'type',
-        header: 'Type',
-        render: (employee) =>
-          employee.isSalesperson ? (
-            <Badge color="violet" variant="light" size="sm">
-              Salesperson
+        key: 'role',
+        header: 'Role',
+        render: (employee) => {
+          const role = employee.roleId != null ? roleNameById.get(employee.roleId) : null;
+          if (!role) {
+            return (
+              <Text size="sm" c="dimmed">
+                No role
+              </Text>
+            );
+          }
+          return (
+            <Badge color={role.isSuperAdmin ? 'orange' : 'blue'} variant="light" size="sm">
+              {role.name}
             </Badge>
-          ) : null,
+          );
+        },
       },
     ],
-    [navigate]
+    [roleNameById]
   );
 
   return (
@@ -168,9 +196,14 @@ export function EmployeesPage() {
       </Group>
       <Group justify="space-between" align="center">
         <Title order={2}>Employees</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/employees/new')}>
+        <PermissionButton
+          permission="CREATE_EMPLOYEE"
+          whenDenied="disable"
+          leftSection={<IconPlus size={16} />}
+          onClick={() => navigate('/employees/new')}
+        >
           Add Employee
-        </Button>
+        </PermissionButton>
       </Group>
 
       <Paper p="md" radius="md" withBorder>
@@ -184,15 +217,18 @@ export function EmployeesPage() {
               onChange={(e) => setSearch(e.target.value)}
               style={{ flex: 1 }}
             />
+            <Select
+              placeholder="All roles"
+              value={roleFilter}
+              onChange={setRoleFilter}
+              data={roles.map((r) => ({ value: String(r.id), label: r.name }))}
+              clearable
+              w={200}
+            />
             <Checkbox
               label="Active only"
               checked={activeOnly}
               onChange={(e) => setActiveOnly(e.target.checked)}
-            />
-            <Checkbox
-              label="Salespeople only"
-              checked={salespersonOnly}
-              onChange={(e) => setSalespersonOnly(e.target.checked)}
             />
             <ActionIcon variant="subtle" onClick={fetchEmployees} title="Refresh">
               <IconRefresh size={18} />

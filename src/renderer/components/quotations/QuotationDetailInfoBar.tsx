@@ -1,5 +1,6 @@
-import { Paper, Group, Text, Anchor } from '@mantine/core';
+import { Paper, Group, Text } from '@mantine/core';
 import { IconUser, IconCalendar, IconFileText, IconTag, IconUserCheck } from '@tabler/icons-react';
+import { RestrictedLink } from '../../permissions';
 
 interface Quotation {
   id: number;
@@ -36,9 +37,9 @@ export function QuotationDetailInfoBar({ quotation, onViewClient, salespersonNam
         {quotation.clientName && (
           <Group gap={4} wrap="nowrap">
             <IconUser size={14} color="gray" />
-            <Anchor size="sm" onClick={onViewClient} c="blue" style={{ cursor: 'pointer' }}>
+            <RestrictedLink permission="VIEW_CLIENTS" size="sm" color="blue" onClick={onViewClient}>
               {quotation.clientName}
-            </Anchor>
+            </RestrictedLink>
           </Group>
         )}
 
@@ -47,9 +48,9 @@ export function QuotationDetailInfoBar({ quotation, onViewClient, salespersonNam
           <Group gap={4} wrap="nowrap">
             <IconUserCheck size={14} color="gray" />
             <Text size="sm" c="dimmed">Salesperson:</Text>
-            <Anchor size="sm" onClick={onViewSalesperson} c="violet" style={{ cursor: 'pointer' }}>
+            <RestrictedLink permission="VIEW_EMPLOYEES" size="sm" color="violet" onClick={() => onViewSalesperson?.()}>
               {salespersonName}
-            </Anchor>
+            </RestrictedLink>
           </Group>
         )}
 

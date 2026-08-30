@@ -16,6 +16,8 @@ import {
 } from '../../components/invoices';
 import { PaymentHistoryCard } from '../../components/payments';
 import { CollapsibleSection, LookupTicketButton, PrintButton } from '../../components/common';
+import { usePermissions } from '../../permissions';
+import { employeeDisplayName } from '../../utils/employeeName';
 
 interface Invoice {
   id: number;
@@ -88,6 +90,7 @@ export function InvoiceDetailPage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { runWithPermission } = usePermissions();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,7 +113,7 @@ export function InvoiceDetailPage() {
     window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: invoice.salespersonId }).then((res) => {
       if (res.success && res.data) {
         const emp = res.data;
-        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        const name = employeeDisplayName(emp);
         setSalespersonName(name);
       }
     });
@@ -122,7 +125,7 @@ export function InvoiceDetailPage() {
     window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: invoice.adminOverrideById }).then((res) => {
       if (res.success && res.data) {
         const emp = res.data;
-        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        const name = employeeDisplayName(emp);
         setOverrideAdminName(name);
       }
     });
@@ -275,32 +278,39 @@ export function InvoiceDetailPage() {
   );
 
   // Archive invoice
-  const handleArchive = useCallback(async () => {
+  const handleArchive = useCallback(() => {
     if (!invoice) return;
-
-    try {
-      const result = await window.electron.invoke(IpcChannel.ARCHIVE_INVOICE, { id: invoice.id });
-      if (result.success) {
-        notifications.show({
-          title: 'Invoice Archived',
-          message: `Invoice ${invoice.invNumber} has been archived`,
-          color: 'green',
-        });
-        navigate('/invoices');
+    runWithPermission(
+      { permissionCode: 'ARCHIVE_INVOICE', actionLabel: `Archive invoice ${invoice.invNumber}`, context: { entity: 'invoice', id: invoice.id } },
+      async () => {
+        try {
+          const result = await window.electron.invoke(IpcChannel.ARCHIVE_INVOICE, { id: invoice.id });
+          if (result.success) {
+            notifications.show({
+              title: 'Invoice Archived',
+              message: `Invoice ${invoice.invNumber} has been archived`,
+              color: 'green',
+            });
+            navigate('/invoices');
+          }
+        } catch (error) {
+          notifications.show({
+            title: 'Error',
+            message: 'Failed to archive invoice',
+            color: 'red',
+          });
+        }
       }
-    } catch (error) {
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to archive invoice',
-        color: 'red',
-      });
-    }
-  }, [invoice, navigate]);
+    );
+  }, [invoice, navigate, runWithPermission]);
 
-  // Open payment modal
+  // Open payment modal (gated: recording a payment requires CREATE_PAYMENT)
   const handleRecordPayment = useCallback(() => {
-    openPaymentModal();
-  }, [openPaymentModal]);
+    runWithPermission(
+      { permissionCode: 'CREATE_PAYMENT', actionLabel: 'Record invoice payment', context: { entity: 'invoice', id: invoice?.id } },
+      () => openPaymentModal()
+    );
+  }, [openPaymentModal, invoice, runWithPermission]);
 
   // Handle payment recorded or voided - refresh invoice and credit notes
   const handlePaymentRecorded = useCallback(async () => {
@@ -325,8 +335,11 @@ export function InvoiceDetailPage() {
   // Process return - available on any invoice regardless of payment
   const handleProcessReturn = useCallback(() => {
     if (!invoice) return;
-    openReturnModal();
-  }, [openReturnModal, invoice]);
+    runWithPermission(
+      { permissionCode: 'PROCESS_RETURN', actionLabel: `Process return for ${invoice.invNumber}`, context: { entity: 'invoice', id: invoice.id } },
+      () => openReturnModal()
+    );
+  }, [openReturnModal, invoice, runWithPermission]);
 
   // Refresh invoice and line items after a return is processed
   const handleReturnProcessed = useCallback(async () => {
@@ -365,10 +378,12 @@ export function InvoiceDetailPage() {
 
   // Navigate to edit invoice
   const handleEdit = useCallback(() => {
-    if (invoice) {
-      replaceCurrentTab(`/invoices/edit/${invoice.id}`);
-    }
-  }, [invoice, replaceCurrentTab]);
+    if (!invoice) return;
+    runWithPermission(
+      { permissionCode: 'EDIT_INVOICE', actionLabel: `Edit invoice ${invoice.invNumber}`, context: { entity: 'invoice', id: invoice.id } },
+      () => replaceCurrentTab(`/invoices/edit/${invoice.id}`)
+    );
+  }, [invoice, replaceCurrentTab, runWithPermission]);
 
   if (isLoading) {
     return (

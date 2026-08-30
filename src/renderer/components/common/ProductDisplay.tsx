@@ -1,4 +1,4 @@
-import { Group, Stack, Text, Badge, NumberFormatter } from '@mantine/core';
+import { Group, Stack, Text, NumberFormatter } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { CopyButton } from './CopyButton';
@@ -52,24 +52,9 @@ export function ProductDisplay({
       </Group>
 
       {(categories.length > 0 || models.length > 0) && (
-        <Group gap={6} wrap="wrap">
-          {categories.map((cat, idx) => (
-            <Badge key={`c-${idx}`} variant="filled" size={size} radius="sm">
-              {cat}
-            </Badge>
-          ))}
-          {models.map((model, idx) => (
-            <Badge
-              key={`m-${idx}`}
-              variant="outline"
-              size={size}
-              radius="sm"
-              color="gray"
-            >
-              {model}
-            </Badge>
-          ))}
-        </Group>
+        <Text size={size === 'md' ? 'sm' : 'xs'} c="dimmed" lineClamp={1}>
+          {[...categories, ...models].join(' · ')}
+        </Text>
       )}
 
       <Text size={size === 'md' ? 'sm' : 'xs'} fw={500} c="dimmed">

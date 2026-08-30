@@ -43,6 +43,7 @@ import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
 import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, ReceivingTab, InventoryEditModal, InventoryLookupTicketButton } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
+import { PermissionGate, PermissionButton, RestrictedValue, usePermissions } from '../../permissions';
 import { ProductImageModal } from '../../components/common/ProductImageModal';
 import { CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
@@ -139,6 +140,7 @@ export function InventoryDetailPage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { runWithPermission } = usePermissions();
 
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState<Inventory | null>(null);
@@ -928,7 +930,11 @@ export function InventoryDetailPage() {
             inventoryId={item.id}
             parentSku={item.sku}
           />
-          <Button
+          <PermissionButton
+            permission="ADJUST_STOCK"
+            whenDenied="elevate"
+            actionLabel={`Adjust stock for ${item.sku}`}
+            context={{ entity: 'inventory', id: item.id }}
             variant="outline"
             leftSection={<IconAdjustments size={16} />}
             onClick={() => {
@@ -945,13 +951,17 @@ export function InventoryDetailPage() {
             }}
           >
             Adjust Stock
-          </Button>
-          <Button
+          </PermissionButton>
+          <PermissionButton
+            permission="EDIT_INVENTORY"
+            whenDenied="elevate"
+            actionLabel={`Edit item ${item.sku}`}
+            context={{ entity: 'inventory', id: item.id }}
             leftSection={<IconEdit size={16} />}
             onClick={() => setEditModalOpen(true)}
           >
             Edit
-          </Button>
+          </PermissionButton>
         </Group>
       </Group>
 
@@ -967,7 +977,9 @@ export function InventoryDetailPage() {
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Cost</Text>
           <Text size="xl" fw={700}>
-            {renderCurrencyRange(costRange, displayCost)}
+            <RestrictedValue permission="VIEW_COST">
+              {renderCurrencyRange(costRange, displayCost)}
+            </RestrictedValue>
           </Text>
           <Text size="xs" c="dimmed">{displayCostCurrency}</Text>
         </Card>
@@ -987,7 +999,9 @@ export function InventoryDetailPage() {
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Margin</Text>
           <Text size="xl" fw={700}>
-            {marginLabel}
+            <RestrictedValue permission="VIEW_COST">
+              {marginLabel}
+            </RestrictedValue>
           </Text>
         </Card>
       </SimpleGrid>
@@ -1010,9 +1024,11 @@ export function InventoryDetailPage() {
           <Tabs.Tab value="transactions" leftSection={<IconHistory size={16} />}>
             Activity
           </Tabs.Tab>
-          <Tabs.Tab value="sales" leftSection={<IconChartLine size={16} />}>
-            Sales
-          </Tabs.Tab>
+          <PermissionGate permission="VIEW_INVENTORY_SALES" mode="hide">
+            <Tabs.Tab value="sales" leftSection={<IconChartLine size={16} />}>
+              Sales
+            </Tabs.Tab>
+          </PermissionGate>
           <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
             Receiving
           </Tabs.Tab>
@@ -1034,15 +1050,30 @@ export function InventoryDetailPage() {
             variants={variants}
             loading={variantsLoading}
             parentIsTaxable={item.isTaxable}
-            onAddVariant={() => {
-              setEditingVariant(null);
-              setAddVariantOpen(true);
-            }}
-            onEditVariant={(variant) => {
-              setEditingVariant(variant);
-              setAddVariantOpen(true);
-            }}
-            onDeleteVariant={handleDeleteVariant}
+            onAddVariant={() =>
+              runWithPermission(
+                { permissionCode: 'MANAGE_VARIANTS', actionLabel: `Add variant to ${item.sku}`, context: { entity: 'inventory', id: item.id } },
+                () => {
+                  setEditingVariant(null);
+                  setAddVariantOpen(true);
+                }
+              )
+            }
+            onEditVariant={(variant) =>
+              runWithPermission(
+                { permissionCode: 'MANAGE_VARIANTS', actionLabel: `Edit variant on ${item.sku}`, context: { entity: 'inventory', id: item.id } },
+                () => {
+                  setEditingVariant(variant);
+                  setAddVariantOpen(true);
+                }
+              )
+            }
+            onDeleteVariant={(variantId) =>
+              runWithPermission(
+                { permissionCode: 'MANAGE_VARIANTS', actionLabel: 'Delete variant', context: { entity: 'variant', id: variantId } },
+                () => handleDeleteVariant(variantId)
+              )
+            }
           />
         </Tabs.Panel>
 
@@ -1052,8 +1083,18 @@ export function InventoryDetailPage() {
             alternates={alternates}
             loading={alternatesLoading}
             currentSku={item.sku}
-            onAddAlternate={() => setAddAlternateOpen(true)}
-            onDeleteAlternate={handleDeleteAlternate}
+            onAddAlternate={() =>
+              runWithPermission(
+                { permissionCode: 'MANAGE_ALTERNATES', actionLabel: `Add alternate to ${item.sku}`, context: { entity: 'inventory', id: item.id } },
+                () => setAddAlternateOpen(true)
+              )
+            }
+            onDeleteAlternate={(alternateNo) =>
+              runWithPermission(
+                { permissionCode: 'MANAGE_ALTERNATES', actionLabel: 'Remove alternate', context: { entity: 'inventory', id: item.id } },
+                () => handleDeleteAlternate(alternateNo)
+              )
+            }
             onNavigateToAlternate={handleNavigateToAlternate}
           />
         </Tabs.Panel>
@@ -1078,24 +1119,26 @@ export function InventoryDetailPage() {
         </Tabs.Panel>
 
         {/* Sales Tab */}
-        <Tabs.Panel value="sales" pt="md">
-          <SalesTab
-            sales={sales}
-            salesSummary={salesSummary}
-            loading={salesLoading}
-            page={salesPage}
-            totalPages={salesTotalPages}
-            unit={item.unit}
-            onPageChange={setSalesPage}
-            formatCurrency={formatCurrency}
-            variant={salesVariant}
-            onVariantChange={setSalesVariant}
-            variantOptions={variantFilterOptions}
-            dateRange={salesDateRange}
-            onDateRangeChange={setSalesDateRange}
-            onOpenDocument={handleOpenSaleDocument}
-          />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_INVENTORY_SALES" mode="hide">
+          <Tabs.Panel value="sales" pt="md">
+            <SalesTab
+              sales={sales}
+              salesSummary={salesSummary}
+              loading={salesLoading}
+              page={salesPage}
+              totalPages={salesTotalPages}
+              unit={item.unit}
+              onPageChange={setSalesPage}
+              formatCurrency={formatCurrency}
+              variant={salesVariant}
+              onVariantChange={setSalesVariant}
+              variantOptions={variantFilterOptions}
+              dateRange={salesDateRange}
+              onDateRangeChange={setSalesDateRange}
+              onOpenDocument={handleOpenSaleDocument}
+            />
+          </Tabs.Panel>
+        </PermissionGate>
 
         {/* Receiving Tab */}
         <Tabs.Panel value="receiving" pt="md">

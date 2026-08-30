@@ -14,8 +14,7 @@ interface PriceChangeWarningModalProps {
   onClose: () => void;
   changes: PriceChange[];
   quoteNum: string;
-  onKeepQuotedPrices: () => void;
-  onUseCurrentPrices: () => void;
+  onConfirm: () => void;
   loading?: boolean;
 }
 
@@ -27,8 +26,7 @@ export function PriceChangeWarningModal({
   onClose,
   changes,
   quoteNum,
-  onKeepQuotedPrices,
-  onUseCurrentPrices,
+  onConfirm,
   loading = false,
 }: PriceChangeWarningModalProps) {
   return (
@@ -42,7 +40,7 @@ export function PriceChangeWarningModal({
         <Alert icon={<IconAlertTriangle size={16} />} color="orange" title="Prices have changed since this quotation was created">
           <Text size="sm">
             {changes.length} item{changes.length === 1 ? '' : 's'} on quote {quoteNum} now {changes.length === 1 ? 'has' : 'have'} a
-            different price in inventory. Choose whether to invoice at the originally quoted prices or update to the current prices.
+            different price in inventory. The invoice will be created using the current prices shown below.
           </Text>
         </Alert>
 
@@ -68,7 +66,7 @@ export function PriceChangeWarningModal({
                     <Text size="xs" c="dimmed">Qty: {c.quantity}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm">{c.description || '—'}</Text>
+                    <Text size="sm">{c.description || '-'}</Text>
                   </Table.Td>
                   <Table.Td ta="right">
                     <Text size="sm">{formatCurrency(c.quotedUnitPrice)}</Text>
@@ -91,18 +89,13 @@ export function PriceChangeWarningModal({
           </Table.Tbody>
         </Table>
 
-        <Group justify="space-between" mt="md">
+        <Group justify="flex-end" mt="md" gap="sm">
           <Button variant="subtle" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Group gap="sm">
-            <Button variant="default" onClick={onKeepQuotedPrices} loading={loading}>
-              Keep Quoted Prices
-            </Button>
-            <Button color="green" onClick={onUseCurrentPrices} loading={loading}>
-              Use Current Prices
-            </Button>
-          </Group>
+          <Button color="green" onClick={onConfirm} loading={loading}>
+            Update Prices &amp; Convert
+          </Button>
         </Group>
       </Stack>
     </Modal>

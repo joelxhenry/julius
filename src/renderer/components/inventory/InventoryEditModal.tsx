@@ -60,12 +60,6 @@ interface InventoryFormValues {
   unit: string;
   quantity: number;
   minLevel: number;
-  cost: number;
-  costCurrency: string;
-  price: number;
-  priceCurrency: string;
-  wholesalePrice: number | null;
-  margin: number | null;
   isTaxable: boolean;
 }
 
@@ -75,11 +69,6 @@ interface InventoryEditModalProps {
   item: Inventory;
   onSave: () => void;
 }
-
-const CURRENCY_OPTIONS = [
-  { value: "JA", label: "JMD (JA)" },
-  { value: "US", label: "USD (US)" },
-];
 
 const UNIT_OPTIONS = [
   { value: "EA", label: "Each (EA)" },
@@ -114,18 +103,10 @@ export function InventoryEditModal({
       unit: "EA",
       quantity: 0,
       minLevel: 0,
-      cost: 0,
-      costCurrency: "JA",
-      price: 0,
-      priceCurrency: "JA",
-      wholesalePrice: null,
-      margin: null,
       isTaxable: true,
     },
     validate: {
       description1: (value) => (!value ? "Description is required" : null),
-      price: (value) => (value < 0 ? "Price cannot be negative" : null),
-      cost: (value) => (value < 0 ? "Cost cannot be negative" : null),
     },
   });
 
@@ -142,31 +123,11 @@ export function InventoryEditModal({
         unit: item.unit || "EA",
         quantity: item.quantity || 0,
         minLevel: item.minLevel || 0,
-        cost: parseFloat(item.cost) || 0,
-        costCurrency: item.costCurrency || "JA",
-        price: parseFloat(item.price) || 0,
-        priceCurrency: item.priceCurrency || "JA",
-        wholesalePrice: item.wholesalePrice
-          ? parseFloat(item.wholesalePrice)
-          : null,
-        margin: item.margin ? parseFloat(item.margin) : null,
         isTaxable: item.isTaxable ?? true,
       });
       setError(null);
     }
   }, [opened, item]);
-
-  // Calculate margin when cost or price changes
-  useEffect(() => {
-    const cost = form.values.cost;
-    const price = form.values.price;
-    if (cost > 0 && price > 0) {
-      const margin = ((price - cost) / cost) * 100;
-      form.setFieldValue("margin", parseFloat(margin.toFixed(2)));
-    } else {
-      form.setFieldValue("margin", null);
-    }
-  }, [form.values.cost, form.values.price]);
 
   const handleSubmit = async (values: InventoryFormValues) => {
     setSubmitting(true);
@@ -182,12 +143,6 @@ export function InventoryEditModal({
         location: values.location || null,
         unit: values.unit,
         minLevel: values.minLevel,
-        cost: values.cost.toString(),
-        costCurrency: values.costCurrency,
-        price: values.price.toString(),
-        priceCurrency: values.priceCurrency,
-        wholesalePrice: values.wholesalePrice?.toString() || null,
-        margin: values.margin?.toString() || null,
         isTaxable: values.isTaxable,
       };
 
@@ -320,80 +275,23 @@ export function InventoryEditModal({
                     {...form.getInputProps("minLevel")}
                   />
                 </SimpleGrid>
+
+                <Checkbox
+                  label="Taxable"
+                  description="Apply GCT to this item"
+                  {...form.getInputProps("isTaxable", { type: "checkbox" })}
+                />
               </Stack>
             </Paper>
 
-            {/* Pricing */}
-            <Paper p="md" radius="md" withBorder>
-              <Stack gap="md">
-                <Group gap="xs">
-                  <IconCurrencyDollar size={18} />
-                  <Title order={5}>Pricing</Title>
-                </Group>
-
-                <SimpleGrid cols={{ base: 1, md: 2 }}>
-                  <Group grow>
-                    <NumberInput
-                      label="Cost"
-                      placeholder="0.00"
-                      min={0}
-                      decimalScale={2}
-                      fixedDecimalScale
-                      thousandSeparator
-                      {...form.getInputProps("cost")}
-                    />
-                    <Select
-                      label="Currency"
-                      data={CURRENCY_OPTIONS}
-                      {...form.getInputProps("costCurrency")}
-                    />
-                  </Group>
-                  <Group grow>
-                    <NumberInput
-                      label="Selling Price"
-                      placeholder="0.00"
-                      min={0}
-                      decimalScale={2}
-                      fixedDecimalScale
-                      thousandSeparator
-                      {...form.getInputProps("price")}
-                    />
-                    <Select
-                      label="Currency"
-                      data={CURRENCY_OPTIONS}
-                      {...form.getInputProps("priceCurrency")}
-                    />
-                  </Group>
-                </SimpleGrid>
-
-                <SimpleGrid cols={{ base: 1, md: 3 }}>
-                  <NumberInput
-                    label="Wholesale Price"
-                    placeholder="0.00"
-                    min={0}
-                    decimalScale={2}
-                    fixedDecimalScale
-                    thousandSeparator
-                    {...form.getInputProps("wholesalePrice")}
-                  />
-                  <NumberInput
-                    label="Margin %"
-                    placeholder="Auto-calculated"
-                    disabled
-                    decimalScale={2}
-                    suffix="%"
-                    value={form.values.margin ?? undefined}
-                  />
-                  <Stack gap="xs" justify="flex-end">
-                    <Checkbox
-                      label="Taxable"
-                      description="Apply GCT to this item"
-                      {...form.getInputProps("isTaxable", { type: "checkbox" })}
-                    />
-                  </Stack>
-                </SimpleGrid>
-              </Stack>
-            </Paper>
+            <Alert
+              icon={<IconCurrencyDollar size={16} />}
+              color="blue"
+              variant="light"
+            >
+              Pricing (cost, selling price, wholesale, margin) is managed per
+              variant. Use the Variants tab to edit prices.
+            </Alert>
           </Stack>
         </ScrollArea.Autosize>
         {/* Actions */}

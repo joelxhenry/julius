@@ -223,6 +223,31 @@ export class EmployeeController extends BaseController<EmployeeService> {
     }
   }
 
+  async assignRole(id: number, roleId: number | null) {
+    try {
+      const employee = await this.service.assignRole(id, roleId);
+      if (!employee) {
+        return { success: false, error: 'Employee not found' };
+      }
+      return this.wrapSuccess(employee);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async resetAccessCode(id: number) {
+    try {
+      const employee = await this.service.resetAccessCode(id);
+      if (!employee) {
+        return { success: false, error: 'Employee not found' };
+      }
+      // Return only the new code (and id); avoid leaking the full record.
+      return this.wrapSuccess({ id: employee.id, code: employee.code });
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   // ==================== Activity Methods ====================
 
   async getEmployeeInvoices(employeeId: number, params: { page?: number; pageSize?: number; startDate?: string; endDate?: string } = {}) {

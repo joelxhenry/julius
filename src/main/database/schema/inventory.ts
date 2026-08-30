@@ -152,7 +152,9 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   supplierId: integer('supplier_id')
     .references(() => suppliers.id, { onDelete: 'set null' }),
   supplier: varchar('supplier', { length: 100 })
-    .references(() => suppliers.company, { onDelete: 'set null' }),
+    // Reference the (mutable) company name; cascade on rename so receiving rows
+    // stay in sync and a supplier rename isn't blocked by this constraint.
+    .references(() => suppliers.company, { onDelete: 'set null', onUpdate: 'cascade' }),
   receivingDate: date('receiving_date'),
   quantity: integer('quantity'),
   lastCost: numeric('last_cost', { precision: 15, scale: 2 }),

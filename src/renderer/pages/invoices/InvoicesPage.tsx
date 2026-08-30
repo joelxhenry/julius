@@ -28,6 +28,7 @@ import {
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import { SafeEmployee } from '../../contexts/AuthContext';
+import { employeeDisplayName } from '../../utils/employeeName';
 import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 
@@ -194,7 +195,7 @@ export function InvoicesPage() {
     (employee: SafeEmployee) => {
       closeAccessModal();
       // Navigate to invoice editor with salesperson info
-      const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.code;
+      const employeeName = employeeDisplayName(employee);
       navigate('/invoices/form', {
         state: {
           salespersonId: employee.id,

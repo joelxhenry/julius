@@ -5,7 +5,6 @@ import {
   Paper,
   Group,
   TextInput,
-  Button,
   Badge,
   ActionIcon,
   Text,
@@ -30,6 +29,7 @@ import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
+import { PermissionButton, usePermissions } from '../../permissions';
 
 interface Supplier {
   id: number;
@@ -53,6 +53,7 @@ interface PaginatedResult {
 export function SuppliersPage() {
   const navigate = useNavigate();
   const { replaceCurrentTab } = useTabContext();
+  const { runWithPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [total, setTotal] = useState(0);
@@ -95,6 +96,26 @@ export function SuppliersPage() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, activeOnly]);
+
+  // Sensitive actions elevate via another authorised user when the current user
+  // lacks permission; the grant is recorded and then reverts to the current user.
+  const requestDeleteSupplier = (supplier: Supplier) => {
+    runWithPermission(
+      { permissionCode: 'DELETE_SUPPLIER', actionLabel: `Delete supplier ${supplier.company}`, context: { entity: 'supplier', id: supplier.id } },
+      () => handleDeleteSupplier(supplier)
+    );
+  };
+
+  const requestToggleActive = (supplier: Supplier) => {
+    runWithPermission(
+      {
+        permissionCode: 'ACTIVATE_SUPPLIER',
+        actionLabel: `${supplier.isActive ? 'Deactivate' : 'Activate'} supplier ${supplier.company}`,
+        context: { entity: 'supplier', id: supplier.id },
+      },
+      () => handleToggleActive(supplier)
+    );
+  };
 
   const handleDeleteSupplier = (supplier: Supplier) => {
     modals.openConfirmModal({
@@ -225,7 +246,7 @@ export function SuppliersPage() {
                 </Menu.Item>
                 <Menu.Item
                   leftSection={supplier.isActive ? <IconX size={14} /> : <IconCheck size={14} />}
-                  onClick={() => handleToggleActive(supplier)}
+                  onClick={() => requestToggleActive(supplier)}
                 >
                   {supplier.isActive ? 'Deactivate' : 'Activate'}
                 </Menu.Item>
@@ -233,7 +254,7 @@ export function SuppliersPage() {
                 <Menu.Item
                   leftSection={<IconTrash size={14} />}
                   color="red"
-                  onClick={() => handleDeleteSupplier(supplier)}
+                  onClick={() => requestDeleteSupplier(supplier)}
                 >
                   Delete
                 </Menu.Item>
@@ -250,9 +271,14 @@ export function SuppliersPage() {
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="center">
         <Title order={2}>Suppliers</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/suppliers/new')}>
+        <PermissionButton
+          permission="CREATE_SUPPLIER"
+          whenDenied="disable"
+          leftSection={<IconPlus size={16} />}
+          onClick={() => navigate('/suppliers/new')}
+        >
           Add Supplier
-        </Button>
+        </PermissionButton>
       </Group>
 
       <Paper p="md" radius="md" withBorder>

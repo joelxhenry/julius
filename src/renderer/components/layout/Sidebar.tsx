@@ -14,6 +14,7 @@ import {
   IconDashboard,
   IconUsers,
   IconTruck,
+  IconTruckDelivery,
   IconFilePlus,
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -40,6 +41,11 @@ const businessNavItems: NavItem[] = [
     icon: <IconPackages size={20} stroke={1.5} />,
     path: "/inventory",
     shortcut: "Alt+S",
+  },
+  {
+    label: "Receive Parts",
+    icon: <IconTruckDelivery size={20} stroke={1.5} />,
+    path: "/inventory/manage/receive",
   },
 
   {

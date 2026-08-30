@@ -12,10 +12,10 @@ import {
   Alert,
   Divider,
   Loader,
-  ActionIcon,
 } from '@mantine/core';
-import { IconCash, IconAlertCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconCash, IconAlertCircle, IconPlus, IconTrash, IconReceipt } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { STORE_CREDIT_METHOD_CODE, isStoreCreditMethod } from '../../../shared/constants/payments';
 
 export interface PaymentEntry {
   paymentMethodCode: string;
@@ -29,6 +29,11 @@ interface PaymentMethod {
   code: string;
   name: string;
   active: boolean;
+}
+
+interface CreditNote {
+  total: string;
+  totalUsed: string;
 }
 
 interface PaymentEntryModalProps {
@@ -54,12 +59,26 @@ export function PaymentEntryModal({
   ]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
+  const [availableStoreCredit, setAvailableStoreCredit] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const amountInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // Calculate total payment from all entries
   const totalPayment = paymentEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || '0'), 0);
+
+  const findMethod = useCallback(
+    (code: string) => paymentMethods.find((pm) => pm.code === code) ?? null,
+    [paymentMethods]
+  );
+
+  const entryIsStoreCredit = useCallback(
+    (entry: PaymentEntry) => {
+      const method = findMethod(entry.paymentMethodCode);
+      return method ? isStoreCreditMethod(method) : false;
+    },
+    [findMethod]
+  );
 
   // Load payment methods
   useEffect(() => {
@@ -81,6 +100,36 @@ export function PaymentEntryModal({
       loadPaymentMethods();
     }
   }, [opened]);
+
+  // Load the client's available store credit (from outstanding credit notes)
+  useEffect(() => {
+    if (!opened || !clientId) {
+      setAvailableStoreCredit(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_CLIENT_AVAILABLE_CREDIT_NOTES, { clientId });
+        if (cancelled) return;
+        if (result.success && Array.isArray(result.data)) {
+          const total = (result.data as CreditNote[]).reduce(
+            (sum, cn) => sum + (parseFloat(cn.total || '0') - parseFloat(cn.totalUsed || '0')),
+            0
+          );
+          setAvailableStoreCredit(total);
+        } else {
+          setAvailableStoreCredit(0);
+        }
+      } catch (err) {
+        console.error('Failed to load store credit:', err);
+        if (!cancelled) setAvailableStoreCredit(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [opened, clientId]);
 
   // Auto-focus amount input when modal opens
   useEffect(() => {
@@ -129,6 +178,20 @@ export function PaymentEntryModal({
     }
   }, []);
 
+  // Fill the last entry so the payment total covers the invoice balance.
+  const handlePayFullBalance = useCallback(() => {
+    setPaymentEntries((prev) => {
+      if (prev.length === 0) return prev;
+      const lastIndex = prev.length - 1;
+      const others = prev.reduce(
+        (sum, e, i) => (i === lastIndex ? sum : sum + parseFloat(e.amount || '0')),
+        0
+      );
+      const remaining = Math.max(0, invoiceTotal - others);
+      return prev.map((e, i) => (i === lastIndex ? { ...e, amount: remaining.toFixed(2) } : e));
+    });
+  }, [invoiceTotal]);
+
   const handleSubmit = useCallback(() => {
     setError(null);
 
@@ -163,13 +226,39 @@ export function PaymentEntryModal({
       }
     }
 
-    onSubmit(paymentEntries);
-  }, [paymentEntries, invoiceTotal, onSubmit]);
+    // Validate store-credit entries against the client's available credit.
+    const storeCreditTotal = paymentEntries.reduce(
+      (sum, entry) => (entryIsStoreCredit(entry) ? sum + parseFloat(entry.amount || '0') : sum),
+      0
+    );
+    if (storeCreditTotal > 0.001) {
+      if (!clientId) {
+        setError('Store credit requires a client on the invoice');
+        return;
+      }
+      if (storeCreditTotal > availableStoreCredit + 0.01) {
+        setError(
+          `Store credit payment (${formatCurrency(storeCreditTotal)}) exceeds available store credit (${formatCurrency(availableStoreCredit)})`
+        );
+        return;
+      }
+    }
 
-  const paymentMethodOptions = paymentMethods.map((pm) => ({
-    value: pm.code,
-    label: pm.name,
-  }));
+    // Send the canonical store-credit code so the backend draws from credit notes.
+    const entriesToSubmit: PaymentEntry[] = paymentEntries.map((entry) => ({
+      paymentMethodCode: entryIsStoreCredit(entry) ? STORE_CREDIT_METHOD_CODE : entry.paymentMethodCode,
+      amount: entry.amount,
+      transactionReference: entryIsStoreCredit(entry) ? undefined : entry.transactionReference || undefined,
+      notes: entry.notes || undefined,
+    }));
+
+    onSubmit(entriesToSubmit);
+  }, [paymentEntries, invoiceTotal, onSubmit, entryIsStoreCredit, clientId, availableStoreCredit]);
+
+  // Store credit is only offered when the client actually has credit to draw from.
+  const paymentMethodOptions = paymentMethods
+    .filter((pm) => (isStoreCreditMethod(pm) ? clientId != null && availableStoreCredit > 0.001 : true))
+    .map((pm) => ({ value: pm.code, label: pm.name }));
 
   const balanceRemaining = invoiceTotal - totalPayment;
   const isPaid = totalPayment >= invoiceTotal - 0.01;
@@ -191,7 +280,7 @@ export function PaymentEntryModal({
       closeOnEscape
     >
       <Stack gap="md">
-        {/* Summary — matches RecordPaymentModal's info block */}
+        {/* Summary - matches RecordPaymentModal's info block */}
         <Stack
           gap={4}
           p="sm"
@@ -229,87 +318,119 @@ export function PaymentEntryModal({
 
         {/* Payment entries */}
         <Stack gap="md">
-          {paymentEntries.map((entry, index) => (
-            <Stack key={index} gap="sm">
-              {index > 0 && <Divider variant="dashed" />}
-
-              <Group align="flex-end" gap="sm">
-                <NumberInput
-                  label="Payment Amount"
-                  placeholder="0.00"
-                  value={entry.amount}
-                  onChange={(value) =>
-                    handleUpdateEntry(index, 'amount', typeof value === 'number' ? value.toFixed(2) : value)
-                  }
-                  min={0}
-                  decimalScale={2}
-                  fixedDecimalScale
-                  prefix="$"
-                  thousandSeparator=","
-                  ref={(el) => {
-                    amountInputRefs.current[index] = el;
-                    if (index === 0 && amountInputRef) {
-                      (amountInputRef as any).current = el;
-                    }
-                  }}
-                  style={{ flex: 1 }}
-                  required
-                />
-
-                <Select
-                  label="Payment Method"
-                  placeholder="Select payment method"
-                  value={entry.paymentMethodCode || null}
-                  onChange={(value) => handleUpdateEntry(index, 'paymentMethodCode', value)}
-                  data={paymentMethodOptions}
-                  disabled={isLoadingMethods}
-                  rightSection={isLoadingMethods ? <Loader size={14} /> : undefined}
-                  style={{ flex: 1 }}
-                  required
-                />
+          {paymentEntries.map((entry, index) => {
+            const isStoreCredit = entryIsStoreCredit(entry);
+            return (
+              <Stack key={index} gap="sm">
+                {index > 0 && <Divider variant="dashed" />}
 
                 {paymentEntries.length > 1 && (
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="lg"
-                    onClick={() => handleRemovePaymentEntry(index)}
-                    aria-label="Remove payment method"
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
+                  <Group justify="space-between">
+                    <Text size="xs" fw={600} c="dimmed">
+                      Payment {index + 1}
+                    </Text>
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="compact-xs"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={() => handleRemovePaymentEntry(index)}
+                    >
+                      Remove
+                    </Button>
+                  </Group>
                 )}
-              </Group>
 
-              <TextInput
-                label="Reference #"
-                placeholder="e.g., Trace #, Auth code"
-                value={entry.transactionReference || ''}
-                onChange={(event) => handleUpdateEntry(index, 'transactionReference', event.currentTarget.value)}
-              />
+                <Group grow align="flex-start">
+                  <NumberInput
+                    label="Amount"
+                    placeholder="0.00"
+                    value={entry.amount}
+                    onChange={(value) =>
+                      handleUpdateEntry(index, 'amount', typeof value === 'number' ? value.toFixed(2) : value)
+                    }
+                    min={0}
+                    decimalScale={2}
+                    fixedDecimalScale
+                    prefix="$"
+                    thousandSeparator=","
+                    ref={(el) => {
+                      amountInputRefs.current[index] = el;
+                      if (index === 0 && amountInputRef) {
+                        (amountInputRef as any).current = el;
+                      }
+                    }}
+                    required
+                  />
 
-              <Textarea
-                label="Notes (optional)"
-                placeholder="Payment notes..."
-                value={entry.notes || ''}
-                onChange={(event) => handleUpdateEntry(index, 'notes', event.currentTarget.value)}
-                minRows={2}
-              />
-            </Stack>
-          ))}
+                  <Select
+                    label="Payment Method"
+                    placeholder="Select payment method"
+                    value={entry.paymentMethodCode || null}
+                    onChange={(value) => handleUpdateEntry(index, 'paymentMethodCode', value)}
+                    data={paymentMethodOptions}
+                    disabled={isLoadingMethods}
+                    rightSection={isLoadingMethods ? <Loader size={14} /> : undefined}
+                    required
+                  />
+                </Group>
+
+                {isStoreCredit ? (
+                  <Alert
+                    color={availableStoreCredit > 0.001 ? 'teal' : 'red'}
+                    variant="light"
+                    icon={<IconReceipt size={16} />}
+                  >
+                    {availableStoreCredit > 0.001 ? (
+                      <Group justify="space-between" wrap="nowrap">
+                        <Text size="sm">Paying from store credit - drawn from credit notes oldest-first.</Text>
+                        <Text size="sm" fw={600} c="teal" style={{ whiteSpace: 'nowrap' }}>
+                          {formatCurrency(availableStoreCredit)} available
+                        </Text>
+                      </Group>
+                    ) : (
+                      'This client has no available store credit.'
+                    )}
+                  </Alert>
+                ) : (
+                  <TextInput
+                    label="Reference #"
+                    placeholder="e.g., Trace #, Auth code"
+                    value={entry.transactionReference || ''}
+                    onChange={(event) => handleUpdateEntry(index, 'transactionReference', event.currentTarget.value)}
+                  />
+                )}
+
+                <Textarea
+                  label="Notes (optional)"
+                  placeholder="Payment notes..."
+                  value={entry.notes || ''}
+                  onChange={(event) => handleUpdateEntry(index, 'notes', event.currentTarget.value)}
+                  autosize
+                  minRows={1}
+                  maxRows={3}
+                />
+              </Stack>
+            );
+          })}
 
           <Button variant="light" leftSection={<IconPlus size={16} />} onClick={handleAddPaymentEntry} fullWidth>
             Add Another Payment Method
           </Button>
         </Stack>
 
-        <Group justify="flex-end" gap="sm" mt="md">
-          <Button variant="subtle" onClick={onClose}>
-            Cancel
+        <Group justify="space-between" mt="md">
+          <Button variant="subtle" onClick={handlePayFullBalance}>
+            Pay Full Balance
           </Button>
-          <Button leftSection={<IconCash size={16} />} onClick={handleSubmit}>
-            Create Invoice & Record Payment
-          </Button>
+          <Group gap="sm">
+            <Button variant="subtle" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button leftSection={<IconCash size={16} />} onClick={handleSubmit}>
+              Record Payment
+            </Button>
+          </Group>
         </Group>
       </Stack>
     </Modal>

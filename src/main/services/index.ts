@@ -52,6 +52,12 @@ export { PrintService, type PrintResult } from './PrintService';
 // Report Service
 export { ReportService } from './ReportService';
 
+// Access Overrides (permission audit)
+export { AccessOverrideService, type AccessOverrideQueryParams } from './AccessOverrideService';
+
+// RBAC Roles
+export { RoleService } from './RoleService';
+
 // System Settings
 export {
   SystemSettingsService,

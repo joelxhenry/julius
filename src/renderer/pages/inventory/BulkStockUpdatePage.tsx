@@ -95,8 +95,9 @@ const rowError = (row: AdjustRow): string | null => {
   return null;
 };
 
-export function BulkStockUpdatePage() {
+export function BulkStockUpdatePage({ onBack }: { onBack?: () => void } = {}) {
   const navigate = useNavigate();
+  const handleBack = onBack ?? (() => navigate('/inventory/manage'));
   const [rows, setRows] = useState<AdjustRow[]>([]);
   const [pickerKey, setPickerKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -250,7 +251,7 @@ export function BulkStockUpdatePage() {
       }
     }
 
-    // Apply outcomes back to row state — successful rows update to new currentQty
+    // Apply outcomes back to row state - successful rows update to new currentQty
     setRows((prev) =>
       prev.map((row) => {
         const outcome = results[row.rowId];
@@ -357,7 +358,7 @@ export function BulkStockUpdatePage() {
             and record a reason. Each adjustment writes an audit-trail transaction.
           </Text>
         </Stack>
-        <Button variant="subtle" onClick={() => navigate('/inventory/manage')}>
+        <Button variant="subtle" onClick={handleBack}>
           Back
         </Button>
       </Group>
@@ -446,7 +447,7 @@ export function BulkStockUpdatePage() {
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm" lineClamp={2}>
-                          {row.description || <span style={{ opacity: 0.5 }}>—</span>}
+                          {row.description || <span style={{ opacity: 0.5 }}>-</span>}
                         </Text>
                       </Table.Td>
                       <Table.Td>
@@ -661,7 +662,7 @@ export function BulkStockUpdatePage() {
                   ))}
               </Stack>
               <Text size="sm" c="dimmed">
-                Failed rows remain in the table — fix the issue and apply again.
+                Failed rows remain in the table - fix the issue and apply again.
               </Text>
             </>
           )}

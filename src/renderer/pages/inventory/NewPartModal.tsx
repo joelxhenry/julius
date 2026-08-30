@@ -43,7 +43,6 @@ interface InventoryFormValues {
   price: number;
   priceCurrency: string;
   wholesalePrice: number | null;
-  margin: number | null;
   isTaxable: boolean;
 }
 
@@ -80,7 +79,6 @@ const INITIAL_VALUES: InventoryFormValues = {
   price: 0,
   priceCurrency: 'JA',
   wholesalePrice: null,
-  margin: null,
   isTaxable: true,
 };
 
@@ -115,19 +113,6 @@ export function NewPartModal({ opened, onClose, onCreated }: NewPartModalProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
-  // Calculate margin when cost or price changes
-  useEffect(() => {
-    const cost = form.values.cost;
-    const price = form.values.price;
-    if (cost > 0 && price > 0) {
-      const margin = ((price - cost) / cost) * 100;
-      form.setFieldValue('margin', parseFloat(margin.toFixed(2)));
-    } else {
-      form.setFieldValue('margin', null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.values.cost, form.values.price]);
-
   const handleSubmit = async (values: InventoryFormValues) => {
     setSubmitting(true);
     setError(null);
@@ -148,7 +133,6 @@ export function NewPartModal({ opened, onClose, onCreated }: NewPartModalProps) 
         price: values.price.toString(),
         priceCurrency: values.priceCurrency,
         wholesalePrice: values.wholesalePrice?.toString() || null,
-        margin: values.margin?.toString() || null,
         isTaxable: values.isTaxable,
       };
 
@@ -295,7 +279,7 @@ export function NewPartModal({ opened, onClose, onCreated }: NewPartModalProps) 
                 </Group>
               </SimpleGrid>
 
-              <SimpleGrid cols={{ base: 1, md: 3 }}>
+              <SimpleGrid cols={{ base: 1, md: 2 }}>
                 <NumberInput
                   label="Wholesale Price"
                   placeholder="0.00"
@@ -304,14 +288,6 @@ export function NewPartModal({ opened, onClose, onCreated }: NewPartModalProps) 
                   fixedDecimalScale
                   thousandSeparator
                   {...form.getInputProps('wholesalePrice')}
-                />
-                <NumberInput
-                  label="Margin %"
-                  placeholder="Auto-calculated"
-                  disabled
-                  decimalScale={2}
-                  suffix="%"
-                  value={form.values.margin ?? undefined}
                 />
                 <Stack gap="xs" justify="flex-end">
                   <Checkbox

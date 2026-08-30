@@ -49,6 +49,7 @@ export function useTabParams<T extends Record<string, string | undefined> = Reco
       '/clients/:id',
       '/suppliers/:id/edit',
       '/suppliers/:id',
+      '/roles/:id',
     ];
 
     for (const pattern of routePatterns) {
