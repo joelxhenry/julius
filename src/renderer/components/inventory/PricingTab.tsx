@@ -1,4 +1,5 @@
 import { Paper, Stack, Title, SimpleGrid, Text, Badge } from '@mantine/core';
+import { RestrictedValue } from '../../permissions';
 
 interface Inventory {
   id: number;
@@ -37,7 +38,11 @@ export function PricingTab({ item, formatCurrency }: PricingTabProps) {
             <Text size="xs" c="dimmed">
               Cost
             </Text>
-            <Text fw={500}>{formatCurrency(item.cost, item.costCurrency)}</Text>
+            <Text fw={500}>
+              <RestrictedValue permission="VIEW_COST">
+                {formatCurrency(item.cost, item.costCurrency)}
+              </RestrictedValue>
+            </Text>
           </Stack>
           <Stack gap={2}>
             <Text size="xs" c="dimmed">
@@ -57,7 +62,11 @@ export function PricingTab({ item, formatCurrency }: PricingTabProps) {
             <Text size="xs" c="dimmed">
               Margin
             </Text>
-            <Text fw={500}>{item.margin ? `${parseFloat(item.margin).toFixed(2)}%` : '-'}</Text>
+            <Text fw={500}>
+              <RestrictedValue permission="VIEW_COST">
+                {item.margin ? `${parseFloat(item.margin).toFixed(2)}%` : '-'}
+              </RestrictedValue>
+            </Text>
           </Stack>
           <Stack gap={2}>
             <Text size="xs" c="dimmed">

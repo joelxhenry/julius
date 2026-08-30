@@ -30,6 +30,7 @@ import { SettingsPage } from '../pages/settings';
 import { ReportsPage } from '../pages/reports';
 import { SalesManagementPage } from '../pages/sales';
 import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
+import { RolesPage, RoleEditorPage } from '../pages/roles';
 
 export const router = createHashRouter([
   {
@@ -160,6 +161,19 @@ export const router = createHashRouter([
       {
         path: 'employees/:id/permissions',
         element: <EmployeePermissionsPage />,
+      },
+      // Role Management (RBAC)
+      {
+        path: 'roles',
+        element: <RolesPage />,
+      },
+      {
+        path: 'roles/new',
+        element: <RoleEditorPage />,
+      },
+      {
+        path: 'roles/:id',
+        element: <RoleEditorPage />,
       },
       // Client Management
       {

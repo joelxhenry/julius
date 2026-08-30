@@ -12,6 +12,8 @@ import type { PriceChange } from '../../components/quotations';
 import { InvoiceLineItemsReadOnly } from '../../components/invoices';
 import { LookupTicketButton, PrintButton } from '../../components/common';
 import { useTaxRate } from '../../hooks';
+import { usePermissions } from '../../permissions';
+import { employeeDisplayName } from '../../utils/employeeName';
 
 interface Quotation {
   id: number;
@@ -66,6 +68,7 @@ export function QuotationDetailPage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { runWithPermission } = usePermissions();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,7 +97,7 @@ export function QuotationDetailPage() {
     window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: quotation.salespersonId }).then((res) => {
       if (res.success && res.data) {
         const emp = res.data;
-        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        const name = employeeDisplayName(emp);
         setSalespersonName(name);
       }
     });
@@ -280,40 +283,47 @@ export function QuotationDetailPage() {
   // first, and route to the price-change warning if any are found.
   const handleOpenConvert = useCallback(async () => {
     if (!quotation) return;
-    setIsCheckingPrices(true);
-    try {
-      const changes = await detectPriceChanges();
-      setPriceChanges(changes);
-      if (changes.length > 0) {
-        openPriceWarning();
-      } else {
-        openConvertModal();
+    runWithPermission(
+      { permissionCode: 'CONVERT_QUOTATION', actionLabel: `Convert quotation ${quotation.quoteNum}`, context: { entity: 'quotation', id: quotation.id } },
+      async () => {
+        setIsCheckingPrices(true);
+        try {
+          const changes = await detectPriceChanges();
+          setPriceChanges(changes);
+          if (changes.length > 0) {
+            openPriceWarning();
+          } else {
+            openConvertModal();
+          }
+        } catch (error) {
+          console.error('Failed to check prices:', error);
+          // On failure, fall back to the plain conversion confirmation.
+          setPriceChanges([]);
+          openConvertModal();
+        } finally {
+          setIsCheckingPrices(false);
+        }
       }
-    } catch (error) {
-      console.error('Failed to check prices:', error);
-      // On failure, fall back to the plain conversion confirmation.
-      setPriceChanges([]);
-      openConvertModal();
-    } finally {
-      setIsCheckingPrices(false);
-    }
-  }, [quotation, detectPriceChanges, openPriceWarning, openConvertModal]);
+    );
+  }, [quotation, detectPriceChanges, openPriceWarning, openConvertModal, runWithPermission]);
 
   // Convert quotation to active invoice.
-  // When useCurrentPrices is true, changed line items are re-priced to the
-  // current inventory price and the invoice totals are recalculated.
+  // Changed line items are always re-priced to the current inventory price and
+  // the invoice totals are recalculated; the user is shown all price changes
+  // in the warning modal before this runs.
   const handleConvertToInvoice = useCallback(
-    async (useCurrentPrices = false) => {
+    async () => {
       if (!quotation) return;
 
       setIsConverting(true);
       try {
         const priceMap = new Map(priceChanges.map((c) => [c.sku, c.currentUnitPrice]));
+        const hasPriceChanges = priceMap.size > 0;
 
-        // Resolve the line items to write, applying current prices if requested.
+        // Resolve the line items to write, always applying current prices.
         const itemsToWrite = lineItems.map((item) => {
           const newUnit = item.sku ? priceMap.get(item.sku) : undefined;
-          if (useCurrentPrices && newUnit !== undefined) {
+          if (newUnit !== undefined) {
             const discount = parseFloat(item.discount || '0');
             const amount = item.quantity * newUnit * (1 - discount / 100);
             return { ...item, unitPrice: newUnit.toFixed(2), amount: amount.toFixed(2) };
@@ -325,7 +335,7 @@ export function QuotationDetailPage() {
         let subTotal = quotation.subTotal;
         let tax = quotation.tax;
         let total = quotation.total;
-        if (useCurrentPrices) {
+        if (hasPriceChanges) {
           const sub = itemsToWrite.reduce((s, it) => s + parseFloat(it.amount || '0'), 0);
           const taxable = itemsToWrite
             .filter((it) => it.isTaxable)
@@ -387,7 +397,7 @@ export function QuotationDetailPage() {
         notifications.show({
           title: 'Success',
           message: `Invoice ${newInvoice.invNumber} created from quotation${
-            useCurrentPrices ? ' with updated prices' : ''
+            hasPriceChanges ? ' with updated prices' : ''
           }`,
           color: 'green',
         });
@@ -413,38 +423,46 @@ export function QuotationDetailPage() {
 
   // Edit quotation
   const handleEdit = useCallback(() => {
-    if (quotation) {
-      navigate(`/quotations/${quotation.id}/edit`);
-    }
-  }, [quotation, navigate]);
+    if (!quotation) return;
+    runWithPermission(
+      { permissionCode: 'EDIT_QUOTATION', actionLabel: `Edit quotation ${quotation.quoteNum}`, context: { entity: 'quotation', id: quotation.id } },
+      () => navigate(`/quotations/${quotation.id}/edit`)
+    );
+  }, [quotation, navigate, runWithPermission]);
 
   // Archive quotation
-  const handleArchive = useCallback(async () => {
+  const handleArchive = useCallback(() => {
     if (!quotation) return;
-
-    try {
-      const result = await window.electron.invoke(IpcChannel.ARCHIVE_QUOTATION, { id: quotation.id });
-      if (result.success) {
-        notifications.show({
-          title: 'Quotation Archived',
-          message: `Quotation ${quotation.quoteNum} has been archived`,
-          color: 'green',
-        });
-        navigate('/quotations');
+    runWithPermission(
+      { permissionCode: 'ARCHIVE_QUOTATION', actionLabel: `Archive quotation ${quotation.quoteNum}`, context: { entity: 'quotation', id: quotation.id } },
+      async () => {
+        try {
+          const result = await window.electron.invoke(IpcChannel.ARCHIVE_QUOTATION, { id: quotation.id });
+          if (result.success) {
+            notifications.show({
+              title: 'Quotation Archived',
+              message: `Quotation ${quotation.quoteNum} has been archived`,
+              color: 'green',
+            });
+            navigate('/quotations');
+          }
+        } catch (error) {
+          notifications.show({
+            title: 'Error',
+            message: 'Failed to archive quotation',
+            color: 'red',
+          });
+        }
       }
-    } catch (error) {
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to archive quotation',
-        color: 'red',
-      });
-    }
-  }, [quotation, navigate]);
+    );
+  }, [quotation, navigate, runWithPermission]);
 
   // Mark as expired
   const handleExpire = useCallback(async () => {
     if (!quotation) return;
-
+    runWithPermission(
+      { permissionCode: 'ARCHIVE_QUOTATION', actionLabel: `Expire quotation ${quotation.quoteNum}`, context: { entity: 'quotation', id: quotation.id } },
+      async () => {
     try {
       const result = await window.electron.invoke(IpcChannel.EXPIRE_QUOTATION, { id: quotation.id });
       if (result.success) {
@@ -472,7 +490,9 @@ export function QuotationDetailPage() {
         color: 'red',
       });
     }
-  }, [quotation]);
+      }
+    );
+  }, [quotation, runWithPermission]);
 
   // Navigate to client
   const handleViewClient = useCallback(() => {
@@ -589,7 +609,7 @@ export function QuotationDetailPage() {
             <Button
               color="green"
               leftSection={<IconFileInvoice size={16} />}
-              onClick={() => handleConvertToInvoice(false)}
+              onClick={() => handleConvertToInvoice()}
               loading={isConverting}
             >
               Create Invoice
@@ -604,8 +624,7 @@ export function QuotationDetailPage() {
         onClose={closePriceWarning}
         changes={priceChanges}
         quoteNum={quotation.quoteNum}
-        onKeepQuotedPrices={() => handleConvertToInvoice(false)}
-        onUseCurrentPrices={() => handleConvertToInvoice(true)}
+        onConfirm={() => handleConvertToInvoice()}
         loading={isConverting}
       />
     </>

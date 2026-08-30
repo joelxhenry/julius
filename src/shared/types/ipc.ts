@@ -62,6 +62,7 @@ export enum IpcChannel {
   VERIFY_EMPLOYEE_PIN = 'db:verify-employee-pin',
   UPDATE_EMPLOYEE_PASSWORD = 'db:update-employee-password',
   UPDATE_EMPLOYEE_PERMISSIONS = 'db:update-employee-permissions',
+  RESET_EMPLOYEE_ACCESS_CODE = 'db:reset-employee-access-code',
 
   // Employee activity queries
   GET_EMPLOYEE_INVOICES = 'db:get-employee-invoices',
@@ -139,6 +140,18 @@ export enum IpcChannel {
   // Access code verification
   VERIFY_ACCESS_CODE = 'db:verify-access-code',
   CHECK_SALESPERSON_ACCESS = 'db:check-salesperson-access',
+
+  // Permission override audit (one-time elevated access grants)
+  RECORD_ACCESS_OVERRIDE = 'db:record-access-override',
+  GET_ACCESS_OVERRIDES = 'db:get-access-overrides',
+
+  // RBAC role operations
+  GET_ROLES = 'db:get-roles',
+  GET_ROLE = 'db:get-role',
+  CREATE_ROLE = 'db:create-role',
+  UPDATE_ROLE = 'db:update-role',
+  DELETE_ROLE = 'db:delete-role',
+  ASSIGN_EMPLOYEE_ROLE = 'db:assign-employee-role',
 
   // Credit check operations
   CHECK_CLIENT_CREDIT = 'db:check-client-credit',

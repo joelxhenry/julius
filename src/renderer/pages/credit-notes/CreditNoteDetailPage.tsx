@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useTabContext } from '../../contexts/TabContext';
+import { usePermissions, RestrictedLink } from '../../permissions';
+import { employeeDisplayName } from '../../utils/employeeName';
 import {
   Box,
   Paper,
@@ -86,6 +88,7 @@ export function CreditNoteDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const location = useLocation();
   const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { runWithPermission } = usePermissions();
   const [creditNote, setCreditNote] = useState<CreditNote | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -136,7 +139,7 @@ export function CreditNoteDetailPage() {
     window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: creditNote.salespersonId }).then((res) => {
       if (res.success && res.data) {
         const emp = res.data;
-        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        const name = employeeDisplayName(emp);
         setSalespersonName(name);
       }
     });
@@ -162,6 +165,15 @@ export function CreditNoteDetailPage() {
       notifications.show({ title: 'Error', message: 'Failed to archive credit note', color: 'red' });
     }
   }, [creditNote, loadCreditNote]);
+
+  // Archiving requires ARCHIVE_CREDIT_NOTE; otherwise elevate via another user (recorded).
+  const requestArchive = useCallback(() => {
+    if (!creditNote) return;
+    runWithPermission(
+      { permissionCode: 'ARCHIVE_CREDIT_NOTE', actionLabel: `Archive credit note ${creditNote.crNumber}`, context: { entity: 'credit_note', id: creditNote.id } },
+      handleArchive
+    );
+  }, [creditNote, runWithPermission, handleArchive]);
 
   const handleViewInvoice = useCallback(async () => {
     if (!creditNote?.invNumber) return;
@@ -249,7 +261,7 @@ export function CreditNoteDetailPage() {
                       </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                      <Menu.Item leftSection={<IconArchive size={16} />} color="red" onClick={handleArchive}>
+                      <Menu.Item leftSection={<IconArchive size={16} />} color="red" onClick={requestArchive}>
                         Archive Credit Note
                       </Menu.Item>
                     </Menu.Dropdown>
@@ -278,15 +290,9 @@ export function CreditNoteDetailPage() {
           {creditNote.invNumber && (
             <Group gap={4}>
               <Text size="sm" c="dimmed">Source Invoice:</Text>
-              <Text
-                size="sm"
-                fw={500}
-                c="blue"
-                style={{ cursor: 'pointer' }}
-                onClick={handleViewInvoice}
-              >
+              <RestrictedLink permission="VIEW_INVOICES" color="blue" fw={500} onClick={handleViewInvoice}>
                 {creditNote.invNumber}
-              </Text>
+              </RestrictedLink>
             </Group>
           )}
           {creditNote.reference && (
@@ -298,15 +304,14 @@ export function CreditNoteDetailPage() {
           {salespersonName && (
             <Group gap={4}>
               <Text size="sm" c="dimmed">Salesperson:</Text>
-              <Text
-                size="sm"
+              <RestrictedLink
+                permission="VIEW_EMPLOYEES"
+                color="violet"
                 fw={500}
-                c="violet"
-                style={{ cursor: 'pointer' }}
                 onClick={() => openTab(`/employees/${creditNote.salespersonId}`)}
               >
                 {salespersonName}
-              </Text>
+              </RestrictedLink>
             </Group>
           )}
         </Group>

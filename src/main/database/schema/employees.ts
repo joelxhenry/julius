@@ -1,4 +1,5 @@
 import { pgTable, varchar, text, integer, serial, numeric, boolean, timestamp, date, index, jsonb } from 'drizzle-orm/pg-core';
+import { roles } from './roles';
 
 // EMPLOYEES table - merged employees + salespeople + user access
 export const employees = pgTable('employees', {
@@ -23,7 +24,11 @@ export const employees = pgTable('employees', {
   username: varchar('username', { length: 50 }).unique(),
   passwordHash: varchar('password_hash', { length: 255 }),
 
-  // Module permissions (flexible JSON for module access)
+  // RBAC role assignment (primary source of permissions)
+  roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
+
+  // Direct per-user permission overrides, merged over the role's permissions.
+  // Kept for backward compatibility and fine-grained exceptions.
   permissions: jsonb('permissions').notNull().default({}),
 
   // Access codes
@@ -35,6 +40,7 @@ export const employees = pgTable('employees', {
   index('idx_employees_name').on(table.lastName, table.firstName),
   index('idx_employees_salesperson').on(table.isSalesperson),
   index('idx_employees_username').on(table.username),
+  index('idx_employees_role').on(table.roleId),
 ]);
 
 // Export types

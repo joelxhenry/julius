@@ -22,8 +22,10 @@ import {
   IconCheck,
   IconAlertCircle,
 } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 import { PINInput } from '../../components/auth/PINInput';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { employeeDisplayName } from '../../utils/employeeName';
 
 type Phase = 'entry' | 'verified' | 'success';
 type ActionType = 'in' | 'out';
@@ -74,10 +76,11 @@ function getInitials(employee: SafeEmployee): string {
 }
 
 function getFullName(employee: SafeEmployee): string {
-  return [employee.firstName, employee.lastName].filter(Boolean).join(' ') || employee.code;
+  return employeeDisplayName(employee);
 }
 
 export function AttendancePage() {
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('entry');
   const [code, setCode] = useState('');
   const [employee, setEmployee] = useState<SafeEmployee | null>(null);
@@ -270,6 +273,16 @@ export function AttendancePage() {
               </Button>
             </Stack>
           </Paper>
+
+          <Button
+            variant="subtle"
+            color="gray"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={() => navigate('/')}
+            size="sm"
+          >
+            Back to Main Menu
+          </Button>
         </Stack>
       </Center>
     );

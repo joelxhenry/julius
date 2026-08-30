@@ -5,6 +5,7 @@ import {
   IconUserCog,
   IconFileInvoice,
   IconPackages,
+  IconShieldLock,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -51,6 +52,13 @@ const dashboardSections: DashboardSection[] = [
     icon: <IconUserCog size={24} />,
     color: 'violet',
     path: '/employees',
+  },
+  {
+    title: 'Roles & Permissions',
+    description: 'Create roles, set their permissions, and assign them to employees',
+    icon: <IconShieldLock size={24} />,
+    color: 'orange',
+    path: '/roles',
   },
 ];
 

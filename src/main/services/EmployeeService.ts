@@ -15,6 +15,7 @@ export interface EmployeeQueryParams {
   search?: string;
   salespersonOnly?: boolean;
   activeOnly?: boolean;
+  roleId?: number | null;
 }
 
 // Hash function for password
@@ -90,7 +91,7 @@ export class EmployeeService extends BaseService<
   }
 
   async findPaginated(params: EmployeeQueryParams = {}): Promise<PaginatedResult<schema.Employee>> {
-    const { page = 1, pageSize = 50, search, salespersonOnly, activeOnly } = params;
+    const { page = 1, pageSize = 50, search, salespersonOnly, activeOnly, roleId } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
@@ -113,6 +114,10 @@ export class EmployeeService extends BaseService<
 
     if (activeOnly) {
       conditions.push(eq(schema.employees.status, 'active'));
+    }
+
+    if (roleId != null) {
+      conditions.push(eq(schema.employees.roleId, roleId));
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
@@ -242,6 +247,69 @@ export class EmployeeService extends BaseService<
     return this.update(id, { permissions });
   }
 
+  /** Assign (or clear, with null) an employee's RBAC role. */
+  async assignRole(id: number, roleId: number | null): Promise<schema.Employee | null> {
+    return this.update(id, { roleId });
+  }
+
+  /**
+   * Reset an employee's access code to a freshly generated, unique value.
+   * The access code (the `code` column) is what's entered for PIN verification
+   * and one-time authorisations.
+   */
+  async resetAccessCode(id: number): Promise<schema.Employee | null> {
+    const newCode = await this.generateNextCode();
+    return this.update(id, { code: newCode });
+  }
+
+  /**
+   * Resolve an employee's EFFECTIVE permissions for access control:
+   * the assigned role's permissions, overlaid with any direct per-user
+   * permissions, plus a full ADMIN grant when the role is super-admin.
+   */
+  async resolveEffectivePermissions(employee: {
+    roleId?: number | null;
+    permissions?: unknown;
+  }): Promise<{ permissions: Record<string, boolean>; roleId: number | null; roleName: string | null; isSuperAdmin: boolean }> {
+    const direct = (employee.permissions as Record<string, boolean>) || {};
+    let rolePerms: Record<string, boolean> = {};
+    let roleName: string | null = null;
+    let isSuperAdmin = false;
+    const roleId = employee.roleId ?? null;
+
+    if (roleId) {
+      const roleRows = await this.db
+        .select()
+        .from(schema.roles)
+        .where(eq(schema.roles.id, roleId))
+        .limit(1);
+      const role = roleRows[0];
+      if (role) {
+        rolePerms = (role.permissions as Record<string, boolean>) || {};
+        roleName = role.name;
+        isSuperAdmin = role.isSuperAdmin;
+      }
+    }
+
+    // Direct overrides win over role defaults.
+    const permissions = { ...rolePerms, ...direct };
+    if (isSuperAdmin) permissions.ADMIN = true;
+
+    return { permissions, roleId, roleName, isSuperAdmin };
+  }
+
+  /**
+   * Attach resolved effective permissions (and roleName) to a safe employee
+   * object returned by auth flows, so the renderer's permission checks work
+   * off the role without any client-side role lookup.
+   */
+  async withEffectivePermissions<T extends { roleId?: number | null; permissions?: unknown }>(
+    safeEmployee: T
+  ): Promise<T & { roleName: string | null }> {
+    const { permissions, roleName } = await this.resolveEffectivePermissions(safeEmployee);
+    return { ...safeEmployee, permissions, roleName };
+  }
+
   async authenticate(username: string, password: string): Promise<AuthResult> {
     // Find employee by username first
     const employee = await this.findByUsername(username);
@@ -269,7 +337,7 @@ export class EmployeeService extends BaseService<
 
       return {
         success: true,
-        employee: employeeWithoutPassword,
+        employee: await this.withEffectivePermissions(employeeWithoutPassword),
         requiresPasswordChange: employee.passwordHash === DEFAULT_PASSWORD,
       };
     }
@@ -295,7 +363,9 @@ export class EmployeeService extends BaseService<
           isSalesperson: false,
           commission: null,
           username: 'admin',
-          permissions: {},
+          roleId: null,
+          // Fallback bootstrap admin always has full access.
+          permissions: { ADMIN: true },
           accessCodes: {},
           createdAt: new Date(),
         },
@@ -356,7 +426,7 @@ export class EmployeeService extends BaseService<
 
     return {
       success: true,
-      employee: safeEmployee,
+      employee: await this.withEffectivePermissions(safeEmployee),
     };
   }
 

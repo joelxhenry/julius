@@ -35,6 +35,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal, ClientStatementModal, ClientBulkPaymentModal } from '../../components/clients';
 import { useTabContext } from '../../contexts/TabContext';
+import { PermissionButton } from '../../permissions';
 
 interface Client {
   id: number;
@@ -169,27 +170,37 @@ export function ClientDetailPage() {
           </Stack>
         </Group>
         <Group>
-          <Button
+          <PermissionButton
+            permission="CLIENT_BULK_PAYMENT"
+            whenDenied="elevate"
+            actionLabel="Receive client payment"
+            context={{ entity: 'client', id: client?.id }}
             variant="light"
             color="green"
             leftSection={<IconCash size={16} />}
             onClick={() => setBulkPaymentOpen(true)}
           >
             Receive Payment
-          </Button>
-          <Button
+          </PermissionButton>
+          <PermissionButton
+            permission="VIEW_CLIENT_STATEMENT"
+            whenDenied="disable"
             variant="light"
             leftSection={<IconFileText size={16} />}
             onClick={() => setStatementModalOpen(true)}
           >
             Balance Statement
-          </Button>
-          <Button
+          </PermissionButton>
+          <PermissionButton
+            permission="EDIT_CLIENT"
+            whenDenied="elevate"
+            actionLabel="Edit client"
+            context={{ entity: 'client', id: client?.id }}
             leftSection={<IconEdit size={16} />}
             onClick={() => setEditModalOpen(true)}
           >
             Edit Client
-          </Button>
+          </PermissionButton>
         </Group>
       </Group>
 

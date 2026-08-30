@@ -30,6 +30,7 @@ import {
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
 import { SafeEmployee } from '../../contexts/AuthContext';
+import { employeeDisplayName } from '../../utils/employeeName';
 import { useSpotlight } from '../../contexts/SpotlightContext';
 import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
@@ -161,7 +162,7 @@ export function QuotationsPage() {
   const handleAccessVerified = useCallback(
     (employee: SafeEmployee) => {
       closeAccessModal();
-      const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.code;
+      const employeeName = employeeDisplayName(employee);
       navigate('/quotations/new', {
         state: {
           salespersonId: employee.id,

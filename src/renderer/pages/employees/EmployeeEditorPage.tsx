@@ -14,8 +14,6 @@ import {
   Text,
   Loader,
   Alert,
-  ActionIcon,
-  Tooltip,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -28,7 +26,6 @@ import {
   IconUser,
   IconPhone,
   IconBriefcase,
-  IconRefresh,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
@@ -57,7 +54,6 @@ export function EmployeeEditorPage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [generatingCode, setGeneratingCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<EmployeeFormValues>({
@@ -95,8 +91,6 @@ export function EmployeeEditorPage() {
   const generateEmployeeCode = async (isInitialLoad = true) => {
     if (isInitialLoad) {
       setLoading(true);
-    } else {
-      setGeneratingCode(true);
     }
     setError(null);
     try {
@@ -113,8 +107,6 @@ export function EmployeeEditorPage() {
     } finally {
       if (isInitialLoad) {
         setLoading(false);
-      } else {
-        setGeneratingCode(false);
       }
     }
   };
@@ -240,28 +232,9 @@ export function EmployeeEditorPage() {
                 <Title order={4}>Basic Information</Title>
               </Group>
 
+              {/* Access code is auto-generated on the backend and managed from the
+                  employee's access page — it is a private credential, not shown here. */}
               <Group grow>
-                <TextInput
-                  label="Employee Code"
-                  placeholder="e.g., EMP001"
-                  required
-                  disabled
-                  description={isEditing ? undefined : 'Auto-generated'}
-                  rightSection={
-                    !isEditing && (
-                      <Tooltip label="Generate new code">
-                        <ActionIcon
-                          variant="subtle"
-                          onClick={() => generateEmployeeCode(false)}
-                          loading={generatingCode}
-                        >
-                          <IconRefresh size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    )
-                  }
-                  {...form.getInputProps('code')}
-                />
                 <Select
                   label="Status"
                   data={[

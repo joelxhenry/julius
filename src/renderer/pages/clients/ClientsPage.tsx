@@ -5,7 +5,6 @@ import {
   Paper,
   Group,
   TextInput,
-  Button,
   Badge,
   ActionIcon,
   Text,
@@ -28,6 +27,7 @@ import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
+import { PermissionButton, usePermissions } from '../../permissions';
 
 interface Client {
   id: number;
@@ -51,6 +51,7 @@ interface PaginatedResult {
 export function ClientsPage() {
   const navigate = useNavigate();
   const { replaceCurrentTab } = useTabContext();
+  const { runWithPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
   const [total, setTotal] = useState(0);
@@ -103,6 +104,15 @@ export function ClientsPage() {
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, badCreditOnly, taxableOnly]);
+
+  // Sensitive action: if the user lacks DELETE_CLIENT, another authorised user
+  // can approve it once (recorded), then the identity reverts to the current user.
+  const requestDeleteClient = (client: Client) => {
+    runWithPermission(
+      { permissionCode: 'DELETE_CLIENT', actionLabel: `Delete client ${client.clientName}`, context: { entity: 'client', id: client.id } },
+      () => handleDeleteClient(client)
+    );
+  };
 
   const handleDeleteClient = (client: Client) => {
     modals.openConfirmModal({
@@ -228,7 +238,7 @@ export function ClientsPage() {
                 <Menu.Item
                   leftSection={<IconTrash size={14} />}
                   color="red"
-                  onClick={() => handleDeleteClient(client)}
+                  onClick={() => requestDeleteClient(client)}
                 >
                   Delete
                 </Menu.Item>
@@ -245,9 +255,14 @@ export function ClientsPage() {
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="center">
         <Title order={2}>Clients</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={() => navigate('/clients/new')}>
+        <PermissionButton
+          permission="CREATE_CLIENT"
+          whenDenied="disable"
+          leftSection={<IconPlus size={16} />}
+          onClick={() => navigate('/clients/new')}
+        >
           Add Client
-        </Button>
+        </PermissionButton>
       </Group>
 
       <Paper p="md" radius="md" withBorder>

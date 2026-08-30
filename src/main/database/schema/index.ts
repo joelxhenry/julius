@@ -7,6 +7,7 @@ export * from './categories';
 // Master Data Tables
 export * from './clients';
 export * from './suppliers';
+export * from './roles';
 export * from './employees';
 
 // Inventory Tables
@@ -29,3 +30,4 @@ export * from './employeeShifts';
 // System Tables
 export * from './gctPayments';
 export * from './settings';
+export * from './accessOverrides';

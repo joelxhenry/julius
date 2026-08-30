@@ -33,6 +33,8 @@ import {
   CreditCheckService,
   SpotlightService,
   SystemSettingsService,
+  AccessOverrideService,
+  RoleService,
 } from '../services';
 import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams, RefundInvoiceParams, ProcessClientBulkPaymentParams } from '../services/PaymentTransactionService';
 import { ImageStorageService } from '../services/ImageStorageService';
@@ -68,6 +70,8 @@ import {
   EmployeeAttendanceController,
   EmployeeShiftsController,
   SystemSettingsController,
+  AccessOverrideController,
+  RoleController,
   PrintController,
   ReportController,
   ExportController,
@@ -210,6 +214,8 @@ function registerDataHandlers() {
   const creditCheckService = new CreditCheckService(db);
   const spotlightService = new SpotlightService(db);
   const systemSettingsService = new SystemSettingsService(db);
+  const accessOverrideService = new AccessOverrideService(db);
+  const roleService = new RoleService(db);
   const paymentTransactionService = new PaymentTransactionService(db, paymentService, invoiceService, creditNoteService);
   const imageStorageService = new ImageStorageService();
   // Initialize system settings defaults and then storage from settings
@@ -257,6 +263,8 @@ function registerDataHandlers() {
   const employeeAttendanceController = new EmployeeAttendanceController(employeeAttendanceService);
   const employeeShiftsController = new EmployeeShiftsController(employeeShiftsService);
   const systemSettingsController = new SystemSettingsController(systemSettingsService);
+  const accessOverrideController = new AccessOverrideController(accessOverrideService);
+  const roleController = new RoleController(roleService);
   const printController = new PrintController(printService);
 
   // ===== BRANCH HANDLERS =====
@@ -329,6 +337,7 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.VERIFY_EMPLOYEE_PIN, (_, { pin }: { pin: string }) => employeeController.verifyPin(pin));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PASSWORD, (_, { id, newPassword }: { id: number; newPassword: string }) => employeeController.updatePassword(id, newPassword));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PERMISSIONS, (_, { id, permissions }: { id: number; permissions: Record<string, any> }) => employeeController.updatePermissions(id, permissions));
+  ipcMain.handle(IpcChannel.RESET_EMPLOYEE_ACCESS_CODE, (_, { id }: { id: number }) => employeeController.resetAccessCode(id));
 
   // ===== EMPLOYEE ACTIVITY HANDLERS =====
   ipcMain.handle(IpcChannel.GET_EMPLOYEE_INVOICES, (_, { employeeId, ...params }: { employeeId: number; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => employeeController.getEmployeeInvoices(employeeId, params));
@@ -533,13 +542,17 @@ function registerDataHandlers() {
         return { success: false, error: 'Invalid access code' };
       }
 
+      // Resolve effective (role-based + super-admin) permissions so an authoriser's
+      // rights reflect their assigned role, not just direct overrides.
+      const { permissions } = await employeeService.resolveEffectivePermissions(employee);
+
       return {
         success: true,
         data: {
           employeeId: employee.id,
-          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.code,
+          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.username || `Employee #${employee.id}`,
           isSalesperson: employee.isSalesperson,
-          permissions: employee.permissions,
+          permissions,
         },
       };
     } catch (error) {
@@ -572,7 +585,7 @@ function registerDataHandlers() {
         success: true,
         data: {
           employeeId: employee.id,
-          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.code,
+          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.username || `Employee #${employee.id}`,
           isSalesperson: true,
         },
       };
@@ -580,6 +593,18 @@ function registerDataHandlers() {
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   });
+
+  // ===== PERMISSION OVERRIDE AUDIT HANDLERS =====
+  ipcMain.handle(IpcChannel.RECORD_ACCESS_OVERRIDE, (_, data: any) => accessOverrideController.record(data));
+  ipcMain.handle(IpcChannel.GET_ACCESS_OVERRIDES, (_, params: any = {}) => accessOverrideController.getRecent(params));
+
+  // ===== RBAC ROLE HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_ROLES, () => roleController.getAll());
+  ipcMain.handle(IpcChannel.GET_ROLE, (_, { id }: { id: number }) => roleController.getById(id));
+  ipcMain.handle(IpcChannel.CREATE_ROLE, (_, data: any) => roleController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_ROLE, (_, { id, data }: any) => roleController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_ROLE, (_, { id }: { id: number }) => roleController.delete(id));
+  ipcMain.handle(IpcChannel.ASSIGN_EMPLOYEE_ROLE, (_, { id, roleId }: { id: number; roleId: number | null }) => employeeController.assignRole(id, roleId));
 
   // ===== CREDIT CHECK HANDLERS =====
   ipcMain.handle(IpcChannel.CHECK_CLIENT_CREDIT, async (_, { clientId }: { clientId: number }) => {

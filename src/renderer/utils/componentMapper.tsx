@@ -21,6 +21,7 @@ import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/client
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
 import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
 import { SalesManagementPage } from '../pages/sales';
+import { RolesPage, RoleEditorPage } from '../pages/roles';
 /**
  * Maps a route path to its corresponding React component
  * Used by the tab system to create components for tabbed routes
@@ -111,6 +112,11 @@ export function getComponentForPath(path: string): React.ReactNode {
 
   // Sales Management
   if (cleanPath === 'sales') return <SalesManagementPage />;
+
+  // Roles (RBAC)
+  if (cleanPath === 'roles') return <RolesPage />;
+  if (cleanPath === 'roles/new') return <RoleEditorPage />;
+  if (cleanPath.match(/^roles\/\d+$/)) return <RoleEditorPage />;
 
   // Default fallback
   return <div>Page not found: {path}</div>;

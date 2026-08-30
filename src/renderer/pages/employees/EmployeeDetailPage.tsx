@@ -36,6 +36,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { PermissionButton, usePermissions } from '../../permissions';
+import { employeeDisplayName } from '../../utils/employeeName';
 import { EmployeeSummaryTab } from './tabs/EmployeeSummaryTab';
 import { EmployeeInvoicesTab } from './tabs/EmployeeInvoicesTab';
 import { EmployeeQuotationsTab } from './tabs/EmployeeQuotationsTab';
@@ -65,7 +67,8 @@ export function EmployeeDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { runWithPermission } = usePermissions();
 
   const [loading, setLoading] = useState(true);
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -81,10 +84,7 @@ export function EmployeeDetailPage() {
 
   useEffect(() => {
     if (employee && location.pathname === `/employees/${id}`) {
-      const name = employee.firstName || employee.lastName
-        ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
-        : employee.code;
-      updateTabTitle(location.pathname, name);
+      updateTabTitle(location.pathname, employeeDisplayName(employee));
     }
   }, [employee, id, location.pathname, updateTabTitle]);
 
@@ -134,14 +134,18 @@ export function EmployeeDetailPage() {
     }
   };
 
+  // Changing an employee's status requires DEACTIVATE_EMPLOYEE; otherwise elevate.
+  const requestStatusChange = (newStatus: string) => {
+    runWithPermission(
+      { permissionCode: 'DEACTIVATE_EMPLOYEE', actionLabel: `Set employee status to ${newStatus}`, context: { entity: 'employee', id: employee?.id } },
+      () => handleStatusChange(newStatus)
+    );
+  };
+
   const handleDelete = () => {
     console.log("Button was clicked to delete", employee);
     if (!employee) return;
-    const name = employee.firstName || employee.lastName
-      ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
-      : employee.code;
-
-      console.log(name);
+    const name = employeeDisplayName(employee);
     modals.openConfirmModal({
       title: 'Delete Employee',
       children: (
@@ -204,9 +208,7 @@ export function EmployeeDetailPage() {
     );
   }
 
-  const employeeName = employee.firstName || employee.lastName
-    ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
-    : employee.code;
+  const employeeName = employeeDisplayName(employee);
 
   return (
     <Stack p="xl" gap="lg">
@@ -231,7 +233,8 @@ export function EmployeeDetailPage() {
               )}
             </Group>
             <Text c="dimmed" size="sm">
-              Code: {employee.code} {employee.username && `| Username: ${employee.username}`}
+              {employee.username ? `Username: ${employee.username}` : `Employee #${employee.id}`}
+              {employee.title ? ` | ${employee.title}` : ''}
             </Text>
           </Stack>
         </Group>
@@ -252,7 +255,7 @@ export function EmployeeDetailPage() {
                 <Menu.Item
                   leftSection={<IconUserCheck size={14} />}
                   color="green"
-                  onClick={() => handleStatusChange('active')}
+                  onClick={() => requestStatusChange('active')}
                 >
                   Set Active
                 </Menu.Item>
@@ -260,7 +263,7 @@ export function EmployeeDetailPage() {
               {employee.status !== 'inactive' && (
                 <Menu.Item
                   leftSection={<IconUserOff size={14} />}
-                  onClick={() => handleStatusChange('inactive')}
+                  onClick={() => requestStatusChange('inactive')}
                 >
                   Set Inactive
                 </Menu.Item>
@@ -269,34 +272,46 @@ export function EmployeeDetailPage() {
                 <Menu.Item
                   leftSection={<IconUserX size={14} />}
                   color="red"
-                  onClick={() => handleStatusChange('suspended')}
+                  onClick={() => requestStatusChange('suspended')}
                 >
                   Suspend
                 </Menu.Item>
               )}
             </Menu.Dropdown>
           </Menu>
-          <Button
+          <PermissionButton
+            permission="MANAGE_PERMISSIONS"
+            whenDenied="elevate"
+            actionLabel={`Manage permissions for ${employeeName}`}
+            context={{ entity: 'employee', id: employee.id }}
             variant="outline"
             leftSection={<IconShield size={16} />}
-            onClick={() => navigate(`/employees/${employee.id}/permissions`)}
+            onClick={() => replaceCurrentTab(`/employees/${employee.id}/permissions`)}
           >
             Permissions
-          </Button>
-          <Button
+          </PermissionButton>
+          <PermissionButton
+            permission="EDIT_EMPLOYEE"
+            whenDenied="elevate"
+            actionLabel={`Edit employee ${employeeName}`}
+            context={{ entity: 'employee', id: employee.id }}
             leftSection={<IconEdit size={16} />}
-            onClick={() => navigate(`/employees/${employee.id}/edit`)}
+            onClick={() => replaceCurrentTab(`/employees/${employee.id}/edit`)}
           >
             Edit
-          </Button>
-          <Button
+          </PermissionButton>
+          <PermissionButton
+            permission="DEACTIVATE_EMPLOYEE"
+            whenDenied="elevate"
+            actionLabel={`Delete employee ${employeeName}`}
+            context={{ entity: 'employee', id: employee.id }}
             variant="outline"
             color="red"
             leftSection={<IconTrash size={16} />}
             onClick={handleDelete}
           >
             Delete
-          </Button>
+          </PermissionButton>
         </Group>
       </Group>
 

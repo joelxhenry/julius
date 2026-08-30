@@ -37,6 +37,8 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
 import { PrintButton } from '../../components/common';
+import { usePermissions, RestrictedLink } from '../../permissions';
+import { employeeDisplayName } from '../../utils/employeeName';
 
 interface Payment {
   id: number;
@@ -96,8 +98,19 @@ export function PaymentDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [processedByName, setProcessedByName] = useState<string | null>(null);
 
+  const { runWithPermission } = usePermissions();
+
   // Void modal state
   const [voidModalOpen, { open: openVoidModal, close: closeVoidModal }] = useDisclosure(false);
+
+  // Voiding a payment requires VOID_PAYMENT; otherwise another authorised user
+  // approves it once (recorded) before the void modal opens.
+  const requestVoid = useCallback(() => {
+    runWithPermission(
+      { permissionCode: 'VOID_PAYMENT', actionLabel: 'Void payment', context: { entity: 'payment' } },
+      openVoidModal
+    );
+  }, [runWithPermission, openVoidModal]);
   const [voidReason, setVoidReason] = useState('');
   const [isVoiding, setIsVoiding] = useState(false);
   const [isVoided, setIsVoided] = useState(false);
@@ -108,7 +121,7 @@ export function PaymentDetailPage() {
     window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: payment.processedById }).then((res) => {
       if (res.success && res.data) {
         const emp = res.data;
-        const name = [emp.firstName, emp.lastName].filter(Boolean).join(' ') || emp.code;
+        const name = employeeDisplayName(emp);
         setProcessedByName(name);
       }
     });
@@ -298,7 +311,7 @@ export function PaymentDetailPage() {
         <IconX size={48} color="var(--mantine-color-red-6)" />
         <Stack gap="xs" align="center">
           <Title order={3}>Payment Not Found</Title>
-          <Text c="dimmed">The payment you're looking for doesn't exist or has been deleted.</Text>
+          <Text c="dimmed">The payment you&apos;re looking for doesn&apos;t exist or has been deleted.</Text>
         </Stack>
         <Button leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/payments')}>
           Back to Payments
@@ -349,7 +362,7 @@ export function PaymentDetailPage() {
                 color="red"
                 variant="light"
                 leftSection={<IconX size={16} />}
-                onClick={openVoidModal}
+                onClick={requestVoid}
               >
                 Void Payment
               </Button>
@@ -426,15 +439,9 @@ export function PaymentDetailPage() {
                   {payment.invoiceNumber && (
                     <Grid.Col span={6}>
                       <Text size="sm" c="dimmed">Invoice</Text>
-                      <Text
-                        fw={600}
-                        c="blue"
-                        mt={4}
-                        style={{ cursor: 'pointer' }}
-                        onClick={handleViewInvoice}
-                      >
+                      <RestrictedLink permission="VIEW_INVOICES" fw={600} color="blue" mt={4} onClick={handleViewInvoice}>
                         {payment.invoiceNumber}
-                      </Text>
+                      </RestrictedLink>
                     </Grid.Col>
                   )}
 
@@ -442,15 +449,9 @@ export function PaymentDetailPage() {
                   {payment.creditNoteNumber && (
                     <Grid.Col span={6}>
                       <Text size="sm" c="dimmed">Credit Note</Text>
-                      <Text
-                        fw={600}
-                        c="teal"
-                        mt={4}
-                        style={{ cursor: 'pointer' }}
-                        onClick={handleViewCreditNote}
-                      >
+                      <RestrictedLink permission="VIEW_CREDIT_NOTES" fw={600} color="teal" mt={4} onClick={handleViewCreditNote}>
                         {payment.creditNoteNumber}
-                      </Text>
+                      </RestrictedLink>
                     </Grid.Col>
                   )}
                 </Grid>
@@ -521,15 +522,15 @@ export function PaymentDetailPage() {
                   {payment.processedById && (
                     <Group justify="space-between">
                       <Text size="sm" c="dimmed">Processed By</Text>
-                      <Text
+                      <RestrictedLink
+                        permission="VIEW_EMPLOYEES"
                         size="sm"
                         fw={500}
-                        c="violet"
-                        style={{ cursor: 'pointer' }}
+                        color="violet"
                         onClick={() => openTab(`/employees/${payment.processedById}`)}
                       >
                         {processedByName || `Employee #${payment.processedById}`}
-                      </Text>
+                      </RestrictedLink>
                     </Group>
                   )}
                 </Stack>
@@ -580,7 +581,7 @@ export function PaymentDetailPage() {
                     variant="light"
                     color="red"
                     leftSection={<IconX size={16} />}
-                    onClick={openVoidModal}
+                    onClick={requestVoid}
                   >
                     Void Payment
                   </Button>

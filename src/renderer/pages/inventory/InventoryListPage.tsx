@@ -10,7 +10,6 @@ import {
   ActionIcon,
   Text,
   NumberFormatter,
-  Button,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -27,6 +26,7 @@ import { DataTable, Column, CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { NewPartModal } from './NewPartModal';
+import { PermissionButton } from '../../permissions';
 
 interface Inventory {
   id: number;
@@ -242,9 +242,14 @@ export function InventoryListPage() {
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="center">
         <Title order={2}>Inventory</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={openNewPart}>
+        <PermissionButton
+          permission="CREATE_INVENTORY"
+          whenDenied="disable"
+          leftSection={<IconPlus size={16} />}
+          onClick={openNewPart}
+        >
           Add Part
-        </Button>
+        </PermissionButton>
       </Group>
 
       <Paper p="md" radius="md" withBorder>

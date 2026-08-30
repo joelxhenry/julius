@@ -14,38 +14,75 @@ export interface RoutePermission {
 
 // Routes that require authentication but no specific permission
 // Just need a valid PIN/session
-export const authenticatedRoutes: RoutePermission[] = [
-  { path: '/invoices', description: 'Search Invoices' },
-  { path: '/invoices/form', description: 'Create Invoice' },
-  { path: '/invoices/form/:id', description: 'Edit Invoice' },
-  { path: '/invoices/:id', description: 'View Invoice' },
-  { path: '/quotations', description: 'Search Quotations' },
-  { path: '/quotations/new', description: 'Create Quotation' },
-  { path: '/quotations/:id', description: 'View Quotation' },
-  { path: '/inventory', description: 'Search Inventory' },
-  { path: '/clients', description: 'Clients' },
-  { path: '/clients/new', description: 'Create Client' },
-  { path: '/clients/:id', description: 'View Client' },
-  { path: '/suppliers', description: 'Suppliers' },
-  { path: '/suppliers/new', description: 'Create Supplier' },
-  { path: '/suppliers/:id', description: 'View Supplier' },
-  { path: '/suppliers/:id/edit', description: 'Edit Supplier' },
-  { path: '/payments', description: 'Process Payments' },
-];
+export const authenticatedRoutes: RoutePermission[] = [];
 
-// Routes that require specific permissions
+// Routes that require specific permissions.
+// Order matters: more specific paths (create/edit) must come before the list/detail
+// patterns so getRoutePermission matches them first.
 export const permissionProtectedRoutes: RoutePermission[] = [
   // Dashboard
   { path: '/dashboard', permission: 'VIEW_DASHBOARD', description: 'Dashboard' },
-  { path: '/dashboard/reports', permission: 'VIEW_REPORTS', description: 'Reports' },
-  { path: '/dashboard/settings', permission: 'MANAGE_SETTINGS', description: 'System Settings' },
+
+  // Reports
+  { path: '/reports', permission: 'VIEW_REPORTS', description: 'Reports' },
+
+  // Settings
+  { path: '/settings', permission: 'MANAGE_SETTINGS', description: 'System Settings' },
+
+  // Sales Management hub
+  { path: '/sales', permission: 'VIEW_INVOICES', description: 'Sales Management' },
+
+  // Invoices
+  { path: '/invoices/form', permission: 'CREATE_INVOICE', description: 'Create Invoice' },
+  { path: '/invoices/edit/:id', permission: 'EDIT_INVOICE', description: 'Edit Invoice' },
+  { path: '/invoices/:id', permission: 'VIEW_INVOICES', description: 'View Invoice' },
+  { path: '/invoices', permission: 'VIEW_INVOICES', description: 'Invoices' },
+
+  // Quotations
+  { path: '/quotations/new', permission: 'CREATE_QUOTATION', description: 'Create Quotation' },
+  { path: '/quotations/:id/edit', permission: 'EDIT_QUOTATION', description: 'Edit Quotation' },
+  { path: '/quotations/:id', permission: 'VIEW_QUOTATIONS', description: 'View Quotation' },
+  { path: '/quotations', permission: 'VIEW_QUOTATIONS', description: 'Quotations' },
+
+  // Credit Notes
+  { path: '/credit-notes/:id', permission: 'VIEW_CREDIT_NOTES', description: 'View Credit Note' },
+  { path: '/credit-notes', permission: 'VIEW_CREDIT_NOTES', description: 'Credit Notes' },
+
+  // Inventory
+  { path: '/inventory/new', permission: 'CREATE_INVENTORY', description: 'Create Inventory Item' },
+  { path: '/inventory/manage/stock', permission: 'BULK_STOCK_UPDATE', description: 'Update Stock' },
+  { path: '/inventory/manage/receive', permission: 'RECEIVE_GOODS', description: 'Receive Parts' },
+  { path: '/inventory/manage/mass-update', permission: 'MASS_UPDATE_INVENTORY', description: 'Mass Update' },
+  { path: '/inventory/manage', permission: 'EDIT_INVENTORY', description: 'Inventory Management' },
+  { path: '/inventory/:id', permission: 'VIEW_INVENTORY', description: 'View Inventory Item' },
+  { path: '/inventory', permission: 'VIEW_INVENTORY', description: 'Inventory' },
+
+  // Clients
+  { path: '/clients/new', permission: 'CREATE_CLIENT', description: 'Create Client' },
+  { path: '/clients/:id', permission: 'VIEW_CLIENTS', description: 'View Client' },
+  { path: '/clients', permission: 'VIEW_CLIENTS', description: 'Clients' },
+
+  // Suppliers
+  { path: '/suppliers/new', permission: 'CREATE_SUPPLIER', description: 'Create Supplier' },
+  { path: '/suppliers/:id/edit', permission: 'EDIT_SUPPLIER', description: 'Edit Supplier' },
+  { path: '/suppliers/:id', permission: 'VIEW_SUPPLIERS', description: 'View Supplier' },
+  { path: '/suppliers', permission: 'VIEW_SUPPLIERS', description: 'Suppliers' },
+
+  // Payments
+  { path: '/payments/:id', permission: 'VIEW_PAYMENTS', description: 'View Payment' },
+  { path: '/payments', permission: 'VIEW_PAYMENTS', description: 'Payments' },
+
+  // Role Management (RBAC)
+  { path: '/roles/new', permission: 'MANAGE_ROLES', description: 'Create Role' },
+  { path: '/roles/:id', permission: 'MANAGE_ROLES', description: 'Edit Role' },
+  { path: '/roles', permission: 'MANAGE_ROLES', description: 'Roles' },
 
   // Employee Management
-  { path: '/employees', permission: 'VIEW_EMPLOYEES', description: 'Employee List' },
   { path: '/employees/new', permission: 'CREATE_EMPLOYEE', description: 'Create Employee' },
-  { path: '/employees/:id', permission: 'VIEW_EMPLOYEES', description: 'Employee Details' },
   { path: '/employees/:id/edit', permission: 'EDIT_EMPLOYEE', description: 'Edit Employee' },
   { path: '/employees/:id/permissions', permission: 'MANAGE_PERMISSIONS', description: 'Manage Permissions' },
+  { path: '/employees/:id', permission: 'VIEW_EMPLOYEES', description: 'Employee Details' },
+  { path: '/employees', permission: 'VIEW_EMPLOYEES', description: 'Employee List' },
 ];
 
 // Public routes (no authentication required)

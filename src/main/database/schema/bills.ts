@@ -6,7 +6,8 @@ export const bills = pgTable('bills', {
   id: serial('id').primaryKey(),
   billNo: varchar('bill_no', { length: 50 }).notNull().unique(),
   supplier: varchar('supplier', { length: 100 })
-    .references(() => suppliers.company, { onDelete: 'set null' }),
+    // Cascade on rename so a supplier rename isn't blocked by this constraint.
+    .references(() => suppliers.company, { onDelete: 'set null', onUpdate: 'cascade' }),
   billDate: date('bill_date'),
   orderNo: varchar('order_no', { length: 50 }),
   description: varchar('description', { length: 200 }),
