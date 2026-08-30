@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Box, NavLink, Text, Stack, ThemeIcon, ScrollArea, ActionIcon, Tooltip, Button } from '@mantine/core';
 import {
   IconCash,
-  IconClockDollar,
   IconCreditCard,
   IconChartBar,
   IconLayoutSidebarLeftCollapse,
@@ -11,7 +10,6 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { SalesSummaryReport } from './SalesSummaryReport';
-import { ReceivablesAgingReport } from './ReceivablesAgingReport';
 import { PaymentCollectionReport } from './PaymentCollectionReport';
 
 interface ReportEntry {
@@ -26,19 +24,11 @@ interface ReportEntry {
 const reports: ReportEntry[] = [
   {
     key: 'sales',
-    label: 'Sales Summary',
-    description: 'Revenue, tax, payments & outstanding',
+    label: 'Sales Report',
+    description: 'Net/gross sales, payments, refunds & discounts',
     icon: <IconCash size={20} />,
     color: 'teal',
     component: <SalesSummaryReport />,
-  },
-  {
-    key: 'receivables',
-    label: 'Receivables Aging',
-    description: 'Outstanding invoices by age bucket',
-    icon: <IconClockDollar size={20} />,
-    color: 'orange',
-    component: <ReceivablesAgingReport />,
   },
   {
     key: 'payments',

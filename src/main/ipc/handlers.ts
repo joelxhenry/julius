@@ -42,7 +42,7 @@ import { InventoryImageService, UploadImageParams } from '../services/InventoryI
 import { PrintService } from '../services/PrintService';
 import { ReportService } from '../services/ReportService';
 import { ExportService } from '../services/ExportService';
-import { PrintDocumentRequest, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest } from '../../shared/types/print';
+import { PrintDocumentRequest, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest } from '../../shared/types/print';
 import { ExportRequest } from '../../shared/types/export';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
@@ -1037,10 +1037,19 @@ function registerDataHandlers() {
 
   ipcMain.handle(IpcChannel.GET_SALES_REPORT, (_, params: any = {}) =>
     reportController.getSalesSummary(params));
-  ipcMain.handle(IpcChannel.GET_RECEIVABLES_AGING_REPORT, () =>
-    reportController.getReceivablesAging());
   ipcMain.handle(IpcChannel.GET_PAYMENT_COLLECTION_REPORT, (_, params: any = {}) =>
     reportController.getPaymentCollection(params));
+  ipcMain.handle(IpcChannel.PRINT_SALES_REPORT, async (_, params: SalesReportPrintRequest) => {
+    try {
+      const data = await reportService.getSalesSummary({
+        startDate: params.startDate ?? undefined,
+        endDate: params.endDate ?? undefined,
+      });
+      return printController.printSalesReport(params, data);
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to print sales report' };
+    }
+  });
 
   // ===== EXPORT HANDLERS =====
   const exportService = new ExportService();

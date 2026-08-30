@@ -17,7 +17,9 @@
     "rebuild": "electron-rebuild -f -w better-sqlite3 && electron-rebuild -f -w sharp",
     "migrate:dbf": "tsx src/main/database/migration/cli.ts migrate",
     "migrate:dbf:dry-run": "tsx src/main/database/migration/cli.ts migrate --dry-run",
-    "migrate:dbf:analyze": "tsx src/main/database/migration/cli.ts analyze"
+    "migrate:dbf:analyze": "tsx src/main/database/migration/cli.ts analyze",
+    "db:import:legacy": "tsx src/main/database/importLegacyJson.ts",
+    "db:import:legacy:dry-run": "tsx src/main/database/importLegacyJson.ts --dry-run"
   },
   "keywords": [],
   "author": {

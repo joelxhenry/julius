@@ -11,15 +11,6 @@ export class ReportController extends BaseController<ReportService> {
     }
   }
 
-  async getReceivablesAging() {
-    try {
-      const data = await this.service.getReceivablesAging();
-      return this.wrapSuccess(data);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
   async getPaymentCollection(params: DateRangeParams) {
     try {
       const data = await this.service.getPaymentCollection(params);

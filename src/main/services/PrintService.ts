@@ -9,7 +9,8 @@ import { PaymentService, PaymentMethodService } from './PaymentService';
 import { ClientService } from './ClientService';
 import { DocumentLineItemService } from './DocumentLineItemService';
 import { EmployeeService } from './EmployeeService';
-import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest } from '../../shared/types/print';
+import type { SalesSummaryResult } from './ReportService';
 import {
   CompanyInfo,
   InvoiceTemplateData,
@@ -19,6 +20,7 @@ import {
   ReceivingReferenceTemplateData,
   ClientStatementTemplateData,
   PaymentReportTemplateData,
+  SalesReportTemplateData,
 } from './print-templates/types';
 import { getInvoiceTemplate } from './print-templates/invoiceTemplate';
 import { getQuotationTemplate } from './print-templates/quotationTemplate';
@@ -35,6 +37,7 @@ import { InventoryReceivingService } from './InventoryReceivingService';
 import { getReceivingReferenceTemplate } from './print-templates/receivingReferenceTemplate';
 import { getClientStatementTemplate } from './print-templates/clientStatementTemplate';
 import { getPaymentReportTemplate } from './print-templates/paymentReportTemplate';
+import { getSalesReportTemplate } from './print-templates/salesReportTemplate';
 import { formatCurrency, formatDate } from './print-templates/baseStyles';
 import { LookupTicketRequest, LookupTicketData, LookupTicketItem } from '../../shared/types/lookupTicket';
 
@@ -706,6 +709,69 @@ export class PrintService {
       request.outputMode,
       `Payments ${nameForFile}`,
       `Payment Report - ${data.clientName}`,
+      request.printerName,
+    );
+  }
+
+  // --- Sales report (period summary) ---
+
+  /**
+   * Render the period Sales Report. The aggregated figures are computed by
+   * ReportService and passed in; this method only formats and lays them out.
+   */
+  async generateSalesReport(
+    request: SalesReportPrintRequest,
+    data: SalesSummaryResult,
+  ): Promise<PrintResult> {
+    const company = await this.loadCompanyInfo();
+    const symbol = company.currencySymbol;
+    const money = (v: number) => formatCurrency(v, symbol);
+    const num = (v: number) => v.toLocaleString('en-US');
+
+    const paymentTypesTotalCount = data.paymentTypes.reduce((s, t) => s + t.count, 0);
+    const paymentTypesTotal = data.paymentTypes.reduce((s, t) => s + t.total, 0);
+
+    const templateData: SalesReportTemplateData = {
+      company,
+      periodLabel: this.buildStatementPeriodLabel(request.startDate, request.endDate),
+      printedAt: new Date().toLocaleString(),
+      netSales: money(data.netSales),
+      taxCollected: money(data.taxCollected),
+      grossSales: money(data.grossSales),
+      numCustomers: num(data.numCustomers),
+      averageSale: money(data.averageSale),
+      numPayments: num(data.numPayments),
+      valuePayments: money(data.valuePayments),
+      numRefunds: num(data.numRefunds),
+      valueRefunds: money(data.valueRefunds),
+      numDiscounts: num(data.numDiscounts),
+      valueDiscounts: money(data.valueDiscounts),
+      paymentTypes: data.paymentTypes.map((t) => ({
+        method: t.method,
+        count: num(t.count),
+        total: money(t.total),
+      })),
+      paymentTypesTotalCount: num(paymentTypesTotalCount),
+      paymentTypesTotal: money(paymentTypesTotal),
+      detail: data.detail.map((d) => {
+        const isNegative = d.amount < 0;
+        return {
+          invoiceNumber: d.invoiceNumber ?? '',
+          paymentType: d.paymentType,
+          clientName: d.clientName ?? '',
+          date: d.date,
+          amount: (isNegative ? '-' : '') + money(Math.abs(d.amount)),
+          isNegative,
+        };
+      }),
+    };
+
+    const html = getSalesReportTemplate(templateData);
+    return this.outputStandardHtml(
+      html,
+      request.outputMode,
+      'Sales Report',
+      'Sales Report',
       request.printerName,
     );
   }

@@ -378,11 +378,10 @@ Other defined-but-unused-in-UI channels: `CREATE_PAYMENT`, `CREATE_BILL_PAYMENT`
 
 ## 12. Reports (`/reports`)
 
-Hub (`ReportsPage`) with 3 reports (each a view gate) + **Export**:
+Hub (`ReportsPage`) with 2 reports (each a view gate) + **Export**:
 | Report | IPC |
 |---|---|
 | Sales Summary | `GET_SALES_REPORT` |
-| Receivables Aging | `GET_RECEIVABLES_AGING_REPORT` |
 | Payment Collection | `GET_PAYMENT_COLLECTION_REPORT` |
 
 Cross-cutting: **Export** (`EXPORT_REPORT`) — data exfiltration, worth its own permission.

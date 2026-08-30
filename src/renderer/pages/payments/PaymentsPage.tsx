@@ -22,6 +22,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
+import { CANONICAL_PAYMENT_METHOD_CODES } from '../../../shared/constants/payments';
 
 interface Payment {
   id: number;
@@ -81,6 +82,7 @@ export function PaymentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [documentType, setDocumentType] = useState<string | null>('INVOICE');
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -94,7 +96,11 @@ export function PaymentsPage() {
 
   const [startDate, endDate] = dateRange;
   const hasActiveFilters =
-    search !== '' || documentType !== null || startDate !== null || endDate !== null;
+    search !== '' ||
+    documentType !== null ||
+    paymentMethod !== null ||
+    startDate !== null ||
+    endDate !== null;
 
   const loadPayments = useCallback(async () => {
     setIsLoading(true);
@@ -104,6 +110,7 @@ export function PaymentsPage() {
         pageSize: 25,
         search: search || undefined,
         documentType: documentType || undefined,
+        paymentMethod: paymentMethod || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       });
@@ -124,7 +131,7 @@ export function PaymentsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, documentType, startDate, endDate]);
+  }, [page, search, documentType, paymentMethod, startDate, endDate]);
 
   useEffect(() => {
     loadPayments();
@@ -160,10 +167,26 @@ export function PaymentsPage() {
     [methodNameByCode]
   );
 
+  // Legacy method rows migrated from the old system share display names with the
+  // canonical methods (under different codes), so deduplicate by name for the
+  // filter. When a name collides, keep the canonical code as the value since
+  // payment records are normalized to canonical codes.
+  const methodFilterOptions = useMemo(() => {
+    const byName = new Map<string, { value: string; label: string }>();
+    for (const pm of paymentMethods) {
+      const key = pm.name.trim().toLowerCase();
+      const existing = byName.get(key);
+      if (!existing || CANONICAL_PAYMENT_METHOD_CODES.includes(pm.code)) {
+        byName.set(key, { value: pm.code, label: pm.name });
+      }
+    }
+    return Array.from(byName.values());
+  }, [paymentMethods]);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, documentType, startDate, endDate]);
+  }, [search, documentType, paymentMethod, startDate, endDate]);
 
   const handleVoidClick = useCallback((payment: Payment) => {
     setSelectedPayment(payment);
@@ -468,6 +491,15 @@ export function PaymentsPage() {
             clearable
             w={200}
           />
+          <Select
+            placeholder="All Methods"
+            value={paymentMethod}
+            onChange={setPaymentMethod}
+            data={methodFilterOptions}
+            clearable
+            searchable
+            w={200}
+          />
           <DateRangeFilter value={dateRange} onChange={setDateRange} />
           {hasActiveFilters && (
             <Button
@@ -477,6 +509,7 @@ export function PaymentsPage() {
               onClick={() => {
                 setSearch('');
                 setDocumentType(null);
+                setPaymentMethod(null);
                 setDateRange([null, null]);
               }}
             >

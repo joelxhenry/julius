@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { IconCash, IconAlertCircle, IconPlus, IconTrash, IconReceipt } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { STORE_CREDIT_METHOD_CODE, isStoreCreditMethod } from '../../../shared/constants/payments';
+import { STORE_CREDIT_METHOD_CODE, isStoreCreditMethod, isCashMethod } from '../../../shared/constants/payments';
 
 export interface PaymentEntry {
   paymentMethodCode: string;
@@ -60,6 +60,9 @@ export function PaymentEntryModal({
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
   const [availableStoreCredit, setAvailableStoreCredit] = useState(0);
+  // Cash handover per entry index (display-only). Keyed by index; used to show the
+  // change due for cash payments. Not part of PaymentEntry and never submitted.
+  const [cashHandovers, setCashHandovers] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
   const amountInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
@@ -76,6 +79,15 @@ export function PaymentEntryModal({
     (entry: PaymentEntry) => {
       const method = findMethod(entry.paymentMethodCode);
       return method ? isStoreCreditMethod(method) : false;
+    },
+    [findMethod]
+  );
+
+  const entryIsCash = useCallback(
+    (entry: PaymentEntry) => {
+      const method = findMethod(entry.paymentMethodCode);
+      // The default 'CASH' code is used before methods load, so treat it as cash too.
+      return method ? isCashMethod(method) : entry.paymentMethodCode === 'CASH';
     },
     [findMethod]
   );
@@ -145,6 +157,7 @@ export function PaymentEntryModal({
   useEffect(() => {
     if (!opened) {
       setPaymentEntries([{ paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) }]);
+      setCashHandovers({});
       setError(null);
     }
   }, [opened, invoiceTotal]);
@@ -159,6 +172,16 @@ export function PaymentEntryModal({
 
   const handleRemovePaymentEntry = useCallback((index: number) => {
     setPaymentEntries((prev) => prev.filter((_, i) => i !== index));
+    // Re-index the display-only handover map so it stays aligned with the entries.
+    setCashHandovers((prev) => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const i = Number(k);
+        if (i < index) next[i] = v;
+        else if (i > index) next[i - 1] = v;
+      });
+      return next;
+    });
   }, []);
 
   const handleUpdateEntry = useCallback((index: number, field: keyof PaymentEntry, value: any) => {
@@ -320,6 +343,10 @@ export function PaymentEntryModal({
         <Stack gap="md">
           {paymentEntries.map((entry, index) => {
             const isStoreCredit = entryIsStoreCredit(entry);
+            const isCash = entryIsCash(entry);
+            const handoverRaw = cashHandovers[index] ?? '';
+            const handoverAmount = parseFloat(handoverRaw || '0') || 0;
+            const changeDue = Math.max(0, handoverAmount - parseFloat(entry.amount || '0'));
             return (
               <Stack key={index} gap="sm">
                 {index > 0 && <Divider variant="dashed" />}
@@ -399,6 +426,34 @@ export function PaymentEntryModal({
                     value={entry.transactionReference || ''}
                     onChange={(event) => handleUpdateEntry(index, 'transactionReference', event.currentTarget.value)}
                   />
+                )}
+
+                {isCash && (
+                  <Group grow align="flex-start">
+                    <NumberInput
+                      label="Cash Handover"
+                      description="Cash received from the customer"
+                      placeholder="0.00"
+                      value={handoverRaw}
+                      onChange={(value) =>
+                        setCashHandovers((prev) => ({
+                          ...prev,
+                          [index]: typeof value === 'number' ? value.toFixed(2) : String(value ?? ''),
+                        }))
+                      }
+                      min={0}
+                      decimalScale={2}
+                      fixedDecimalScale
+                      prefix="$"
+                      thousandSeparator=","
+                    />
+                    <Stack gap={2} justify="center">
+                      <Text size="xs" c="dimmed">Change Due</Text>
+                      <Text size="lg" fw={600} c={changeDue > 0 ? 'orange' : 'dimmed'}>
+                        {formatCurrency(changeDue)}
+                      </Text>
+                    </Stack>
+                  </Group>
                 )}
 
                 <Textarea
