@@ -91,6 +91,9 @@ typings/
 # Electron-Forge
 out/
 
+# tsc / standalone vite build output (app runs from .vite, not dist)
+dist/
+
 # Database files
 *.db
 *.db-shm

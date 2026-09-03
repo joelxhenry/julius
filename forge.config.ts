@@ -100,6 +100,16 @@ function copyNodeModules(buildPath: string) {
   }
 }
 
+// Optional Windows code signing. Inert unless the certificate env vars are set
+// (e.g. in the release workflow via repo secrets), so unsigned local/CI builds
+// keep working. When a cert becomes available, provide these and signing turns
+// on with no other changes — see RELEASE.md.
+const windowsCertificateFile = process.env.WINDOWS_CERTIFICATE_FILE;
+const windowsCertificatePassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
+const windowsSigning = windowsCertificateFile
+  ? { certificateFile: windowsCertificateFile, certificatePassword: windowsCertificatePassword }
+  : {};
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: false,
@@ -122,6 +132,7 @@ const config: ForgeConfig = {
       name: 'TurboJulius',
       setupExe: 'TurboJulius-Setup.exe',
       setupIcon: './resources/icon.ico',
+      ...windowsSigning,
     }),
     new MakerZIP({}, ['darwin', 'win32']),
     new MakerRpm({}),
