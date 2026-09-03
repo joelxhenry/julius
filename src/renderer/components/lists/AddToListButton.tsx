@@ -3,6 +3,7 @@ import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconPlaylistAdd } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { resolveBaseVariant } from '../../utils/resolveBaseVariant';
+import { usePermissions } from '../../permissions';
 import { AddToListModal } from './AddToListModal';
 import type { AddListItemInput } from '../../../shared/types/productList';
 
@@ -33,9 +34,14 @@ export type AddToListButtonProps = VariantAddProps | ItemAddProps;
 
 export function AddToListButton(props: AddToListButtonProps) {
   const { size, iconSize = 16, withTooltip = true } = props;
+  const { can } = usePermissions();
   const [opened, setOpened] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [item, setItem] = useState<AddListItemInput | null>(null);
+
+  // Adding to a list (and creating new lists from the modal) is a management
+  // action. Hide the entry point entirely when the user lacks permission.
+  if (!can('MANAGE_PRODUCT_LISTS')) return null;
 
   const handleClick = async (event: React.MouseEvent) => {
     event.stopPropagation();
