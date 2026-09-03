@@ -181,7 +181,7 @@ export function ProductListsPage() {
               <Title order={2}>Product Lists</Title>
             </Group>
             <Text c="dimmed" size="sm">
-              Reorder lists — collect parts that need ordering, then export and mark them ordered.
+              Reorder lists. Collect parts that need ordering, then export and mark them ordered.
             </Text>
           </Stack>
           {canManage && (

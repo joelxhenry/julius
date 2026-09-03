@@ -127,7 +127,7 @@ export function AddToListModal({ opened, onClose, item, onAdded }: AddToListModa
         {item && (
           <Text size="sm" c="dimmed">
             Adding <Text span fw={600} c="var(--mantine-color-text)">{item.sku}</Text>
-            {item.description ? ` — ${item.description}` : ''}
+            {item.description ? ` - ${item.description}` : ''}
           </Text>
         )}
 
@@ -161,7 +161,7 @@ export function AddToListModal({ opened, onClose, item, onAdded }: AddToListModa
           <>
             <TextInput
               label="List title"
-              placeholder="e.g. Reorder — Toyota fast movers"
+              placeholder="e.g. Reorder - Toyota fast movers"
               required
               value={title}
               onChange={(e) => setTitle(e.currentTarget.value)}

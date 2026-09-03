@@ -20,7 +20,7 @@ function formatDate(value: string | Date): string {
 
 /**
  * Print a product list via a hidden iframe. Self-contained (no main-process
- * print template) so it works regardless of printer configuration — the OS
+ * print template) so it works regardless of printer configuration; the OS
  * print dialog handles destination.
  */
 export function printProductList(list: ProductListWithItems): void {

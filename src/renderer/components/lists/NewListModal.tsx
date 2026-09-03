@@ -59,7 +59,7 @@ export function NewListModal({ opened, onClose, onCreated }: NewListModalProps) 
       <Stack gap="md">
         <TextInput
           label="List title"
-          placeholder="e.g. Reorder — Toyota fast movers"
+          placeholder="e.g. Reorder - Toyota fast movers"
           required
           value={title}
           onChange={(e) => setTitle(e.currentTarget.value)}
