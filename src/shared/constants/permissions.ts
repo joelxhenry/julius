@@ -249,6 +249,12 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: 'Inventory',
   },
   {
+    code: 'VIEW_INVENTORY_ACTIVITY',
+    label: 'View Activity History',
+    description: 'See the Activity tab (stock movements and transactions) on inventory items',
+    category: 'Inventory',
+  },
+  {
     code: 'CREATE_INVENTORY',
     label: 'Create Inventory',
     description: 'Add new inventory items',

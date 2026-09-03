@@ -1021,9 +1021,11 @@ export function InventoryDetailPage() {
           <Tabs.Tab value="alternates" leftSection={<IconExchange size={16} />}>
             Alternates
           </Tabs.Tab>
-          <Tabs.Tab value="transactions" leftSection={<IconHistory size={16} />}>
-            Activity
-          </Tabs.Tab>
+          <PermissionGate permission="VIEW_INVENTORY_ACTIVITY" mode="hide">
+            <Tabs.Tab value="transactions" leftSection={<IconHistory size={16} />}>
+              Activity
+            </Tabs.Tab>
+          </PermissionGate>
           <PermissionGate permission="VIEW_INVENTORY_SALES" mode="hide">
             <Tabs.Tab value="sales" leftSection={<IconChartLine size={16} />}>
               Sales
@@ -1102,23 +1104,25 @@ export function InventoryDetailPage() {
         </Tabs.Panel>
 
         {/* Activity Tab */}
-        <Tabs.Panel value="transactions" pt="md">
-          <TransactionsTab
-            transactions={transactions}
-            loading={transactionsLoading}
-            page={transactionsPage}
-            totalPages={transactionsTotalPages}
-            onPageChange={setTransactionsPage}
-            activity={transactionsActivity}
-            onActivityChange={setTransactionsActivity}
-            variant={transactionsVariant}
-            onVariantChange={setTransactionsVariant}
-            variantOptions={variantFilterOptions}
-            dateRange={transactionsDateRange}
-            onDateRangeChange={setTransactionsDateRange}
-            onOpenReference={handleOpenReference}
-          />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_INVENTORY_ACTIVITY" mode="hide">
+          <Tabs.Panel value="transactions" pt="md">
+            <TransactionsTab
+              transactions={transactions}
+              loading={transactionsLoading}
+              page={transactionsPage}
+              totalPages={transactionsTotalPages}
+              onPageChange={setTransactionsPage}
+              activity={transactionsActivity}
+              onActivityChange={setTransactionsActivity}
+              variant={transactionsVariant}
+              onVariantChange={setTransactionsVariant}
+              variantOptions={variantFilterOptions}
+              dateRange={transactionsDateRange}
+              onDateRangeChange={setTransactionsDateRange}
+              onOpenReference={handleOpenReference}
+            />
+          </Tabs.Panel>
+        </PermissionGate>
 
         {/* Sales Tab */}
         <PermissionGate permission="VIEW_INVENTORY_SALES" mode="hide">
