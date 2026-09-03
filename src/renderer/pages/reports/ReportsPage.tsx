@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Box, NavLink, Text, Stack, ThemeIcon, ScrollArea, ActionIcon, Tooltip, Button } from '@mantine/core';
 import {
   IconCash,
-  IconCreditCard,
+  IconShoppingCart,
   IconChartBar,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { SalesSummaryReport } from './SalesSummaryReport';
-import { PaymentCollectionReport } from './PaymentCollectionReport';
+import { PurchaseReport } from './PurchaseReport';
 
 interface ReportEntry {
   key: string;
@@ -31,12 +31,12 @@ const reports: ReportEntry[] = [
     component: <SalesSummaryReport />,
   },
   {
-    key: 'payments',
-    label: 'Payment Collection',
-    description: 'Payments by method and processor',
-    icon: <IconCreditCard size={20} />,
-    color: 'green',
-    component: <PaymentCollectionReport />,
+    key: 'purchases',
+    label: 'Purchase Report',
+    description: 'Month-by-month purchase totals, paid & payable',
+    icon: <IconShoppingCart size={20} />,
+    color: 'grape',
+    component: <PurchaseReport />,
   },
 ];
 
