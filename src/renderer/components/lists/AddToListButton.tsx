@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ActionIcon, Tooltip } from '@mantine/core';
-import { IconListPlus } from '@tabler/icons-react';
+import { IconPlaylistAdd } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { resolveBaseVariant } from '../../utils/resolveBaseVariant';
 import { AddToListModal } from './AddToListModal';
@@ -85,7 +85,7 @@ export function AddToListButton(props: AddToListButtonProps) {
       loading={resolving}
       onClick={handleClick}
     >
-      <IconListPlus size={iconSize} />
+      <IconPlaylistAdd size={iconSize} />
     </ActionIcon>
   );
 
