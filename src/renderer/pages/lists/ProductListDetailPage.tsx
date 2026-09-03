@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useTabParams } from '../../hooks/useTabParams';
 import {
   Stack,
   Group,
@@ -53,7 +53,7 @@ const formatDate = (value: string | Date) =>
   new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
 export function ProductListDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useTabParams<{ id: string }>();
   const listId = Number(id);
   const { replaceCurrentTab } = useTabContext();
   const { can } = usePermissions();
