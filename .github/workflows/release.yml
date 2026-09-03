@@ -24,6 +24,11 @@ jobs:
     # Squirrel.Windows + native modules (better-sqlite3, sharp) must build on Windows.
     runs-on: windows-latest
 
+    # Referencing secrets in a job-level env is allowed; step `if` then gates on
+    # this instead of on the secrets context directly.
+    env:
+      HAS_SIGNING_CERT: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +45,26 @@ jobs:
       - name: Rebuild native modules for Electron
         run: npm run rebuild
 
+      # Optional: decode a base64-encoded code-signing certificate into a file.
+      # No-op until the WINDOWS_CERTIFICATE_BASE64 secret exists, so unsigned
+      # builds keep working. See RELEASE.md for how to add a certificate.
+      - name: Prepare code-signing certificate
+        id: cert
+        if: env.HAS_SIGNING_CERT == 'true'
+        shell: pwsh
+        run: |
+          $bytes = [Convert]::FromBase64String($env:CERT_B64)
+          $path = Join-Path $env:RUNNER_TEMP 'code-sign.pfx'
+          [IO.File]::WriteAllBytes($path, $bytes)
+          "path=$path" >> $env:GITHUB_OUTPUT
+        env:
+          CERT_B64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+
       - name: Publish to GitHub Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty unless the secrets are configured; forge.config.ts only signs
+          # when WINDOWS_CERTIFICATE_FILE is set.
+          WINDOWS_CERTIFICATE_FILE: ${{ steps.cert.outputs.path }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: npm run publish
