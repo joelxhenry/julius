@@ -14,6 +14,7 @@ import { AuthProvider } from './renderer/contexts/AuthContext';
 import { AccessOverrideProvider } from './renderer/permissions';
 import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
+import { BackgroundActivityProvider } from './renderer/contexts/BackgroundActivityContext';
 import { KeyboardShortcutProvider } from './renderer/contexts/KeyboardShortcutContext';
 import { MarkedItemsProvider } from './renderer/contexts/MarkedItemsContext';
 import { UpdatesProvider } from './renderer/contexts/UpdatesContext';
@@ -34,6 +35,7 @@ function AppWithTheme() {
       <ModalsProvider>
       <Notifications position="top-right" />
       <ThemeTransitionOverlay />
+      <BackgroundActivityProvider>
       <UpdatesProvider>
       <UpdatePrompt />
       <FirstRunGate>
@@ -52,6 +54,7 @@ function AppWithTheme() {
         </DatabaseConnectionProvider>
       </FirstRunGate>
       </UpdatesProvider>
+      </BackgroundActivityProvider>
       </ModalsProvider>
     </MantineProvider>
   );
