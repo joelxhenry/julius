@@ -183,11 +183,28 @@ export interface SalesReportDetailRow {
   /** Payment method name, e.g. "CASH". */
   paymentType: string;
   clientName: string;
+  /** Transaction reference ("Reference #"), or '' when none. */
+  reference: string;
+  /** Free-text payment notes, or '' when none. */
+  notes: string;
   date: string | null;
   /** Formatted amount, with a leading minus for refunds. */
   amount: string;
   /** True for refunds (negative amounts). */
   isNegative: boolean;
+}
+
+/** A payment-type group in the sales listing, with its rows and subtotal. */
+export interface SalesReportDetailGroup {
+  /** Canonical payment type, e.g. "Cash". */
+  type: string;
+  /** Formatted count of payments in the group. */
+  count: string;
+  /** Formatted subtotal of the group's amounts. */
+  subtotal: string;
+  /** True when the group subtotal is negative. */
+  subtotalNegative: boolean;
+  rows: SalesReportDetailRow[];
 }
 
 export interface SalesReportTemplateData {
@@ -211,8 +228,36 @@ export interface SalesReportTemplateData {
   paymentTypes: SalesReportPaymentTypeRow[];
   paymentTypesTotalCount: string;
   paymentTypesTotal: string;
-  // Per-payment detail listing
-  detail: SalesReportDetailRow[];
+  // Per-payment detail listing, grouped by payment type
+  detailGroups: SalesReportDetailGroup[];
+  /** Total count of payments across all groups. */
+  detailTotalCount: string;
+  /**
+   * When the listing is filtered to a subset of payment types, a human-readable
+   * note of the included types (e.g. "Cash, Cheque"); empty when unfiltered.
+   */
+  detailFilterNote: string;
+}
+
+export interface PurchaseReportMonthRow {
+  /** Month name, e.g. "January". */
+  month: string;
+  total: string;
+  paidOut: string;
+  payable: string;
+}
+
+export interface PurchaseReportTemplateData {
+  company: CompanyInfo;
+  /** Calendar year label, e.g. "2026". */
+  year: string;
+  printedAt: string;
+  months: PurchaseReportMonthRow[];
+  totals: {
+    total: string;
+    paidOut: string;
+    payable: string;
+  };
 }
 
 export interface PaymentReceiptTemplateData {

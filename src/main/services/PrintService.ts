@@ -9,8 +9,10 @@ import { PaymentService, PaymentMethodService } from './PaymentService';
 import { ClientService } from './ClientService';
 import { DocumentLineItemService } from './DocumentLineItemService';
 import { EmployeeService } from './EmployeeService';
-import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest } from '../../shared/types/print';
-import type { SalesSummaryResult } from './ReportService';
+import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, ThermalPaperWidth, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest, PurchaseReportPrintRequest } from '../../shared/types/print';
+import type { SalesSummaryResult, PurchaseSummaryResult } from './ReportService';
+import { CANONICAL_PAYMENT_TYPES } from '../../shared/constants/payments';
+import { MONTH_NAMES } from '../../shared/constants/months';
 import {
   CompanyInfo,
   InvoiceTemplateData,
@@ -21,6 +23,7 @@ import {
   ClientStatementTemplateData,
   PaymentReportTemplateData,
   SalesReportTemplateData,
+  PurchaseReportTemplateData,
 } from './print-templates/types';
 import { getInvoiceTemplate } from './print-templates/invoiceTemplate';
 import { getQuotationTemplate } from './print-templates/quotationTemplate';
@@ -38,6 +41,7 @@ import { getReceivingReferenceTemplate } from './print-templates/receivingRefere
 import { getClientStatementTemplate } from './print-templates/clientStatementTemplate';
 import { getPaymentReportTemplate } from './print-templates/paymentReportTemplate';
 import { getSalesReportTemplate } from './print-templates/salesReportTemplate';
+import { getPurchaseReportTemplate } from './print-templates/purchaseReportTemplate';
 import { formatCurrency, formatDate } from './print-templates/baseStyles';
 import { LookupTicketRequest, LookupTicketData, LookupTicketItem } from '../../shared/types/lookupTicket';
 
@@ -731,6 +735,54 @@ export class PrintService {
     const paymentTypesTotalCount = data.paymentTypes.reduce((s, t) => s + t.count, 0);
     const paymentTypesTotal = data.paymentTypes.reduce((s, t) => s + t.total, 0);
 
+    // Group the per-payment detail listing by payment type, ordered by the
+    // canonical sequence (Cash, Bank Transfer, ...) with any unrecognized types
+    // appended after, so the printed listing mirrors the on-screen report.
+    // Optional payment-type filter: when the caller selects a subset of types,
+    // the listing only includes those; an empty/omitted list means all types.
+    const typeFilter =
+      request.paymentTypes && request.paymentTypes.length > 0
+        ? new Set(request.paymentTypes)
+        : null;
+    const filteredDetail = typeFilter
+      ? data.detail.filter((d) => typeFilter.has(d.paymentType))
+      : data.detail;
+
+    const groupMap = new Map<string, SalesSummaryResult['detail']>();
+    for (const d of filteredDetail) {
+      const bucket = groupMap.get(d.paymentType);
+      if (bucket) bucket.push(d);
+      else groupMap.set(d.paymentType, [d]);
+    }
+    const orderOf = (type: string) => {
+      const idx = (CANONICAL_PAYMENT_TYPES as readonly string[]).indexOf(type);
+      return idx === -1 ? CANONICAL_PAYMENT_TYPES.length : idx;
+    };
+    const detailGroups = Array.from(groupMap.entries())
+      .sort(([a], [b]) => orderOf(a) - orderOf(b) || a.localeCompare(b))
+      .map(([type, items]) => {
+        const subtotal = items.reduce((s, it) => s + it.amount, 0);
+        return {
+          type,
+          count: num(items.length),
+          subtotal: (subtotal < 0 ? '-' : '') + money(Math.abs(subtotal)),
+          subtotalNegative: subtotal < 0,
+          rows: items.map((d) => {
+            const isNegative = d.amount < 0;
+            return {
+              invoiceNumber: d.invoiceNumber ?? '',
+              paymentType: d.paymentType,
+              clientName: d.clientName ?? '',
+              reference: d.reference ?? '',
+              notes: d.notes ?? '',
+              date: d.date,
+              amount: (isNegative ? '-' : '') + money(Math.abs(d.amount)),
+              isNegative,
+            };
+          }),
+        };
+      });
+
     const templateData: SalesReportTemplateData = {
       company,
       periodLabel: this.buildStatementPeriodLabel(request.startDate, request.endDate),
@@ -753,17 +805,13 @@ export class PrintService {
       })),
       paymentTypesTotalCount: num(paymentTypesTotalCount),
       paymentTypesTotal: money(paymentTypesTotal),
-      detail: data.detail.map((d) => {
-        const isNegative = d.amount < 0;
-        return {
-          invoiceNumber: d.invoiceNumber ?? '',
-          paymentType: d.paymentType,
-          clientName: d.clientName ?? '',
-          date: d.date,
-          amount: (isNegative ? '-' : '') + money(Math.abs(d.amount)),
-          isNegative,
-        };
-      }),
+      detailGroups,
+      detailTotalCount: num(filteredDetail.length),
+      detailFilterNote: typeFilter
+        ? Array.from(typeFilter)
+            .sort((a, b) => orderOf(a) - orderOf(b) || a.localeCompare(b))
+            .join(', ')
+        : '',
     };
 
     const html = getSalesReportTemplate(templateData);
@@ -772,6 +820,47 @@ export class PrintService {
       request.outputMode,
       'Sales Report',
       'Sales Report',
+      request.printerName,
+    );
+  }
+
+  // --- Purchase report (year, month-by-month) ---
+
+  /**
+   * Render the year Purchase Report. The month-by-month figures are computed by
+   * ReportService and passed in; this method only formats and lays them out.
+   */
+  async generatePurchaseReport(
+    request: PurchaseReportPrintRequest,
+    data: PurchaseSummaryResult,
+  ): Promise<PrintResult> {
+    const company = await this.loadCompanyInfo();
+    const symbol = company.currencySymbol;
+    const money = (v: number) => formatCurrency(v, symbol);
+
+    const templateData: PurchaseReportTemplateData = {
+      company,
+      year: String(data.year),
+      printedAt: new Date().toLocaleString(),
+      months: data.months.map((m) => ({
+        month: MONTH_NAMES[m.month - 1] ?? String(m.month),
+        total: money(m.total),
+        paidOut: money(m.paidOut),
+        payable: money(m.payable),
+      })),
+      totals: {
+        total: money(data.totals.total),
+        paidOut: money(data.totals.paidOut),
+        payable: money(data.totals.payable),
+      },
+    };
+
+    const html = getPurchaseReportTemplate(templateData);
+    return this.outputStandardHtml(
+      html,
+      request.outputMode,
+      `Purchase Report ${data.year}`,
+      'Purchase Report',
       request.printerName,
     );
   }

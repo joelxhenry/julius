@@ -48,6 +48,19 @@ export interface SalesReportPrintRequest {
   startDate?: string | null;
   /** Inclusive end date (YYYY-MM-DD). Omit for all dates. */
   endDate?: string | null;
+  /**
+   * Canonical payment types to include in the sales listing. Omit (or leave
+   * empty) to include every type. The summary/Payment Report aggregates are
+   * unaffected by this filter.
+   */
+  paymentTypes?: string[];
+  outputMode: PrintOutputMode;
+  printerName?: string;
+}
+
+export interface PurchaseReportPrintRequest {
+  /** Calendar year to report on. */
+  year: number;
   outputMode: PrintOutputMode;
   printerName?: string;
 }

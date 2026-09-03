@@ -1,7 +1,7 @@
 import { PrintService, PrintResult } from '../services/PrintService';
-import { PrintDocumentType, PrintOutputMode, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest } from '../../shared/types/print';
+import { PrintDocumentType, PrintOutputMode, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest, PurchaseReportPrintRequest } from '../../shared/types/print';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
-import type { SalesSummaryResult } from '../services/ReportService';
+import type { SalesSummaryResult, PurchaseSummaryResult } from '../services/ReportService';
 
 export class PrintController {
   constructor(private printService: PrintService) {}
@@ -95,6 +95,15 @@ export class PrintController {
   async printSalesReport(params: SalesReportPrintRequest, data: SalesSummaryResult) {
     try {
       const result = await this.printService.generateSalesReport(params, data);
+      return this.wrapSuccess(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async printPurchaseReport(params: PurchaseReportPrintRequest, data: PurchaseSummaryResult) {
+    try {
+      const result = await this.printService.generatePurchaseReport(params, data);
       return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
