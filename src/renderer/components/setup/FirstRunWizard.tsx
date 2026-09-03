@@ -378,8 +378,8 @@ export function FirstRunWizard({ onComplete }: { onComplete: () => void }) {
                     <>
                       <TextInput
                         label="Network path"
-                        description="UNC path to the shared folder on the host"
-                        placeholder="\\HOST\JuliusData\inventory-images"
+                        description="UNC path to the host's shared data folder (the app creates an inventory-images subfolder inside it)"
+                        placeholder="\\HOST\JuliusData"
                         required
                         {...storageForm.getInputProps('lanPath')}
                       />
