@@ -98,7 +98,18 @@ export function AddToListButton(props: AddToListButtonProps) {
       ) : (
         button
       )}
-      <AddToListModal opened={opened} onClose={() => setOpened(false)} item={item} />
+      {/*
+        The modal is a React child of the table row that hosts this button.
+        Mantine portals the modal DOM out, but React synthetic events still
+        bubble through the React tree, so clicks inside the modal would reach
+        the row's onRowClick (opening the detail page). Stop them here.
+      */}
+      <span
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <AddToListModal opened={opened} onClose={() => setOpened(false)} item={item} />
+      </span>
     </>
   );
 }
