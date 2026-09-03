@@ -6,6 +6,8 @@ import type { PrintOutputMode } from '../../shared/types/print';
 export interface SalesReportPrintParams {
   startDate?: string | null;
   endDate?: string | null;
+  /** Canonical payment types to include; omit for all. */
+  paymentTypes?: string[];
 }
 
 export function useSalesReportPrint() {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Table,
   Text,
@@ -12,10 +12,13 @@ import {
   Menu,
   Button,
   ScrollArea,
+  Badge,
+  Chip,
 } from '@mantine/core';
 import { IconPrinter, IconEye, IconFileTypePdf } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import type { ExportColumn } from '../../../shared/types/export';
+import { CANONICAL_PAYMENT_TYPES } from '../../../shared/constants/payments';
 import { ReportShell } from './components/ReportShell';
 import { useSalesReportPrint } from '../../hooks/useSalesReportPrint';
 
@@ -23,6 +26,8 @@ const EXPORT_COLUMNS: ExportColumn[] = [
   { header: 'Invoice', key: 'invoiceNumber', format: 'text' },
   { header: 'Payment Type', key: 'paymentType', format: 'text' },
   { header: 'Customer', key: 'clientName', format: 'text' },
+  { header: 'Reference', key: 'reference', format: 'text' },
+  { header: 'Notes', key: 'notes', format: 'text' },
   { header: 'Date', key: 'date', format: 'date' },
   { header: 'Amount', key: 'amount', format: 'currency' },
 ];
@@ -39,6 +44,8 @@ interface DetailItem {
   clientName: string | null;
   date: string | null;
   amount: number;
+  reference: string | null;
+  notes: string | null;
 }
 
 interface SalesReportData {
@@ -104,6 +111,10 @@ export function SalesSummaryReport() {
   const [endDate, setEndDate] = useState<Date | null>(defaults.end);
   const [data, setData] = useState<SalesReportData | null>(null);
   const [loading, setLoading] = useState(false);
+  // Which payment types the sales listing shows. null = show all (default);
+  // an array = only the selected types. Filtering is view-only and does not
+  // change the summary/Payment Report aggregates above the listing.
+  const [selectedTypes, setSelectedTypes] = useState<string[] | null>(null);
   const { printSalesReport, isPrinting } = useSalesReportPrint();
 
   const dateParams = useCallback(() => {
@@ -130,6 +141,48 @@ export function SalesSummaryReport() {
   const paymentTypesTotalCount = data?.paymentTypes.reduce((s, t) => s + t.count, 0) ?? 0;
   const paymentTypesTotal = data?.paymentTypes.reduce((s, t) => s + t.total, 0) ?? 0;
 
+  // Group the sales listing by payment type, ordered by the canonical sequence
+  // (Cash, Bank Transfer, ...) with any unrecognized types appended after.
+  const detailGroups = useMemo(() => {
+    if (!data) return [];
+    const map = new Map<string, DetailItem[]>();
+    for (const item of data.detail) {
+      const bucket = map.get(item.paymentType);
+      if (bucket) bucket.push(item);
+      else map.set(item.paymentType, [item]);
+    }
+    const orderOf = (type: string) => {
+      const idx = (CANONICAL_PAYMENT_TYPES as readonly string[]).indexOf(type);
+      return idx === -1 ? CANONICAL_PAYMENT_TYPES.length : idx;
+    };
+    return Array.from(map.entries())
+      .sort(([a], [b]) => orderOf(a) - orderOf(b) || a.localeCompare(b))
+      .map(([type, items]) => ({
+        type,
+        items,
+        count: items.length,
+        subtotal: items.reduce((s, it) => s + it.amount, 0),
+      }));
+  }, [data]);
+
+  // The payment types available to filter on, in canonical order.
+  const availableTypes = useMemo(() => detailGroups.map((g) => g.type), [detailGroups]);
+
+  // Effective selection: null means "all", so treat it as every available type.
+  const activeTypes = selectedTypes ?? availableTypes;
+  const visibleGroups = detailGroups.filter((g) => activeTypes.includes(g.type));
+  const visibleCount = visibleGroups.reduce((s, g) => s + g.count, 0);
+
+  // Only forward an explicit subset to print; when all types are selected we
+  // omit the filter so the printed report shows everything.
+  const printTypeFilter =
+    selectedTypes && selectedTypes.length < availableTypes.length ? selectedTypes : undefined;
+
+  const printParams = useCallback(
+    () => ({ ...dateParams(), paymentTypes: printTypeFilter }),
+    [dateParams, printTypeFilter],
+  );
+
   const printActions = (
     <Menu shadow="md" width={200} disabled={!data || loading}>
       <Menu.Target>
@@ -145,19 +198,19 @@ export function SalesSummaryReport() {
       <Menu.Dropdown>
         <Menu.Item
           leftSection={<IconEye size={16} />}
-          onClick={() => printSalesReport(dateParams(), 'preview')}
+          onClick={() => printSalesReport(printParams(), 'preview')}
         >
           Preview
         </Menu.Item>
         <Menu.Item
           leftSection={<IconFileTypePdf size={16} />}
-          onClick={() => printSalesReport(dateParams(), 'pdf')}
+          onClick={() => printSalesReport(printParams(), 'pdf')}
         >
           Save as PDF
         </Menu.Item>
         <Menu.Item
           leftSection={<IconPrinter size={16} />}
-          onClick={() => printSalesReport(dateParams(), 'print')}
+          onClick={() => printSalesReport(printParams(), 'print')}
         >
           Print
         </Menu.Item>
@@ -290,47 +343,138 @@ export function SalesSummaryReport() {
               </Table>
             </Box>
 
-            {/* Payment Detail */}
+            {/* Sales Listing — grouped by payment type, filterable by type */}
             <Box>
-              <Text fw={600} mb="xs">
-                Payment Detail ({formatCount(data.detail.length)})
-              </Text>
-              <ScrollArea.Autosize mah={420}>
-                <Table striped highlightOnHover withTableBorder stickyHeader>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Invoice</Table.Th>
-                      <Table.Th>Payment Type</Table.Th>
-                      <Table.Th>Customer</Table.Th>
-                      <Table.Th>Date</Table.Th>
-                      <Table.Th ta="right">Amount</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {data.detail.length === 0 ? (
-                      <Table.Tr>
-                        <Table.Td colSpan={5}>
-                          <Text c="dimmed" ta="center" py="sm">
-                            No payments in this period
-                          </Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ) : (
-                      data.detail.map((row, i) => (
-                        <Table.Tr key={`${row.invoiceNumber ?? 'x'}-${i}`}>
-                          <Table.Td>{row.invoiceNumber ?? '-'}</Table.Td>
-                          <Table.Td>{row.paymentType}</Table.Td>
-                          <Table.Td>{row.clientName ?? '-'}</Table.Td>
-                          <Table.Td>{row.date ?? '-'}</Table.Td>
-                          <Table.Td ta="right" c={row.amount < 0 ? 'red' : undefined}>
-                            {formatCurrency(row.amount)}
-                          </Table.Td>
-                        </Table.Tr>
-                      ))
+              <Group justify="space-between" mb="xs" align="baseline">
+                <Text fw={600}>Sales Listing</Text>
+                <Text size="sm" c="dimmed">
+                  {formatCount(visibleCount)} payment{visibleCount === 1 ? '' : 's'} across{' '}
+                  {formatCount(visibleGroups.length)} type{visibleGroups.length === 1 ? '' : 's'}
+                  {printTypeFilter ? ` (${formatCount(availableTypes.length)} available)` : ''}
+                </Text>
+              </Group>
+
+              {detailGroups.length === 0 ? (
+                <Paper withBorder p="xl" radius="md">
+                  <Text c="dimmed" ta="center">
+                    No payments in this period
+                  </Text>
+                </Paper>
+              ) : (
+                <>
+                  <Group justify="space-between" mb="sm" gap="sm" wrap="wrap">
+                    <Chip.Group
+                      multiple
+                      value={activeTypes}
+                      onChange={(value) => setSelectedTypes(value)}
+                    >
+                      <Group gap="xs" wrap="wrap">
+                        {detailGroups.map((group) => (
+                          <Chip key={group.type} value={group.type} size="sm" variant="outline">
+                            {group.type} ({formatCount(group.count)})
+                          </Chip>
+                        ))}
+                      </Group>
+                    </Chip.Group>
+                    {printTypeFilter && (
+                      <Button
+                        variant="subtle"
+                        size="compact-sm"
+                        onClick={() => setSelectedTypes(null)}
+                      >
+                        Show all
+                      </Button>
                     )}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea.Autosize>
+                  </Group>
+
+                  {visibleGroups.length === 0 ? (
+                    <Paper withBorder p="xl" radius="md">
+                      <Text c="dimmed" ta="center">
+                        No types selected — choose a payment type above to see its sales.
+                      </Text>
+                    </Paper>
+                  ) : (
+                    <ScrollArea.Autosize mah={520}>
+                      <Stack gap="md">
+                        {visibleGroups.map((group) => (
+                      <Paper key={group.type} withBorder radius="md" style={{ overflow: 'hidden' }}>
+                        <Group
+                          justify="space-between"
+                          px="md"
+                          py="xs"
+                          bg="var(--mantine-color-blue-light)"
+                          wrap="nowrap"
+                        >
+                          <Group gap="sm" wrap="nowrap">
+                            <Text fw={700}>{group.type}</Text>
+                            <Badge variant="light" radius="sm" size="sm">
+                              {formatCount(group.count)}
+                            </Badge>
+                          </Group>
+                          <Text fw={700} c={group.subtotal < 0 ? 'red' : 'blue'}>
+                            {formatCurrency(group.subtotal)}
+                          </Text>
+                        </Group>
+                        <Table striped highlightOnHover>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Invoice</Table.Th>
+                              <Table.Th>Customer</Table.Th>
+                              <Table.Th>Description / Notes</Table.Th>
+                              <Table.Th>Date</Table.Th>
+                              <Table.Th ta="right">Amount</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {group.items.map((row, i) => (
+                              <Table.Tr key={`${row.invoiceNumber ?? 'x'}-${i}`}>
+                                <Table.Td>{row.invoiceNumber ?? '-'}</Table.Td>
+                                <Table.Td>{row.clientName ?? '-'}</Table.Td>
+                                <Table.Td>
+                                  {row.reference || row.notes ? (
+                                    <Stack gap={0}>
+                                      {row.reference && <Text size="sm">{row.reference}</Text>}
+                                      {row.notes && (
+                                        <Text
+                                          size="xs"
+                                          c="dimmed"
+                                          style={{ whiteSpace: 'pre-wrap' }}
+                                        >
+                                          {row.notes}
+                                        </Text>
+                                      )}
+                                    </Stack>
+                                  ) : (
+                                    <Text span c="dimmed">
+                                      -
+                                    </Text>
+                                  )}
+                                </Table.Td>
+                                <Table.Td>{row.date ?? '-'}</Table.Td>
+                                <Table.Td ta="right" c={row.amount < 0 ? 'red' : undefined}>
+                                  {formatCurrency(row.amount)}
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                          <Table.Tfoot>
+                            <Table.Tr>
+                              <Table.Th colSpan={4} ta="right">
+                                Subtotal
+                              </Table.Th>
+                              <Table.Th ta="right" c={group.subtotal < 0 ? 'red' : undefined}>
+                                {formatCurrency(group.subtotal)}
+                              </Table.Th>
+                            </Table.Tr>
+                          </Table.Tfoot>
+                        </Table>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    </ScrollArea.Autosize>
+                  )}
+                </>
+              )}
             </Box>
           </Stack>
         )}
