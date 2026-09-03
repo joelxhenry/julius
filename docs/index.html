@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Turbo Julius — Download &amp; Setup</title>
+  <meta name="description" content="Download Turbo Julius and set it up on your local network — host machine and workstations." />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f6f7f9;
+      --surface-2: #eef0f3;
+      --border: #e2e5ea;
+      --text: #1a1d21;
+      --muted: #5b636e;
+      --brand: #2b6cff;
+      --brand-ink: #ffffff;
+      --accent: #0ea472;
+      --warn-bg: #fff7e6;
+      --warn-border: #f2d38a;
+      --warn-ink: #7a5b00;
+      --radius: 12px;
+      --maxw: 880px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1216;
+        --surface: #171b21;
+        --surface-2: #1e242c;
+        --border: #2a313b;
+        --text: #e8ebef;
+        --muted: #9aa4b1;
+        --brand: #5b8bff;
+        --brand-ink: #0b1220;
+        --accent: #2dd4a7;
+        --warn-bg: #2a2413;
+        --warn-border: #5c4d1f;
+        --warn-ink: #e8cf8a;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    a { color: var(--brand); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+    header.hero {
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 72px 0 56px;
+      text-align: center;
+    }
+    .logo {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: var(--brand); color: var(--brand-ink);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 800; margin-bottom: 20px;
+    }
+    h1 { font-size: 2.4rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+    .tagline { font-size: 1.15rem; color: var(--muted); margin: 0 auto 28px; max-width: 560px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--brand); color: var(--brand-ink);
+      font-weight: 650; font-size: 1.05rem;
+      padding: 14px 26px; border-radius: var(--radius);
+      border: none; cursor: pointer;
+    }
+    .btn:hover { text-decoration: none; filter: brightness(1.05); }
+    .btn svg { width: 20px; height: 20px; }
+    .sub { margin-top: 12px; font-size: 0.9rem; color: var(--muted); }
+    section { padding: 48px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+    h2 + .lede { color: var(--muted); margin: 0 0 24px; }
+    h3 { font-size: 1.1rem; margin: 28px 0 8px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+    }
+    .card h3 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
+    .pill {
+      display: inline-block; font-size: 0.75rem; font-weight: 600;
+      padding: 2px 10px; border-radius: 999px;
+      background: var(--surface-2); color: var(--muted); border: 1px solid var(--border);
+    }
+    ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+    ol.steps > li {
+      position: relative; padding: 0 0 18px 44px; margin: 0;
+    }
+    ol.steps > li::before {
+      counter-increment: step; content: counter(step);
+      position: absolute; left: 0; top: 0;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--brand); color: var(--brand-ink);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.9rem;
+    }
+    ol.steps > li:not(:last-child)::after {
+      content: ""; position: absolute; left: 13px; top: 30px; bottom: 4px;
+      width: 2px; background: var(--border);
+    }
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 1px 6px; font-size: 0.9em;
+      word-break: break-all;
+    }
+    .note {
+      background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-ink);
+      border-radius: var(--radius); padding: 16px 18px; margin: 20px 0;
+    }
+    .note strong { color: inherit; }
+    table.req { width: 100%; border-collapse: collapse; }
+    table.req td { padding: 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.req td:first-child { color: var(--muted); width: 40%; }
+    .diagram { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; margin: 8px 0 4px; }
+    .node {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 18px; text-align: center; min-width: 130px;
+    }
+    .node .t { font-weight: 700; }
+    .node .d { font-size: 0.82rem; color: var(--muted); }
+    .node.host { border-color: var(--brand); }
+    .arrow { color: var(--muted); font-size: 1.4rem; }
+    .clients { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    dl.faq { margin: 0; }
+    dl.faq dt { font-weight: 650; margin-top: 18px; }
+    dl.faq dd { margin: 4px 0 0; color: var(--muted); }
+    footer { padding: 32px 0 48px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <div class="logo">J</div>
+      <h1>Turbo Julius</h1>
+      <p class="tagline">Sales, inventory, and invoicing for your business — running on your own local network.</p>
+      <a class="btn" href="https://github.com/joelxhenry/julius/releases/latest/download/TurboJulius-Setup.exe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download for Windows
+      </a>
+      <div class="sub">Windows 10 / 11 (64-bit) · <a href="https://github.com/joelxhenry/julius/releases">All versions &amp; release notes</a></div>
+    </div>
+  </header>
+
+  <main>
+    <section id="how">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <p class="lede">Turbo Julius runs on your local network. One machine is the <strong>host</strong>; everyone else connects to it.</p>
+        <div class="diagram">
+          <div class="node host">
+            <div class="t">Host machine</div>
+            <div class="d">Database + files</div>
+          </div>
+          <div class="arrow">&#8596;</div>
+          <div class="clients">
+            <div class="node"><div class="t">Workstation</div><div class="d">Client</div></div>
+            <div class="node"><div class="t">Workstation</div><div class="d">Client</div></div>
+          </div>
+        </div>
+        <div class="grid2" style="margin-top:20px">
+          <div class="card">
+            <h3><span class="pill">Once</span> Host machine</h3>
+            <p>An always-on computer that stores the shared database and inventory images. You set it up one time with the included host script.</p>
+          </div>
+          <div class="card">
+            <h3><span class="pill">Each</span> Workstations</h3>
+            <p>Every other computer installs the app and connects to the host over the network using a short first-run wizard.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="requirements">
+      <div class="wrap">
+        <h2>System requirements</h2>
+        <table class="req">
+          <tr><td>Operating system</td><td>Windows 10 or 11, 64-bit</td></tr>
+          <tr><td>Network</td><td>All machines on the same local network (LAN). A static / reserved IP for the host is recommended.</td></tr>
+          <tr><td>Host machine</td><td>Always-on preferred; enough disk for your database and images. PostgreSQL is installed for you by the host script.</td></tr>
+          <tr><td>Internet</td><td>Only needed on each machine to receive automatic updates.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section id="host-setup">
+      <div class="wrap">
+        <h2>Set up the host machine</h2>
+        <p class="lede">Do this once, on the computer that will store the shared data.</p>
+        <ol class="steps">
+          <li>Copy the <span class="mono">installer</span> folder onto the host machine.</li>
+          <li>Right-click <span class="mono">host-setup.bat</span> and choose <strong>Run as administrator</strong>.</li>
+          <li>Wait for it to finish. It installs PostgreSQL, creates the database, opens the network, and shares the files folder.</li>
+          <li>Open <span class="mono">C:\JuliusData\connection-info.txt</span> — it lists everything the workstations need.</li>
+        </ol>
+        <p>Full details, options, and troubleshooting are in the
+          <a href="https://github.com/joelxhenry/julius/blob/master/installer/README.md">host setup guide</a>.</p>
+      </div>
+    </section>
+
+    <section id="client-setup">
+      <div class="wrap">
+        <h2>Install on a workstation</h2>
+        <p class="lede">Repeat on each computer that will use Turbo Julius.</p>
+        <ol class="steps">
+          <li><strong>Download</strong> and run the installer using the button at the top of this page.</li>
+          <li>If Windows shows a <strong>SmartScreen</strong> warning, click <strong>More info → Run anyway</strong> (see the note below).</li>
+          <li>On first launch, the <strong>setup wizard</strong> opens. Choose <strong>Client workstation</strong>.</li>
+          <li>Enter the <strong>database</strong> details from <span class="mono">connection-info.txt</span> (host IP, database, username, password) and click <strong>Test</strong>, then <strong>Connect</strong>.</li>
+          <li>For <strong>file storage</strong>, choose <strong>LAN file server</strong> and enter the network path <span class="mono">\\HOST\JuliusData</span> (replace <span class="mono">HOST</span> with the host's name or IP).</li>
+          <li>Finish — you're ready to go.</li>
+        </ol>
+        <div class="note">
+          <strong>About the SmartScreen warning.</strong> The installer is not yet code-signed, so Windows may say
+          the publisher is unknown. This is expected. Click <strong>More info</strong>, then <strong>Run anyway</strong>.
+          Automatic updates still work normally.
+        </div>
+      </div>
+    </section>
+
+    <section id="updating">
+      <div class="wrap">
+        <h2>Updates</h2>
+        <p class="lede">Turbo Julius keeps itself up to date.</p>
+        <p>Each machine checks for new versions automatically. When an update has been downloaded, you'll see a
+          prompt to <strong>Restart now</strong> or <strong>Later</strong> — the update is applied on the next restart
+          either way. You can also check manually anytime under <strong>Settings → About → Check for updates</strong>.</p>
+      </div>
+    </section>
+
+    <section id="troubleshooting">
+      <div class="wrap">
+        <h2>Troubleshooting</h2>
+        <dl class="faq">
+          <dt>A workstation can't connect to the database.</dt>
+          <dd>Confirm the host IP is correct and reachable (<span class="mono">ping HOST</span>), and that the workstation is on the same network the host script allowed. Re-run the host script with your subnet if your network uses a different range.</dd>
+          <dt>"Password authentication failed."</dt>
+          <dd>Use the exact <span class="mono">julius_app</span> password from <span class="mono">connection-info.txt</span>. Re-running the host script resets and reprints it.</dd>
+          <dt>Images don't appear on a workstation.</dt>
+          <dd>Make sure the workstation can open <span class="mono">\\HOST\JuliusData</span> in File Explorer and has read/write access to the share.</dd>
+          <dt>The host's IP keeps changing.</dt>
+          <dd>Reserve a static IP for the host in your router settings so workstations don't lose the connection.</dd>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Turbo Julius · <a href="https://github.com/joelxhenry/julius">Source on GitHub</a> ·
+      <a href="https://github.com/joelxhenry/julius/releases">Releases</a>
+    </div>
+  </footer>
+</body>
+</html>

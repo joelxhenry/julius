@@ -9,7 +9,7 @@
  * Special codes:
  *  - `ADMIN` bypasses every check (see AuthContext.hasPermission).
  *
- * Derived from docs/PERMISSIONS_INVENTORY.md. When adding a screen/action, add
+ * Derived from internal-docs/PERMISSIONS_INVENTORY.md. When adding a screen/action, add
  * its code here so it becomes manageable in the Employee Permissions UI.
  */
 
