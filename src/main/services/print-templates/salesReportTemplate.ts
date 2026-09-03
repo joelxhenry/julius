@@ -26,7 +26,9 @@ export function getSalesReportTemplate(data: SalesReportTemplateData): string {
     paymentTypes,
     paymentTypesTotalCount,
     paymentTypesTotal,
-    detail,
+    detailGroups,
+    detailTotalCount,
+    detailFilterNote,
   } = data;
 
   const typeRows = paymentTypes
@@ -41,18 +43,52 @@ export function getSalesReportTemplate(data: SalesReportTemplateData): string {
     )
     .join('');
 
-  const detailRows = detail
-    .map(
-      (r) => `
-    <tr>
-      <td>${escapeHtml(r.invoiceNumber)}</td>
-      <td>${escapeHtml(r.paymentType)}</td>
-      <td>${escapeHtml(r.clientName)}</td>
-      <td>${formatDate(r.date)}</td>
-      <td class="right"${r.isNegative ? ' style="color:#c92a2a;"' : ''}>${escapeHtml(r.amount)}</td>
-    </tr>
-  `,
-    )
+  const detailGroupsHtml = detailGroups
+    .map((g) => {
+      const rows = g.rows
+        .map((r) => {
+          const detailParts: string[] = [];
+          if (r.reference) detailParts.push(escapeHtml(r.reference));
+          if (r.notes) detailParts.push(`<span class="note">${escapeHtml(r.notes)}</span>`);
+          const detailCell = detailParts.length ? detailParts.join('<br>') : '';
+          return `
+      <tr>
+        <td>${escapeHtml(r.invoiceNumber)}</td>
+        <td>${escapeHtml(r.clientName)}</td>
+        <td class="detail">${detailCell}</td>
+        <td>${formatDate(r.date)}</td>
+        <td class="right"${r.isNegative ? ' style="color:#c92a2a;"' : ''}>${escapeHtml(r.amount)}</td>
+      </tr>
+    `;
+        })
+        .join('');
+      return `
+    <table class="listing-group">
+      <thead>
+        <tr class="group-head">
+          <th colspan="4">${escapeHtml(g.type)} <span class="group-count">(${escapeHtml(g.count)})</span></th>
+          <th class="right group-subtotal"${g.subtotalNegative ? ' style="color:#c92a2a;"' : ''}>${escapeHtml(g.subtotal)}</th>
+        </tr>
+        <tr class="group-cols">
+          <th>Invoice</th>
+          <th>Customer</th>
+          <th>Description / Notes</th>
+          <th>Date</th>
+          <th class="right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+      <tfoot>
+        <tr class="group-total">
+          <td colspan="4" class="right">Subtotal</td>
+          <td class="right"${g.subtotalNegative ? ' style="color:#c92a2a;"' : ''}>${escapeHtml(g.subtotal)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+    })
     .join('');
 
   const styles = `
@@ -74,6 +110,29 @@ export function getSalesReportTemplate(data: SalesReportTemplateData): string {
       font-size: 11pt; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.5px; color: #333; margin: 18px 0 6px;
       border-bottom: 1px solid #ccc; padding-bottom: 4px;
+    }
+
+    .filter-note {
+      font-size: 9pt; font-style: italic; color: #555; margin: -2px 0 8px;
+    }
+
+    .listing-group { margin: 0 0 12px; page-break-inside: avoid; }
+    .listing-group .group-head th {
+      background: #f0f4ff; border-top: 2px solid #b7c7ef; border-bottom: 1px solid #d4ddf5;
+      font-size: 10.5pt; font-weight: 700; color: #1f3d7a; text-align: left; padding: 5px 8px;
+    }
+    .listing-group .group-head .group-count { font-weight: 600; color: #5670aa; font-size: 9pt; }
+    .listing-group .group-head .group-subtotal { text-align: right; font-variant-numeric: tabular-nums; }
+    .listing-group .group-cols th {
+      font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.3px;
+      color: #666; border-bottom: 1px solid #ccc; padding: 3px 8px;
+    }
+    .listing-group tbody td { font-size: 9.5pt; padding: 3px 8px; }
+    .listing-group tbody td.detail { font-size: 9pt; }
+    .listing-group tbody td.detail .note { color: #666; font-size: 8.5pt; }
+    .listing-group .group-total td {
+      border-top: 1px solid #ccc; font-weight: 700; font-size: 9.5pt;
+      padding: 4px 8px; font-variant-numeric: tabular-nums;
     }
   `;
 
@@ -139,21 +198,12 @@ export function getSalesReportTemplate(data: SalesReportTemplateData): string {
       </tfoot>
     </table>
 
-    <div class="section-title">Payment Detail</div>
-    <table>
-      <thead>
-        <tr>
-          <th>Invoice</th>
-          <th>Payment Type</th>
-          <th>Customer</th>
-          <th>Date</th>
-          <th class="right">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${detailRows || '<tr><td colspan="5" style="text-align:center; color:#999; padding:16px;">No payments in this period</td></tr>'}
-      </tbody>
-    </table>
+    <div class="section-title">Sales Listing &mdash; by Payment Type (${escapeHtml(detailTotalCount)})</div>
+    ${detailFilterNote ? `<div class="filter-note">Filtered to: ${escapeHtml(detailFilterNote)}</div>` : ''}
+    ${
+      detailGroupsHtml ||
+      '<table><tbody><tr><td style="text-align:center; color:#999; padding:16px;">No payments in this period</td></tr></tbody></table>'
+    }
 
     ${getFooter(company)}
   `;
