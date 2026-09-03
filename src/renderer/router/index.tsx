@@ -31,6 +31,7 @@ import { ReportsPage } from '../pages/reports';
 import { SalesManagementPage } from '../pages/sales';
 import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
 import { RolesPage, RoleEditorPage } from '../pages/roles';
+import { ProductListsPage, ProductListDetailPage } from '../pages/lists';
 
 export const router = createHashRouter([
   {
@@ -120,6 +121,15 @@ export const router = createHashRouter([
       {
         path: 'inventory/:id',
         element: <InventoryDetailPage />,
+      },
+      // Product Lists (reorder pads)
+      {
+        path: 'lists',
+        element: <ProductListsPage />,
+      },
+      {
+        path: 'lists/:id',
+        element: <ProductListDetailPage />,
       },
       {
         path: 'payments',

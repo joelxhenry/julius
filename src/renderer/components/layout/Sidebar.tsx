@@ -16,6 +16,7 @@ import {
   IconTruck,
   IconTruckDelivery,
   IconFilePlus,
+  IconClipboardList,
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { usePermissions } from "../../permissions";
@@ -59,6 +60,11 @@ const businessNavItems: NavItem[] = [
     label: "New Quotation",
     icon: <IconFilePlus size={20} stroke={1.5} />,
     path: "/quotations/new",
+  },
+  {
+    label: "Order Lists",
+    icon: <IconClipboardList size={20} stroke={1.5} />,
+    path: "/lists",
   },
   {
     label: "Clients",

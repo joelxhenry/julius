@@ -47,6 +47,7 @@ import { PermissionGate, PermissionButton, RestrictedValue, usePermissions } fro
 import { ProductImageModal } from '../../components/common/ProductImageModal';
 import { CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
+import { AddToListButton } from '../../components/lists';
 
 interface Inventory {
   id: number;
@@ -899,6 +900,7 @@ export function InventoryDetailPage() {
               <Title order={2}>{item.sku}</Title>
               <CopyButton value={item.sku} size="sm" />
               <MarkButton mode="item" parentSku={item.sku} />
+              <AddToListButton mode="item" parentSku={item.sku} />
               {isLowStock && (
                 <Badge color="orange" variant="light" leftSection={<IconAlertTriangle size={12} />}>
                   Low Stock

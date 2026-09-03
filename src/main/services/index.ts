@@ -12,6 +12,14 @@ export { EmployeeService, type EmployeeQueryParams, type AuthResult } from './Em
 
 // Inventory Services
 export { InventoryService, type InventoryQueryParams } from './InventoryService';
+export {
+  ProductListService,
+  type ProductListWithCount,
+  type ProductListWithItems,
+  type AddItemInput,
+  type AddItemResult,
+  type CreateListInput,
+} from './ProductListService';
 export { VariantService, type VariantQueryParams, type VariantWithInventory } from './VariantService';
 export { InventoryAlternateService } from './InventoryAlternateService';
 export { InventoryTransactionService, type InventoryTransactionQueryParams } from './InventoryTransactionService';

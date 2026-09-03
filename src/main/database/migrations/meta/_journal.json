@@ -134,6 +134,13 @@
       "when": 1788020000000,
       "tag": "0018_rbac_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788476270333,
+      "tag": "0019_soft_green_goblin",
+      "breakpoints": true
     }
   ]
 }

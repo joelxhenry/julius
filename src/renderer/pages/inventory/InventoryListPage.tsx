@@ -24,6 +24,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { DataTable, Column, CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
+import { AddToListButton } from '../../components/lists';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { NewPartModal } from './NewPartModal';
 import { PermissionButton } from '../../permissions';
@@ -231,8 +232,13 @@ export function InventoryListPage() {
       {
         key: 'mark',
         header: '',
-        width: 48,
-        render: (item) => <MarkButton mode="item" parentSku={item.sku} />,
+        width: 84,
+        render: (item) => (
+          <Group gap={4} wrap="nowrap">
+            <MarkButton mode="item" parentSku={item.sku} />
+            <AddToListButton mode="item" parentSku={item.sku} />
+          </Group>
+        ),
       },
     ],
     []

@@ -13,6 +13,9 @@ export * from './employees';
 // Inventory Tables
 export * from './inventory';
 
+// Product Lists (reorder pads)
+export * from './productLists';
+
 // Sales Documents
 export * from './invoices';
 export * from './quotations';

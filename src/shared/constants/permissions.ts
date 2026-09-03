@@ -29,6 +29,7 @@ export const PERMISSION_CATEGORIES = [
   'Quotations',
   'Credit Notes',
   'Inventory',
+  'Product Lists',
   'Receiving',
   'Clients',
   'Suppliers',
@@ -307,6 +308,26 @@ export const PERMISSIONS: PermissionDefinition[] = [
     label: 'Manage Inventory Images',
     description: 'Upload, reorder and remove product images',
     category: 'Inventory',
+  },
+
+  // ===== Product Lists (reorder pads) =====
+  {
+    code: 'VIEW_PRODUCT_LISTS',
+    label: 'View Product Lists',
+    description: 'View reorder/product lists and their items',
+    category: 'Product Lists',
+  },
+  {
+    code: 'MANAGE_PRODUCT_LISTS',
+    label: 'Manage Product Lists',
+    description: 'Create and edit lists, add/remove items, and change list status',
+    category: 'Product Lists',
+  },
+  {
+    code: 'DELETE_PRODUCT_LIST',
+    label: 'Delete Product List',
+    description: 'Delete product lists',
+    category: 'Product Lists',
   },
 
   // ===== Receiving (Goods Receival) =====

@@ -17,6 +17,7 @@ import {
   SupplierService,
   EmployeeService,
   InventoryService,
+  ProductListService,
   VariantService,
   InventoryTransactionService,
   InventoryAlternateService,
@@ -57,6 +58,7 @@ import {
   SupplierController,
   EmployeeController,
   InventoryController,
+  ProductListController,
   VariantController,
   InventoryTransactionController,
   InventoryAlternateController,
@@ -220,6 +222,7 @@ function registerDataHandlers() {
   const supplierService = new SupplierService(db);
   const employeeService = new EmployeeService(db);
   const inventoryService = new InventoryService(db);
+  const productListService = new ProductListService(db);
   const variantService = new VariantService(db);
   const inventoryTransactionService = new InventoryTransactionService(db);
   const inventoryAlternateService = new InventoryAlternateService(db);
@@ -273,6 +276,7 @@ function registerDataHandlers() {
   const supplierController = new SupplierController(supplierService);
   const employeeController = new EmployeeController(employeeService);
   const inventoryController = new InventoryController(inventoryService);
+  const productListController = new ProductListController(productListService);
   const variantController = new VariantController(variantService);
   const inventoryTransactionController = new InventoryTransactionController(inventoryTransactionService);
   const inventoryAlternateController = new InventoryAlternateController(inventoryAlternateService);
@@ -398,6 +402,20 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => inventoryController.updateStock(id, quantity));
   ipcMain.handle(IpcChannel.GET_INVENTORY_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.getVariants(parentSku));
   ipcMain.handle(IpcChannel.CHECK_HAS_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.checkHasVariants(parentSku));
+
+  // ===== PRODUCT LIST HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_PRODUCT_LISTS, (_, { status }: { status?: any } = {}) => productListController.getAll(status));
+  ipcMain.handle(IpcChannel.GET_PRODUCT_LIST, (_, { id }: { id: number }) => productListController.getById(id));
+  ipcMain.handle(IpcChannel.SEARCH_PRODUCT_LISTS_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => productListController.searchForSelect(query, limit));
+  ipcMain.handle(IpcChannel.CREATE_PRODUCT_LIST, (_, data: any) => productListController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_PRODUCT_LIST, (_, { id, data }: any) => productListController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_PRODUCT_LIST, (_, { id }: { id: number }) => productListController.delete(id));
+  ipcMain.handle(IpcChannel.SET_PRODUCT_LIST_STATUS, (_, { id, status }: any) => productListController.setStatus(id, status));
+  ipcMain.handle(IpcChannel.ADD_PRODUCT_LIST_ITEM, (_, { listId, item }: any) => productListController.addItem(listId, item));
+  ipcMain.handle(IpcChannel.CREATE_PRODUCT_LIST_WITH_ITEM, (_, { list, item }: any) => productListController.createWithItem(list, item));
+  ipcMain.handle(IpcChannel.UPDATE_PRODUCT_LIST_ITEM, (_, { itemId, data }: any) => productListController.updateItem(itemId, data));
+  ipcMain.handle(IpcChannel.REMOVE_PRODUCT_LIST_ITEM, (_, { itemId }: { itemId: number }) => productListController.removeItem(itemId));
+  ipcMain.handle(IpcChannel.REORDER_PRODUCT_LIST_ITEMS, (_, { listId, orderedIds }: any) => productListController.reorderItems(listId, orderedIds));
 
   // ===== VARIANT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_VARIANTS, () => variantController.getAll());

@@ -92,6 +92,20 @@ export enum IpcChannel {
   DELETE_INVENTORY = 'db:delete-inventory',
   UPDATE_INVENTORY_STOCK = 'db:update-inventory-stock',
 
+  // Product list operations (reorder pads)
+  GET_PRODUCT_LISTS = 'db:get-product-lists',
+  GET_PRODUCT_LIST = 'db:get-product-list',
+  SEARCH_PRODUCT_LISTS_FOR_SELECT = 'db:search-product-lists-for-select',
+  CREATE_PRODUCT_LIST = 'db:create-product-list',
+  UPDATE_PRODUCT_LIST = 'db:update-product-list',
+  DELETE_PRODUCT_LIST = 'db:delete-product-list',
+  SET_PRODUCT_LIST_STATUS = 'db:set-product-list-status',
+  ADD_PRODUCT_LIST_ITEM = 'db:add-product-list-item',
+  CREATE_PRODUCT_LIST_WITH_ITEM = 'db:create-product-list-with-item',
+  UPDATE_PRODUCT_LIST_ITEM = 'db:update-product-list-item',
+  REMOVE_PRODUCT_LIST_ITEM = 'db:remove-product-list-item',
+  REORDER_PRODUCT_LIST_ITEMS = 'db:reorder-product-list-items',
+
   // Variant operations
   GET_VARIANTS = 'db:get-variants',
   GET_VARIANTS_PAGINATED = 'db:get-variants-paginated',
