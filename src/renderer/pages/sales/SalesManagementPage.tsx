@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { InvoicesPage } from '../invoices';
 import { QuotationsPage } from '../quotations';
 import { CreditNotesPage } from '../credit-notes';
+import { usePermissions } from '../../permissions';
 
 interface SalesSection {
   key: string;
@@ -30,6 +31,7 @@ interface SalesSection {
   description: string;
   icon: React.ReactNode;
   color: string;
+  permission: string;
   component: React.ReactNode;
 }
 
@@ -40,6 +42,7 @@ const salesSections: SalesSection[] = [
     description: 'View and search all invoices',
     icon: <IconFileInvoice size={20} />,
     color: 'teal',
+    permission: 'VIEW_INVOICES',
     component: <InvoicesPage />,
   },
   {
@@ -48,6 +51,7 @@ const salesSections: SalesSection[] = [
     description: 'View and search all quotations',
     icon: <IconFileText size={20} />,
     color: 'blue',
+    permission: 'VIEW_QUOTATIONS',
     component: <QuotationsPage />,
   },
   {
@@ -56,16 +60,20 @@ const salesSections: SalesSection[] = [
     description: 'View and manage issued credit notes',
     icon: <IconReceipt size={20} />,
     color: 'green',
+    permission: 'VIEW_CREDIT_NOTES',
     component: <CreditNotesPage />,
   },
 ];
 
 export function SalesManagementPage() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  const activeSection = salesSections.find((s) => s.key === selected);
+  // Only show the sub-sections this user is allowed to view.
+  const visibleSections = salesSections.filter((s) => can(s.permission));
+  const activeSection = visibleSections.find((s) => s.key === selected);
 
   return (
     <Box style={{ display: 'flex', height: '100%' }}>
@@ -131,7 +139,7 @@ export function SalesManagementPage() {
         </Box>
         <ScrollArea style={{ flex: 1 }} px={collapsed ? 4 : 'sm'} pb="sm">
           <Stack gap={2}>
-            {salesSections.map((section) =>
+            {visibleSections.map((section) =>
               collapsed ? (
                 <Tooltip key={section.key} label={section.label} position="right" withArrow>
                   <ActionIcon

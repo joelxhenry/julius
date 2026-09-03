@@ -36,7 +36,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { PermissionButton, usePermissions } from '../../permissions';
+import { PermissionButton, PermissionGate, usePermissions } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
 import { EmployeeSummaryTab } from './tabs/EmployeeSummaryTab';
 import { EmployeeInvoicesTab } from './tabs/EmployeeInvoicesTab';
@@ -341,31 +341,51 @@ export function EmployeeDetailPage() {
       <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List>
           <Tabs.Tab value="summary" leftSection={<IconChartBar size={16} />}>Summary</Tabs.Tab>
-          <Tabs.Tab value="invoices" leftSection={<IconFileInvoice size={16} />}>Invoices</Tabs.Tab>
-          <Tabs.Tab value="quotations" leftSection={<IconFileDescription size={16} />}>Quotations</Tabs.Tab>
-          <Tabs.Tab value="creditNotes" leftSection={<IconReceipt size={16} />}>Credit Notes</Tabs.Tab>
-          <Tabs.Tab value="payments" leftSection={<IconCreditCard size={16} />}>Payments</Tabs.Tab>
-          <Tabs.Tab value="attendance" leftSection={<IconClock size={16} />}>Attendance</Tabs.Tab>
+          <PermissionGate permission="VIEW_INVOICES" mode="hide">
+            <Tabs.Tab value="invoices" leftSection={<IconFileInvoice size={16} />}>Invoices</Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="VIEW_QUOTATIONS" mode="hide">
+            <Tabs.Tab value="quotations" leftSection={<IconFileDescription size={16} />}>Quotations</Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="VIEW_CREDIT_NOTES" mode="hide">
+            <Tabs.Tab value="creditNotes" leftSection={<IconReceipt size={16} />}>Credit Notes</Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="VIEW_PAYMENTS" mode="hide">
+            <Tabs.Tab value="payments" leftSection={<IconCreditCard size={16} />}>Payments</Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="VIEW_ATTENDANCE" mode="hide">
+            <Tabs.Tab value="attendance" leftSection={<IconClock size={16} />}>Attendance</Tabs.Tab>
+          </PermissionGate>
         </Tabs.List>
 
         <Tabs.Panel value="summary" pt="md">
           <EmployeeSummaryTab employeeId={employee.id} isActive={activeTab === 'summary'} />
         </Tabs.Panel>
-        <Tabs.Panel value="invoices" pt="md">
-          <EmployeeInvoicesTab employeeId={employee.id} isActive={activeTab === 'invoices'} />
-        </Tabs.Panel>
-        <Tabs.Panel value="quotations" pt="md">
-          <EmployeeQuotationsTab employeeId={employee.id} isActive={activeTab === 'quotations'} />
-        </Tabs.Panel>
-        <Tabs.Panel value="creditNotes" pt="md">
-          <EmployeeCreditNotesTab employeeId={employee.id} isActive={activeTab === 'creditNotes'} />
-        </Tabs.Panel>
-        <Tabs.Panel value="payments" pt="md">
-          <EmployeePaymentsTab employeeId={employee.id} isActive={activeTab === 'payments'} />
-        </Tabs.Panel>
-        <Tabs.Panel value="attendance" pt="md">
-          <EmployeeAttendanceTab employeeId={employee.id} isActive={activeTab === 'attendance'} />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_INVOICES" mode="hide">
+          <Tabs.Panel value="invoices" pt="md">
+            <EmployeeInvoicesTab employeeId={employee.id} isActive={activeTab === 'invoices'} />
+          </Tabs.Panel>
+        </PermissionGate>
+        <PermissionGate permission="VIEW_QUOTATIONS" mode="hide">
+          <Tabs.Panel value="quotations" pt="md">
+            <EmployeeQuotationsTab employeeId={employee.id} isActive={activeTab === 'quotations'} />
+          </Tabs.Panel>
+        </PermissionGate>
+        <PermissionGate permission="VIEW_CREDIT_NOTES" mode="hide">
+          <Tabs.Panel value="creditNotes" pt="md">
+            <EmployeeCreditNotesTab employeeId={employee.id} isActive={activeTab === 'creditNotes'} />
+          </Tabs.Panel>
+        </PermissionGate>
+        <PermissionGate permission="VIEW_PAYMENTS" mode="hide">
+          <Tabs.Panel value="payments" pt="md">
+            <EmployeePaymentsTab employeeId={employee.id} isActive={activeTab === 'payments'} />
+          </Tabs.Panel>
+        </PermissionGate>
+        <PermissionGate permission="VIEW_ATTENDANCE" mode="hide">
+          <Tabs.Panel value="attendance" pt="md">
+            <EmployeeAttendanceTab employeeId={employee.id} isActive={activeTab === 'attendance'} />
+          </Tabs.Panel>
+        </PermissionGate>
       </Tabs>
     </Stack>
   );

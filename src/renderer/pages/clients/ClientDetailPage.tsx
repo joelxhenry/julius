@@ -35,7 +35,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal, ClientStatementModal, ClientBulkPaymentModal } from '../../components/clients';
 import { useTabContext } from '../../contexts/TabContext';
-import { PermissionButton } from '../../permissions';
+import { PermissionButton, PermissionGate } from '../../permissions';
 
 interface Client {
   id: number;
@@ -210,18 +210,26 @@ export function ClientDetailPage() {
           <Tabs.Tab value="summary" leftSection={<IconUser size={16} />}>
             Summary
           </Tabs.Tab>
-          <Tabs.Tab value="invoices" leftSection={<IconFileInvoice size={16} />}>
-            Invoices
-          </Tabs.Tab>
-          <Tabs.Tab value="quotations" leftSection={<IconFileDescription size={16} />}>
-            Quotations
-          </Tabs.Tab>
-          <Tabs.Tab value="creditNotes" leftSection={<IconReceipt size={16} />}>
-            Credit Notes
-          </Tabs.Tab>
-          <Tabs.Tab value="payments" leftSection={<IconCash size={16} />}>
-            Payments
-          </Tabs.Tab>
+          <PermissionGate permission="VIEW_INVOICES" mode="hide">
+            <Tabs.Tab value="invoices" leftSection={<IconFileInvoice size={16} />}>
+              Invoices
+            </Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="VIEW_QUOTATIONS" mode="hide">
+            <Tabs.Tab value="quotations" leftSection={<IconFileDescription size={16} />}>
+              Quotations
+            </Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="VIEW_CREDIT_NOTES" mode="hide">
+            <Tabs.Tab value="creditNotes" leftSection={<IconReceipt size={16} />}>
+              Credit Notes
+            </Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="VIEW_PAYMENTS" mode="hide">
+            <Tabs.Tab value="payments" leftSection={<IconCash size={16} />}>
+              Payments
+            </Tabs.Tab>
+          </PermissionGate>
         </Tabs.List>
 
         {/* Summary Tab */}
@@ -412,21 +420,29 @@ export function ClientDetailPage() {
         </Tabs.Panel>
 
         {/* Other Tabs */}
-        <Tabs.Panel value="invoices" pt="md">
-          <ClientInvoicesTab clientId={client.id} clientName={client.clientName} refreshToken={refreshToken} />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_INVOICES" mode="hide">
+          <Tabs.Panel value="invoices" pt="md">
+            <ClientInvoicesTab clientId={client.id} clientName={client.clientName} refreshToken={refreshToken} />
+          </Tabs.Panel>
+        </PermissionGate>
 
-        <Tabs.Panel value="quotations" pt="md">
-          <ClientQuotationsTab clientId={client.id} />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_QUOTATIONS" mode="hide">
+          <Tabs.Panel value="quotations" pt="md">
+            <ClientQuotationsTab clientId={client.id} />
+          </Tabs.Panel>
+        </PermissionGate>
 
-        <Tabs.Panel value="creditNotes" pt="md">
-          <ClientCreditNotesTab clientId={client.id} />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_CREDIT_NOTES" mode="hide">
+          <Tabs.Panel value="creditNotes" pt="md">
+            <ClientCreditNotesTab clientId={client.id} />
+          </Tabs.Panel>
+        </PermissionGate>
 
-        <Tabs.Panel value="payments" pt="md">
-          <ClientPaymentsTab clientId={client.id} clientName={client.clientName} refreshToken={refreshToken} />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_PAYMENTS" mode="hide">
+          <Tabs.Panel value="payments" pt="md">
+            <ClientPaymentsTab clientId={client.id} clientName={client.clientName} refreshToken={refreshToken} />
+          </Tabs.Panel>
+        </PermissionGate>
       </Tabs>
 
       {/* Edit Modal */}

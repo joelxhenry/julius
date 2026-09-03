@@ -31,7 +31,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { SupplierEditModal, SupplierReceivingTab, SupplierBillsTab } from '../../components/suppliers';
 import { useTabContext } from '../../contexts/TabContext';
-import { PermissionButton } from '../../permissions';
+import { PermissionButton, PermissionGate } from '../../permissions';
 
 interface Supplier {
   id: number;
@@ -185,12 +185,16 @@ export function SupplierDetailPage() {
           <Tabs.Tab value="summary" leftSection={<IconTruck size={16} />}>
             Summary
           </Tabs.Tab>
-          <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
-            Receiving
-          </Tabs.Tab>
-          <Tabs.Tab value="bills" leftSection={<IconReceipt size={16} />}>
-            Bills
-          </Tabs.Tab>
+          <PermissionGate permission="RECEIVE_GOODS" mode="hide">
+            <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
+              Receiving
+            </Tabs.Tab>
+          </PermissionGate>
+          <PermissionGate permission="MANAGE_BILLS" mode="hide">
+            <Tabs.Tab value="bills" leftSection={<IconReceipt size={16} />}>
+              Bills
+            </Tabs.Tab>
+          </PermissionGate>
         </Tabs.List>
 
         {/* Summary Tab */}
@@ -438,13 +442,17 @@ export function SupplierDetailPage() {
         </Tabs.Panel>
 
         {/* Other Tabs */}
-        <Tabs.Panel value="receiving" pt="md">
-          <SupplierReceivingTab supplierId={supplier.id} />
-        </Tabs.Panel>
+        <PermissionGate permission="RECEIVE_GOODS" mode="hide">
+          <Tabs.Panel value="receiving" pt="md">
+            <SupplierReceivingTab supplierId={supplier.id} />
+          </Tabs.Panel>
+        </PermissionGate>
 
-        <Tabs.Panel value="bills" pt="md">
-          <SupplierBillsTab supplierId={supplier.id} />
-        </Tabs.Panel>
+        <PermissionGate permission="MANAGE_BILLS" mode="hide">
+          <Tabs.Panel value="bills" pt="md">
+            <SupplierBillsTab supplierId={supplier.id} />
+          </Tabs.Panel>
+        </PermissionGate>
       </Tabs>
 
       {/* Edit Modal */}

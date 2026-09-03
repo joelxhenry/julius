@@ -90,6 +90,8 @@ export function LandingPage() {
     handlePinModalClose,
   } = useProtectedNavigation();
 
+  // Quick Actions shows every option regardless of permission; restrictions are
+  // still enforced on click via navigateTo (PIN prompt / access check).
   return (
     <>
       <Box p="xl" maw={1200} mx="auto">

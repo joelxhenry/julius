@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { BulkStockUpdatePage } from './BulkStockUpdatePage';
 import { GoodsReceivalPage } from './GoodsReceivalPage';
 import { MassUpdatePage } from './MassUpdatePage';
+import { usePermissions } from '../../permissions';
 
 interface ManagementSection {
   key: string;
@@ -30,6 +31,7 @@ interface ManagementSection {
   description: string;
   icon: React.ReactNode;
   color: string;
+  permission: string;
   component: React.ReactNode;
 }
 
@@ -40,6 +42,7 @@ const managementSections: ManagementSection[] = [
     description: 'Adjust on-hand quantities for one or many items',
     icon: <IconAdjustmentsHorizontal size={20} />,
     color: 'blue',
+    permission: 'BULK_STOCK_UPDATE',
     component: <BulkStockUpdatePage />,
   },
   {
@@ -48,6 +51,7 @@ const managementSections: ManagementSection[] = [
     description: 'Record a supplier receival - add parts, create inline, or import',
     icon: <IconTruckDelivery size={20} />,
     color: 'teal',
+    permission: 'RECEIVE_GOODS',
     component: <GoodsReceivalPage />,
   },
   {
@@ -56,16 +60,20 @@ const managementSections: ManagementSection[] = [
     description: 'Bulk-edit price, stock, supplier, vehicle, and more',
     icon: <IconTableImport size={20} />,
     color: 'orange',
+    permission: 'MASS_UPDATE_INVENTORY',
     component: <MassUpdatePage />,
   },
 ];
 
 export function InventoryManagementPage() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  const activeSection = managementSections.find((s) => s.key === selected);
+  // Only show the sub-sections this user is allowed to use.
+  const visibleSections = managementSections.filter((s) => can(s.permission));
+  const activeSection = visibleSections.find((s) => s.key === selected);
 
   return (
     <Box style={{ display: 'flex', height: '100%' }}>
@@ -131,7 +139,7 @@ export function InventoryManagementPage() {
         </Box>
         <ScrollArea style={{ flex: 1 }} px={collapsed ? 4 : 'sm'} pb="sm">
           <Stack gap={2}>
-            {managementSections.map((section) =>
+            {visibleSections.map((section) =>
               collapsed ? (
                 <Tooltip key={section.key} label={section.label} position="right" withArrow>
                   <ActionIcon

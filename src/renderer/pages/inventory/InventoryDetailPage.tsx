@@ -1029,9 +1029,11 @@ export function InventoryDetailPage() {
               Sales
             </Tabs.Tab>
           </PermissionGate>
-          <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
-            Receiving
-          </Tabs.Tab>
+          <PermissionGate permission="RECEIVE_GOODS" mode="hide">
+            <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
+              Receiving
+            </Tabs.Tab>
+          </PermissionGate>
         </Tabs.List>
 
         {/* Overview Tab */}
@@ -1141,9 +1143,11 @@ export function InventoryDetailPage() {
         </PermissionGate>
 
         {/* Receiving Tab */}
-        <Tabs.Panel value="receiving" pt="md">
-          <ReceivingTab sku={item.sku} />
-        </Tabs.Panel>
+        <PermissionGate permission="RECEIVE_GOODS" mode="hide">
+          <Tabs.Panel value="receiving" pt="md">
+            <ReceivingTab sku={item.sku} />
+          </Tabs.Panel>
+        </PermissionGate>
       </Tabs>
 
       {/* Stock Adjustment Modal */}

@@ -160,21 +160,28 @@ function AppLayoutContent() {
     }
   }, [location.pathname, isSessionValid]);
 
-  // Register global navigation shortcuts with PIN verification
+  // Register global navigation shortcuts with PIN verification.
+  // Skip shortcuts for features the user can't access so the hidden page's
+  // shortcut is a no-op rather than triggering an "Access Denied" block.
   useEffect(() => {
-    const shortcuts: KeyboardShortcut[] = navigationShortcuts.map((item) => ({
-      key: item.key,
-      alt: true,
-      callback: () => handleProtectedNavigation(item.path),
-      description: item.description,
-    }));
+    const shortcuts: KeyboardShortcut[] = navigationShortcuts
+      .filter((item) => {
+        const permission = getRoutePermission(item.path);
+        return !permission || hasPermission(permission);
+      })
+      .map((item) => ({
+        key: item.key,
+        alt: true,
+        callback: () => handleProtectedNavigation(item.path),
+        description: item.description,
+      }));
 
     registerShortcuts('navigation', shortcuts);
 
     return () => {
       unregisterShortcuts('navigation');
     };
-  }, [handleProtectedNavigation, registerShortcuts, unregisterShortcuts]);
+  }, [handleProtectedNavigation, hasPermission, registerShortcuts, unregisterShortcuts]);
 
   // Register tray keyboard shortcut (Q-B9: Shift+2 / @)
   useEffect(() => {
