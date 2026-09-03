@@ -42,7 +42,7 @@ import { InventoryImageService, UploadImageParams } from '../services/InventoryI
 import { PrintService } from '../services/PrintService';
 import { ReportService } from '../services/ReportService';
 import { ExportService } from '../services/ExportService';
-import { PrintDocumentRequest, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest } from '../../shared/types/print';
+import { PrintDocumentRequest, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest, PurchaseReportPrintRequest } from '../../shared/types/print';
 import { ExportRequest } from '../../shared/types/export';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 
@@ -1039,6 +1039,8 @@ function registerDataHandlers() {
     reportController.getSalesSummary(params));
   ipcMain.handle(IpcChannel.GET_PAYMENT_COLLECTION_REPORT, (_, params: any = {}) =>
     reportController.getPaymentCollection(params));
+  ipcMain.handle(IpcChannel.GET_PURCHASE_REPORT, (_, params: { year: number }) =>
+    reportController.getPurchaseSummary(params));
   ipcMain.handle(IpcChannel.PRINT_SALES_REPORT, async (_, params: SalesReportPrintRequest) => {
     try {
       const data = await reportService.getSalesSummary({
@@ -1048,6 +1050,14 @@ function registerDataHandlers() {
       return printController.printSalesReport(params, data);
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to print sales report' };
+    }
+  });
+  ipcMain.handle(IpcChannel.PRINT_PURCHASE_REPORT, async (_, params: PurchaseReportPrintRequest) => {
+    try {
+      const data = await reportService.getPurchaseSummary({ year: params.year });
+      return printController.printPurchaseReport(params, data);
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to print purchase report' };
     }
   });
 

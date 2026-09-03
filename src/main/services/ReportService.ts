@@ -22,6 +22,10 @@ export interface SalesReportDetailItem {
   clientName: string | null;
   date: string | null;
   amount: number;
+  /** Transaction reference (the "Reference #" captured on the payment). */
+  reference: string | null;
+  /** Free-text notes captured on the payment, if any. */
+  notes: string | null;
 }
 
 export interface SalesSummaryResult {
@@ -83,6 +87,29 @@ export interface PaymentCollectionResult {
   payments: PaymentCollectionItem[];
   totalCollected: number;
   byMethod: PaymentMethodSummary[];
+}
+
+export interface PurchaseReportParams {
+  year: number;
+}
+
+export interface PurchaseReportMonthRow {
+  month: number; // 1-12
+  total: number; // bill total (gross)
+  paidOut: number; // total_paid
+  payable: number; // total - paidOut
+}
+
+export interface PurchaseReportTotals {
+  total: number;
+  paidOut: number;
+  payable: number;
+}
+
+export interface PurchaseSummaryResult {
+  year: number;
+  months: PurchaseReportMonthRow[]; // always 12 rows, January..December
+  totals: PurchaseReportTotals;
 }
 
 // ── Service ─────────────────────────────────────────────────────────
@@ -160,6 +187,18 @@ export class ReportService {
       return canonicalizePaymentType(name || p.paymentDesc || p.paymentDesc2);
     };
 
+    // Free-text notes: the desc fields that aren't the method code. paymentDesc
+    // carries the user's notes (or a VOID/REFUND/credit-note label) while
+    // paymentDesc2 usually carries the method code; legacy rows may reverse them,
+    // so anything that isn't a known code is treated as a note.
+    const resolveNotes = (p: schema.Payment): string | null => {
+      const parts: string[] = [];
+      for (const v of [p.paymentDesc, p.paymentDesc2]) {
+        if (v && !methodMap.has(v) && !parts.includes(v)) parts.push(v);
+      }
+      return parts.length ? parts.join(' • ') : null;
+    };
+
     let numPayments = 0;
     let valuePayments = 0;
     let numRefunds = 0;
@@ -194,6 +233,8 @@ export class ReportService {
         clientName: row.clientName ?? null,
         date: p.paymentDate,
         amount,
+        reference: p.transactionReference ?? null,
+        notes: resolveNotes(p),
       });
     }
 
@@ -279,5 +320,63 @@ export class ReportService {
       totalCollected,
       byMethod: Array.from(methodMap.values()),
     };
+  }
+
+  // ── 3. Purchase Report (year, month-by-month) ──────────────────
+
+  /**
+   * Month-by-month purchases breakdown for a single year, sourced from active
+   * supplier bills. Mirrors the legacy purchases screen: for each month it
+   * reports Total (gross bill amount), Paid Out (total_paid) and the outstanding
+   * Payable (total − paid). Bills only store a gross total in this system — the
+   * pre-tax sub_total and tax columns are never populated — so those are
+   * deliberately omitted. Voided/inactive bills (status ≠ 'A') are excluded so
+   * the figures match the accounts-payable ledger.
+   */
+  async getPurchaseSummary(params: PurchaseReportParams): Promise<PurchaseSummaryResult> {
+    const { year } = params;
+
+    const rows = await this.db
+      .select({
+        month: sql<string>`EXTRACT(MONTH FROM ${schema.bills.billDate})`,
+        total: sql<string>`COALESCE(SUM(CAST(${schema.bills.total} AS numeric)), 0)`,
+        paidOut: sql<string>`COALESCE(SUM(CAST(${schema.bills.totalPaid} AS numeric)), 0)`,
+      })
+      .from(schema.bills)
+      .where(
+        and(
+          eq(schema.bills.status, 'A'),
+          sql`${schema.bills.billDate} IS NOT NULL`,
+          sql`EXTRACT(YEAR FROM ${schema.bills.billDate}) = ${year}`,
+        ),
+      )
+      .groupBy(sql`EXTRACT(MONTH FROM ${schema.bills.billDate})`);
+
+    // Index the DB rows by month so we can emit a full Jan..Dec sequence with
+    // zero-filled months that had no purchases.
+    const byMonth = new Map<number, (typeof rows)[number]>();
+    for (const r of rows) byMonth.set(Number(r.month), r);
+
+    const months: PurchaseReportMonthRow[] = [];
+    const totals: PurchaseReportTotals = {
+      total: 0,
+      paidOut: 0,
+      payable: 0,
+    };
+
+    for (let m = 1; m <= 12; m++) {
+      const r = byMonth.get(m);
+      const total = Number(r?.total ?? 0);
+      const paidOut = Number(r?.paidOut ?? 0);
+      const payable = total - paidOut;
+
+      months.push({ month: m, total, paidOut, payable });
+
+      totals.total += total;
+      totals.paidOut += paidOut;
+      totals.payable += payable;
+    }
+
+    return { year, months, totals };
   }
 }
