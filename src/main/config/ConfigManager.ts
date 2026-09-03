@@ -2,7 +2,7 @@ import CryptoJS from 'crypto-js';
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import { AppConfig, DatabaseConfig } from './types';
+import { AppConfig, MachineRole } from './types';
 
 export class ConfigManager {
   private configPath: string;
@@ -151,7 +151,33 @@ export class ConfigManager {
         maxConnections: 20,
       },
       version: '1.0.0',
+      // A brand-new install has not been through the first-run wizard yet.
+      setupCompleted: false,
     };
+  }
+
+  /**
+   * Whether the first-run wizard still needs to run.
+   *
+   * Only a freshly created default config (setupCompleted === false) triggers
+   * setup. Installs predating the wizard have no flag (undefined) and are
+   * treated as already configured, so existing users are never interrupted.
+   */
+  public needsSetup(): boolean {
+    return this.load().setupCompleted === false;
+  }
+
+  /** Machine role chosen during setup, or null if not yet chosen. */
+  public getRole(): MachineRole | null {
+    return this.load().role ?? null;
+  }
+
+  /** Persist the chosen role and mark first-run setup as complete. */
+  public completeSetup(role: MachineRole): void {
+    const config = this.load();
+    config.role = role;
+    config.setupCompleted = true;
+    this.save(config);
   }
 
   /**

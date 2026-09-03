@@ -1,0 +1,46 @@
+name: Release
+
+# Publishes a Windows installer to GitHub Releases whenever a version tag is
+# pushed. Clients auto-update from these releases via update.electronjs.org.
+#
+# Release flow:
+#   1. Bump "version" in package.json (e.g. 1.0.1) and commit.
+#   2. Tag it:  git tag v1.0.1  &&  git push origin v1.0.1
+#   3. This workflow builds + uploads a DRAFT release.
+#   4. Review the draft on GitHub, then publish it. Auto-update only sees
+#      published (non-draft) releases.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Squirrel.Windows + native modules (better-sqlite3, sharp) must build on Windows.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native modules for Electron
+        run: npm run rebuild
+
+      - name: Publish to GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run publish
