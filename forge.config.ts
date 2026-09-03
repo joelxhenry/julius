@@ -147,7 +147,11 @@ const config: ForgeConfig = {
         owner: 'joelxhenry',
         name: 'julius',
       },
-      draft: true,
+      // Publish directly as a normal "latest" release (not a draft, not a
+      // prerelease) so /releases/latest/download/<asset> resolves immediately
+      // and clients auto-update. Set draft:true again if you want a manual
+      // review/publish gate before customers can download.
+      draft: false,
       prerelease: false,
     }),
   ],
