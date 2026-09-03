@@ -16,10 +16,13 @@ import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
 import { KeyboardShortcutProvider } from './renderer/contexts/KeyboardShortcutContext';
 import { MarkedItemsProvider } from './renderer/contexts/MarkedItemsContext';
+import { UpdatesProvider } from './renderer/contexts/UpdatesContext';
 import { DatabaseConfigModal } from './renderer/components/database/DatabaseConfigModal';
 import { ErrorBoundary } from './renderer/components/common/ErrorBoundary';
 import { ThemeTransitionOverlay } from './renderer/components/common/ThemeTransitionOverlay';
 import { KeyboardShortcutHelp } from './renderer/components/common/KeyboardShortcutHelp';
+import { UpdatePrompt } from './renderer/components/common/UpdatePrompt';
+import { FirstRunGate } from './renderer/components/setup/FirstRunGate';
 import { theme } from './renderer/theme';
 import { router } from './renderer/router';
 
@@ -31,19 +34,24 @@ function AppWithTheme() {
       <ModalsProvider>
       <Notifications position="top-right" />
       <ThemeTransitionOverlay />
-      <DatabaseConnectionProvider>
-        <DatabaseConfigModal />
-        <AuthProvider>
-          <AccessOverrideProvider>
-            <KeyboardShortcutProvider>
-              <KeyboardShortcutHelp />
-              <MarkedItemsProvider>
-                <RouterProvider router={router} />
-              </MarkedItemsProvider>
-            </KeyboardShortcutProvider>
-          </AccessOverrideProvider>
-        </AuthProvider>
-      </DatabaseConnectionProvider>
+      <UpdatesProvider>
+      <UpdatePrompt />
+      <FirstRunGate>
+        <DatabaseConnectionProvider>
+          <DatabaseConfigModal />
+          <AuthProvider>
+            <AccessOverrideProvider>
+              <KeyboardShortcutProvider>
+                <KeyboardShortcutHelp />
+                <MarkedItemsProvider>
+                  <RouterProvider router={router} />
+                </MarkedItemsProvider>
+              </KeyboardShortcutProvider>
+            </AccessOverrideProvider>
+          </AuthProvider>
+        </DatabaseConnectionProvider>
+      </FirstRunGate>
+      </UpdatesProvider>
       </ModalsProvider>
     </MantineProvider>
   );

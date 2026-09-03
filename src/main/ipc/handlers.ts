@@ -1,6 +1,9 @@
 import { ipcMain } from 'electron';
 import { getDatabaseOrNull, initDatabase, closeDatabase, getConnectionError, runMigrationsAndSeeds } from '../database';
 import { IpcChannel } from '../../shared/types/ipc';
+import { SetupIpc, SetupState } from '../../shared/types/setup';
+import { ConfigManager } from '../config/ConfigManager';
+import { MachineRole } from '../config/types';
 
 // Track which handlers have been registered to avoid duplicates
 let configHandlersRegistered = false;
@@ -161,6 +164,29 @@ export function registerIpcHandlers() {
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
+    });
+
+    // First-run setup handlers. Registered on raw channels (not IpcChannel) so
+    // they survive the data-handler cleanup that runs on every reconnect.
+    ipcMain.handle(SetupIpc.GET_STATE, (): SetupState => {
+      const configManager = new ConfigManager();
+      return {
+        needsSetup: configManager.needsSetup(),
+        role: configManager.getRole(),
+      };
+    });
+
+    ipcMain.handle(SetupIpc.COMPLETE, (_, { role }: { role: MachineRole }) => {
+      try {
+        const configManager = new ConfigManager();
+        configManager.completeSetup(role);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to complete setup',
         };
       }
     });

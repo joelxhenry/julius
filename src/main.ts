@@ -1,8 +1,9 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { initDatabase, getConnectionError, getDatabaseOrNull, runBackgroundSeeds } from './main/database';
 import { registerIpcHandlers } from './main/ipc/handlers';
+import { initAutoUpdater } from './main/updater/AutoUpdater';
 
 // Declare Vite global variables
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
@@ -42,6 +43,19 @@ const createWindow = async () => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+
+  // Open external http(s) links in the user's default browser instead of a
+  // new in-app Electron window.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      void shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
+  });
+
+  // Initialize auto-updates (no-op unless this is a packaged Windows build).
+  initAutoUpdater(mainWindow);
 
   // Send connection status to renderer after window loads
   const error = getConnectionError();

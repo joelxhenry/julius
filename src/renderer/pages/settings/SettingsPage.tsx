@@ -15,6 +15,7 @@ import {
   IconLayout,
   IconFolder,
   IconArrowLeft,
+  IconInfoCircle,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
@@ -23,6 +24,7 @@ import { CompanySettingsTab } from './CompanySettingsTab';
 import { TaxSettingsTab } from './TaxSettingsTab';
 import { StorageSettingsTab } from './StorageSettingsTab';
 import { DocumentSettingsTab } from './DocumentSettingsTab';
+import { AboutSettingsTab } from './AboutSettingsTab';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -64,6 +66,9 @@ export function SettingsPage() {
             <Tabs.Tab value="storage" leftSection={<IconFolder size={16} />}>
               Storage
             </Tabs.Tab>
+            <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
+              About
+            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="database" pt="lg">
@@ -88,6 +93,10 @@ export function SettingsPage() {
 
           <Tabs.Panel value="storage" pt="lg">
             <StorageSettingsTab />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="about" pt="lg">
+            <AboutSettingsTab />
           </Tabs.Panel>
 
         </Tabs>

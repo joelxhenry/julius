@@ -3,6 +3,7 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import { PublisherGithub } from '@electron-forge/publisher-github';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
@@ -125,6 +126,19 @@ const config: ForgeConfig = {
     new MakerZIP({}, ['darwin', 'win32']),
     new MakerRpm({}),
     new MakerDeb({}),
+  ],
+  publishers: [
+    // Publishes make artifacts (Squirrel Setup.exe, .nupkg, RELEASES) to GitHub
+    // Releases. `update.electronjs.org` serves these to clients for auto-update.
+    // Requires GITHUB_TOKEN in the environment (set by the release workflow).
+    new PublisherGithub({
+      repository: {
+        owner: 'joelxhenry',
+        name: 'julius',
+      },
+      draft: true,
+      prerelease: false,
+    }),
   ],
   plugins: [
     new VitePlugin({
