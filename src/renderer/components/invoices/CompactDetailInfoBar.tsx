@@ -1,4 +1,4 @@
-import { Paper, Group, Text } from '@mantine/core';
+import { Paper, Group, Text, Badge } from '@mantine/core';
 import { IconUser, IconCalendar, IconFileText, IconCreditCard, IconUserCheck } from '@tabler/icons-react';
 import { RestrictedLink } from '../../permissions';
 
@@ -34,13 +34,21 @@ export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, o
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 40 }}>
       <Group gap="lg" wrap="nowrap" h="100%">
-        {/* Client */}
+        {/* Client: registered clients link to their record; custom (walk-in) names
+            are shown as plain text with a badge since there's no client to open. */}
         {invoice.clientName && (
           <Group gap={4} wrap="nowrap">
             <IconUser size={14} color="gray" />
-            <RestrictedLink permission="VIEW_CLIENTS" size="sm" color="blue" onClick={onViewClient}>
-              {invoice.clientName}
-            </RestrictedLink>
+            {invoice.clientId ? (
+              <RestrictedLink permission="VIEW_CLIENTS" size="sm" color="blue" onClick={onViewClient}>
+                {invoice.clientName}
+              </RestrictedLink>
+            ) : (
+              <>
+                <Text size="sm">{invoice.clientName}</Text>
+                <Badge color="orange" variant="light" size="sm">Walk-in</Badge>
+              </>
+            )}
           </Group>
         )}
 

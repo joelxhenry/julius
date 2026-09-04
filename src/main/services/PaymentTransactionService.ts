@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, ilike } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { PaymentService } from './PaymentService';
 import { InvoiceService } from './InvoiceService';
@@ -159,7 +159,10 @@ export class PaymentTransactionService {
         if (!creditNote) {
           throw new Error('Credit note not found');
         }
-        if (creditNote.clientId !== clientId) {
+        // A walk-in credit note (no registered client) is redeemable against any
+        // invoice by looking it up via its CR#/invoice#. A note that belongs to a
+        // registered client may only be applied to that same client's invoices.
+        if (creditNote.clientId !== null && creditNote.clientId !== clientId) {
           throw new Error('Credit note belongs to a different client');
         }
         const available = parseFloat(creditNote.total) - parseFloat(creditNote.totalUsed);
@@ -686,6 +689,38 @@ export class PaymentTransactionService {
   /**
    * Get available credit notes for a client
    */
+  /**
+   * Find redeemable credit notes by credit-note number OR invoice number.
+   * Used for walk-in credit notes that aren't tied to a registered client:
+   * the cashier looks the note up by its CR# or the originating invoice#.
+   * Returns only active, unarchived notes that still have a balance.
+   */
+  async getAvailableCreditNotesByNumber(query: string): Promise<schema.CreditNote[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const term = `%${trimmed}%`;
+    const creditNotes = await this.db
+      .select()
+      .from(schema.creditNotes)
+      .where(
+        and(
+          eq(schema.creditNotes.status, 'A'),
+          eq(schema.creditNotes.isArchived, false),
+          or(
+            ilike(schema.creditNotes.crNumber, term),
+            ilike(schema.creditNotes.invNumber, term)
+          )
+        )
+      );
+
+    return creditNotes.filter((cn) => {
+      const total = parseFloat(cn.total || '0');
+      const used = parseFloat(cn.totalUsed || '0');
+      return total > used;
+    });
+  }
+
   async getAvailableCreditNotes(clientId: number): Promise<schema.CreditNote[]> {
     const creditNotes = await this.db
       .select()

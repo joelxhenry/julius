@@ -853,6 +853,15 @@ function registerDataHandlers() {
     }
   });
 
+  ipcMain.handle(IpcChannel.SEARCH_AVAILABLE_CREDIT_NOTES, async (_, { query }: { query: string }) => {
+    try {
+      const creditNotes = await paymentTransactionService.getAvailableCreditNotesByNumber(query);
+      return { success: true, data: creditNotes };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to search credit notes' };
+    }
+  });
+
   ipcMain.handle(IpcChannel.GET_CLIENT_OUTSTANDING_INVOICES, async (_, { clientId }: { clientId: number }) => {
     try {
       const invoices = await paymentTransactionService.getClientOutstandingInvoices(clientId);

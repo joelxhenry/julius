@@ -248,6 +248,7 @@ export enum IpcChannel {
   GET_CLIENT_OUTSTANDING_INVOICES = 'db:get-client-outstanding-invoices',
   VOID_PAYMENT = 'db:void-payment',
   GET_CLIENT_AVAILABLE_CREDIT_NOTES = 'db:get-client-available-credit-notes',
+  SEARCH_AVAILABLE_CREDIT_NOTES = 'db:search-available-credit-notes',
 
   // Payment method operations
   GET_PAYMENT_METHODS = 'db:get-payment-methods',
