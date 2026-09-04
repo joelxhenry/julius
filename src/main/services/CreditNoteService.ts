@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, desc, count, or, ilike, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, asc, desc, count, or, ilike, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -11,6 +11,11 @@ export interface CreditNoteQueryParams {
   status?: string;
   clientId?: number;
   includeArchived?: boolean;
+  archivedOnly?: boolean;
+  startDate?: string;
+  endDate?: string;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export class CreditNoteService extends BaseService<
@@ -39,12 +44,26 @@ export class CreditNoteService extends BaseService<
   }
 
   async findPaginated(params: CreditNoteQueryParams = {}): Promise<PaginatedResult<schema.CreditNote>> {
-    const { page = 1, pageSize = 50, search, status, clientId, includeArchived = false } = params;
+    const {
+      page = 1,
+      pageSize = 50,
+      search,
+      status,
+      clientId,
+      includeArchived = false,
+      archivedOnly = false,
+      startDate,
+      endDate,
+      sortField = 'crDate',
+      sortDirection = 'desc',
+    } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
 
-    if (!includeArchived) {
+    if (archivedOnly) {
+      conditions.push(eq(schema.creditNotes.isArchived, true));
+    } else if (!includeArchived) {
       conditions.push(eq(schema.creditNotes.isArchived, false));
     }
 
@@ -53,6 +72,7 @@ export class CreditNoteService extends BaseService<
       conditions.push(
         or(
           ilike(schema.creditNotes.crNumber, searchTerm),
+          ilike(schema.creditNotes.invNumber, searchTerm),
           ilike(schema.creditNotes.reference, searchTerm),
           ilike(schema.creditNotes.clientName, searchTerm)
         )
@@ -67,6 +87,14 @@ export class CreditNoteService extends BaseService<
       conditions.push(eq(schema.creditNotes.clientId, clientId));
     }
 
+    if (startDate) {
+      conditions.push(gte(schema.creditNotes.crDate, startDate));
+    }
+
+    if (endDate) {
+      conditions.push(lte(schema.creditNotes.crDate, endDate));
+    }
+
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countResult = await this.db
@@ -76,11 +104,14 @@ export class CreditNoteService extends BaseService<
 
     const total = Number(countResult[0]?.count ?? 0);
 
+    const sortColumn = this.getSortColumn(sortField);
+    const orderFn = sortDirection === 'asc' ? asc : desc;
+
     const data = await this.db
       .select()
       .from(schema.creditNotes)
       .where(whereCondition)
-      .orderBy(desc(schema.creditNotes.createdAt))
+      .orderBy(orderFn(sortColumn))
       .limit(pageSize)
       .offset(offset);
 
@@ -91,6 +122,19 @@ export class CreditNoteService extends BaseService<
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  private getSortColumn(field: string) {
+    switch (field) {
+      case 'crDate':
+        return schema.creditNotes.crDate;
+      case 'total':
+        return schema.creditNotes.total;
+      case 'status':
+        return schema.creditNotes.status;
+      default:
+        return schema.creditNotes.crDate;
+    }
   }
 
   async findByCrNumber(crNumber: string): Promise<schema.CreditNote | null> {

@@ -12,12 +12,14 @@ import {
   Center,
   ActionIcon,
   Tooltip,
+  SegmentedControl,
 } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
-import { IconSearch, IconClock, IconArchive, IconEye } from '@tabler/icons-react';
+import { IconSearch, IconClock, IconArchive, IconEye, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
 import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
+import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 
 interface CreditNote {
   id: number;
@@ -53,6 +55,19 @@ const formatDate = (dateStr: string) => {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
+// Translate the status filter into the paginated-query params it maps to.
+const statusFilterParams = (statusFilter: string) => {
+  switch (statusFilter) {
+    case 'A':
+    case 'U':
+      return { status: statusFilter, includeArchived: false, archivedOnly: false };
+    case 'archived':
+      return { archivedOnly: true };
+    default:
+      return { includeArchived: true };
+  }
+};
+
 export function CreditNotesPage() {
   const { openTab, replaceCurrentTab } = useTabContext();
   const [activeTab, setActiveTab] = useState<string | null>('recent');
@@ -63,6 +78,9 @@ export function CreditNotesPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [sortField, setSortField] = useState<string>('crDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [startDate, endDate] = dateRange;
 
   const handleSort = useCallback((field: string, direction: SortDirection) => {
     setSortField(field);
@@ -70,51 +88,63 @@ export function CreditNotesPage() {
   }, []);
 
   // Load recent credit notes
-  useEffect(() => {
-    const loadRecent = async () => {
-      setIsLoadingRecent(true);
-      try {
-        const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTES_PAGINATED, {
-          page: 1,
-          pageSize: 20,
-          includeArchived: false,
-        });
-        if (result.success && result.data) {
-          setRecentNotes(result.data.data ?? []);
-        }
-      } catch (error) {
-        console.error('Failed to load recent credit notes:', error);
-      } finally {
-        setIsLoadingRecent(false);
-      }
-    };
-    loadRecent();
-  }, [sortField, sortDirection]);
-
-  // Search credit notes
-  const searchNotes = useCallback(async (query: string) => {
-    if (!query || query.trim().length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-    setIsSearching(true);
+  const loadRecent = useCallback(async () => {
+    setIsLoadingRecent(true);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTES_PAGINATED, {
         page: 1,
-        pageSize: 50,
-        search: query,
-        includeArchived: true,
+        pageSize: 20,
+        sortField,
+        sortDirection,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        ...statusFilterParams(statusFilter),
       });
       if (result.success && result.data) {
-        setSearchResults(result.data.data ?? []);
+        setRecentNotes(result.data.data ?? []);
       }
     } catch (error) {
-      console.error('Failed to search credit notes:', error);
+      console.error('Failed to load recent credit notes:', error);
     } finally {
-      setIsSearching(false);
+      setIsLoadingRecent(false);
     }
-  }, []);
+  }, [sortField, sortDirection, statusFilter, startDate, endDate]);
+
+  useEffect(() => {
+    loadRecent();
+  }, [loadRecent]);
+
+  // Search credit notes
+  const searchNotes = useCallback(
+    async (query: string) => {
+      if (!query || query.trim().length < 2) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTES_PAGINATED, {
+          page: 1,
+          pageSize: 50,
+          search: query,
+          sortField,
+          sortDirection,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          ...statusFilterParams(statusFilter),
+        });
+        if (result.success && result.data) {
+          setSearchResults(result.data.data ?? []);
+        }
+      } catch (error) {
+        console.error('Failed to search credit notes:', error);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [sortField, sortDirection, statusFilter, startDate, endDate]
+  );
 
   const debouncedSearch = useDebouncedCallback(searchNotes, 400);
 
@@ -122,7 +152,7 @@ export function CreditNotesPage() {
     if (searchQuery.length >= 2) {
       searchNotes(searchQuery);
     }
-  }, [sortField, sortDirection, searchNotes, searchQuery]);
+  }, [sortField, sortDirection, statusFilter, startDate, endDate, searchNotes, searchQuery]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -198,10 +228,13 @@ export function CreditNotesPage() {
         header: 'Status',
         width: 90,
         render: (note) => {
-          const effectiveStatus = note.isArchived ? 'archived' : note.status;
+          // Derive status from the remaining balance so fully-used notes always
+          // read as "Used", even if the stored status is stale.
+          const balance = parseFloat(note.total) - parseFloat(note.totalUsed);
+          const effectiveStatus = note.isArchived ? 'archived' : balance > 0 ? 'A' : 'U';
           return (
-            <Badge color={effectiveStatus === 'archived' ? 'gray' : statusColors[note.status] || 'gray'} variant="light">
-              {effectiveStatus === 'archived' ? 'Archived' : statusLabels[note.status] || note.status}
+            <Badge color={effectiveStatus === 'archived' ? 'gray' : statusColors[effectiveStatus] || 'gray'} variant="light">
+              {effectiveStatus === 'archived' ? 'Archived' : statusLabels[effectiveStatus] || effectiveStatus}
             </Badge>
           );
         },
@@ -241,16 +274,34 @@ export function CreditNotesPage() {
             View and manage issued credit notes
           </Text>
         </Stack>
+        <ActionIcon variant="subtle" onClick={loadRecent} title="Refresh">
+          <IconRefresh size={18} />
+        </ActionIcon>
       </Group>
 
-      {/* Search */}
-      <TextInput
-        placeholder="Search by CR number, invoice number, or client name..."
-        leftSection={isSearching ? <Loader size={14} /> : <IconSearch size={14} />}
-        value={searchQuery}
-        onChange={(e) => handleSearchChange(e.currentTarget.value)}
-        size="md"
-      />
+      {/* Search + Status Filter */}
+      <Group gap="sm" align="flex-end">
+        <TextInput
+          placeholder="Search by CR number, invoice number, or client name..."
+          leftSection={isSearching ? <Loader size={14} /> : <IconSearch size={14} />}
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.currentTarget.value)}
+          size="md"
+          style={{ flex: 1 }}
+        />
+        <DateRangeFilter value={dateRange} onChange={setDateRange} size="md" />
+        <SegmentedControl
+          size="md"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          data={[
+            { label: 'All', value: 'all' },
+            { label: 'Active', value: 'A' },
+            { label: 'Used', value: 'U' },
+            { label: 'Archived', value: 'archived' },
+          ]}
+        />
+      </Group>
 
       {/* Tabs */}
       <Paper withBorder radius="md" p={0}>
