@@ -178,7 +178,7 @@ export function SalesManagementPage() {
       </Box>
 
       {/* Content */}
-      <Box style={{ flex: 1, overflow: 'auto' }}>
+      <Box p="md" style={{ flex: 1, overflow: 'auto' }}>
         {activeSection ? (
           activeSection.component
         ) : (

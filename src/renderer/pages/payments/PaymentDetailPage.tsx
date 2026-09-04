@@ -32,6 +32,7 @@ import {
   IconHash,
   IconNotes,
   IconBarcode,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
@@ -356,6 +357,9 @@ export function PaymentDetailPage() {
           </Group>
 
           <Group gap="sm">
+            <ActionIcon variant="subtle" size="lg" onClick={loadPayment} title="Refresh">
+              <IconRefresh size={18} />
+            </ActionIcon>
             <PrintButton documentType="payment_receipt" documentId={payment.id} />
             {canVoidPayment(payment) && (
               <Button

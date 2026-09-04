@@ -30,6 +30,7 @@ import {
   IconRotate,
   IconFileExport,
   IconPrinter,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { useTabContext } from '../../contexts/TabContext';
 import { InventorySelect } from '../../components/selects/InventorySelect';
@@ -278,6 +279,9 @@ export function ProductListDetailPage() {
           <Badge color={statusMeta.color} variant="light" size="lg">{statusMeta.label}</Badge>
         </Group>
         <Group gap="sm">
+          <ActionIcon variant="subtle" size="lg" onClick={load} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
           <Button variant="light" leftSection={<IconPrinter size={16} />} onClick={() => printProductList(list)}>
             Print
           </Button>

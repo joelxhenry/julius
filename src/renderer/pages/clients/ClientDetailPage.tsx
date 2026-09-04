@@ -29,6 +29,7 @@ import {
   IconReceipt,
   IconCash,
   IconFileText,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
@@ -170,6 +171,17 @@ export function ClientDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() => {
+              loadClient(client.id);
+              setRefreshToken((t) => t + 1);
+            }}
+            title="Refresh"
+          >
+            <IconRefresh size={20} />
+          </ActionIcon>
           <PermissionButton
             permission="CLIENT_BULK_PAYMENT"
             whenDenied="elevate"

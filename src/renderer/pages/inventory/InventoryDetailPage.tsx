@@ -23,6 +23,7 @@ import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconEdit,
+  IconRefresh,
   IconAlertCircle,
   IconPackage,
   IconVersions,
@@ -928,6 +929,9 @@ export function InventoryDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <ActionIcon variant="subtle" size="lg" onClick={() => loadInventoryItem(item.id)} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
           <InventoryLookupTicketButton
             inventoryId={item.id}
             parentSku={item.sku}

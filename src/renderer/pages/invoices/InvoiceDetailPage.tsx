@@ -5,7 +5,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Tooltip, Table } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
@@ -376,6 +376,19 @@ export function InvoiceDetailPage() {
     }
   }, [invoice, navigate]);
 
+  // Refresh all page content (bypass cache)
+  const handleRefresh = useCallback(async () => {
+    if (!invoice) return;
+    const data = await loadInvoiceData(invoice.id);
+    if (data) {
+      invoiceCacheRef.current.set(invoice.id, data);
+      setInvoice(data.invoice);
+      setLineItems(data.lineItems);
+      setAdjacentIds(data.adjacentIds);
+      loadCreditNotes(data.invoice.invNumber);
+    }
+  }, [invoice, loadInvoiceData, loadCreditNotes]);
+
   // Navigate to edit invoice
   const handleEdit = useCallback(() => {
     if (!invoice) return;
@@ -433,6 +446,9 @@ export function InvoiceDetailPage() {
               onEdit={handleEdit}
             />
           </Box>
+          <ActionIcon variant="subtle" size="lg" onClick={handleRefresh} title="Refresh">
+            <IconRefresh size={20} />
+          </ActionIcon>
           <LookupTicketButton source="invoice" invoiceId={invoice.id} sourceReference={`Invoice #${invoice.invNumber}`} />
           <PrintButton documentType="invoice" documentId={invoice.id} />
         </Group>

@@ -13,7 +13,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
-import { IconPlus, IconTrash, IconClipboardList } from '@tabler/icons-react';
+import { IconPlus, IconTrash, IconClipboardList, IconRefresh } from '@tabler/icons-react';
 import { useTabContext } from '../../contexts/TabContext';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { NewListModal } from '../../components/lists';
@@ -184,11 +184,16 @@ export function ProductListsPage() {
               Reorder lists. Collect parts that need ordering, then export and mark them ordered.
             </Text>
           </Stack>
-          {canManage && (
-            <Button leftSection={<IconPlus size={16} />} onClick={openNew}>
-              New list
-            </Button>
-          )}
+          <Group gap="sm">
+            <ActionIcon variant="subtle" size="lg" onClick={load} title="Refresh">
+              <IconRefresh size={18} />
+            </ActionIcon>
+            {canManage && (
+              <Button leftSection={<IconPlus size={16} />} onClick={openNew}>
+                New list
+              </Button>
+            )}
+          </Group>
         </Group>
 
         <SegmentedControl

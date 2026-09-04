@@ -17,6 +17,7 @@ import {
 import {
   IconArrowLeft,
   IconEdit,
+  IconRefresh,
   IconAlertCircle,
   IconTruck,
   IconPhone,
@@ -166,6 +167,9 @@ export function SupplierDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <ActionIcon variant="subtle" size="lg" onClick={() => loadSupplier(supplier.id)} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
           <PermissionButton
             permission="EDIT_SUPPLIER"
             whenDenied="elevate"

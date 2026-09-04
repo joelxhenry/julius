@@ -12,12 +12,14 @@ import {
   Alert,
   SimpleGrid,
   Menu,
+  ActionIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import {
   IconArrowLeft,
   IconEdit,
+  IconRefresh,
   IconShield,
   IconAlertCircle,
   IconFileInvoice,
@@ -239,6 +241,9 @@ export function EmployeeDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <ActionIcon variant="subtle" size="lg" onClick={() => loadEmployee(employee.id)} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
           <Menu shadow="md" position="bottom-end">
             <Menu.Target>
               <Button
