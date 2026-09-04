@@ -9,7 +9,6 @@ import { TabBar } from '../components/layout/TabBar';
 import { TabContainer } from '../components/layout/TabContainer';
 import { PinVerificationModal } from '../components/auth/PinVerificationModal';
 import { Spotlight } from '../components/common/Spotlight';
-import { MarkedItemsLauncher } from '../components/tray/MarkedItemsLauncher';
 import { MarkedItemsTray } from '../components/tray/MarkedItemsTray';
 import { useTheme } from '../contexts/ThemeContext';
 import { useKeyboardShortcutContext } from '../contexts/KeyboardShortcutContext';
@@ -279,6 +278,7 @@ function AppLayoutContent() {
             mobileOpened={mobileOpened}
             onToggleDesktop={toggleDesktop}
             onToggleMobile={toggleMobile}
+            onOpenTray={openTray}
           />
         </AppShell.Header>
 
@@ -327,10 +327,7 @@ function AppLayoutContent() {
       <Spotlight />
 
       {isSessionValid && (
-        <>
-          <MarkedItemsLauncher onOpen={openTray} />
-          <MarkedItemsTray opened={trayOpened} onClose={closeTray} />
-        </>
+        <MarkedItemsTray opened={trayOpened} onClose={closeTray} />
       )}
 
       <PinVerificationModal

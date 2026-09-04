@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Burger, Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip, Stack } from '@mantine/core';
+import { Burger, Group, Title, Text, Menu, Avatar, ActionIcon, Tooltip, Stack, Indicator } from '@mantine/core';
 import {
   IconLogout,
   IconUser,
   IconSun,
   IconMoon,
   IconSearch,
+  IconShoppingBag,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
@@ -14,6 +15,7 @@ import logoUrl from '../../assets/logo.png';
 import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSpotlight } from '../../contexts/SpotlightContext';
+import { useMarkedItems } from '../../hooks/useMarkedItems';
 import { PasswordVerificationModal } from '../auth/PasswordVerificationModal';
 
 function HeaderClock() {
@@ -53,6 +55,7 @@ interface HeaderProps {
   mobileOpened: boolean;
   onToggleDesktop: () => void;
   onToggleMobile: () => void;
+  onOpenTray: () => void;
 }
 
 export function Header({
@@ -60,10 +63,12 @@ export function Header({
   mobileOpened,
   onToggleDesktop,
   onToggleMobile,
+  onOpenTray,
 }: HeaderProps) {
   const { user, logout, updateUser } = useAuth();
   const { colorScheme, toggleColorScheme } = useTheme();
   const { open: openSpotlight } = useSpotlight();
+  const { count: markedCount } = useMarkedItems();
   const navigate = useNavigate();
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
@@ -135,6 +140,30 @@ export function Header({
           >
             <IconSearch size={20} stroke={1.5} />
           </ActionIcon>
+        </Tooltip>
+
+        {/* Marked Items Button */}
+        <Tooltip
+          label={markedCount > 0 ? `Marked items (${markedCount})` : 'Marked items'}
+          position="bottom"
+        >
+          <Indicator
+            label={markedCount}
+            size={16}
+            offset={4}
+            color="blue"
+            disabled={markedCount === 0}
+            withBorder
+          >
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={onOpenTray}
+              aria-label="Open marked items tray"
+            >
+              <IconShoppingBag size={20} stroke={1.5} />
+            </ActionIcon>
+          </Indicator>
         </Tooltip>
 
         {/* Theme Toggle Button */}
