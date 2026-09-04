@@ -1,4 +1,4 @@
-import { Box, Group, ScrollArea, Text, Indicator, ActionIcon } from '@mantine/core';
+import { Box, Group, ScrollArea, Text, ActionIcon } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
@@ -8,12 +8,11 @@ interface TabItemProps {
   id: string;
   title: string;
   isActive: boolean;
-  hasUnsavedChanges: boolean;
   onSelect: () => void;
   onClose: (e: React.MouseEvent) => void;
 }
 
-function TabItem({ id, title, isActive, hasUnsavedChanges, onSelect, onClose }: TabItemProps) {
+function TabItem({ id, title, isActive, onSelect, onClose }: TabItemProps) {
   const { colorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
 
@@ -66,16 +65,6 @@ function TabItem({ id, title, isActive, hasUnsavedChanges, onSelect, onClose }: 
         }
       }}
     >
-      {/* Dirty indicator */}
-      {hasUnsavedChanges && (
-        <Indicator
-          inline
-          size={6}
-          color="yellow"
-          position="middle-start"
-        />
-      )}
-
       {/* Tab title */}
       <Text
         size="sm"
@@ -146,7 +135,6 @@ export function TabBar() {
               id={tab.id}
               title={tab.title}
               isActive={activeTab?.id === tab.id}
-              hasUnsavedChanges={tab.hasUnsavedChanges || false}
               onSelect={() => handleTabSelect(tab.id)}
               onClose={(e) => handleTabClose(e, tab.id)}
             />
