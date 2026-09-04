@@ -17,6 +17,7 @@ import { IconCash, IconAlertCircle } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
+import { useActionConfirm } from '../../permissions';
 
 interface RefundCreditNote {
   id: number;
@@ -51,6 +52,7 @@ const formatCurrency = (value: number) =>
  */
 export function CreditNoteRefundModal({ opened, onClose, onRefunded, creditNote }: CreditNoteRefundModalProps) {
   const { user } = useAuth();
+  const { confirmAction } = useActionConfirm();
   const [amount, setAmount] = useState<number | string>('');
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [transactionReference, setTransactionReference] = useState('');
@@ -121,12 +123,22 @@ export function CreditNoteRefundModal({ opened, onClose, onRefunded, creditNote 
       return;
     }
 
+    // Cashing out / refunding a credit note moves money out: require an access
+    // code. The confirmed user is stamped as the operator and put on record when
+    // it differs from the signed-in user.
+    const actor = await confirmAction({
+      permissionCode: 'REFUND_CREDIT_NOTE',
+      actionLabel: `Cash out / refund credit note ${creditNote.crNumber}`,
+      context: { entity: 'credit_note', crNumber: creditNote.crNumber, amount: payout },
+    });
+    if (!actor) return;
+
     setIsLoading(true);
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.CASH_OUT_CREDIT_NOTE, {
         creditNoteId: creditNote.id,
-        processedById: user.id,
+        processedById: actor.employeeId,
         payerName: creditNote.clientName,
         amount: payout.toFixed(2),
         method: selectedMethod.code,
@@ -151,7 +163,7 @@ export function CreditNoteRefundModal({ opened, onClose, onRefunded, creditNote 
     } finally {
       setIsLoading(false);
     }
-  }, [creditNote, user, payout, remaining, paymentMethods, paymentMethodId, transactionReference, notes, onRefunded, onClose]);
+  }, [creditNote, user, payout, remaining, paymentMethods, paymentMethodId, transactionReference, notes, onRefunded, onClose, confirmAction]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

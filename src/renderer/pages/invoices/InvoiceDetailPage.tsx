@@ -102,6 +102,7 @@ export function InvoiceDetailPage() {
   const [returnModalOpen, { open: openReturnModal, close: closeReturnModal }] = useDisclosure(false);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [salespersonName, setSalespersonName] = useState<string | null>(null);
+  const [issuedByName, setIssuedByName] = useState<string | null>(null);
   const [overrideAdminName, setOverrideAdminName] = useState<string | null>(null);
 
   // Cache for adjacent invoices
@@ -118,6 +119,16 @@ export function InvoiceDetailPage() {
       }
     });
   }, [invoice?.salespersonId]);
+
+  // Fetch the "on record" user (whose access code authorised issuing the invoice)
+  useEffect(() => {
+    if (!invoice?.issuedById) { setIssuedByName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: invoice.issuedById }).then((res) => {
+      if (res.success && res.data) {
+        setIssuedByName(employeeDisplayName(res.data));
+      }
+    });
+  }, [invoice?.issuedById]);
 
   // Fetch the authorising admin's name for any override applied to this invoice
   useEffect(() => {
@@ -459,6 +470,8 @@ export function InvoiceDetailPage() {
           onViewClient={handleViewClient}
           salespersonName={salespersonName}
           onViewSalesperson={() => invoice.salespersonId && openTab(`/employees/${invoice.salespersonId}`)}
+          issuedByName={issuedByName}
+          onViewIssuedBy={() => invoice.issuedById && openTab(`/employees/${invoice.issuedById}`)}
         />
 
         {/* Admin Override Info */}

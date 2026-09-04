@@ -1,5 +1,5 @@
 import { Paper, Group, Text, Badge } from '@mantine/core';
-import { IconUser, IconCalendar, IconFileText, IconCreditCard, IconUserCheck } from '@tabler/icons-react';
+import { IconUser, IconCalendar, IconFileText, IconCreditCard, IconUserCheck, IconLock } from '@tabler/icons-react';
 import { RestrictedLink } from '../../permissions';
 
 interface Invoice {
@@ -18,6 +18,9 @@ interface CompactDetailInfoBarProps {
   onViewClient: () => void;
   salespersonName?: string | null;
   onViewSalesperson?: () => void;
+  /** Employee whose access code authorised issuing this invoice ("on record"). */
+  issuedByName?: string | null;
+  onViewIssuedBy?: () => void;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -30,7 +33,7 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, onViewSalesperson }: CompactDetailInfoBarProps) {
+export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, onViewSalesperson, issuedByName, onViewIssuedBy }: CompactDetailInfoBarProps) {
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 40 }}>
       <Group gap="lg" wrap="nowrap" h="100%">
@@ -59,6 +62,17 @@ export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, o
             <Text size="sm" c="dimmed">Salesperson:</Text>
             <RestrictedLink permission="VIEW_EMPLOYEES" size="sm" color="violet" onClick={() => onViewSalesperson?.()}>
               {salespersonName}
+            </RestrictedLink>
+          </Group>
+        )}
+
+        {/* On record: the user whose access code authorised issuing the invoice */}
+        {issuedByName && (
+          <Group gap={4} wrap="nowrap">
+            <IconLock size={14} color="gray" />
+            <Text size="sm" c="dimmed">On record:</Text>
+            <RestrictedLink permission="VIEW_EMPLOYEES" size="sm" color="teal" onClick={() => onViewIssuedBy?.()}>
+              {issuedByName}
             </RestrictedLink>
           </Group>
         )}

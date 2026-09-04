@@ -7,7 +7,8 @@ import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
-import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
+import { AccessCodeConfirmModal, recordActionAuthorization, type ConfirmedActor } from '../../permissions';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   AdminOverrideModal,
   StockOverrideModal,
@@ -191,6 +192,25 @@ export function InvoiceCreatePage() {
     },
   });
 
+  // Handle typing in the client field. Editing the text after an on-record client
+  // was selected converts the entry into a custom (walk-in) client: drop the
+  // selection and the linked clientId so the typed name is saved instead.
+  // The clientOptions guard avoids firing on option selection, where onChange
+  // reports the option value (the client id) rather than typed text.
+  const handleClientInput = useCallback(
+    (value: string) => {
+      if (client && value !== client.clientName && !clientOptions.some((o) => o.value === value)) {
+        setClient(null);
+        formActions.setClientId(null);
+        setCreditCheck(null);
+      }
+      searchClients(value);
+    },
+    [client, clientOptions, setClient, formActions, searchClients]
+  );
+
+  const { user } = useAuth();
+
   // Modals
   const [overrideModalOpen, { open: openOverrideModal, close: closeOverrideModal }] = useDisclosure(false);
   const [issueModalOpen, { open: openIssueModal, close: closeIssueModal }] = useDisclosure(false);
@@ -203,6 +223,10 @@ export function InvoiceCreatePage() {
   // the stock gate clears. Refs so callbacks read the current value synchronously.
   const stockOverrideRef = useRef<AdminOverrideResult | undefined>(undefined);
   const pendingFlowRef = useRef<'issue' | 'pay' | null>(null);
+  // Credit-block override captured before the access-code gate, and the user who
+  // confirmed with their access code (stamped as issuer / put on record).
+  const creditOverrideRef = useRef<AdminOverrideResult | undefined>(undefined);
+  const actorRef = useRef<ConfirmedActor | null>(null);
 
   // Variant selection
   const [variantModalOpen, setVariantModalOpen] = useState(false);
@@ -319,6 +343,10 @@ export function InvoiceCreatePage() {
             setClient(clientResult.data);
             setClientSearch(clientResult.data.clientName);
           }
+        } else if (inv.clientName) {
+          // Walk-in invoice: no registered client, just a free-typed name.
+          // Populate the search box so the name displays and is preserved on re-save.
+          setClientSearch(inv.clientName);
         }
 
         const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_INVOICE, {
@@ -458,7 +486,7 @@ export function InvoiceCreatePage() {
             invDate: formState.invDate.toISOString().split('T')[0],
             salespersonId: formState.salespersonId,
             clientId: formState.clientId,
-            clientName: client?.clientName || null,
+            clientName: client?.clientName || clientSearch.trim() || null,
             clientAddress1: client?.address1 || null,
             clientAddress2: client?.address2 || null,
             clientPhone: client?.phone || null,
@@ -471,7 +499,7 @@ export function InvoiceCreatePage() {
             pricing: formState.pricing,
             creditTerms: formState.creditTerms || null,
             issuedAt: new Date(),
-            issuedById: formState.salespersonId,
+            issuedById: actorRef.current?.employeeId ?? formState.salespersonId,
             ...(adminOverride && {
               adminOverrideById: adminOverride.adminId,
               adminOverrideNotes: adminOverride.notes,
@@ -489,8 +517,8 @@ export function InvoiceCreatePage() {
             amount: item.amount.toFixed(2),
           })),
           paymentEntries,
-          processedById: formState.salespersonId!,
-          payerName: client?.clientName || 'Cash Customer',
+          processedById: actorRef.current?.employeeId ?? formState.salespersonId!,
+          payerName: client?.clientName || clientSearch.trim() || 'Cash Customer',
         });
 
         if (result.success) {
@@ -523,7 +551,7 @@ export function InvoiceCreatePage() {
 
   // Issue invoice after verification
   const handleIssueVerified = useCallback(
-    async (override?: AdminOverrideResult) => {
+    async (override?: AdminOverrideResult, actor?: ConfirmedActor) => {
       // Editing an existing invoice down to zero line items cancels it.
       // Creating a new invoice still requires at least one line item.
       const isCancelling =
@@ -546,7 +574,7 @@ export function InvoiceCreatePage() {
             invDate: formState.invDate.toISOString().split('T')[0],
             salespersonId: formState.salespersonId,
             clientId: formState.clientId,
-            clientName: client?.clientName || null,
+            clientName: client?.clientName || clientSearch.trim() || null,
             clientAddress1: client?.address1 || null,
             clientAddress2: client?.address2 || null,
             clientPhone: client?.phone || null,
@@ -587,7 +615,7 @@ export function InvoiceCreatePage() {
             invDate: formState.invDate.toISOString().split('T')[0],
             salespersonId: formState.salespersonId,
             clientId: formState.clientId,
-            clientName: client?.clientName || null,
+            clientName: client?.clientName || clientSearch.trim() || null,
             clientAddress1: client?.address1 || null,
             clientAddress2: client?.address2 || null,
             clientPhone: client?.phone || null,
@@ -602,7 +630,7 @@ export function InvoiceCreatePage() {
             pricing: formState.pricing,
             creditTerms: formState.creditTerms || null,
             issuedAt: new Date(),
-            issuedById: formState.salespersonId,
+            issuedById: actor?.employeeId ?? formState.salespersonId,
             ...(override && {
               adminOverrideById: override.adminId,
               adminOverrideNotes: override.notes,
@@ -771,7 +799,7 @@ export function InvoiceCreatePage() {
           setClientSearch={setClientSearch}
           clientOptions={clientOptions}
           isSearchingClients={isSearchingClients}
-          onClientSearchChange={searchClients}
+          onClientSearchChange={handleClientInput}
           onClientSelect={handleClientSelectInternal}
           pricing={formState.pricing}
           setPricing={formActions.setPricing}
@@ -810,13 +838,10 @@ export function InvoiceCreatePage() {
           opened={overrideModalOpen}
           onClose={() => { closeOverrideModal(); setIsPaymentFlow(false); }}
           onApproved={(result) => {
+            // Credit block bypassed; still require an access code before writing.
             closeOverrideModal();
-            if (isPaymentFlow) {
-              handleShowPaymentEntry(result);
-              setIsPaymentFlow(false);
-            } else {
-              handleIssueVerified(result);
-            }
+            creditOverrideRef.current = result;
+            openIssueModal();
           }}
           clientName={client?.clientName || 'Unknown Client'}
           creditIssues={creditCheck.reasons}
@@ -841,25 +866,38 @@ export function InvoiceCreatePage() {
         }}
       />
 
-      {/* Issue Verification Modal */}
-      <PinVerificationModal
+      {/* Access-code confirmation gate (always required to issue) */}
+      <AccessCodeConfirmModal
         opened={issueModalOpen}
-        onClose={() => { closeIssueModal(); setIsPaymentFlow(false); }}
-        onVerified={() => {
+        permissionCode="CREATE_INVOICE"
+        actionLabel={isPaymentFlow ? 'Create & pay invoice' : 'Issue invoice'}
+        currentUserId={user?.id ?? null}
+        onCancel={() => {
           closeIssueModal();
-          // Record the negative-stock override admin (if any) when there was no
-          // credit override to carry it.
-          const override = stockOverrideRef.current;
+          setIsPaymentFlow(false);
+          creditOverrideRef.current = undefined;
+        }}
+        onConfirmed={async (actor) => {
+          closeIssueModal();
+          // Put the confirming user on record when it isn't the signed-in user.
+          if (!actor.isCurrentUser) {
+            await recordActionAuthorization(user, actor, {
+              permissionCode: 'CREATE_INVOICE',
+              actionLabel: isPaymentFlow ? 'Create & pay invoice' : 'Issue invoice',
+              context: { entity: 'invoice' },
+            });
+          }
+          // Carry whichever override was granted (credit block or negative stock).
+          const override = creditOverrideRef.current ?? stockOverrideRef.current;
+          creditOverrideRef.current = undefined;
           if (isPaymentFlow) {
+            actorRef.current = actor;
             handleShowPaymentEntry(override);
             setIsPaymentFlow(false);
           } else {
-            handleIssueVerified(override);
+            handleIssueVerified(override, actor);
           }
         }}
-        title="Issue Invoice"
-        description="Verify your access code to issue this invoice."
-        requiredPermission="CREATE_INVOICE"
       />
 
       {/* Variant Selector Modal */}

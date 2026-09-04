@@ -26,6 +26,11 @@ export const quotations = pgTable('quotations', {
   pricing: varchar('pricing', { length: 10 }).notNull().default('R'),
   isArchived: boolean('is_archived').notNull().default(false),
 
+  // Employee whose access code authorised creating this quotation ("on record").
+  // May differ from salespersonId when another authorised user approved it.
+  createdById: integer('created_by_id')
+    .references(() => employees.id, { onDelete: 'set null' }),
+
   // General notes
   notes: text('notes'),
 
@@ -36,6 +41,7 @@ export const quotations = pgTable('quotations', {
   index('idx_quotes_client').on(table.clientName),
   index('idx_quotes_client_id').on(table.clientId),
   index('idx_quotes_archived').on(table.isArchived),
+  index('idx_quotes_created_by').on(table.createdById),
 ]);
 
 // Export types

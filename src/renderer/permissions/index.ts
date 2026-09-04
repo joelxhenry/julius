@@ -26,3 +26,7 @@ export {
 } from './AccessOverrideContext';
 export type { OverrideGrant, RequestOverrideOptions } from './AccessOverrideContext';
 export { RequestAccessModal } from './RequestAccessModal';
+export { ActionConfirmProvider, useActionConfirm, recordActionAuthorization } from './ActionConfirmContext';
+export type { ConfirmResult, ConfirmActionOptions } from './ActionConfirmContext';
+export { AccessCodeConfirmModal } from '../components/auth/AccessCodeConfirmModal';
+export type { ConfirmedActor } from '../components/auth/AccessCodeConfirmModal';

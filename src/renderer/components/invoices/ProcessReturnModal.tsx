@@ -27,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
+import { useActionConfirm } from '../../permissions';
 import { useTaxRate } from '../../hooks';
 import { usePartLabels } from '../../hooks/usePartLabels';
 import { PartLabels } from '../common';
@@ -107,6 +108,7 @@ export function ProcessReturnModal({
   lineItems,
 }: ProcessReturnModalProps) {
   const { user } = useAuth();
+  const { confirmAction } = useActionConfirm();
   const { taxRate } = useTaxRate();
   const partLabels = usePartLabels(lineItems.map((li) => li.sku));
   const [selectedItems, setSelectedItems] = useState<Map<number, number>>(new Map());
@@ -196,6 +198,16 @@ export function ProcessReturnModal({
       });
       return;
     }
+
+    // Processing a return affects financial records: require an access code.
+    // The confirmed user is stamped as the operator and put on record when it
+    // differs from the signed-in user.
+    const actor = await confirmAction({
+      permissionCode: 'PROCESS_RETURN',
+      actionLabel: `Process return for invoice ${invoice.invNumber}`,
+      context: { entity: 'invoice', invoiceNumber: invoice.invNumber, amount: totals.total },
+    });
+    if (!actor) return;
 
     setIsSubmitting(true);
     try {
@@ -314,7 +326,7 @@ export function ProcessReturnModal({
         const refundResult = await window.electron.invoke(IpcChannel.PROCESS_INVOICE_REFUND, {
           invoiceId: invoice.id,
           invoiceNumber: invoice.invNumber,
-          processedById: user.id,
+          processedById: actor.employeeId,
           payerName: invoice.clientName,
           amount: moneyRefundAmount.toFixed(2),
           method: refundMethod,
@@ -366,6 +378,7 @@ export function ProcessReturnModal({
     taxRate,
     onProcessed,
     onClose,
+    confirmAction,
   ]);
 
   const selectedCount = selectedItems.size;

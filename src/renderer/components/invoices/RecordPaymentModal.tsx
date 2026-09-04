@@ -21,6 +21,7 @@ import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { isCashMethod } from '../../../shared/constants/payments';
 import { useAuth } from '../../contexts/AuthContext';
+import { useActionConfirm } from '../../permissions';
 import { ApplyCreditNoteModal } from './ApplyCreditNoteModal';
 
 interface Invoice {
@@ -58,6 +59,7 @@ export function RecordPaymentModal({
   invoice,
 }: RecordPaymentModalProps) {
   const { user } = useAuth();
+  const { confirmAction } = useActionConfirm();
   const [amount, setAmount] = useState<number | string>('');
   const [cashHandover, setCashHandover] = useState<number | string>('');
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
@@ -182,6 +184,16 @@ export function RecordPaymentModal({
       return;
     }
 
+    // Recording a payment affects financial records: require an access code.
+    // The confirmed user is stamped as the processor and put on record when it
+    // differs from the signed-in user.
+    const actor = await confirmAction({
+      permissionCode: 'CREATE_PAYMENT',
+      actionLabel: `Record payment for invoice ${invoice.invNumber}`,
+      context: { entity: 'invoice', invoiceNumber: invoice.invNumber, amount: cashPayment },
+    });
+    if (!actor) return;
+
     setIsLoading(true);
     setError(null);
 
@@ -190,7 +202,7 @@ export function RecordPaymentModal({
         invoiceId: invoice.id,
         invoiceNumber: invoice.invNumber,
         clientId: invoice.clientId,
-        processedById: user.id,
+        processedById: actor.employeeId,
         payerName: invoice.clientName || 'Walk-in Customer',
         entries: [
           {
@@ -230,6 +242,7 @@ export function RecordPaymentModal({
     notes,
     onPaymentRecorded,
     onClose,
+    confirmAction,
   ]);
 
   const handleKeyDown = useCallback(
@@ -338,8 +351,10 @@ export function RecordPaymentModal({
             </Box>
           )}
 
-          {/* Apply Credit Note button */}
-          {invoice.clientId && effectiveBalance > 0 && (
+          {/* Apply Credit Note button.
+              Available for walk-in invoices too: the cashier looks the note up
+              by its CR#/invoice# inside the modal. */}
+          {effectiveBalance > 0 && (
             <Button
               variant="light"
               color="teal"

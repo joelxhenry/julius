@@ -18,6 +18,7 @@ import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
+import { useActionConfirm } from '../../permissions';
 import { useTabContext } from '../../contexts/TabContext';
 import { useKeyboardShortcutContext } from '../../contexts/KeyboardShortcutContext';
 import {
@@ -47,6 +48,7 @@ export function QuotationCreatePage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { user } = useAuth();
+  const { confirmAction } = useActionConfirm();
   const { markTabDirty, updateTabTitle, replaceCurrentTab } = useTabContext();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
   const tabPath = useTabPath();
@@ -440,6 +442,17 @@ export function QuotationCreatePage() {
       return;
     }
 
+    // Creating a quotation affects sales records: require an access code. On a
+    // new quotation the confirmed user is stamped as creator (and put on record
+    // when it differs from the signed-in user); on edit we only record who
+    // authorised it without overwriting the original creator.
+    const actor = await confirmAction({
+      permissionCode: 'CREATE_QUOTATION',
+      actionLabel: isEditing ? `Update quotation ${originalQuoteNum ?? ''}`.trim() : 'Create quotation',
+      context: { entity: 'quotation', quoteNum: originalQuoteNum ?? null },
+    });
+    if (!actor) return;
+
     setIsSaving(true);
     try {
       const quotationData = {
@@ -457,6 +470,8 @@ export function QuotationCreatePage() {
         total: totals.total.toFixed(2),
         isTaxable,
         pricing,
+        // Only stamp the creator on a brand-new quotation.
+        ...(!isEditing && { createdById: actor.employeeId }),
       };
 
       let quotationId: number;
@@ -535,6 +550,7 @@ export function QuotationCreatePage() {
     pricing,
     lineItems,
     replaceCurrentTab,
+    confirmAction,
   ]);
 
   // Register keyboard shortcuts

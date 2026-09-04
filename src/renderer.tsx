@@ -11,7 +11,7 @@ import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { ModalsProvider } from '@mantine/modals';
 import { AuthProvider } from './renderer/contexts/AuthContext';
-import { AccessOverrideProvider } from './renderer/permissions';
+import { AccessOverrideProvider, ActionConfirmProvider } from './renderer/permissions';
 import { ThemeProvider, useTheme } from './renderer/contexts/ThemeContext';
 import { DatabaseConnectionProvider } from './renderer/contexts/DatabaseConnectionContext';
 import { BackgroundActivityProvider } from './renderer/contexts/BackgroundActivityContext';
@@ -43,12 +43,14 @@ function AppWithTheme() {
           <DatabaseConfigModal />
           <AuthProvider>
             <AccessOverrideProvider>
-              <KeyboardShortcutProvider>
-                <KeyboardShortcutHelp />
-                <MarkedItemsProvider>
-                  <RouterProvider router={router} />
-                </MarkedItemsProvider>
-              </KeyboardShortcutProvider>
+              <ActionConfirmProvider>
+                <KeyboardShortcutProvider>
+                  <KeyboardShortcutHelp />
+                  <MarkedItemsProvider>
+                    <RouterProvider router={router} />
+                  </MarkedItemsProvider>
+                </KeyboardShortcutProvider>
+              </ActionConfirmProvider>
             </AccessOverrideProvider>
           </AuthProvider>
         </DatabaseConnectionProvider>
