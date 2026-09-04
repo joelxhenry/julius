@@ -22,6 +22,7 @@ export const inventory = pgTable('inventory', {
   category: varchar('category', { length: 100 }),
   model: varchar('model', { length: 200 }),
   wholesalePrice: numeric('wholesale_price', { precision: 15, scale: 2 }),
+  notes: text('notes'),
   icheck: varchar('icheck', { length: 10 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

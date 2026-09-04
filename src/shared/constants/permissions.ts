@@ -286,6 +286,12 @@ export const PERMISSIONS: PermissionDefinition[] = [
     category: 'Inventory',
   },
   {
+    code: 'EDIT_INVENTORY_NOTES',
+    label: 'Edit Inventory Notes',
+    description: 'Add and edit free-form notes on inventory items',
+    category: 'Inventory',
+  },
+  {
     code: 'BULK_STOCK_UPDATE',
     label: 'Bulk Stock Update',
     description: 'Adjust on-hand quantities for many items at once',

@@ -68,6 +68,7 @@ interface Inventory {
   category: string | null;
   model: string | null;
   wholesalePrice: string | null;
+  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1046,7 +1047,10 @@ export function InventoryDetailPage() {
 
         {/* Overview Tab */}
         <Tabs.Panel value="overview" pt="md">
-          <OverviewTab item={item} />
+          <OverviewTab
+            item={item}
+            onNotesSaved={(notes) => setItem((prev) => (prev ? { ...prev, notes } : prev))}
+          />
         </Tabs.Panel>
 
         {/* Pricing Tab */}
