@@ -30,6 +30,7 @@ import {
   IconReceipt,
   IconChevronRight,
   IconCash,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PrintButton, DataTable, Column } from '../../components/common';
@@ -336,10 +337,12 @@ export function CreditNoteDetailPage() {
 
   if (!creditNote) return null;
 
-  const effectiveStatus = creditNote.isArchived ? 'archived' : creditNote.status;
   const total = parseFloat(creditNote.total);
   const totalUsed = parseFloat(creditNote.totalUsed);
   const balance = total - totalUsed;
+  // Derive status from the remaining balance so fully-used notes always read as
+  // "Used", even if the stored status is stale.
+  const effectiveStatus = creditNote.isArchived ? 'archived' : balance > 0 ? 'A' : 'U';
 
   return (
     <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
@@ -386,6 +389,9 @@ export function CreditNoteDetailPage() {
 
               {/* Right: Actions */}
               <Group gap="sm" wrap="nowrap">
+                <ActionIcon variant="subtle" size="md" onClick={loadCreditNote} title="Refresh">
+                  <IconRefresh size={18} />
+                </ActionIcon>
                 {creditNote.invNumber && (
                   <Button size="xs" variant="light" leftSection={<IconFileInvoice size={14} />} onClick={handleViewInvoice}>
                     View Invoice

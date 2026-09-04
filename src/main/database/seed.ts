@@ -5,6 +5,9 @@ import * as schema from './schema/index';
 import { seedBaseVariants } from './seedBaseVariants';
 import { seedMultiValueFields } from './seedMultiValueFields';
 import { seedCancelEmptyInvoices } from './seedCancelEmptyInvoices';
+import { seedUnlinkRecycledCreditNotePayments } from './seedUnlinkRecycledCreditNotePayments';
+import { seedRecomputeCreditNoteTotals } from './seedRecomputeCreditNoteTotals';
+import { seedReconcileCreditNoteStatus } from './seedReconcileCreditNoteStatus';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -123,6 +126,9 @@ export async function runBackgroundSeeds(
     { task: 'baseVariants', label: 'Updating inventory variants', run: () => seedBaseVariants(db) },
     { task: 'multiValueFields', label: 'Updating multi-value fields', run: () => seedMultiValueFields(db) },
     { task: 'cancelEmptyInvoices', label: 'Cancelling empty invoices', run: () => seedCancelEmptyInvoices(db) },
+    { task: 'unlinkRecycledCreditNotePayments', label: 'Cleaning up credit-note usage', run: () => seedUnlinkRecycledCreditNotePayments(db) },
+    { task: 'recomputeCreditNoteTotals', label: 'Repairing credit-note totals', run: () => seedRecomputeCreditNoteTotals(db) },
+    { task: 'reconcileCreditNoteStatus', label: 'Reconciling credit-note statuses', run: () => seedReconcileCreditNoteStatus(db) },
   ];
 
   for (const { task, label, run } of tasks) {
