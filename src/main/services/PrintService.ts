@@ -795,6 +795,8 @@ export class PrintService {
       valuePayments: money(data.valuePayments),
       numRefunds: num(data.numRefunds),
       valueRefunds: money(data.valueRefunds),
+      numStoreCreditIssued: num(data.numStoreCreditIssued),
+      valueStoreCreditIssued: money(data.valueStoreCreditIssued),
       numDiscounts: num(data.numDiscounts),
       valueDiscounts: money(data.valueDiscounts),
       paymentTypes: data.paymentTypes.map((t) => ({

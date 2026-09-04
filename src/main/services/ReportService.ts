@@ -1,7 +1,14 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { and, gte, lte, eq, count, sql, desc } from 'drizzle-orm';
+import { and, or, gte, lte, eq, count, sql, desc, isNull } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { canonicalizePaymentType, CANONICAL_PAYMENT_TYPES } from '../../shared/constants/payments';
+
+/**
+ * Sales-listing group label for store credit issued by credit-note returns.
+ * Deliberately distinct from the canonical "Store Credit" tender type so issued
+ * credit (a non-cash refund) never merges with store credit spent as payment.
+ */
+const STORE_CREDIT_ISSUED_TYPE = 'Store Credit Issued';
 
 // ── Param / Result types ────────────────────────────────────────────
 
@@ -41,8 +48,15 @@ export interface SalesSummaryResult {
   // Payment stats
   numPayments: number;
   valuePayments: number;
+  // Cash refunds: money actually paid back out (cash/bank/card invoice refunds
+  // AND credit-note cash-outs). Reconciles against the drawer.
   numRefunds: number;
   valueRefunds: number;
+  // Store credit issued via credit-note returns. Non-cash (no money leaves), so
+  // it is reported separately from valueRefunds to avoid double-counting a
+  // return that is later cashed out.
+  numStoreCreditIssued: number;
+  valueStoreCreditIssued: number;
   numDiscounts: number;
   valueDiscounts: number;
   // Payment breakdown + per-payment detail listing
@@ -160,17 +174,34 @@ export class ReportService {
       .innerJoin(schema.invoices, eq(schema.documentLineItems.documentNumber, schema.invoices.invNumber))
       .where(and(...discConditions));
 
-    // ── Payments in range (INVOICE) with client + method resolution ──
-    const payConditions = [eq(schema.payments.documentType, 'INVOICE')];
-    if (startDate) payConditions.push(gte(schema.payments.paymentDate, startDate));
-    if (endDate) payConditions.push(lte(schema.payments.paymentDate, endDate));
+    // ── Money movements in range, with client + method resolution ──
+    // Two document types feed the report:
+    //  • INVOICE payments — receipts (positive) and refunds (negative).
+    //  • CREDIT cash-outs — a credit note's balance paid back out as real money.
+    //    These have no invoice link (invoiceNumber IS NULL), which distinguishes
+    //    them from credit-note applications (store credit spent on an invoice),
+    //    which are intentionally excluded.
+    const payDateConditions = [];
+    if (startDate) payDateConditions.push(gte(schema.payments.paymentDate, startDate));
+    if (endDate) payDateConditions.push(lte(schema.payments.paymentDate, endDate));
 
     const [payRows, methods] = await Promise.all([
       this.db
         .select({ payment: schema.payments, clientName: schema.invoices.clientName })
         .from(schema.payments)
         .leftJoin(schema.invoices, eq(schema.payments.invoiceNumber, schema.invoices.invNumber))
-        .where(and(...payConditions))
+        .where(
+          and(
+            or(
+              eq(schema.payments.documentType, 'INVOICE'),
+              and(
+                eq(schema.payments.documentType, 'CREDIT'),
+                isNull(schema.payments.invoiceNumber),
+              ),
+            ),
+            ...payDateConditions,
+          ),
+        )
         .orderBy(schema.payments.invoiceNumber),
       this.db.select().from(schema.paymentMethods),
     ]);
@@ -211,6 +242,25 @@ export class ReportService {
       const amount = Number(p.amount ?? 0);
       const method = resolveMethod(p);
 
+      if (p.documentType === 'CREDIT') {
+        // Credit-note cash-out: store credit converted to money paid back out via
+        // `method` (recorded as a positive amount). Counts as a cash refund and
+        // shows as a negative line under its payout method. A rare void reversal
+        // (negative amount) nets back against the total.
+        if (amount >= 0) numRefunds += 1;
+        valueRefunds += amount;
+        detail.push({
+          invoiceNumber: p.creditNoteNumber ?? null,
+          paymentType: method,
+          clientName: row.clientName ?? p.payerName ?? null,
+          date: p.paymentDate,
+          amount: -amount,
+          reference: p.transactionReference ?? null,
+          notes: resolveNotes(p),
+        });
+        continue;
+      }
+
       if (amount < 0) {
         numRefunds += 1;
         valueRefunds += Math.abs(amount);
@@ -238,6 +288,40 @@ export class ReportService {
       });
     }
 
+    // ── Store credit issued via credit-note returns ──────────────────
+    // A credit-note return already reduces the invoice (so Net/Gross Sales drop),
+    // but no money leaves the drawer. Report it as its own non-cash refund line -
+    // visible in the listing under a distinct "Store Credit Issued" type and in
+    // its own summary stat - kept apart from valueRefunds so a return that is
+    // later cashed out is not counted twice.
+    const cnConditions = [eq(schema.creditNotes.isArchived, false)];
+    if (startDate) cnConditions.push(gte(schema.creditNotes.crDate, startDate));
+    if (endDate) cnConditions.push(lte(schema.creditNotes.crDate, endDate));
+
+    const cnRows = await this.db
+      .select()
+      .from(schema.creditNotes)
+      .where(and(...cnConditions))
+      .orderBy(schema.creditNotes.crNumber);
+
+    let numStoreCreditIssued = 0;
+    let valueStoreCreditIssued = 0;
+    for (const cn of cnRows) {
+      const total = Number(cn.total ?? 0);
+      if (total <= 0) continue;
+      numStoreCreditIssued += 1;
+      valueStoreCreditIssued += total;
+      detail.push({
+        invoiceNumber: cn.invNumber ?? cn.crNumber,
+        paymentType: STORE_CREDIT_ISSUED_TYPE,
+        clientName: cn.clientName ?? null,
+        date: cn.crDate,
+        amount: -total,
+        reference: cn.reference ?? null,
+        notes: `Credit note ${cn.crNumber}`,
+      });
+    }
+
     const netSales = Number(invResult[0]?.netSales ?? 0);
     const numCustomers = Number(invResult[0]?.numCustomers ?? 0);
 
@@ -253,6 +337,8 @@ export class ReportService {
       valuePayments,
       numRefunds,
       valueRefunds,
+      numStoreCreditIssued,
+      valueStoreCreditIssued,
       numDiscounts: Number(discResult[0]?.count ?? 0),
       valueDiscounts: Number(discResult[0]?.total ?? 0),
       paymentTypes: Array.from(typeMap.values()).sort(

@@ -233,6 +233,8 @@ export interface SalesReportTemplateData {
   valuePayments: string;
   numRefunds: string;
   valueRefunds: string;
+  numStoreCreditIssued: string;
+  valueStoreCreditIssued: string;
   numDiscounts: string;
   valueDiscounts: string;
   // Payment Report breakdown
