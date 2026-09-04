@@ -229,6 +229,12 @@ export const PERMISSIONS: PermissionDefinition[] = [
     description: 'Restore inventory from a credit note',
     category: 'Credit Notes',
   },
+  {
+    code: 'REFUND_CREDIT_NOTE',
+    label: 'Cash Out / Refund Credit Note',
+    description: 'Pay out a credit note’s remaining balance to the customer',
+    category: 'Credit Notes',
+  },
 
   // ===== Inventory =====
   {

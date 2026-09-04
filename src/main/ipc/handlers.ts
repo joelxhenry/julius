@@ -40,7 +40,7 @@ import {
   AccessOverrideService,
   RoleService,
 } from '../services';
-import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams, RefundInvoiceParams, ProcessClientBulkPaymentParams } from '../services/PaymentTransactionService';
+import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams, RefundInvoiceParams, CashOutCreditNoteParams, ProcessClientBulkPaymentParams } from '../services/PaymentTransactionService';
 import { ImageStorageService } from '../services/ImageStorageService';
 import { InventoryImageService, UploadImageParams } from '../services/InventoryImageService';
 import { PrintService } from '../services/PrintService';
@@ -832,6 +832,15 @@ function registerDataHandlers() {
       return { success: true, data: result };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Refund processing failed' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.CASH_OUT_CREDIT_NOTE, async (_, params: CashOutCreditNoteParams) => {
+    try {
+      const result = await paymentTransactionService.cashOutCreditNote(params);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Credit note refund failed' };
     }
   });
 

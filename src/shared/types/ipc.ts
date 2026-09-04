@@ -243,6 +243,7 @@ export enum IpcChannel {
   DELETE_PAYMENT = 'db:delete-payment',
   PROCESS_INVOICE_PAYMENT = 'db:process-invoice-payment',
   PROCESS_INVOICE_REFUND = 'db:process-invoice-refund',
+  CASH_OUT_CREDIT_NOTE = 'db:cash-out-credit-note',
   PROCESS_CLIENT_BULK_PAYMENT = 'db:process-client-bulk-payment',
   GET_CLIENT_OUTSTANDING_INVOICES = 'db:get-client-outstanding-invoices',
   VOID_PAYMENT = 'db:void-payment',

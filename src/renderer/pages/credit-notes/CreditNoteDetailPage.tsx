@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useTabContext } from '../../contexts/TabContext';
@@ -16,7 +16,9 @@ import {
   Loader,
   Center,
   Stack,
-  Divider,
+  ThemeIcon,
+  SimpleGrid,
+  UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -24,10 +26,14 @@ import {
   IconDotsVertical,
   IconArchive,
   IconFileInvoice,
+  IconUser,
+  IconReceipt,
+  IconChevronRight,
+  IconCash,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { InvoiceLineItemsReadOnly } from '../../components/invoices';
-import { PrintButton } from '../../components/common';
+import { PrintButton, DataTable, Column } from '../../components/common';
+import { CreditNoteRefundModal } from '../../components/invoices';
 
 interface CreditNote {
   id: number;
@@ -50,15 +56,33 @@ interface CreditNote {
   createdAt: string;
 }
 
-interface LineItem {
+interface UsagePayment {
   id: number;
-  sku: string;
-  description: string | null;
-  quantity: number;
-  unitPrice: string;
-  discount: string;
+  invoiceNumber: string | null;
+  paymentDate: string | null;
+  paymentDesc: string | null;
+  paymentDesc2: string | null;
+  transactionReference: string | null;
   amount: string;
-  isTaxable: boolean;
+  createdAt: string;
+}
+
+interface SourceInvoice {
+  id: number;
+  invNumber: string;
+  invDate: string;
+  total: string;
+  totalPaid: string;
+  status: string;
+}
+
+interface ClientInfo {
+  id: number;
+  clientName: string;
+  contact: string | null;
+  phone: string | null;
+  address1: string | null;
+  address2: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -71,6 +95,14 @@ const statusLabels: Record<string, string> = {
   A: 'Active',
   U: 'Used',
   archived: 'Archived',
+};
+
+const invoiceStatusColors: Record<string, string> = {
+  active: 'blue',
+  partially_paid: 'orange',
+  paid: 'green',
+  archived: 'gray',
+  cancelled: 'red',
 };
 
 const formatCurrency = (value: string | number | null) => {
@@ -90,9 +122,12 @@ export function CreditNoteDetailPage() {
   const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
   const { runWithPermission } = usePermissions();
   const [creditNote, setCreditNote] = useState<CreditNote | null>(null);
-  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [usage, setUsage] = useState<UsagePayment[]>([]);
+  const [sourceInvoice, setSourceInvoice] = useState<SourceInvoice | null>(null);
+  const [client, setClient] = useState<ClientInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [salespersonName, setSalespersonName] = useState<string | null>(null);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
 
   const loadCreditNote = useCallback(async () => {
     if (!id) return;
@@ -100,24 +135,30 @@ export function CreditNoteDetailPage() {
     try {
       const result = await window.electron.invoke(IpcChannel.GET_CREDIT_NOTE, { id: parseInt(id, 10) });
       if (result.success && result.data) {
-        setCreditNote(result.data);
+        const cn: CreditNote = result.data;
+        setCreditNote(cn);
 
-        const itemsResult = await window.electron.invoke(IpcChannel.GET_DOCUMENT_LINE_ITEMS_BY_CREDIT_NOTE, {
-          crNumber: result.data.crNumber,
+        // How the credit note funds were used: each application is a CREDIT payment
+        // against an invoice; negative amounts are void reversals that restore balance.
+        const usageResult = await window.electron.invoke(IpcChannel.GET_PAYMENTS_BY_CREDIT_NOTE, {
+          creditNoteNumber: cn.crNumber,
         });
-        if (itemsResult.success && itemsResult.data) {
-          setLineItems(
-            itemsResult.data.map((item: any, idx: number) => ({
-              id: idx,
-              sku: item.sku || '',
-              description: item.description || '',
-              quantity: parseFloat(item.quantity || '1'),
-              unitPrice: item.unitPrice || '0',
-              discount: item.discount || '0',
-              isTaxable: item.isTaxable ?? false,
-              amount: item.amount || '0',
-            }))
-          );
+        setUsage(usageResult.success && usageResult.data ? usageResult.data : []);
+
+        // Source invoice attached to the credit note
+        if (cn.invNumber) {
+          const invResult = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, { invNumber: cn.invNumber });
+          setSourceInvoice(invResult.success && invResult.data ? invResult.data : null);
+        } else {
+          setSourceInvoice(null);
+        }
+
+        // Client attached to the credit note
+        if (cn.clientId) {
+          const clientResult = await window.electron.invoke(IpcChannel.GET_CLIENT, { id: cn.clientId });
+          setClient(clientResult.success && clientResult.data ? clientResult.data : null);
+        } else {
+          setClient(null);
         }
       } else {
         notifications.show({ title: 'Error', message: 'Credit note not found', color: 'red' });
@@ -138,9 +179,7 @@ export function CreditNoteDetailPage() {
     if (!creditNote?.salespersonId) { setSalespersonName(null); return; }
     window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: creditNote.salespersonId }).then((res) => {
       if (res.success && res.data) {
-        const emp = res.data;
-        const name = employeeDisplayName(emp);
-        setSalespersonName(name);
+        setSalespersonName(employeeDisplayName(res.data));
       }
     });
   }, [creditNote?.salespersonId]);
@@ -175,20 +214,117 @@ export function CreditNoteDetailPage() {
     );
   }, [creditNote, runWithPermission, handleArchive]);
 
-  const handleViewInvoice = useCallback(async () => {
-    if (!creditNote?.invNumber) return;
-    try {
-      const result = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, { invNumber: creditNote.invNumber });
-      console.log('Invoice lookup result:', result);
-      if (result.success && result.data) {
-        openTab(`/invoices/${result.data.id}`);
-      } else {
-        notifications.show({ title: 'Invoice Not Found', message: `Invoice ${creditNote.invNumber} could not be found`, color: 'orange' });
-      }
-    } catch {
-      notifications.show({ title: 'Error', message: 'Failed to load invoice', color: 'red' });
+  // Cashing out / refunding a credit note requires REFUND_CREDIT_NOTE; otherwise
+  // elevate via another user (recorded), same pattern as archiving.
+  const requestRefund = useCallback(() => {
+    if (!creditNote) return;
+    runWithPermission(
+      { permissionCode: 'REFUND_CREDIT_NOTE', actionLabel: `Cash out / refund credit note ${creditNote.crNumber}`, context: { entity: 'credit_note', id: creditNote.id } },
+      () => setRefundModalOpen(true)
+    );
+  }, [creditNote, runWithPermission]);
+
+  const handleViewInvoice = useCallback(() => {
+    if (sourceInvoice) {
+      openTab(`/invoices/${sourceInvoice.id}`);
+    } else if (creditNote?.invNumber) {
+      notifications.show({ title: 'Invoice Not Found', message: `Invoice ${creditNote.invNumber} could not be found`, color: 'orange' });
     }
-  }, [creditNote, openTab]);
+  }, [sourceInvoice, creditNote, openTab]);
+
+  // Open the invoice a usage entry was applied to (looked up by number → id).
+  const openInvoiceByNumber = useCallback(async (invNumber: string | null) => {
+    if (!invNumber) return;
+    const res = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, { invNumber });
+    if (res.success && res.data) {
+      openTab(`/invoices/${res.data.id}`);
+    } else {
+      notifications.show({ title: 'Invoice Not Found', message: `Invoice ${invNumber} could not be found`, color: 'orange' });
+    }
+  }, [openTab]);
+
+  // Match each positive application to a void reversal so we can strike it through.
+  const voidedIds = useMemo(() => {
+    const voided = new Set<number>();
+    const reversals = usage.filter((p) => parseFloat(p.amount) < 0 && p.paymentDesc?.includes('VOID'));
+    if (reversals.length === 0) return voided;
+    usage.forEach((p) => {
+      if (parseFloat(p.amount) > 0 && !p.paymentDesc?.includes('VOID')) {
+        if (reversals.some((v) => Math.abs(parseFloat(v.amount)) === parseFloat(p.amount))) {
+          voided.add(p.id);
+        }
+      }
+    });
+    return voided;
+  }, [usage]);
+
+  const usageColumns: Column<UsagePayment>[] = useMemo(() => [
+    {
+      key: 'date',
+      header: 'Date',
+      width: 120,
+      render: (row) => <Text size="sm">{formatDate(row.paymentDate || row.createdAt)}</Text>,
+    },
+    {
+      key: 'appliedTo',
+      header: 'Applied To',
+      render: (row) => {
+        if (!row.invoiceNumber) return <Text size="sm" c="dimmed">-</Text>;
+        return (
+          <RestrictedLink
+            permission="VIEW_INVOICES"
+            color="blue"
+            fw={500}
+            onClick={() => openInvoiceByNumber(row.invoiceNumber)}
+          >
+            {row.invoiceNumber}
+          </RestrictedLink>
+        );
+      },
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      render: (row) => {
+        const isVoidEntry = parseFloat(row.amount) < 0 || row.paymentDesc?.includes('VOID');
+        return (
+          <Group gap={6} wrap="nowrap">
+            <Text size="sm" c={isVoidEntry ? 'red' : undefined}>
+              {row.paymentDesc || row.paymentDesc2 || (isVoidEntry ? 'Reversal' : 'Applied to invoice')}
+            </Text>
+            {voidedIds.has(row.id) && <Badge size="xs" color="red" variant="outline">Voided</Badge>}
+          </Group>
+        );
+      },
+    },
+    {
+      key: 'reference',
+      header: 'Reference',
+      width: 140,
+      render: (row) => <Text size="sm" c="dimmed" truncate maw={140}>{row.transactionReference || '-'}</Text>,
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      width: 130,
+      render: (row) => {
+        const amount = parseFloat(row.amount);
+        const isVoidEntry = amount < 0 || row.paymentDesc?.includes('VOID');
+        const isVoided = voidedIds.has(row.id);
+        return (
+          <Text
+            size="sm"
+            fw={600}
+            ta="right"
+            c={isVoidEntry ? 'red' : isVoided ? 'dimmed' : 'teal'}
+            td={isVoided ? 'line-through' : undefined}
+          >
+            {isVoidEntry ? '+' : '-'}{formatCurrency(Math.abs(amount))}
+          </Text>
+        );
+      },
+    },
+  ], [voidedIds, openInvoiceByNumber]);
 
   if (isLoading) {
     return (
@@ -201,7 +337,9 @@ export function CreditNoteDetailPage() {
   if (!creditNote) return null;
 
   const effectiveStatus = creditNote.isArchived ? 'archived' : creditNote.status;
-  const balance = parseFloat(creditNote.total) - parseFloat(creditNote.totalUsed);
+  const total = parseFloat(creditNote.total);
+  const totalUsed = parseFloat(creditNote.totalUsed);
+  const balance = total - totalUsed;
 
   return (
     <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
@@ -232,11 +370,11 @@ export function CreditNoteDetailPage() {
               <Group gap="lg" wrap="nowrap">
                 <Group gap={4}>
                   <Text size="sm" c="dimmed">Total:</Text>
-                  <Text size="sm" fw={600}>{formatCurrency(creditNote.total)}</Text>
+                  <Text size="sm" fw={600}>{formatCurrency(total)}</Text>
                 </Group>
                 <Group gap={4}>
                   <Text size="sm" c="dimmed">Used:</Text>
-                  <Text size="sm" fw={600} c="dimmed">{formatCurrency(creditNote.totalUsed)}</Text>
+                  <Text size="sm" fw={600} c="dimmed">{formatCurrency(totalUsed)}</Text>
                 </Group>
                 <Group gap={4}>
                   <Text size="sm" c="dimmed">Remaining:</Text>
@@ -253,8 +391,13 @@ export function CreditNoteDetailPage() {
                     View Invoice
                   </Button>
                 )}
+                {!creditNote.isArchived && balance > 0.001 && (
+                  <Button size="xs" variant="light" color="teal" leftSection={<IconCash size={14} />} onClick={requestRefund}>
+                    Cash Out / Refund
+                  </Button>
+                )}
                 {!creditNote.isArchived && (
-                  <Menu shadow="md" width={180}>
+                  <Menu shadow="md" width={200}>
                     <Menu.Target>
                       <ActionIcon variant="subtle" size="md">
                         <IconDotsVertical size={18} />
@@ -281,20 +424,6 @@ export function CreditNoteDetailPage() {
             <Text size="sm" c="dimmed">Date:</Text>
             <Text size="sm" fw={500}>{formatDate(creditNote.crDate)}</Text>
           </Group>
-          {creditNote.clientName && (
-            <Group gap={4}>
-              <Text size="sm" c="dimmed">Client:</Text>
-              <Text size="sm" fw={500}>{creditNote.clientName}</Text>
-            </Group>
-          )}
-          {creditNote.invNumber && (
-            <Group gap={4}>
-              <Text size="sm" c="dimmed">Source Invoice:</Text>
-              <RestrictedLink permission="VIEW_INVOICES" color="blue" fw={500} onClick={handleViewInvoice}>
-                {creditNote.invNumber}
-              </RestrictedLink>
-            </Group>
-          )}
           {creditNote.reference && (
             <Group gap={4}>
               <Text size="sm" c="dimmed">Reference:</Text>
@@ -317,12 +446,131 @@ export function CreditNoteDetailPage() {
         </Group>
       </Paper>
 
-      {/* Line Items */}
-      <InvoiceLineItemsReadOnly
-        lineItems={lineItems}
-        subTotal={creditNote.subTotal}
-        tax={creditNote.tax}
-        total={creditNote.total}
+      {/* Attached Invoice & Client cards */}
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing={8}>
+        {/* Source Invoice */}
+        <Paper withBorder p="sm" radius="md">
+          <Group gap="xs" mb={sourceInvoice || creditNote.invNumber ? 'xs' : 0}>
+            <ThemeIcon variant="light" color="blue" size="sm">
+              <IconFileInvoice size={14} />
+            </ThemeIcon>
+            <Text fw={600} size="sm">Attached Invoice</Text>
+          </Group>
+          {sourceInvoice ? (
+            <UnstyledButton
+              onClick={handleViewInvoice}
+              style={{ width: '100%', borderRadius: 'var(--mantine-radius-sm)' }}
+            >
+              <Group justify="space-between" wrap="nowrap">
+                <Box>
+                  <Group gap="xs" wrap="nowrap">
+                    <Text size="sm" fw={600} c="blue">{sourceInvoice.invNumber}</Text>
+                    <Badge size="xs" variant="light" color={invoiceStatusColors[sourceInvoice.status] || 'gray'}>
+                      {sourceInvoice.status.replace('_', ' ')}
+                    </Badge>
+                  </Group>
+                  <Text size="xs" c="dimmed">{formatDate(sourceInvoice.invDate)}</Text>
+                </Box>
+                <Group gap="xs" wrap="nowrap">
+                  <Box ta="right">
+                    <Text size="xs" c="dimmed">Total</Text>
+                    <Text size="sm" fw={600}>{formatCurrency(sourceInvoice.total)}</Text>
+                  </Box>
+                  <IconChevronRight size={16} color="var(--mantine-color-dimmed)" />
+                </Group>
+              </Group>
+            </UnstyledButton>
+          ) : creditNote.invNumber ? (
+            <Text size="sm">{creditNote.invNumber} <Text span size="xs" c="dimmed">(not found)</Text></Text>
+          ) : (
+            <Text size="sm" c="dimmed">No invoice attached</Text>
+          )}
+        </Paper>
+
+        {/* Client */}
+        <Paper withBorder p="sm" radius="md">
+          <Group gap="xs" mb={client || creditNote.clientName ? 'xs' : 0}>
+            <ThemeIcon variant="light" color="violet" size="sm">
+              <IconUser size={14} />
+            </ThemeIcon>
+            <Text fw={600} size="sm">Client</Text>
+          </Group>
+          {client ? (
+            <UnstyledButton
+              onClick={() => openTab(`/clients/${client.id}`)}
+              style={{ width: '100%', borderRadius: 'var(--mantine-radius-sm)' }}
+            >
+              <Group justify="space-between" wrap="nowrap" align="flex-start">
+                <Box>
+                  <Text size="sm" fw={600} c="violet">{client.clientName}</Text>
+                  {client.phone && <Text size="xs" c="dimmed">{client.phone}</Text>}
+                  {client.address1 && <Text size="xs" c="dimmed">{[client.address1, client.address2].filter(Boolean).join(', ')}</Text>}
+                </Box>
+                <IconChevronRight size={16} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} />
+              </Group>
+            </UnstyledButton>
+          ) : creditNote.clientName ? (
+            <Text size="sm">{creditNote.clientName}</Text>
+          ) : (
+            <Text size="sm" c="dimmed">Walk-in / no client</Text>
+          )}
+        </Paper>
+      </SimpleGrid>
+
+      {/* Activity: how the credit note funds were used */}
+      <Paper withBorder radius="md" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Group justify="space-between" p="sm" pb="xs">
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="teal" size="sm">
+              <IconReceipt size={14} />
+            </ThemeIcon>
+            <Text fw={600} size="sm">Usage Activity</Text>
+          </Group>
+          <Text size="xs" c="dimmed">How the credit note funds have been applied</Text>
+        </Group>
+
+        <Box style={{ flex: 1, overflow: 'auto' }} px="sm">
+          {usage.length === 0 ? (
+            <Stack align="center" py="xl" gap="xs">
+              <ThemeIcon variant="light" color="gray" size="lg" radius="xl">
+                <IconReceipt size={18} />
+              </ThemeIcon>
+              <Text size="sm" c="dimmed">This credit note has not been applied to any invoices yet.</Text>
+            </Stack>
+          ) : (
+            <DataTable
+              columns={usageColumns}
+              data={usage}
+              keyField="id"
+              minWidth={600}
+              verticalSpacing="xs"
+              onRowClick={(row) => openInvoiceByNumber(row.invoiceNumber)}
+            />
+          )}
+        </Box>
+
+        {/* Summary footer */}
+        <Group justify="flex-end" gap="xl" p="sm" pr={92} style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}>
+          <Group gap={6}>
+            <Text size="sm" c="dimmed">Issued:</Text>
+            <Text size="sm" fw={600}>{formatCurrency(total)}</Text>
+          </Group>
+          <Group gap={6}>
+            <Text size="sm" c="dimmed">Used:</Text>
+            <Text size="sm" fw={600} c="teal">{formatCurrency(totalUsed)}</Text>
+          </Group>
+          <Group gap={6}>
+            <Text size="sm" c="dimmed">Remaining:</Text>
+            <Text size="sm" fw={700} c={balance > 0 ? 'green' : 'dimmed'}>{formatCurrency(balance)}</Text>
+          </Group>
+        </Group>
+      </Paper>
+
+      <CreditNoteRefundModal
+        opened={refundModalOpen}
+        onClose={() => setRefundModalOpen(false)}
+        onRefunded={loadCreditNote}
+        creditNote={creditNote}
       />
     </Box>
   );

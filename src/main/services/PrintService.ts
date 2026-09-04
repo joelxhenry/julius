@@ -240,7 +240,9 @@ export class PrintService {
     const cn = await this.creditNoteService.findById(id);
     if (!cn) throw new Error(`Credit note with ID ${id} not found`);
 
-    const lineItems = await this.documentLineItemService.findByCreditNote(cn.crNumber);
+    // Usage activity: how the note's funds were applied (CREDIT payments against
+    // invoices, cash-out refunds, and void reversals), newest first.
+    const usagePayments = await this.paymentService.findByCreditNote(cn.crNumber);
     const salespersonName = await this.resolveEmployeeName(cn.salespersonId);
 
     return {
@@ -260,15 +262,12 @@ export class PrintService {
         totalUsed: String(cn.totalUsed),
         status: cn.status,
       },
-      lineItems: lineItems.map((item, i) => ({
-        lineNumber: i + 1,
-        sku: item.sku,
-        description: item.description,
-        quantity: String(item.quantity),
-        unitPrice: String(item.unitPrice),
-        discount: String(item.discount),
-        amount: String(item.amount),
-        isTaxable: item.isTaxable,
+      usage: usagePayments.map((p) => ({
+        date: p.paymentDate,
+        invoiceNumber: p.invoiceNumber,
+        description: p.paymentDesc || p.paymentDesc2,
+        reference: p.transactionReference,
+        amount: String(p.amount),
       })),
       salespersonName,
     };

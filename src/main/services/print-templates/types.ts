@@ -64,6 +64,16 @@ export interface QuotationTemplateData {
   salespersonName: string | null;
 }
 
+/** A single entry in a credit note's usage activity (how its funds were applied). */
+export interface CreditNoteUsageItem {
+  date: string | null;
+  invoiceNumber: string | null;
+  description: string | null;
+  reference: string | null;
+  /** Positive = drawn down (applied/refunded); negative = restored (void reversal). */
+  amount: string;
+}
+
 export interface CreditNoteTemplateData {
   company: CompanyInfo;
   creditNote: {
@@ -81,7 +91,8 @@ export interface CreditNoteTemplateData {
     totalUsed: string;
     status: string;
   };
-  lineItems: PrintLineItem[];
+  /** How the credit note's funds have been used (replaces the source line items). */
+  usage: CreditNoteUsageItem[];
   salespersonName: string | null;
 }
 

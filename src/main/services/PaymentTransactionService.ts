@@ -55,6 +55,22 @@ export interface RefundInvoiceResult {
   invoice: schema.Invoice | null;
 }
 
+export interface CashOutCreditNoteParams {
+  creditNoteId: number;
+  processedById: number;
+  payerName?: string | null;
+  amount: string; // positive payout amount
+  method: string; // payment method code money is paid out with (e.g. 'CASH')
+  methodLabel: string; // human-readable label for the report (e.g. 'Cash')
+  transactionReference?: string;
+  notes?: string;
+}
+
+export interface CashOutCreditNoteResult {
+  payment: schema.Payment;
+  creditNote: schema.CreditNote | null;
+}
+
 export interface VoidPaymentResult {
   originalPayment: schema.Payment;
   reversalPayment: schema.Payment;
@@ -398,6 +414,61 @@ export class PaymentTransactionService {
     });
 
     return { refundPayment, invoice: updatedInvoice };
+  }
+
+  /**
+   * Cash out (refund) a credit note's remaining balance to the customer.
+   *
+   * Unlike applying a credit note to an invoice, no invoice is involved: the
+   * operator hands money back (cash, bank transfer, cheque, card) and the note's
+   * balance is drawn down by that amount. Recorded as a CREDIT payment with no
+   * invoice link - so it appears in the note's usage activity as a draw-down -
+   * and the note is marked Used once fully consumed. Idempotency is the caller's
+   * concern; each call records a fresh payout.
+   */
+  async cashOutCreditNote(params: CashOutCreditNoteParams): Promise<CashOutCreditNoteResult> {
+    const { creditNoteId, processedById, method, methodLabel, transactionReference, notes } = params;
+
+    const payoutAmount = parseFloat(params.amount || '0');
+    if (payoutAmount <= 0) {
+      throw new Error('Refund amount must be greater than 0');
+    }
+
+    const creditNote = await this.creditNoteService.findById(creditNoteId);
+    if (!creditNote) {
+      throw new Error('Credit note not found');
+    }
+    if (creditNote.isArchived) {
+      throw new Error('Cannot refund an archived credit note');
+    }
+
+    const remaining = parseFloat(creditNote.total || '0') - parseFloat(creditNote.totalUsed || '0');
+    if (payoutAmount > remaining + 0.01) {
+      throw new Error(`Refund amount ($${payoutAmount.toFixed(2)}) exceeds the remaining balance ($${remaining.toFixed(2)})`);
+    }
+
+    const paymentDate = new Date().toISOString().split('T')[0];
+
+    // Positive CREDIT payment with no invoice link: a draw-down of the note's
+    // balance paid out to the customer. paymentDesc carries the human label (as
+    // the invoice refund flow does); paymentDesc2 carries the method code.
+    const payment = await this.paymentService.create({
+      documentType: 'CREDIT',
+      documentNumber: creditNote.crNumber,
+      creditNoteNumber: creditNote.crNumber,
+      amount: payoutAmount.toFixed(2),
+      payerName: params.payerName ?? creditNote.clientName ?? undefined,
+      paymentDesc: `Cash out / refund (${methodLabel})${notes ? ` - ${notes}` : ''}`,
+      paymentDesc2: method,
+      transactionReference: transactionReference || undefined,
+      paymentDate,
+      processedById,
+    });
+
+    // Draw down the note's balance (marks it Used when fully consumed).
+    const updatedCreditNote = await this.creditNoteService.recordUsage(creditNoteId, payoutAmount.toFixed(2));
+
+    return { payment, creditNote: updatedCreditNote };
   }
 
   /**

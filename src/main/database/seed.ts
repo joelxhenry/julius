@@ -5,7 +5,6 @@ import * as schema from './schema/index';
 import { seedBaseVariants } from './seedBaseVariants';
 import { seedMultiValueFields } from './seedMultiValueFields';
 import { seedCancelEmptyInvoices } from './seedCancelEmptyInvoices';
-import { seedCanonicalizePaymentMethods } from './seedCanonicalizePaymentMethods';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -124,7 +123,6 @@ export async function runBackgroundSeeds(
     { task: 'baseVariants', label: 'Updating inventory variants', run: () => seedBaseVariants(db) },
     { task: 'multiValueFields', label: 'Updating multi-value fields', run: () => seedMultiValueFields(db) },
     { task: 'cancelEmptyInvoices', label: 'Cancelling empty invoices', run: () => seedCancelEmptyInvoices(db) },
-    { task: 'canonicalizePaymentMethods', label: 'Normalizing payment methods', run: () => seedCanonicalizePaymentMethods(db) },
   ];
 
   for (const { task, label, run } of tasks) {

@@ -3,8 +3,6 @@ import {
   wrapTemplate,
   getHeader,
   getFooter,
-  getLineItemsTable,
-  getTotalsBlock,
   getClientBlock,
   formatCurrency,
   formatDate,
@@ -12,13 +10,60 @@ import {
 } from './baseStyles';
 
 export function getCreditNoteTemplate(data: CreditNoteTemplateData): string {
-  const { company, creditNote, lineItems, salespersonName } = data;
+  const { company, creditNote, usage, salespersonName } = data;
   const sym = company.currencySymbol;
 
-  const remaining = parseFloat(creditNote.total) - parseFloat(creditNote.totalUsed);
+  const total = parseFloat(creditNote.total || '0');
+  const used = parseFloat(creditNote.totalUsed || '0');
+  const remaining = total - used;
+
   const statusBadge = creditNote.status === 'A'
     ? '<span class="badge badge-green">Active</span>'
     : '<span class="badge badge-gray">Used</span>';
+
+  // Usage activity: how the note's funds were applied. Positive amounts are
+  // draw-downs (applied to an invoice or refunded); negatives are void reversals
+  // that restored balance, shown in accounting parentheses.
+  const usageRows = usage.map((u) => {
+    const amt = parseFloat(u.amount || '0');
+    const amountCell = amt < 0
+      ? `(${formatCurrency(Math.abs(amt).toString(), sym)})`
+      : formatCurrency(u.amount, sym);
+    return `
+      <tr>
+        <td>${formatDate(u.date)}</td>
+        <td>${escapeHtml(u.invoiceNumber || '-')}</td>
+        <td>${escapeHtml(u.description || '-')}</td>
+        <td>${escapeHtml(u.reference || '-')}</td>
+        <td class="right">${amountCell}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const usageTable = `
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 90px;">Date</th>
+          <th style="width: 110px;">Applied To</th>
+          <th>Description</th>
+          <th>Reference</th>
+          <th class="right" style="width: 110px;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${usageRows || '<tr><td colspan="5" style="text-align:center; color:#999; padding:16px;">This credit note has not been applied to any invoices yet.</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  const summaryBlock = `
+    <table class="summary-table">
+      <tr><td class="label">Issued Amount</td><td class="value">${formatCurrency(creditNote.total, sym)}</td></tr>
+      <tr><td class="label">Total Used</td><td class="value">${formatCurrency(creditNote.totalUsed, sym)}</td></tr>
+      <tr class="total-row"><td class="label">Remaining Balance</td><td class="value">${formatCurrency(remaining.toString(), sym)}</td></tr>
+    </table>
+  `;
 
   const body = `
     ${getHeader(company)}
@@ -52,19 +97,14 @@ export function getCreditNoteTemplate(data: CreditNoteTemplateData): string {
       </div>
     </div>
 
-    ${getLineItemsTable(lineItems, sym)}
+    <div class="info-label" style="margin: 8px 0 4px;">Usage Activity</div>
+    ${usageTable}
 
-    ${getTotalsBlock(creditNote.subTotal, creditNote.tax, creditNote.total, sym)}
+    ${summaryBlock}
 
-    <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <span style="font-size: 9pt; color: #555;">Status:</span>
-        ${statusBadge}
-      </div>
-      <div style="font-size: 9pt; color: #555;">
-        Used: ${formatCurrency(creditNote.totalUsed, sym)} &bull;
-        Remaining: ${formatCurrency(remaining.toString(), sym)}
-      </div>
+    <div style="margin-top: 12px;">
+      <span style="font-size: 9pt; color: #555;">Status:</span>
+      ${statusBadge}
     </div>
 
     ${getFooter(company)}
