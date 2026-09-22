@@ -13,10 +13,11 @@ import {
   Stack,
   Collapse,
   UnstyledButton,
+  Badge,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { DateInput } from "@mantine/dates";
-import { IconSearch, IconX, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import { IconSearch, IconX, IconChevronDown, IconChevronRight, IconUserCheck, IconUserPlus } from "@tabler/icons-react";
 
 interface Client {
   id: number;
@@ -112,18 +113,37 @@ export function CompactFormBar({
         />
 
         <Group gap="md" style={{ flex: 1 }} align="center">
-          {/* Client Name Display (if selected) */}
-          {client && (
-            <Text
-              size="sm"
-              fw={500}
-              c="blue"
-              style={{ maxWidth: 300 }}
-              truncate
-            >
-              {client.clientName}
-            </Text>
-          )}
+          {/* Client status: on-record (registered) vs custom (free-typed, not in system) */}
+          {client ? (
+            <Group gap={6} wrap="nowrap" style={{ maxWidth: 320 }}>
+              <Badge
+                color="teal"
+                variant="light"
+                size="sm"
+                leftSection={<IconUserCheck size={12} />}
+              >
+                On record
+              </Badge>
+              <Text size="sm" fw={500} c="teal" truncate>
+                {client.clientName}
+                {client.clNumber ? ` (${client.clNumber})` : ""}
+              </Text>
+            </Group>
+          ) : clientSearch.trim() ? (
+            <Group gap={6} wrap="nowrap" style={{ maxWidth: 320 }}>
+              <Badge
+                color="orange"
+                variant="light"
+                size="sm"
+                leftSection={<IconUserPlus size={12} />}
+              >
+                Walk-in
+              </Badge>
+              <Text size="sm" c="orange.7" truncate>
+                {clientSearch.trim()} (not in system)
+              </Text>
+            </Group>
+          ) : null}
 
           {/* Date */}
           <DateInput

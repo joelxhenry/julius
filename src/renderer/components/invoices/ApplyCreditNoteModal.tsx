@@ -12,8 +12,10 @@ import {
   Divider,
   Box,
   Badge,
+  TextInput,
 } from '@mantine/core';
-import { IconReceipt, IconAlertCircle } from '@tabler/icons-react';
+import { useDebouncedCallback } from '@mantine/hooks';
+import { IconReceipt, IconAlertCircle, IconSearch } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,6 +23,7 @@ import { useAuth } from '../../contexts/AuthContext';
 interface CreditNote {
   id: number;
   crNumber: string;
+  invNumber: string | null;
   total: string;
   totalUsed: string;
   crDate: string;
@@ -54,11 +57,12 @@ export function ApplyCreditNoteModal({
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [amount, setAmount] = useState<number | string>('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCN, setIsLoadingCN] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load available credit notes for the client
+  // Load available credit notes for a registered client
   useEffect(() => {
     if (!opened || !clientId) return;
 
@@ -80,14 +84,62 @@ export function ApplyCreditNoteModal({
     load();
   }, [opened, clientId]);
 
+  // Search for redeemable credit notes by CR# or invoice# (walk-in notes have no client)
+  const runSearch = useDebouncedCallback(async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      // Cleared: fall back to the registered client's notes, or an empty list for walk-ins.
+      if (clientId) {
+        try {
+          const result = await window.electron.invoke(IpcChannel.GET_CLIENT_AVAILABLE_CREDIT_NOTES, {
+            clientId,
+          });
+          setCreditNotes(result.success && result.data ? result.data : []);
+        } catch {
+          setCreditNotes([]);
+        }
+      } else {
+        setCreditNotes([]);
+      }
+      setIsLoadingCN(false);
+      return;
+    }
+    setIsLoadingCN(true);
+    try {
+      const result = await window.electron.invoke(IpcChannel.SEARCH_AVAILABLE_CREDIT_NOTES, {
+        query: trimmed,
+      });
+      if (result.success && result.data) {
+        setCreditNotes(result.data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsLoadingCN(false);
+    }
+  }, 300);
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      setSelectedId(null);
+      setAmount('');
+      setIsLoadingCN(true);
+      runSearch(value);
+    },
+    [runSearch]
+  );
+
   // Reset when opened
   useEffect(() => {
     if (opened) {
       setSelectedId(null);
       setAmount('');
+      setSearchQuery('');
       setError(null);
+      if (!clientId) setCreditNotes([]);
     }
-  }, [opened]);
+  }, [opened, clientId]);
 
   const selectedCN = creditNotes.find((cn) => cn.id.toString() === selectedId);
   const availableAmount = selectedCN
@@ -226,13 +278,28 @@ export function ApplyCreditNoteModal({
           </Alert>
         )}
 
-        {!clientId ? (
-          <Alert color="yellow" variant="light">
-            Credit notes can only be applied to invoices with a registered client.
-          </Alert>
-        ) : creditNotes.length === 0 && !isLoadingCN ? (
+        <TextInput
+          label="Find by credit note # or invoice #"
+          placeholder="e.g. CR0042 or INV1023"
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.currentTarget.value)}
+          leftSection={<IconSearch size={16} />}
+          rightSection={isLoadingCN ? <Loader size={14} /> : undefined}
+          disabled={isLoading}
+          description={
+            clientId
+              ? 'Showing this client’s credit notes. Search to apply a note by number.'
+              : 'This invoice has no registered client. Search for a credit note by its number or its originating invoice number.'
+          }
+        />
+
+        {creditNotes.length === 0 && !isLoadingCN ? (
           <Alert color="blue" variant="light">
-            No available credit notes found for this client.
+            {searchQuery.trim()
+              ? 'No available credit notes match that number.'
+              : clientId
+                ? 'No available credit notes found for this client.'
+                : 'Enter a credit note or invoice number to find a credit note.'}
           </Alert>
         ) : (
           <>
@@ -248,9 +315,10 @@ export function ApplyCreditNoteModal({
                   month: 'short',
                   day: 'numeric',
                 });
+                const inv = cn.invNumber ? ` · ${cn.invNumber}` : '';
                 return {
                   value: cn.id.toString(),
-                  label: `${cn.crNumber} - ${formatCurrency(avail)} available (${date})`,
+                  label: `${cn.crNumber}${inv} - ${formatCurrency(avail)} available (${date})`,
                 };
               })}
               disabled={isLoading || isLoadingCN}

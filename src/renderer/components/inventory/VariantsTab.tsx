@@ -3,6 +3,7 @@ import { Paper, Stack, Group, Text, Button, Badge, ActionIcon, Menu, NumberForma
 import { IconPlus, IconEdit, IconTrash, IconDotsVertical } from '@tabler/icons-react';
 import { DataTable, Column, CopyButton } from '../common';
 import { MarkButton } from '../tray/MarkButton';
+import { AddToListButton } from '../lists';
 
 interface Variant {
   id: number;
@@ -81,19 +82,29 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
       {
         key: 'mark',
         header: '',
-        width: 48,
+        width: 84,
         render: (variant) => (
-          <MarkButton
-            mode="variant"
-            item={{
-              partNumber: variant.variantSku,
-              description: variant.description ?? variant.variantName ?? '',
-              unitPrice: Number(variant.price ?? 0) || 0,
-              isTaxable: parentIsTaxable,
-              isVariant: true,
-              parentPartNumber: variant.parentSku,
-            }}
-          />
+          <Group gap={4} wrap="nowrap">
+            <MarkButton
+              mode="variant"
+              item={{
+                partNumber: variant.variantSku,
+                description: variant.description ?? variant.variantName ?? '',
+                unitPrice: Number(variant.price ?? 0) || 0,
+                isTaxable: parentIsTaxable,
+                isVariant: true,
+                parentPartNumber: variant.parentSku,
+              }}
+            />
+            <AddToListButton
+              mode="variant"
+              item={{
+                sku: variant.variantSku,
+                isVariant: true,
+                description: variant.description ?? variant.variantName ?? '',
+              }}
+            />
+          </Group>
         ),
       },
       {

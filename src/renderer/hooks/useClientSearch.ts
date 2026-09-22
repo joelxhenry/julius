@@ -13,6 +13,7 @@ export interface Client {
   creditTerms: string | null;
   creditLimit: string | null;
   isBadCredit: boolean;
+  isWholesale: boolean;
 }
 
 export interface ClientOption {

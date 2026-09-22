@@ -23,6 +23,7 @@ import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconEdit,
+  IconRefresh,
   IconAlertCircle,
   IconPackage,
   IconVersions,
@@ -39,6 +40,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { employeeDisplayName } from '../../utils/employeeName';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
 import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, ReceivingTab, InventoryEditModal, InventoryLookupTicketButton } from '../../components/inventory';
@@ -47,6 +50,7 @@ import { PermissionGate, PermissionButton, RestrictedValue, usePermissions } fro
 import { ProductImageModal } from '../../components/common/ProductImageModal';
 import { CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
+import { AddToListButton } from '../../components/lists';
 
 interface Inventory {
   id: number;
@@ -66,6 +70,7 @@ interface Inventory {
   category: string | null;
   model: string | null;
   wholesalePrice: string | null;
+  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +108,7 @@ interface InventoryTransaction {
   reference: string | null;
   quantity: number;
   activityDate: string;
+  createdByName: string | null;
   createdAt: Date;
 }
 
@@ -141,6 +147,7 @@ export function InventoryDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
   const { runWithPermission } = usePermissions();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState<Inventory | null>(null);
@@ -436,6 +443,8 @@ export function InventoryDetailPage() {
           reference: values.reason || 'Manual adjustment',
           quantity: delta,
           activityDate: new Date().toISOString().split('T')[0],
+          createdByEmployeeId: user?.id ?? null,
+          createdByName: user ? employeeDisplayName(user) : null,
         });
 
         notifications.show({
@@ -729,10 +738,19 @@ export function InventoryDetailPage() {
     return value;
   };
 
-  // Options for the Activity/Sales variant filters: all, base item, then each variant.
+  // Options for the Activity variant filter: all, base item, then each variant.
   const variantFilterOptions = [
     { value: 'all', label: 'All variants' },
     { value: '__base__', label: 'Base item only' },
+    ...variants.map((v) => ({
+      value: v.variantSku,
+      label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
+    })),
+  ];
+
+  // Sales variant filter: all, then each variant (no base-item-only option).
+  const salesVariantFilterOptions = [
+    { value: 'all', label: 'All variants' },
     ...variants.map((v) => ({
       value: v.variantSku,
       label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
@@ -899,6 +917,7 @@ export function InventoryDetailPage() {
               <Title order={2}>{item.sku}</Title>
               <CopyButton value={item.sku} size="sm" />
               <MarkButton mode="item" parentSku={item.sku} />
+              <AddToListButton mode="item" parentSku={item.sku} />
               {isLowStock && (
                 <Badge color="orange" variant="light" leftSection={<IconAlertTriangle size={12} />}>
                   Low Stock
@@ -926,6 +945,9 @@ export function InventoryDetailPage() {
           </Stack>
         </Group>
         <Group>
+          <ActionIcon variant="subtle" size="lg" onClick={() => loadInventoryItem(item.id)} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
           <InventoryLookupTicketButton
             inventoryId={item.id}
             parentSku={item.sku}
@@ -1021,22 +1043,29 @@ export function InventoryDetailPage() {
           <Tabs.Tab value="alternates" leftSection={<IconExchange size={16} />}>
             Alternates
           </Tabs.Tab>
-          <Tabs.Tab value="transactions" leftSection={<IconHistory size={16} />}>
-            Activity
-          </Tabs.Tab>
+          <PermissionGate permission="VIEW_INVENTORY_ACTIVITY" mode="hide">
+            <Tabs.Tab value="transactions" leftSection={<IconHistory size={16} />}>
+              Activity
+            </Tabs.Tab>
+          </PermissionGate>
           <PermissionGate permission="VIEW_INVENTORY_SALES" mode="hide">
             <Tabs.Tab value="sales" leftSection={<IconChartLine size={16} />}>
               Sales
             </Tabs.Tab>
           </PermissionGate>
-          <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
-            Receiving
-          </Tabs.Tab>
+          <PermissionGate permission="RECEIVE_GOODS" mode="hide">
+            <Tabs.Tab value="receiving" leftSection={<IconPackageImport size={16} />}>
+              Receiving
+            </Tabs.Tab>
+          </PermissionGate>
         </Tabs.List>
 
         {/* Overview Tab */}
         <Tabs.Panel value="overview" pt="md">
-          <OverviewTab item={item} />
+          <OverviewTab
+            item={item}
+            onNotesSaved={(notes) => setItem((prev) => (prev ? { ...prev, notes } : prev))}
+          />
         </Tabs.Panel>
 
         {/* Pricing Tab */}
@@ -1100,23 +1129,25 @@ export function InventoryDetailPage() {
         </Tabs.Panel>
 
         {/* Activity Tab */}
-        <Tabs.Panel value="transactions" pt="md">
-          <TransactionsTab
-            transactions={transactions}
-            loading={transactionsLoading}
-            page={transactionsPage}
-            totalPages={transactionsTotalPages}
-            onPageChange={setTransactionsPage}
-            activity={transactionsActivity}
-            onActivityChange={setTransactionsActivity}
-            variant={transactionsVariant}
-            onVariantChange={setTransactionsVariant}
-            variantOptions={variantFilterOptions}
-            dateRange={transactionsDateRange}
-            onDateRangeChange={setTransactionsDateRange}
-            onOpenReference={handleOpenReference}
-          />
-        </Tabs.Panel>
+        <PermissionGate permission="VIEW_INVENTORY_ACTIVITY" mode="hide">
+          <Tabs.Panel value="transactions" pt="md">
+            <TransactionsTab
+              transactions={transactions}
+              loading={transactionsLoading}
+              page={transactionsPage}
+              totalPages={transactionsTotalPages}
+              onPageChange={setTransactionsPage}
+              activity={transactionsActivity}
+              onActivityChange={setTransactionsActivity}
+              variant={transactionsVariant}
+              onVariantChange={setTransactionsVariant}
+              variantOptions={variantFilterOptions}
+              dateRange={transactionsDateRange}
+              onDateRangeChange={setTransactionsDateRange}
+              onOpenReference={handleOpenReference}
+            />
+          </Tabs.Panel>
+        </PermissionGate>
 
         {/* Sales Tab */}
         <PermissionGate permission="VIEW_INVENTORY_SALES" mode="hide">
@@ -1132,7 +1163,7 @@ export function InventoryDetailPage() {
               formatCurrency={formatCurrency}
               variant={salesVariant}
               onVariantChange={setSalesVariant}
-              variantOptions={variantFilterOptions}
+              variantOptions={salesVariantFilterOptions}
               dateRange={salesDateRange}
               onDateRangeChange={setSalesDateRange}
               onOpenDocument={handleOpenSaleDocument}
@@ -1141,9 +1172,11 @@ export function InventoryDetailPage() {
         </PermissionGate>
 
         {/* Receiving Tab */}
-        <Tabs.Panel value="receiving" pt="md">
-          <ReceivingTab sku={item.sku} />
-        </Tabs.Panel>
+        <PermissionGate permission="RECEIVE_GOODS" mode="hide">
+          <Tabs.Panel value="receiving" pt="md">
+            <ReceivingTab sku={item.sku} />
+          </Tabs.Panel>
+        </PermissionGate>
       </Tabs>
 
       {/* Stock Adjustment Modal */}

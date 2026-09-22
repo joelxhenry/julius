@@ -24,6 +24,7 @@ import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { STORE_CREDIT_METHOD_CODE, isStoreCreditMethod } from '../../../shared/constants/payments';
 import { useAuth } from '../../contexts/AuthContext';
+import { useActionConfirm } from '../../permissions';
 
 interface OutstandingInvoice {
   id: number;
@@ -83,6 +84,7 @@ export function ClientBulkPaymentModal({
   clientName,
 }: ClientBulkPaymentModalProps) {
   const { user } = useAuth();
+  const { confirmAction } = useActionConfirm();
   const [invoices, setInvoices] = useState<OutstandingInvoice[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -260,12 +262,22 @@ export function ClientBulkPaymentModal({
       return;
     }
 
+    // Recording a payment affects financial records: require an access code.
+    // The confirmed user is stamped as the processor and put on record when it
+    // differs from the signed-in user.
+    const actor = await confirmAction({
+      permissionCode: 'CREATE_PAYMENT',
+      actionLabel: `Record bulk payment for ${clientName || 'client'}`,
+      context: { entity: 'client', clientId, amount: cashAmount },
+    });
+    if (!actor) return;
+
     setIsSubmitting(true);
     setError(null);
     try {
       const result = await window.electron.invoke(IpcChannel.PROCESS_CLIENT_BULK_PAYMENT, {
         clientId,
-        processedById: user.id,
+        processedById: actor.employeeId,
         payerName: clientName || 'Walk-in Customer',
         amount: cashAmount.toFixed(2),
         // Send the canonical store-credit code so the backend draws from credit
@@ -310,6 +322,7 @@ export function ClientBulkPaymentModal({
     notes,
     onSuccess,
     onClose,
+    confirmAction,
   ]);
 
   const rows = invoices.map((inv) => {

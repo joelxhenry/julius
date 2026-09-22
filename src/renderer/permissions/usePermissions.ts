@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getRoutePermission } from '../router/permissions';
 import { useAccessOverride, OverrideGrant, RequestOverrideOptions } from './AccessOverrideContext';
 
 export interface UsePermissions {
@@ -11,6 +12,12 @@ export interface UsePermissions {
   canAny: (permissionCodes: string[]) => boolean;
   /** True if ALL of the codes are permitted (base or override). */
   canAll: (permissionCodes: string[]) => boolean;
+  /**
+   * True if the user may reach a route path. Public / auth-only routes are
+   * always accessible; permission-gated routes resolve via the route's code.
+   * Use this to hide nav items, cards, and section links the user can't open.
+   */
+  canAccessPath: (path: string) => boolean;
   /** True if a one-time override is currently active for this code. */
   hasOverride: (permissionCode: string) => boolean;
   /** Opens the authorise-by-another-user modal; resolves with a grant or null. */
@@ -51,6 +58,15 @@ export function usePermissions(): UsePermissions {
   const canAny = useCallback((codes: string[]) => codes.some((c) => can(c)), [can]);
   const canAll = useCallback((codes: string[]) => codes.every((c) => can(c)), [can]);
 
+  const canAccessPath = useCallback(
+    (path: string) => {
+      const code = getRoutePermission(path);
+      // undefined (public) or null (auth-only) => no specific permission needed.
+      return !code || can(code);
+    },
+    [can]
+  );
+
   const isAdmin = hasPermission('ADMIN');
 
   const runWithPermission = useCallback(
@@ -79,6 +95,7 @@ export function usePermissions(): UsePermissions {
     canBase,
     canAny,
     canAll,
+    canAccessPath,
     hasOverride,
     requestOverride,
     consumeOverride,

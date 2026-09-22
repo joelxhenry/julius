@@ -24,6 +24,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { DataTable, Column, CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
+import { AddToListButton } from '../../components/lists';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { NewPartModal } from './NewPartModal';
 import { PermissionButton } from '../../permissions';
@@ -35,6 +36,7 @@ interface Inventory {
   description1: string | null;
   description2: string | null;
   quantity: number;
+  totalStock: number;
   minLevel: number;
   isTaxable: boolean;
   cost: string;
@@ -136,7 +138,7 @@ export function InventoryListPage() {
   }, []);
 
   const isLowStock = (item: Inventory) => {
-    return item.quantity <= item.minLevel;
+    return item.totalStock <= item.minLevel;
   };
 
   const columns: Column<Inventory>[] = useMemo(
@@ -209,7 +211,7 @@ export function InventoryListPage() {
             variant="light"
             size="sm"
           >
-            {item.quantity} {item.unit}
+            {item.totalStock} {item.unit}
           </Badge>
         ),
       },
@@ -231,8 +233,13 @@ export function InventoryListPage() {
       {
         key: 'mark',
         header: '',
-        width: 48,
-        render: (item) => <MarkButton mode="item" parentSku={item.sku} />,
+        width: 84,
+        render: (item) => (
+          <Group gap={4} wrap="nowrap">
+            <MarkButton mode="item" parentSku={item.sku} />
+            <AddToListButton mode="item" parentSku={item.sku} />
+          </Group>
+        ),
       },
     ],
     []

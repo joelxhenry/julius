@@ -11,6 +11,7 @@ export * from './EmployeeController';
 
 // Inventory Controllers
 export * from './InventoryController';
+export * from './ProductListController';
 export * from './VariantController';
 export * from './InventoryTransactionController';
 export * from './InventoryAlternateController';

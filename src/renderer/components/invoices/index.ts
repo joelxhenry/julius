@@ -22,4 +22,5 @@ export { CompactDetailHeader } from './CompactDetailHeader';
 export { CompactDetailInfoBar } from './CompactDetailInfoBar';
 export { ProcessReturnModal } from './ProcessReturnModal';
 export { ApplyCreditNoteModal, type ApplyCreditNoteModalProps } from './ApplyCreditNoteModal';
+export { CreditNoteRefundModal } from './CreditNoteRefundModal';
 export * from './types';

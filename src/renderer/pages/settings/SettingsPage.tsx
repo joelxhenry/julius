@@ -25,10 +25,37 @@ import { TaxSettingsTab } from './TaxSettingsTab';
 import { StorageSettingsTab } from './StorageSettingsTab';
 import { DocumentSettingsTab } from './DocumentSettingsTab';
 import { AboutSettingsTab } from './AboutSettingsTab';
+import { usePermissions } from '../../permissions';
+
+interface SettingsTab {
+  value: string;
+  label: string;
+  icon: React.ReactNode;
+  /** Specific code that grants this tab; omit for tabs everyone on the page can see. */
+  permission?: string;
+  component: React.ReactNode;
+}
+
+const settingsTabs: SettingsTab[] = [
+  { value: 'database', label: 'Database', icon: <IconDatabase size={16} />, permission: 'MANAGE_DATABASE', component: <DatabaseSettingsTab /> },
+  { value: 'interface', label: 'Interface', icon: <IconLayout size={16} />, permission: 'MANAGE_INTERFACE', component: <InterfaceSettingsTab /> },
+  { value: 'company', label: 'Company', icon: <IconBuilding size={16} />, permission: 'MANAGE_COMPANY', component: <CompanySettingsTab /> },
+  { value: 'documents', label: 'Documents', icon: <IconFileText size={16} />, permission: 'MANAGE_DOCUMENTS', component: <DocumentSettingsTab /> },
+  { value: 'tax', label: 'Tax', icon: <IconReceipt size={16} />, permission: 'MANAGE_TAX', component: <TaxSettingsTab /> },
+  { value: 'storage', label: 'Storage', icon: <IconFolder size={16} />, permission: 'MANAGE_STORAGE', component: <StorageSettingsTab /> },
+  { value: 'about', label: 'About', icon: <IconInfoCircle size={16} />, component: <AboutSettingsTab /> },
+];
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<string | null>('database');
+  const { canAny } = usePermissions();
+
+  // Hide tabs the user can't manage. The MANAGE_SETTINGS umbrella grants all of them.
+  const visibleTabs = settingsTabs.filter(
+    (tab) => !tab.permission || canAny([tab.permission, 'MANAGE_SETTINGS'])
+  );
+
+  const [activeTab, setActiveTab] = useState<string | null>(visibleTabs[0]?.value ?? null);
 
   return (
     <Stack p="xl" gap="lg">
@@ -48,57 +75,18 @@ export function SettingsPage() {
       <Paper p="md" radius="md" withBorder>
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
-            <Tabs.Tab value="database" leftSection={<IconDatabase size={16} />}>
-              Database
-            </Tabs.Tab>
-            <Tabs.Tab value="interface" leftSection={<IconLayout size={16} />}>
-              Interface
-            </Tabs.Tab>
-            <Tabs.Tab value="company" leftSection={<IconBuilding size={16} />}>
-              Company
-            </Tabs.Tab>
-            <Tabs.Tab value="documents" leftSection={<IconFileText size={16} />}>
-              Documents
-            </Tabs.Tab>
-            <Tabs.Tab value="tax" leftSection={<IconReceipt size={16} />}>
-              Tax
-            </Tabs.Tab>
-            <Tabs.Tab value="storage" leftSection={<IconFolder size={16} />}>
-              Storage
-            </Tabs.Tab>
-            <Tabs.Tab value="about" leftSection={<IconInfoCircle size={16} />}>
-              About
-            </Tabs.Tab>
+            {visibleTabs.map((tab) => (
+              <Tabs.Tab key={tab.value} value={tab.value} leftSection={tab.icon}>
+                {tab.label}
+              </Tabs.Tab>
+            ))}
           </Tabs.List>
 
-          <Tabs.Panel value="database" pt="lg">
-            <DatabaseSettingsTab />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="interface" pt="lg">
-            <InterfaceSettingsTab />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="company" pt="lg">
-            <CompanySettingsTab />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="documents" pt="lg">
-            <DocumentSettingsTab />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="tax" pt="lg">
-            <TaxSettingsTab />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="storage" pt="lg">
-            <StorageSettingsTab />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="about" pt="lg">
-            <AboutSettingsTab />
-          </Tabs.Panel>
-
+          {visibleTabs.map((tab) => (
+            <Tabs.Panel key={tab.value} value={tab.value} pt="lg">
+              {tab.component}
+            </Tabs.Panel>
+          ))}
         </Tabs>
       </Paper>
     </Stack>

@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconSearch, IconCash, IconDotsVertical, IconX, IconFileInvoice, IconReceipt, IconFilterOff } from '@tabler/icons-react';
+import { IconSearch, IconCash, IconDotsVertical, IconX, IconFileInvoice, IconReceipt, IconFilterOff, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
@@ -516,6 +516,9 @@ export function PaymentsPage() {
               Clear filters
             </Button>
           )}
+          <ActionIcon variant="subtle" onClick={loadPayments} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
         </Group>
       </Paper>
 

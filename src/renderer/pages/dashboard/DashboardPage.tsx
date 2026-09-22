@@ -8,6 +8,7 @@ import {
   IconShieldLock,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '../../permissions';
 
 interface DashboardSection {
   title: string;
@@ -64,6 +65,12 @@ const dashboardSections: DashboardSection[] = [
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { canAccessPath } = usePermissions();
+
+  // Hide sections the user can't open; keep path-less "under development" cards.
+  const visibleSections = dashboardSections.filter(
+    (section) => !section.path || canAccessPath(section.path)
+  );
 
   const handleSectionClick = (section: DashboardSection) => {
     if (section.path) {
@@ -79,7 +86,7 @@ export function DashboardPage() {
       </Text>
 
       <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-        {dashboardSections.map((section) => (
+        {visibleSections.map((section) => (
           <Paper
             key={section.title}
             p="lg"

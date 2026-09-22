@@ -42,6 +42,7 @@ interface Client {
   creditTerms: string | null;
   creditEnabled: boolean;
   isBadCredit: boolean;
+  isWholesale: boolean;
 }
 
 interface ClientFormValues {
@@ -57,6 +58,7 @@ interface ClientFormValues {
   creditTerms: number | null;
   creditEnabled: boolean;
   isBadCredit: boolean;
+  isWholesale: boolean;
 }
 
 interface ClientEditModalProps {
@@ -89,6 +91,7 @@ export function ClientEditModal({
       creditTerms: null,
       creditEnabled: true,
       isBadCredit: false,
+      isWholesale: false,
     },
     validate: {
       clientName: (value) => (!value ? "Client name is required" : null),
@@ -119,6 +122,7 @@ export function ClientEditModal({
         })(),
         creditEnabled: client.creditEnabled ?? true,
         isBadCredit: client.isBadCredit || false,
+        isWholesale: client.isWholesale || false,
       });
       setError(null);
     }
@@ -145,6 +149,7 @@ export function ClientEditModal({
         })(),
         creditEnabled: values.creditEnabled,
         isBadCredit: values.isBadCredit,
+        isWholesale: values.isWholesale,
       };
 
       const result = await window.electron.invoke(IpcChannel.UPDATE_CLIENT, {
@@ -335,6 +340,12 @@ export function ClientEditModal({
                   label="Taxable"
                   description="Check if this client is taxable"
                   {...form.getInputProps("isTaxable", { type: "checkbox" })}
+                />
+
+                <Checkbox
+                  label="Wholesale pricing"
+                  description="Bill this client at wholesale prices (prefills the invoice pricing tier)"
+                  {...form.getInputProps("isWholesale", { type: "checkbox" })}
                 />
               </Stack>
             </Paper>

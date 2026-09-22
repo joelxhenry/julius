@@ -21,6 +21,8 @@ export function getSalesReportTemplate(data: SalesReportTemplateData): string {
     valuePayments,
     numRefunds,
     valueRefunds,
+    numStoreCreditIssued,
+    valueStoreCreditIssued,
     numDiscounts,
     valueDiscounts,
     paymentTypes,
@@ -170,6 +172,10 @@ export function getSalesReportTemplate(data: SalesReportTemplateData): string {
       <tr class="refund">
         <td class="k">No. of Refunds</td><td class="n">${escapeHtml(numRefunds)}</td>
         <td class="k">Value of Refunds</td><td class="v">${escapeHtml(valueRefunds)}</td>
+      </tr>
+      <tr>
+        <td class="k">Store Credit Issued</td><td class="n">${escapeHtml(numStoreCreditIssued)}</td>
+        <td class="k">Value of Store Credit</td><td class="v">${escapeHtml(valueStoreCreditIssued)}</td>
       </tr>
       <tr>
         <td class="k">No. of Discounts</td><td class="n">${escapeHtml(numDiscounts)}</td>

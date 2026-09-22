@@ -16,8 +16,10 @@ import {
   IconTruck,
   IconTruckDelivery,
   IconFilePlus,
+  IconClipboardList,
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { usePermissions } from "../../permissions";
 
 interface NavItem {
   label: string;
@@ -60,6 +62,11 @@ const businessNavItems: NavItem[] = [
     path: "/quotations/new",
   },
   {
+    label: "Order Lists",
+    icon: <IconClipboardList size={20} stroke={1.5} />,
+    path: "/lists",
+  },
+  {
     label: "Clients",
     icon: <IconUsers size={20} stroke={1.5} />,
     path: "/clients",
@@ -99,6 +106,12 @@ interface SidebarProps {
 export function Sidebar({ onNavigate }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { canAccessPath } = usePermissions();
+
+  // Hide entry points the user can't open rather than letting them click into a block.
+  const visibleMain = mainNavItems.filter((item) => canAccessPath(item.path));
+  const visibleBusiness = businessNavItems.filter((item) => canAccessPath(item.path));
+  const visibleAdmin = adminNavItems.filter((item) => canAccessPath(item.path));
 
   const handleNavClick = (path: string) => {
     if (onNavigate) {
@@ -161,13 +174,21 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     >
       <ScrollArea style={{ flex: 1 }} p="md">
         <Stack gap={4}>
-          {mainNavItems.map(renderNavItem)}
+          {visibleMain.map(renderNavItem)}
 
-          <Divider my="sm" label="Business" labelPosition="left" />
-          {businessNavItems.map(renderNavItem)}
+          {visibleBusiness.length > 0 && (
+            <>
+              <Divider my="sm" label="Business" labelPosition="left" />
+              {visibleBusiness.map(renderNavItem)}
+            </>
+          )}
 
-          <Divider my="sm" label="Admin" labelPosition="left" />
-          {adminNavItems.map(renderNavItem)}
+          {visibleAdmin.length > 0 && (
+            <>
+              <Divider my="sm" label="Admin" labelPosition="left" />
+              {visibleAdmin.map(renderNavItem)}
+            </>
+          )}
         </Stack>
       </ScrollArea>
 

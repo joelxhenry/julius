@@ -13,6 +13,7 @@ interface InventoryTransaction {
   reference: string | null;
   quantity: number;
   activityDate: string;
+  createdByName: string | null;
   createdAt: Date;
 }
 
@@ -93,9 +94,14 @@ export function TransactionsTab({
       {
         key: 'activity',
         header: 'Activity',
-        width: 120,
+        width: 160,
         render: (trans) => (
-          <Badge color={ACTIVITY_COLORS[trans.activity] || 'gray'} variant="light" size="sm">
+          <Badge
+            color={ACTIVITY_COLORS[trans.activity] || 'gray'}
+            variant="light"
+            size="sm"
+            styles={{ root: { maxWidth: '100%' }, label: { overflow: 'visible' } }}
+          >
             {ACTIVITY_LABELS[trans.activity] || trans.activity}
           </Badge>
         ),
@@ -124,6 +130,17 @@ export function TransactionsTab({
             {trans.quantity}
           </Text>
         ),
+      },
+      {
+        key: 'createdByName',
+        header: 'By',
+        width: 150,
+        render: (trans) =>
+          trans.createdByName ? (
+            <Text size="sm">{trans.createdByName}</Text>
+          ) : (
+            <Text size="sm" c="dimmed">-</Text>
+          ),
       },
       {
         key: 'reference',
@@ -195,7 +212,7 @@ export function TransactionsTab({
           loading={loading}
           keyField="id"
           emptyMessage="No activity found"
-          minWidth={750}
+          minWidth={920}
           verticalSpacing="md"
           horizontalSpacing="lg"
           page={page}

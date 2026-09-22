@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { notifications } from '@mantine/notifications';
 import type { UpdateStatus } from '../../shared/types/update';
+import { useBackgroundActivity } from './BackgroundActivityContext';
 
 interface UpdatesContextType {
   /** Running application version (e.g. "1.0.0"). */
@@ -25,6 +26,7 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
   const [version, setVersion] = useState<string | null>(null);
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' });
   const [busy, setBusy] = useState(false);
+  const { start: startActivity, stop: stopActivity } = useBackgroundActivity();
   // Guards the "up to date"/"error" toast to only fire for user-initiated checks.
   const manualRef = useRef(false);
 
@@ -44,45 +46,43 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
         setBusy(false);
       }
 
-      // Only surface toasts for checks the user explicitly started. Background
+      // Only surface progress for checks the user explicitly started. Background
       // checks stay silent until an update is downloaded (handled by the prompt).
       const isManual = next.manual ?? manualRef.current;
 
+      // In-progress phases drive the subtle background pill, not a toast.
+      if ((next.state === 'checking' || next.state === 'downloading') && isManual) {
+        startActivity(
+          NOTIFY_ID,
+          next.state === 'downloading' ? 'Downloading the latest version…' : 'Checking for updates…'
+        );
+      }
+
       if (next.state === 'not-available' && isManual) {
-        notifications.update({
+        stopActivity(NOTIFY_ID);
+        notifications.show({
           id: NOTIFY_ID,
           title: 'No updates available',
           message: next.error || "You're on the latest version.",
           color: 'teal',
-          loading: false,
           autoClose: 4000,
           withCloseButton: true,
         });
         manualRef.current = false;
       } else if (next.state === 'error' && isManual) {
-        notifications.update({
+        stopActivity(NOTIFY_ID);
+        notifications.show({
           id: NOTIFY_ID,
           title: 'Update check failed',
           message: next.error || 'Could not check for updates.',
           color: 'red',
-          loading: false,
           autoClose: 6000,
           withCloseButton: true,
         });
         manualRef.current = false;
-      } else if (next.state === 'downloading' && isManual) {
-        notifications.update({
-          id: NOTIFY_ID,
-          title: 'Update found',
-          message: 'Downloading the latest version…',
-          color: 'blue',
-          loading: true,
-          autoClose: false,
-          withCloseButton: false,
-        });
       } else if (next.state === 'downloaded') {
-        // Clear any lingering "checking" toast; the prompt takes over.
-        notifications.hide(NOTIFY_ID);
+        // Clear any lingering progress pill; the prompt takes over.
+        stopActivity(NOTIFY_ID);
         manualRef.current = false;
       }
     });
@@ -90,40 +90,34 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cleanup?.();
     };
-  }, []);
+  }, [startActivity, stopActivity]);
 
   const checkForUpdates = useCallback(async () => {
     if (!window.electron.checkForUpdates) return;
     manualRef.current = true;
     setBusy(true);
-    notifications.show({
-      id: NOTIFY_ID,
-      title: 'Checking for updates…',
-      message: 'Contacting the update server.',
-      loading: true,
-      autoClose: false,
-      withCloseButton: false,
-    });
+    startActivity(NOTIFY_ID, 'Checking for updates…');
     try {
       const result = await window.electron.checkForUpdates();
       // Unsupported builds (dev / non-Windows) resolve immediately with a status.
       if (!result?.supported) {
         setBusy(false);
+        stopActivity(NOTIFY_ID);
       }
     } catch {
       setBusy(false);
       manualRef.current = false;
-      notifications.update({
+      stopActivity(NOTIFY_ID);
+      notifications.show({
         id: NOTIFY_ID,
         title: 'Update check failed',
         message: 'Could not reach the update server.',
         color: 'red',
-        loading: false,
         autoClose: 6000,
         withCloseButton: true,
       });
     }
-  }, []);
+  }, [startActivity, stopActivity]);
 
   const quitAndInstall = useCallback(async () => {
     await window.electron.quitAndInstallUpdate?.();

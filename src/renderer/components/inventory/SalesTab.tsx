@@ -63,8 +63,8 @@ export function SalesTab({
   onDateRangeChange,
   onOpenDocument,
 }: SalesTabProps) {
-  // Only the base item + variants entries means there are no real variants to filter by.
-  const hasVariants = variantOptions.length > 2;
+  // Only the "All variants" entry means there are no real variants to filter by.
+  const hasVariants = variantOptions.length > 1;
 
   const hasActiveFilters =
     (variant !== null && variant !== 'all') || dateRange[0] !== null || dateRange[1] !== null;

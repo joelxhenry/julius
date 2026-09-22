@@ -60,6 +60,8 @@ interface SalesReportData {
   valuePayments: number;
   numRefunds: number;
   valueRefunds: number;
+  numStoreCreditIssued: number;
+  valueStoreCreditIssued: number;
   numDiscounts: number;
   valueDiscounts: number;
   paymentTypes: PaymentType[];
@@ -289,6 +291,11 @@ export function SalesSummaryReport() {
                     count={data.numRefunds}
                     value={formatCurrency(data.valueRefunds)}
                     danger
+                  />
+                  <StatRow
+                    label="Store Credit Issued"
+                    count={data.numStoreCreditIssued}
+                    value={formatCurrency(data.valueStoreCreditIssued)}
                   />
                   <StatRow
                     label="No. of Discounts"

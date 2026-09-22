@@ -30,6 +30,8 @@ import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { useNavigate } from 'react-router-dom';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { useAuth } from '../../contexts/AuthContext';
+import { employeeDisplayName } from '../../utils/employeeName';
 import { InventorySelect } from '../../components/selects/InventorySelect';
 
 type AdjustMode = 'absolute' | 'delta';
@@ -97,6 +99,7 @@ const rowError = (row: AdjustRow): string | null => {
 
 export function BulkStockUpdatePage({ onBack }: { onBack?: () => void } = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const handleBack = onBack ?? (() => navigate('/inventory/manage'));
   const [rows, setRows] = useState<AdjustRow[]>([]);
   const [pickerKey, setPickerKey] = useState(0);
@@ -221,6 +224,8 @@ export function BulkStockUpdatePage({ onBack }: { onBack?: () => void } = {}) {
           reference: row.reason.trim().slice(0, REASON_MAX),
           quantity: delta,
           activityDate: today,
+          createdByEmployeeId: user?.id ?? null,
+          createdByName: user ? employeeDisplayName(user) : null,
         });
 
         if (!txResult.success) {

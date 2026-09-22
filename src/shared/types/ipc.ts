@@ -92,6 +92,20 @@ export enum IpcChannel {
   DELETE_INVENTORY = 'db:delete-inventory',
   UPDATE_INVENTORY_STOCK = 'db:update-inventory-stock',
 
+  // Product list operations (reorder pads)
+  GET_PRODUCT_LISTS = 'db:get-product-lists',
+  GET_PRODUCT_LIST = 'db:get-product-list',
+  SEARCH_PRODUCT_LISTS_FOR_SELECT = 'db:search-product-lists-for-select',
+  CREATE_PRODUCT_LIST = 'db:create-product-list',
+  UPDATE_PRODUCT_LIST = 'db:update-product-list',
+  DELETE_PRODUCT_LIST = 'db:delete-product-list',
+  SET_PRODUCT_LIST_STATUS = 'db:set-product-list-status',
+  ADD_PRODUCT_LIST_ITEM = 'db:add-product-list-item',
+  CREATE_PRODUCT_LIST_WITH_ITEM = 'db:create-product-list-with-item',
+  UPDATE_PRODUCT_LIST_ITEM = 'db:update-product-list-item',
+  REMOVE_PRODUCT_LIST_ITEM = 'db:remove-product-list-item',
+  REORDER_PRODUCT_LIST_ITEMS = 'db:reorder-product-list-items',
+
   // Variant operations
   GET_VARIANTS = 'db:get-variants',
   GET_VARIANTS_PAGINATED = 'db:get-variants-paginated',
@@ -229,10 +243,12 @@ export enum IpcChannel {
   DELETE_PAYMENT = 'db:delete-payment',
   PROCESS_INVOICE_PAYMENT = 'db:process-invoice-payment',
   PROCESS_INVOICE_REFUND = 'db:process-invoice-refund',
+  CASH_OUT_CREDIT_NOTE = 'db:cash-out-credit-note',
   PROCESS_CLIENT_BULK_PAYMENT = 'db:process-client-bulk-payment',
   GET_CLIENT_OUTSTANDING_INVOICES = 'db:get-client-outstanding-invoices',
   VOID_PAYMENT = 'db:void-payment',
   GET_CLIENT_AVAILABLE_CREDIT_NOTES = 'db:get-client-available-credit-notes',
+  SEARCH_AVAILABLE_CREDIT_NOTES = 'db:search-available-credit-notes',
 
   // Payment method operations
   GET_PAYMENT_METHODS = 'db:get-payment-methods',
@@ -353,6 +369,7 @@ export enum IpcChannel {
   GET_SALES_REPORT = 'db:get-sales-report',
   GET_PAYMENT_COLLECTION_REPORT = 'db:get-payment-collection-report',
   GET_PURCHASE_REPORT = 'db:get-purchase-report',
+  GET_RECEIVABLES_REPORT = 'db:get-receivables-report',
 
   // Export operations
   EXPORT_REPORT = 'export:report',

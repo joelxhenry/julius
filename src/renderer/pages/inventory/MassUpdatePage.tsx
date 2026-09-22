@@ -34,6 +34,9 @@ import { notifications } from '@mantine/notifications';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { arrayToDisplayString } from '../../../shared/utils/arrayFields';
+import { useAuth } from '../../contexts/AuthContext';
+import { employeeDisplayName } from '../../utils/employeeName';
 
 type Stage = 'upload' | 'preview' | 'applying' | 'summary';
 
@@ -267,6 +270,7 @@ const downloadErrorReport = (rows: ParsedRow[]) => {
 
 export function MassUpdatePage({ onBack }: { onBack?: () => void } = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const handleBack = onBack ?? (() => navigate('/inventory/manage'));
   const [stage, setStage] = useState<Stage>('upload');
   const [parseError, setParseError] = useState<string | null>(null);
@@ -298,6 +302,8 @@ export function MassUpdatePage({ onBack }: { onBack?: () => void } = {}) {
   );
 
   const resetAll = () => {
+    closeSummary();
+    closeConfirm();
     setStage('upload');
     setParseError(null);
     setUnknownColumns([]);
@@ -539,6 +545,8 @@ export function MassUpdatePage({ onBack }: { onBack?: () => void } = {}) {
                 reference: trimmedReason,
                 quantity: delta,
                 activityDate: today,
+                createdByEmployeeId: user?.id ?? null,
+                createdByName: user ? employeeDisplayName(user) : null,
               },
             );
             if (!txResult.success) {
@@ -666,20 +674,25 @@ export function MassUpdatePage({ onBack }: { onBack?: () => void } = {}) {
     }
     return (
       <Stack gap={2}>
-        {row.changes.map((c) => (
-          <Group key={c.key} gap={6} wrap="nowrap">
-            <Text size="xs" fw={500} w={120}>
-              {COLUMN_HEADERS[c.key]}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {blankCell(c.before)}
-            </Text>
-            <IconArrowRight size={12} />
-            <Text size="xs" fw={500}>
-              {blankCell(c.after)}
-            </Text>
-          </Group>
-        ))}
+        {row.changes.map((c) => {
+          const isListField = c.key === 'category' || c.key === 'model';
+          const before = isListField ? arrayToDisplayString(c.before) : blankCell(c.before);
+          const after = isListField ? arrayToDisplayString(c.after) : blankCell(c.after);
+          return (
+            <Group key={c.key} gap={6} wrap="nowrap">
+              <Text size="xs" fw={500} w={120}>
+                {COLUMN_HEADERS[c.key]}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {blankCell(before)}
+              </Text>
+              <IconArrowRight size={12} />
+              <Text size="xs" fw={500}>
+                {blankCell(after)}
+              </Text>
+            </Group>
+          );
+        })}
       </Stack>
     );
   };

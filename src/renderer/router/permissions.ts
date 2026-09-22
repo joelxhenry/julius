@@ -57,6 +57,10 @@ export const permissionProtectedRoutes: RoutePermission[] = [
   { path: '/inventory/:id', permission: 'VIEW_INVENTORY', description: 'View Inventory Item' },
   { path: '/inventory', permission: 'VIEW_INVENTORY', description: 'Inventory' },
 
+  // Product Lists (reorder pads)
+  { path: '/lists/:id', permission: 'VIEW_PRODUCT_LISTS', description: 'View Product List' },
+  { path: '/lists', permission: 'VIEW_PRODUCT_LISTS', description: 'Product Lists' },
+
   // Clients
   { path: '/clients/new', permission: 'CREATE_CLIENT', description: 'Create Client' },
   { path: '/clients/:id', permission: 'VIEW_CLIENTS', description: 'View Client' },

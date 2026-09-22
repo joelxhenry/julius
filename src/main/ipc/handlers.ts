@@ -17,6 +17,7 @@ import {
   SupplierService,
   EmployeeService,
   InventoryService,
+  ProductListService,
   VariantService,
   InventoryTransactionService,
   InventoryAlternateService,
@@ -39,7 +40,7 @@ import {
   AccessOverrideService,
   RoleService,
 } from '../services';
-import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams, RefundInvoiceParams, ProcessClientBulkPaymentParams } from '../services/PaymentTransactionService';
+import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams, RefundInvoiceParams, CashOutCreditNoteParams, ProcessClientBulkPaymentParams } from '../services/PaymentTransactionService';
 import { ImageStorageService } from '../services/ImageStorageService';
 import { InventoryImageService, UploadImageParams } from '../services/InventoryImageService';
 import { PrintService } from '../services/PrintService';
@@ -57,6 +58,7 @@ import {
   SupplierController,
   EmployeeController,
   InventoryController,
+  ProductListController,
   VariantController,
   InventoryTransactionController,
   InventoryAlternateController,
@@ -220,6 +222,7 @@ function registerDataHandlers() {
   const supplierService = new SupplierService(db);
   const employeeService = new EmployeeService(db);
   const inventoryService = new InventoryService(db);
+  const productListService = new ProductListService(db);
   const variantService = new VariantService(db);
   const inventoryTransactionService = new InventoryTransactionService(db);
   const inventoryAlternateService = new InventoryAlternateService(db);
@@ -273,6 +276,7 @@ function registerDataHandlers() {
   const supplierController = new SupplierController(supplierService);
   const employeeController = new EmployeeController(employeeService);
   const inventoryController = new InventoryController(inventoryService);
+  const productListController = new ProductListController(productListService);
   const variantController = new VariantController(variantService);
   const inventoryTransactionController = new InventoryTransactionController(inventoryTransactionService);
   const inventoryAlternateController = new InventoryAlternateController(inventoryAlternateService);
@@ -398,6 +402,20 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => inventoryController.updateStock(id, quantity));
   ipcMain.handle(IpcChannel.GET_INVENTORY_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.getVariants(parentSku));
   ipcMain.handle(IpcChannel.CHECK_HAS_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.checkHasVariants(parentSku));
+
+  // ===== PRODUCT LIST HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_PRODUCT_LISTS, (_, { status }: { status?: any } = {}) => productListController.getAll(status));
+  ipcMain.handle(IpcChannel.GET_PRODUCT_LIST, (_, { id }: { id: number }) => productListController.getById(id));
+  ipcMain.handle(IpcChannel.SEARCH_PRODUCT_LISTS_FOR_SELECT, (_, { query, limit }: { query: string; limit?: number }) => productListController.searchForSelect(query, limit));
+  ipcMain.handle(IpcChannel.CREATE_PRODUCT_LIST, (_, data: any) => productListController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_PRODUCT_LIST, (_, { id, data }: any) => productListController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_PRODUCT_LIST, (_, { id }: { id: number }) => productListController.delete(id));
+  ipcMain.handle(IpcChannel.SET_PRODUCT_LIST_STATUS, (_, { id, status }: any) => productListController.setStatus(id, status));
+  ipcMain.handle(IpcChannel.ADD_PRODUCT_LIST_ITEM, (_, { listId, item }: any) => productListController.addItem(listId, item));
+  ipcMain.handle(IpcChannel.CREATE_PRODUCT_LIST_WITH_ITEM, (_, { list, item }: any) => productListController.createWithItem(list, item));
+  ipcMain.handle(IpcChannel.UPDATE_PRODUCT_LIST_ITEM, (_, { itemId, data }: any) => productListController.updateItem(itemId, data));
+  ipcMain.handle(IpcChannel.REMOVE_PRODUCT_LIST_ITEM, (_, { itemId }: { itemId: number }) => productListController.removeItem(itemId));
+  ipcMain.handle(IpcChannel.REORDER_PRODUCT_LIST_ITEMS, (_, { listId, orderedIds }: any) => productListController.reorderItems(listId, orderedIds));
 
   // ===== VARIANT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_VARIANTS, () => variantController.getAll());
@@ -817,12 +835,30 @@ function registerDataHandlers() {
     }
   });
 
+  ipcMain.handle(IpcChannel.CASH_OUT_CREDIT_NOTE, async (_, params: CashOutCreditNoteParams) => {
+    try {
+      const result = await paymentTransactionService.cashOutCreditNote(params);
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Credit note refund failed' };
+    }
+  });
+
   ipcMain.handle(IpcChannel.GET_CLIENT_AVAILABLE_CREDIT_NOTES, async (_, { clientId }: { clientId: number }) => {
     try {
       const creditNotes = await paymentTransactionService.getAvailableCreditNotes(clientId);
       return { success: true, data: creditNotes };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to get available credit notes' };
+    }
+  });
+
+  ipcMain.handle(IpcChannel.SEARCH_AVAILABLE_CREDIT_NOTES, async (_, { query }: { query: string }) => {
+    try {
+      const creditNotes = await paymentTransactionService.getAvailableCreditNotesByNumber(query);
+      return { success: true, data: creditNotes };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to search credit notes' };
     }
   });
 
@@ -1067,6 +1103,8 @@ function registerDataHandlers() {
     reportController.getPaymentCollection(params));
   ipcMain.handle(IpcChannel.GET_PURCHASE_REPORT, (_, params: { year: number }) =>
     reportController.getPurchaseSummary(params));
+  ipcMain.handle(IpcChannel.GET_RECEIVABLES_REPORT, () =>
+    reportController.getReceivablesSummary());
   ipcMain.handle(IpcChannel.PRINT_SALES_REPORT, async (_, params: SalesReportPrintRequest) => {
     try {
       const data = await reportService.getSalesSummary({

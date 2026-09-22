@@ -28,4 +28,13 @@ export class ReportController extends BaseController<ReportService> {
       return this.handleError(error);
     }
   }
+
+  async getReceivablesSummary() {
+    try {
+      const data = await this.service.getReceivablesSummary();
+      return this.wrapSuccess(data);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }

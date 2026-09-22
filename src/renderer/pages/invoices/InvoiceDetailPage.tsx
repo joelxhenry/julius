@@ -5,7 +5,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Tooltip, Table } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
@@ -102,6 +102,7 @@ export function InvoiceDetailPage() {
   const [returnModalOpen, { open: openReturnModal, close: closeReturnModal }] = useDisclosure(false);
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [salespersonName, setSalespersonName] = useState<string | null>(null);
+  const [issuedByName, setIssuedByName] = useState<string | null>(null);
   const [overrideAdminName, setOverrideAdminName] = useState<string | null>(null);
 
   // Cache for adjacent invoices
@@ -118,6 +119,16 @@ export function InvoiceDetailPage() {
       }
     });
   }, [invoice?.salespersonId]);
+
+  // Fetch the "on record" user (whose access code authorised issuing the invoice)
+  useEffect(() => {
+    if (!invoice?.issuedById) { setIssuedByName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: invoice.issuedById }).then((res) => {
+      if (res.success && res.data) {
+        setIssuedByName(employeeDisplayName(res.data));
+      }
+    });
+  }, [invoice?.issuedById]);
 
   // Fetch the authorising admin's name for any override applied to this invoice
   useEffect(() => {
@@ -376,6 +387,19 @@ export function InvoiceDetailPage() {
     }
   }, [invoice, navigate]);
 
+  // Refresh all page content (bypass cache)
+  const handleRefresh = useCallback(async () => {
+    if (!invoice) return;
+    const data = await loadInvoiceData(invoice.id);
+    if (data) {
+      invoiceCacheRef.current.set(invoice.id, data);
+      setInvoice(data.invoice);
+      setLineItems(data.lineItems);
+      setAdjacentIds(data.adjacentIds);
+      loadCreditNotes(data.invoice.invNumber);
+    }
+  }, [invoice, loadInvoiceData, loadCreditNotes]);
+
   // Navigate to edit invoice
   const handleEdit = useCallback(() => {
     if (!invoice) return;
@@ -384,6 +408,10 @@ export function InvoiceDetailPage() {
       () => replaceCurrentTab(`/invoices/edit/${invoice.id}`)
     );
   }, [invoice, replaceCurrentTab, runWithPermission]);
+
+  // Issued invoices are final records and cannot be edited. Corrections are made
+  // through Process Return / credit notes instead.
+  const canEdit = invoice ? !invoice.issuedAt : false;
 
   if (isLoading) {
     return (
@@ -430,9 +458,12 @@ export function InvoiceDetailPage() {
               onProcessReturn={handleProcessReturn}
               onViewClient={handleViewClient}
               onArchive={handleArchive}
-              onEdit={handleEdit}
+              onEdit={canEdit ? handleEdit : undefined}
             />
           </Box>
+          <ActionIcon variant="subtle" size="lg" onClick={handleRefresh} title="Refresh">
+            <IconRefresh size={20} />
+          </ActionIcon>
           <LookupTicketButton source="invoice" invoiceId={invoice.id} sourceReference={`Invoice #${invoice.invNumber}`} />
           <PrintButton documentType="invoice" documentId={invoice.id} />
         </Group>
@@ -443,6 +474,8 @@ export function InvoiceDetailPage() {
           onViewClient={handleViewClient}
           salespersonName={salespersonName}
           onViewSalesperson={() => invoice.salespersonId && openTab(`/employees/${invoice.salespersonId}`)}
+          issuedByName={issuedByName}
+          onViewIssuedBy={() => invoice.issuedById && openTab(`/employees/${invoice.issuedById}`)}
         />
 
         {/* Admin Override Info */}

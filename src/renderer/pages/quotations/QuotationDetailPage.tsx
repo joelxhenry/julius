@@ -5,7 +5,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Paper, Stack, Text, ActionIcon, Group, Button, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconFileInvoice, IconPlus } from '@tabler/icons-react';
+import { IconArrowLeft, IconFileInvoice, IconPlus, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { QuotationDetailHeader, QuotationDetailInfoBar, PriceChangeWarningModal } from '../../components/quotations';
 import type { PriceChange } from '../../components/quotations';
@@ -494,6 +494,25 @@ export function QuotationDetailPage() {
     );
   }, [quotation, runWithPermission]);
 
+  // Refresh: clear cache for this quotation and reload from source
+  const handleRefresh = useCallback(async () => {
+    if (!quotation) return;
+    const cache = quotationCacheRef.current;
+    cache.delete(quotation.id);
+    setIsLoading(true);
+    try {
+      const data = await loadQuotationData(quotation.id);
+      if (data) {
+        cache.set(quotation.id, data);
+        setQuotation(data.quotation);
+        setLineItems(data.lineItems);
+        setAdjacentIds(data.adjacentIds);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [quotation, loadQuotationData]);
+
   // Navigate to client
   const handleViewClient = useCallback(() => {
     if (quotation?.clientId) {
@@ -550,6 +569,9 @@ export function QuotationDetailPage() {
               onArchive={handleArchive}
             />
           </Box>
+          <ActionIcon variant="subtle" size="lg" onClick={handleRefresh} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
           <LookupTicketButton source="quotation" quotationId={quotation.id} sourceReference={`Quote #${quotation.quoteNum}`} />
           <PrintButton documentType="quotation" documentId={quotation.id} />
         </Group>

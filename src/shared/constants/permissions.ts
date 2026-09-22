@@ -29,6 +29,7 @@ export const PERMISSION_CATEGORIES = [
   'Quotations',
   'Credit Notes',
   'Inventory',
+  'Product Lists',
   'Receiving',
   'Clients',
   'Suppliers',
@@ -228,6 +229,12 @@ export const PERMISSIONS: PermissionDefinition[] = [
     description: 'Restore inventory from a credit note',
     category: 'Credit Notes',
   },
+  {
+    code: 'REFUND_CREDIT_NOTE',
+    label: 'Cash Out / Refund Credit Note',
+    description: 'Pay out a credit note’s remaining balance to the customer',
+    category: 'Credit Notes',
+  },
 
   // ===== Inventory =====
   {
@@ -246,6 +253,12 @@ export const PERMISSIONS: PermissionDefinition[] = [
     code: 'VIEW_INVENTORY_SALES',
     label: 'View Sales History',
     description: 'See the Sales tab (sales history and revenue) on inventory items',
+    category: 'Inventory',
+  },
+  {
+    code: 'VIEW_INVENTORY_ACTIVITY',
+    label: 'View Activity History',
+    description: 'See the Activity tab (stock movements and transactions) on inventory items',
     category: 'Inventory',
   },
   {
@@ -270,6 +283,12 @@ export const PERMISSIONS: PermissionDefinition[] = [
     code: 'ADJUST_STOCK',
     label: 'Adjust Stock',
     description: 'Adjust inventory stock levels',
+    category: 'Inventory',
+  },
+  {
+    code: 'EDIT_INVENTORY_NOTES',
+    label: 'Edit Inventory Notes',
+    description: 'Add and edit free-form notes on inventory items',
     category: 'Inventory',
   },
   {
@@ -301,6 +320,26 @@ export const PERMISSIONS: PermissionDefinition[] = [
     label: 'Manage Inventory Images',
     description: 'Upload, reorder and remove product images',
     category: 'Inventory',
+  },
+
+  // ===== Product Lists (reorder pads) =====
+  {
+    code: 'VIEW_PRODUCT_LISTS',
+    label: 'View Product Lists',
+    description: 'View reorder/product lists and their items',
+    category: 'Product Lists',
+  },
+  {
+    code: 'MANAGE_PRODUCT_LISTS',
+    label: 'Manage Product Lists',
+    description: 'Create and edit lists, add/remove items, and change list status',
+    category: 'Product Lists',
+  },
+  {
+    code: 'DELETE_PRODUCT_LIST',
+    label: 'Delete Product List',
+    description: 'Delete product lists',
+    category: 'Product Lists',
   },
 
   // ===== Receiving (Goods Receival) =====

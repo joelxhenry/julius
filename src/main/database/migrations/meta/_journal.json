@@ -134,6 +134,55 @@
       "when": 1788020000000,
       "tag": "0018_rbac_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788476270333,
+      "tag": "0019_soft_green_goblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1788476300000,
+      "tag": "0020_inventory_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1788526986919,
+      "tag": "0021_daffy_terror",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1788526990000,
+      "tag": "0022_document_number_sequences",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788527000000,
+      "tag": "0023_inventory_transaction_creator",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788527010000,
+      "tag": "0024_client_credit_standing",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788527020000,
+      "tag": "0025_client_wholesale",
+      "breakpoints": true
     }
   ]
 }

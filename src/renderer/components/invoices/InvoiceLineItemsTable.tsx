@@ -13,8 +13,6 @@ import {
   Tooltip,
   Menu,
   Alert,
-  useMantineTheme,
-  useMantineColorScheme,
   Box,
 } from '@mantine/core';
 import { IconTrash, IconAlertTriangle, IconReplace } from '@tabler/icons-react';
@@ -65,9 +63,6 @@ export function InvoiceLineItemsTable({
   onStopEditing,
   compact = false,
 }: InvoiceLineItemsTableProps) {
-  const theme = useMantineTheme();
-  const { colorScheme } = useMantineColorScheme();
-
   // Row height based on mode
   const rowHeight = compact ? 40 : 56;
 
@@ -246,10 +241,10 @@ export function InvoiceLineItemsTable({
                       onClick={() => onSelectLineItem?.(item.id)}
                       style={{
                         height: rowHeight,
+                        // Subtle, theme-aware selection tint (softer than a solid
+                        // blue fill in both light and dark schemes).
                         backgroundColor: isSelected
-                          ? colorScheme === 'dark'
-                            ? theme.colors.blue[9]
-                            : theme.colors.blue[1]
+                          ? 'var(--mantine-color-blue-light)'
                           : undefined,
                         cursor: 'pointer',
                         transition: 'background-color 0.1s ease',

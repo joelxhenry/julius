@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../shared/types/ipc';
+import { useBackgroundActivity } from './BackgroundActivityContext';
 
 interface DatabaseConnectionContextType {
   isConnected: boolean;
@@ -16,6 +17,7 @@ export function DatabaseConnectionProvider({ children }: { children: React.React
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const { start: startActivity, stop: stopActivity } = useBackgroundActivity();
 
   const checkConnection = useCallback(async () => {
     setIsChecking(true);
@@ -76,36 +78,23 @@ export function DatabaseConnectionProvider({ children }: { children: React.React
     };
   }, []);
 
-  // Listen for background seed progress from the main process
+  // Listen for background seed progress from the main process.
+  // In-progress work shows a subtle bottom-left pill; only the final result
+  // (done / failed) surfaces as a brief, auto-dismissing notification.
   useEffect(() => {
     const cleanup = window.electron.onSeedsProgress?.((event) => {
       const id = `seed-${event.task}`;
       if (event.status === 'started') {
-        notifications.show({
-          id,
-          title: event.label,
-          message: 'Running in the background…',
-          loading: true,
-          autoClose: false,
-          withCloseButton: false,
-        });
+        startActivity(id, event.label);
       } else if (event.status === 'completed') {
-        notifications.update({
-          id,
-          title: event.label,
-          message: 'Done',
-          color: 'teal',
-          loading: false,
-          autoClose: 3000,
-          withCloseButton: true,
-        });
+        stopActivity(id);
       } else {
-        notifications.update({
+        stopActivity(id);
+        notifications.show({
           id,
           title: event.label,
           message: event.message || 'Failed',
           color: 'red',
-          loading: false,
           autoClose: 6000,
           withCloseButton: true,
         });
@@ -115,7 +104,7 @@ export function DatabaseConnectionProvider({ children }: { children: React.React
     return () => {
       cleanup?.();
     };
-  }, []);
+  }, [startActivity, stopActivity]);
 
   const value: DatabaseConnectionContextType = {
     isConnected,

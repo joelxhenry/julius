@@ -15,7 +15,7 @@ import {
   ActionIcon,
   Kbd,
   Tooltip,
-  Switch,
+  SegmentedControl,
 } from '@mantine/core';
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import {
@@ -26,6 +26,7 @@ import {
   IconEye,
   IconEdit,
   IconFileInvoice,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
@@ -72,7 +73,7 @@ export function QuotationsPage() {
   const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showArchivedOnly, setShowArchivedOnly] = useState(false);
+  const [archiveFilter, setArchiveFilter] = useState<string>('active');
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -125,18 +126,17 @@ export function QuotationsPage() {
 
   // Load quotations when tab or filters change
   useEffect(() => {
-    const archivedOnly = activeTab === 'all' && showArchivedOnly;
-
     loadQuotations({
       search: searchQuery.length >= 2 ? searchQuery : undefined,
-      archivedOnly,
+      archivedOnly: archiveFilter === 'archived',
+      includeArchived: archiveFilter === 'all',
       page,
       sortField,
       sortDirection,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     });
-  }, [activeTab, showArchivedOnly, page, loadQuotations, searchQuery, sortField, sortDirection, startDate, endDate]);
+  }, [activeTab, archiveFilter, page, loadQuotations, searchQuery, sortField, sortDirection, startDate, endDate]);
 
   // Debounced search
   const debouncedSearch = useDebouncedCallback((query: string) => {
@@ -317,17 +317,38 @@ export function QuotationsPage() {
             }}
             size="md"
           />
-          {activeTab === 'all' && (
-            <Switch
-              label="Archived only"
-              checked={showArchivedOnly}
-              onChange={(e) => {
-                setPage(1);
-                setShowArchivedOnly(e.currentTarget.checked);
-              }}
-              size="md"
-            />
-          )}
+          <SegmentedControl
+            size="md"
+            value={archiveFilter}
+            onChange={(value) => {
+              setPage(1);
+              setArchiveFilter(value);
+            }}
+            data={[
+              { label: 'Active', value: 'active' },
+              { label: 'Archived', value: 'archived' },
+              { label: 'All', value: 'all' },
+            ]}
+          />
+          <ActionIcon
+            variant="subtle"
+            size="lg"
+            onClick={() =>
+              loadQuotations({
+                search: searchQuery.length >= 2 ? searchQuery : undefined,
+                archivedOnly: archiveFilter === 'archived',
+                includeArchived: archiveFilter === 'all',
+                page,
+                sortField,
+                sortDirection,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+              })
+            }
+            title="Refresh"
+          >
+            <IconRefresh size={18} />
+          </ActionIcon>
         </Group>
 
         {/* Tabs */}
@@ -374,7 +395,7 @@ export function QuotationsPage() {
                 emptyMessage={
                   searchQuery.length >= 2
                     ? `No quotations found for "${searchQuery}"`
-                    : showArchivedOnly
+                    : archiveFilter === 'archived'
                       ? 'No archived quotations found'
                       : 'No quotations found'
                 }

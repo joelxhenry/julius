@@ -2,6 +2,7 @@ import { pgTable, varchar, text, integer, serial, numeric, boolean, timestamp, i
 import { sql } from 'drizzle-orm';
 import { categories } from './categories';
 import { suppliers } from './suppliers';
+import { employees } from './employees';
 
 // INVENTORY table - main inventory/parts table
 export const inventory = pgTable('inventory', {
@@ -22,6 +23,7 @@ export const inventory = pgTable('inventory', {
   category: varchar('category', { length: 100 }),
   model: varchar('model', { length: 200 }),
   wholesalePrice: numeric('wholesale_price', { precision: 15, scale: 2 }),
+  notes: text('notes'),
   icheck: varchar('icheck', { length: 10 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -110,6 +112,11 @@ export const inventoryTransactions = pgTable('inventory_transactions', {
   reference: varchar('reference', { length: 50 }),
   quantity: integer('quantity').notNull(),
   activityDate: date('activity_date').notNull(),
+  // Who performed the change. Denormalized name is kept so the label survives even
+  // if the employee record is later removed (FK is set null on delete).
+  createdByEmployeeId: integer('created_by_employee_id')
+    .references(() => employees.id, { onDelete: 'set null' }),
+  createdByName: varchar('created_by_name', { length: 100 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_inv_trans_sku').on(table.sku),

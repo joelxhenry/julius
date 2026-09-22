@@ -24,6 +24,7 @@ import {
   IconClock,
   IconArchive,
   IconEye,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PinVerificationModal } from '../../components/auth/PinVerificationModal';
@@ -114,28 +115,29 @@ export function InvoicesPage() {
   }, [searchResults, statusFilter]);
 
   // Load recent invoices
-  useEffect(() => {
-    const loadRecent = async () => {
-      setIsLoadingRecent(true);
-      try {
-        const result = await window.electron.invoke(IpcChannel.GET_RECENT_INVOICES, {
-          limit: 20,
-          sortField,
-          sortDirection,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        });
-        if (result.success && result.data) {
-          setRecentInvoices(result.data);
-        }
-      } catch (error) {
-        console.error('Failed to load recent:', error);
-      } finally {
-        setIsLoadingRecent(false);
+  const loadRecent = useCallback(async () => {
+    setIsLoadingRecent(true);
+    try {
+      const result = await window.electron.invoke(IpcChannel.GET_RECENT_INVOICES, {
+        limit: 20,
+        sortField,
+        sortDirection,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+      if (result.success && result.data) {
+        setRecentInvoices(result.data);
       }
-    };
-    loadRecent();
+    } catch (error) {
+      console.error('Failed to load recent:', error);
+    } finally {
+      setIsLoadingRecent(false);
+    }
   }, [sortField, sortDirection, startDate, endDate]);
+
+  useEffect(() => {
+    loadRecent();
+  }, [loadRecent]);
 
   // Search invoices
   const searchInvoices = useCallback(async (query: string) => {
@@ -329,6 +331,9 @@ export function InvoicesPage() {
               { label: 'Cancelled', value: 'cancelled' },
             ]}
           />
+          <ActionIcon variant="subtle" onClick={loadRecent} title="Refresh">
+            <IconRefresh size={18} />
+          </ActionIcon>
         </Group>
 
         {/* Tabs */}

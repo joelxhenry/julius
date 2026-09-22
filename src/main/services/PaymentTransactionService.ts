@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, ilike } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { PaymentService } from './PaymentService';
 import { InvoiceService } from './InvoiceService';
@@ -53,6 +53,22 @@ export interface RefundInvoiceParams {
 export interface RefundInvoiceResult {
   refundPayment: schema.Payment;
   invoice: schema.Invoice | null;
+}
+
+export interface CashOutCreditNoteParams {
+  creditNoteId: number;
+  processedById: number;
+  payerName?: string | null;
+  amount: string; // positive payout amount
+  method: string; // payment method code money is paid out with (e.g. 'CASH')
+  methodLabel: string; // human-readable label for the report (e.g. 'Cash')
+  transactionReference?: string;
+  notes?: string;
+}
+
+export interface CashOutCreditNoteResult {
+  payment: schema.Payment;
+  creditNote: schema.CreditNote | null;
 }
 
 export interface VoidPaymentResult {
@@ -143,7 +159,10 @@ export class PaymentTransactionService {
         if (!creditNote) {
           throw new Error('Credit note not found');
         }
-        if (creditNote.clientId !== clientId) {
+        // A walk-in credit note (no registered client) is redeemable against any
+        // invoice by looking it up via its CR#/invoice#. A note that belongs to a
+        // registered client may only be applied to that same client's invoices.
+        if (creditNote.clientId !== null && creditNote.clientId !== clientId) {
           throw new Error('Credit note belongs to a different client');
         }
         const available = parseFloat(creditNote.total) - parseFloat(creditNote.totalUsed);
@@ -401,6 +420,61 @@ export class PaymentTransactionService {
   }
 
   /**
+   * Cash out (refund) a credit note's remaining balance to the customer.
+   *
+   * Unlike applying a credit note to an invoice, no invoice is involved: the
+   * operator hands money back (cash, bank transfer, cheque, card) and the note's
+   * balance is drawn down by that amount. Recorded as a CREDIT payment with no
+   * invoice link - so it appears in the note's usage activity as a draw-down -
+   * and the note is marked Used once fully consumed. Idempotency is the caller's
+   * concern; each call records a fresh payout.
+   */
+  async cashOutCreditNote(params: CashOutCreditNoteParams): Promise<CashOutCreditNoteResult> {
+    const { creditNoteId, processedById, method, methodLabel, transactionReference, notes } = params;
+
+    const payoutAmount = parseFloat(params.amount || '0');
+    if (payoutAmount <= 0) {
+      throw new Error('Refund amount must be greater than 0');
+    }
+
+    const creditNote = await this.creditNoteService.findById(creditNoteId);
+    if (!creditNote) {
+      throw new Error('Credit note not found');
+    }
+    if (creditNote.isArchived) {
+      throw new Error('Cannot refund an archived credit note');
+    }
+
+    const remaining = parseFloat(creditNote.total || '0') - parseFloat(creditNote.totalUsed || '0');
+    if (payoutAmount > remaining + 0.01) {
+      throw new Error(`Refund amount ($${payoutAmount.toFixed(2)}) exceeds the remaining balance ($${remaining.toFixed(2)})`);
+    }
+
+    const paymentDate = new Date().toISOString().split('T')[0];
+
+    // Positive CREDIT payment with no invoice link: a draw-down of the note's
+    // balance paid out to the customer. paymentDesc carries the human label (as
+    // the invoice refund flow does); paymentDesc2 carries the method code.
+    const payment = await this.paymentService.create({
+      documentType: 'CREDIT',
+      documentNumber: creditNote.crNumber,
+      creditNoteNumber: creditNote.crNumber,
+      amount: payoutAmount.toFixed(2),
+      payerName: params.payerName ?? creditNote.clientName ?? undefined,
+      paymentDesc: `Cash out / refund (${methodLabel})${notes ? ` - ${notes}` : ''}`,
+      paymentDesc2: method,
+      transactionReference: transactionReference || undefined,
+      paymentDate,
+      processedById,
+    });
+
+    // Draw down the note's balance (marks it Used when fully consumed).
+    const updatedCreditNote = await this.creditNoteService.recordUsage(creditNoteId, payoutAmount.toFixed(2));
+
+    return { payment, creditNote: updatedCreditNote };
+  }
+
+  /**
    * Get a client's outstanding invoices (any balance still due), ordered FIFO
    * - oldest invoice date first, then by id. Used both to populate the bulk
    * payment modal and, internally, as the target set for Automatic Payments.
@@ -615,6 +689,38 @@ export class PaymentTransactionService {
   /**
    * Get available credit notes for a client
    */
+  /**
+   * Find redeemable credit notes by credit-note number OR invoice number.
+   * Used for walk-in credit notes that aren't tied to a registered client:
+   * the cashier looks the note up by its CR# or the originating invoice#.
+   * Returns only active, unarchived notes that still have a balance.
+   */
+  async getAvailableCreditNotesByNumber(query: string): Promise<schema.CreditNote[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+
+    const term = `%${trimmed}%`;
+    const creditNotes = await this.db
+      .select()
+      .from(schema.creditNotes)
+      .where(
+        and(
+          eq(schema.creditNotes.status, 'A'),
+          eq(schema.creditNotes.isArchived, false),
+          or(
+            ilike(schema.creditNotes.crNumber, term),
+            ilike(schema.creditNotes.invNumber, term)
+          )
+        )
+      );
+
+    return creditNotes.filter((cn) => {
+      const total = parseFloat(cn.total || '0');
+      const used = parseFloat(cn.totalUsed || '0');
+      return total > used;
+    });
+  }
+
   async getAvailableCreditNotes(clientId: number): Promise<schema.CreditNote[]> {
     const creditNotes = await this.db
       .select()

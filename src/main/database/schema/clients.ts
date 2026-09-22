@@ -24,8 +24,17 @@ export const clients = pgTable('clients', {
   // Whether this client is allowed to purchase on credit at all
   creditEnabled: boolean('credit_enabled').notNull().default(true),
 
+  // Whether this client is billed at wholesale prices (vs. retail). Used to
+  // prefill the pricing tier when the client is selected on an invoice/quote.
+  isWholesale: boolean('is_wholesale').notNull().default(false),
+
   // Credit status flag (manually set by admin when client has bad credit history)
   isBadCredit: boolean('is_bad_credit').notNull().default(false),
+
+  // Auto-maintained credit standing: true when the client has outstanding amounts
+  // past their allowed credit terms (i.e. overdue). Distinct from the manual
+  // isBadCredit flag - the system owns this one and recomputes it from receivables.
+  isInArrears: boolean('is_in_arrears').notNull().default(false),
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -33,6 +42,7 @@ export const clients = pgTable('clients', {
   index('idx_clients_name').on(table.clientName),
   index('idx_clients_cl_number').on(table.clNumber),
   index('idx_clients_bad_credit').on(table.isBadCredit),
+  index('idx_clients_in_arrears').on(table.isInArrears),
 ]);
 
 // Export types
