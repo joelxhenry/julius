@@ -409,6 +409,10 @@ export function InvoiceDetailPage() {
     );
   }, [invoice, replaceCurrentTab, runWithPermission]);
 
+  // Issued invoices are final records and cannot be edited. Corrections are made
+  // through Process Return / credit notes instead.
+  const canEdit = invoice ? !invoice.issuedAt : false;
+
   if (isLoading) {
     return (
       <Center h="60vh">
@@ -454,7 +458,7 @@ export function InvoiceDetailPage() {
               onProcessReturn={handleProcessReturn}
               onViewClient={handleViewClient}
               onArchive={handleArchive}
-              onEdit={handleEdit}
+              onEdit={canEdit ? handleEdit : undefined}
             />
           </Box>
           <ActionIcon variant="subtle" size="lg" onClick={handleRefresh} title="Refresh">

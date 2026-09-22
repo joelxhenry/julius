@@ -332,6 +332,19 @@ export function InvoiceCreatePage() {
       const result = await window.electron.invoke(IpcChannel.GET_INVOICE, { id: invoiceId });
       if (result.success && result.data) {
         const inv = result.data;
+
+        // Issued invoices are final records and cannot be edited. Guard against
+        // direct navigation / stale edit tabs by redirecting to the read-only view.
+        if (inv.issuedAt) {
+          notifications.show({
+            title: 'Invoice already issued',
+            message: `Invoice ${inv.invNumber} has been issued and can no longer be edited. Use Process Return to make corrections.`,
+            color: 'yellow',
+          });
+          replaceCurrentTab(`/invoices/${invoiceId}`);
+          return;
+        }
+
         formActions.loadFromInvoice(inv);
 
         if (ownPath === `/invoices/form/${id}` || ownPath === `/invoices/edit/${id}`) {
