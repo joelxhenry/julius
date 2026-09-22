@@ -466,6 +466,22 @@ export class InvoiceService extends BaseService<
 
       const createdLineItems = await tx.insert(schema.documentLineItems).values(lineItemsData).returning();
 
+      // Resolve the salesperson name once so each stock movement records who
+      // made the sale. Kept denormalized alongside the id on every transaction.
+      const createdByEmployeeId: number | null = invoice.salespersonId ?? null;
+      let createdByName: string | null = null;
+      if (createdByEmployeeId != null) {
+        const [emp] = await tx
+          .select({ firstName: schema.employees.firstName, lastName: schema.employees.lastName, username: schema.employees.username })
+          .from(schema.employees)
+          .where(eq(schema.employees.id, createdByEmployeeId))
+          .limit(1);
+        if (emp) {
+          const fullName = `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim();
+          createdByName = fullName || emp.username || `Employee #${createdByEmployeeId}`;
+        }
+      }
+
       // 5. Create inventory transactions and reduce stock
       // All transactions go through variants (including base variants)
       const inventoryTransactions: schema.InventoryTransaction[] = [];
@@ -490,6 +506,8 @@ export class InvoiceService extends BaseService<
               reference: invNumber!,
               quantity: -parseFloat(item.quantity),
               activityDate: invoiceData.invDate,
+              createdByEmployeeId,
+              createdByName,
             })
             .returning();
 
@@ -533,6 +551,8 @@ export class InvoiceService extends BaseService<
                 reference: invNumber!,
                 quantity: -parseFloat(item.quantity),
                 activityDate: invoiceData.invDate,
+                createdByEmployeeId,
+                createdByName,
               })
               .returning();
 
@@ -556,6 +576,8 @@ export class InvoiceService extends BaseService<
                 reference: invNumber!,
                 quantity: -parseFloat(item.quantity),
                 activityDate: invoiceData.invDate,
+                createdByEmployeeId,
+                createdByName,
               })
               .returning();
 

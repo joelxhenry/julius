@@ -162,6 +162,13 @@
       "when": 1788526990000,
       "tag": "0022_document_number_sequences",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788527000000,
+      "tag": "0023_inventory_transaction_creator",
+      "breakpoints": true
     }
   ]
 }

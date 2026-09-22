@@ -40,6 +40,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useTabContext } from '../../contexts/TabContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { employeeDisplayName } from '../../utils/employeeName';
 import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
 import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, ReceivingTab, InventoryEditModal, InventoryLookupTicketButton } from '../../components/inventory';
@@ -106,6 +108,7 @@ interface InventoryTransaction {
   reference: string | null;
   quantity: number;
   activityDate: string;
+  createdByName: string | null;
   createdAt: Date;
 }
 
@@ -144,6 +147,7 @@ export function InventoryDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
   const { runWithPermission } = usePermissions();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [item, setItem] = useState<Inventory | null>(null);
@@ -439,6 +443,8 @@ export function InventoryDetailPage() {
           reference: values.reason || 'Manual adjustment',
           quantity: delta,
           activityDate: new Date().toISOString().split('T')[0],
+          createdByEmployeeId: user?.id ?? null,
+          createdByName: user ? employeeDisplayName(user) : null,
         });
 
         notifications.show({
@@ -732,10 +738,19 @@ export function InventoryDetailPage() {
     return value;
   };
 
-  // Options for the Activity/Sales variant filters: all, base item, then each variant.
+  // Options for the Activity variant filter: all, base item, then each variant.
   const variantFilterOptions = [
     { value: 'all', label: 'All variants' },
     { value: '__base__', label: 'Base item only' },
+    ...variants.map((v) => ({
+      value: v.variantSku,
+      label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
+    })),
+  ];
+
+  // Sales variant filter: all, then each variant (no base-item-only option).
+  const salesVariantFilterOptions = [
+    { value: 'all', label: 'All variants' },
     ...variants.map((v) => ({
       value: v.variantSku,
       label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
@@ -1148,7 +1163,7 @@ export function InventoryDetailPage() {
               formatCurrency={formatCurrency}
               variant={salesVariant}
               onVariantChange={setSalesVariant}
-              variantOptions={variantFilterOptions}
+              variantOptions={salesVariantFilterOptions}
               dateRange={salesDateRange}
               onDateRangeChange={setSalesDateRange}
               onOpenDocument={handleOpenSaleDocument}
