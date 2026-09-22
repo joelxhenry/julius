@@ -176,6 +176,13 @@
       "when": 1788527010000,
       "tag": "0024_client_credit_standing",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788527020000,
+      "tag": "0025_client_wholesale",
+      "breakpoints": true
     }
   ]
 }

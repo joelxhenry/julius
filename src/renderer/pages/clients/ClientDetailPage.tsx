@@ -55,6 +55,7 @@ interface Client {
   creditEnabled: boolean;
   isBadCredit: boolean;
   isInArrears: boolean;
+  isWholesale: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -413,6 +414,15 @@ export function ClientDetailPage() {
                   </Text>
                   <Badge color={client.isTaxable ? 'blue' : 'gray'} variant="light">
                     {client.isTaxable ? 'Taxable' : 'Non-Taxable'}
+                  </Badge>
+                </Group>
+
+                <Group justify="space-between">
+                  <Text size="sm" c="dimmed">
+                    Pricing
+                  </Text>
+                  <Badge color={client.isWholesale ? 'grape' : 'gray'} variant="light">
+                    {client.isWholesale ? 'Wholesale' : 'Retail'}
                   </Badge>
                 </Group>
               </Stack>

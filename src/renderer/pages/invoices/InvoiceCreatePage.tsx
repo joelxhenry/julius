@@ -184,6 +184,7 @@ export function InvoiceCreatePage() {
     onSelect: (selectedClient) => {
       formActions.setClientId(selectedClient.id);
       formActions.setIsTaxable(selectedClient.isTaxable);
+      formActions.setPricing(selectedClient.isWholesale ? 'W' : 'R');
       formActions.setCreditTerms(selectedClient.creditTerms || '');
       checkClientCredit(selectedClient.id);
       setTimeout(() => {

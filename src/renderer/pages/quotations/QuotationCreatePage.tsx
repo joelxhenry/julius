@@ -302,6 +302,7 @@ export function QuotationCreatePage() {
         setClientId(option.client.id);
         setClientSearch(option.client.clientName);
         setIsTaxable(option.client.isTaxable);
+        setPricing(option.client.isWholesale ? 'W' : 'R');
       }
     },
     [clientOptions]

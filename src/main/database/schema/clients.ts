@@ -24,6 +24,10 @@ export const clients = pgTable('clients', {
   // Whether this client is allowed to purchase on credit at all
   creditEnabled: boolean('credit_enabled').notNull().default(true),
 
+  // Whether this client is billed at wholesale prices (vs. retail). Used to
+  // prefill the pricing tier when the client is selected on an invoice/quote.
+  isWholesale: boolean('is_wholesale').notNull().default(false),
+
   // Credit status flag (manually set by admin when client has bad credit history)
   isBadCredit: boolean('is_bad_credit').notNull().default(false),
 
