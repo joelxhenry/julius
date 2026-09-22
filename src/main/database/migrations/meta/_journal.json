@@ -169,6 +169,13 @@
       "when": 1788527000000,
       "tag": "0023_inventory_transaction_creator",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788527010000,
+      "tag": "0024_client_credit_standing",
+      "breakpoints": true
     }
   ]
 }

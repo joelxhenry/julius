@@ -2,6 +2,11 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { and, or, gte, lte, eq, count, sql, desc, isNull } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { canonicalizePaymentType, CANONICAL_PAYMENT_TYPES } from '../../shared/constants/payments';
+import {
+  computeReceivablesAging,
+  applyCreditStanding,
+  type ReceivablesSummaryResult,
+} from './receivablesAging';
 
 /**
  * Sales-listing group label for store credit issued by credit-note returns.
@@ -464,5 +469,24 @@ export class ReportService {
     }
 
     return { year, months, totals };
+  }
+
+  // ── 4. Receivables Summary (aging by days past terms) ──────────
+
+  /**
+   * Aging of outstanding receivables, bucketed by how many days each amount is
+   * past the client's allowed credit terms. Generating this report also refreshes
+   * every client's credit-standing flag (`is_in_arrears`) - a client in the result
+   * is in arrears, everyone else is not. The standing write is best-effort: if it
+   * fails the report is still returned.
+   */
+  async getReceivablesSummary(): Promise<ReceivablesSummaryResult> {
+    const summary = await computeReceivablesAging(this.db);
+    try {
+      await applyCreditStanding(this.db, summary);
+    } catch (err) {
+      console.error('Failed to update client credit standing during receivables report:', err);
+    }
+    return summary;
   }
 }

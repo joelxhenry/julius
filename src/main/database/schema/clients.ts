@@ -27,12 +27,18 @@ export const clients = pgTable('clients', {
   // Credit status flag (manually set by admin when client has bad credit history)
   isBadCredit: boolean('is_bad_credit').notNull().default(false),
 
+  // Auto-maintained credit standing: true when the client has outstanding amounts
+  // past their allowed credit terms (i.e. overdue). Distinct from the manual
+  // isBadCredit flag - the system owns this one and recomputes it from receivables.
+  isInArrears: boolean('is_in_arrears').notNull().default(false),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_clients_name').on(table.clientName),
   index('idx_clients_cl_number').on(table.clNumber),
   index('idx_clients_bad_credit').on(table.isBadCredit),
+  index('idx_clients_in_arrears').on(table.isInArrears),
 ]);
 
 // Export types

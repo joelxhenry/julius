@@ -4,6 +4,7 @@ import {
   IconCash,
   IconShoppingCart,
   IconChartBar,
+  IconReceipt2,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconArrowLeft,
@@ -11,6 +12,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { SalesSummaryReport } from './SalesSummaryReport';
 import { PurchaseReport } from './PurchaseReport';
+import { ReceivablesReport } from './ReceivablesReport';
 
 interface ReportEntry {
   key: string;
@@ -37,6 +39,14 @@ const reports: ReportEntry[] = [
     icon: <IconShoppingCart size={20} />,
     color: 'grape',
     component: <PurchaseReport />,
+  },
+  {
+    key: 'receivables',
+    label: 'Receivables Summary',
+    description: 'Amounts owing past each client’s credit terms, aged',
+    icon: <IconReceipt2 size={20} />,
+    color: 'orange',
+    component: <ReceivablesReport />,
   },
 ];
 

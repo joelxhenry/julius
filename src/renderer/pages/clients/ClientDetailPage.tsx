@@ -54,6 +54,7 @@ interface Client {
   creditTerms: string | null;
   creditEnabled: boolean;
   isBadCredit: boolean;
+  isInArrears: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -385,9 +386,23 @@ export function ClientDetailPage() {
                   <Text size="sm" c="dimmed">
                     Credit Status
                   </Text>
-                  <Badge color={client.isBadCredit ? 'red' : 'green'} variant="light">
-                    {client.isBadCredit ? 'Bad Credit' : 'Good Standing'}
-                  </Badge>
+                  <Group gap="xs" justify="flex-end">
+                    {client.isBadCredit && (
+                      <Badge color="red" variant="light">
+                        Bad Credit
+                      </Badge>
+                    )}
+                    {client.isInArrears && (
+                      <Badge color="orange" variant="light">
+                        In Arrears
+                      </Badge>
+                    )}
+                    {!client.isBadCredit && !client.isInArrears && (
+                      <Badge color="green" variant="light">
+                        Good Standing
+                      </Badge>
+                    )}
+                  </Group>
                 </Group>
 
                 <Divider />

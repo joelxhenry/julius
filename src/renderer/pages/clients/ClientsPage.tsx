@@ -37,6 +37,7 @@ interface Client {
   phone: string | null;
   creditLimit: string;
   isBadCredit: boolean;
+  isInArrears: boolean;
   isTaxable: boolean;
 }
 
@@ -195,11 +196,20 @@ export function ClientsPage() {
       {
         key: 'badCredit',
         header: 'Credit Status',
-        render: (client) => (
-          <Badge color={client.isBadCredit ? 'red' : 'gray'} variant="light" size="sm">
-            {client.isBadCredit ? 'Bad Credit' : 'Good'}
-          </Badge>
-        ),
+        render: (client) =>
+          client.isBadCredit ? (
+            <Badge color="red" variant="light" size="sm">
+              Bad Credit
+            </Badge>
+          ) : client.isInArrears ? (
+            <Badge color="orange" variant="light" size="sm">
+              In Arrears
+            </Badge>
+          ) : (
+            <Badge color="gray" variant="light" size="sm">
+              Good
+            </Badge>
+          ),
       },
       {
         key: 'actions',

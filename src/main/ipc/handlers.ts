@@ -1103,6 +1103,8 @@ function registerDataHandlers() {
     reportController.getPaymentCollection(params));
   ipcMain.handle(IpcChannel.GET_PURCHASE_REPORT, (_, params: { year: number }) =>
     reportController.getPurchaseSummary(params));
+  ipcMain.handle(IpcChannel.GET_RECEIVABLES_REPORT, () =>
+    reportController.getReceivablesSummary());
   ipcMain.handle(IpcChannel.PRINT_SALES_REPORT, async (_, params: SalesReportPrintRequest) => {
     try {
       const data = await reportService.getSalesSummary({
