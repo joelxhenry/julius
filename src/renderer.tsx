@@ -22,7 +22,7 @@ import { DatabaseConfigModal } from './renderer/components/database/DatabaseConf
 import { ErrorBoundary } from './renderer/components/common/ErrorBoundary';
 import { ThemeTransitionOverlay } from './renderer/components/common/ThemeTransitionOverlay';
 import { KeyboardShortcutHelp } from './renderer/components/common/KeyboardShortcutHelp';
-import { UpdatePrompt } from './renderer/components/common/UpdatePrompt';
+import { UpdateBanner } from './renderer/components/common/UpdateBanner';
 import { FirstRunGate } from './renderer/components/setup/FirstRunGate';
 import { theme } from './renderer/theme';
 import { router } from './renderer/router';
@@ -37,7 +37,7 @@ function AppWithTheme() {
       <ThemeTransitionOverlay />
       <BackgroundActivityProvider>
       <UpdatesProvider>
-      <UpdatePrompt />
+      <UpdateBanner />
       <FirstRunGate>
         <DatabaseConnectionProvider>
           <DatabaseConfigModal />

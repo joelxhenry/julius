@@ -2,15 +2,24 @@ import CryptoJS from 'crypto-js';
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { AppConfig, MachineRole } from './types';
 
 export class ConfigManager {
   private configPath: string;
+  /** Key used for all new writes. Stable across app updates. */
   private encryptionKey: string;
+  /**
+   * Legacy key derived from the install path (process.cwd()). Squirrel installs
+   * every version into a different `app-<version>` directory, so this key is
+   * version-specific. We keep it only to decrypt — and then migrate — configs
+   * that were written before the encryption key was made update-stable.
+   */
+  private legacyEncryptionKey: string;
 
   constructor() {
-    // Get encryption key from machine-specific source
-    this.encryptionKey = this.getEncryptionKey();
+    this.encryptionKey = this.deriveKey(this.getStableSeed());
+    this.legacyEncryptionKey = this.deriveKey(process.cwd());
 
     // Determine config path based on environment
     if (app && app.isReady && app.isReady()) {
@@ -22,16 +31,21 @@ export class ConfigManager {
   }
 
   /**
-   * Get machine-specific encryption key
-   * Uses app name + installation path as seed for encryption
+   * Seed for the encryption key. It MUST stay constant across app updates, so it
+   * must NOT depend on the versioned install directory (process.cwd()), which
+   * Squirrel changes on every update — that would leave the stored DB password
+   * undecryptable after an update and force users to reconnect. `userData` is a
+   * stable per-user location; hostname is a stable fallback for CLI/test runs.
    */
-  private getEncryptionKey(): string {
-    const appName = 'turbo-julius';
-    const installPath = process.cwd();
+  private getStableSeed(): string {
+    if (app && app.isReady && app.isReady()) {
+      return app.getPath('userData');
+    }
+    return os.hostname();
+  }
 
-    // Create hash from app name and install path for encryption key
-    const seed = `${appName}:${installPath}`;
-    return CryptoJS.SHA256(seed).toString();
+  private deriveKey(seed: string): string {
+    return CryptoJS.SHA256(`turbo-julius:${seed}`).toString();
   }
 
   /**
@@ -58,19 +72,27 @@ export class ConfigManager {
       const configData = fs.readFileSync(this.configPath, 'utf-8');
       const config: AppConfig = JSON.parse(configData);
 
-      // Decrypt password
+      // Decrypt password, tolerating configs written under the old install-path key.
       if (config.database.password) {
-        try {
-          const decrypted = this.decrypt(config.database.password);
-          if (decrypted && decrypted.length > 0) {
-            config.database.password = decrypted;
-          } else {
-            console.warn('Decrypted password is empty, using original value');
-            // Password might already be in plain text
+        const { value, legacy } = this.decryptWithFallback(config.database.password);
+        if (value !== null) {
+          config.database.password = value;
+          // Written under the legacy (install-path) key — re-save now so it
+          // survives the next update under the stable key.
+          if (legacy) {
+            try {
+              this.save(config);
+              console.log('Migrated stored DB password to the update-stable encryption key.');
+            } catch (migrationError) {
+              console.warn('Password key migration re-save failed:', migrationError);
+            }
           }
-        } catch (error) {
-          console.warn('Failed to decrypt password, using as-is');
-          // Keep the original password (might be plain text)
+        } else {
+          // Undecryptable — e.g. this install updated before the key was made
+          // stable. Clear it so the app prompts for credentials rather than
+          // failing to connect with an unusable value.
+          console.warn('Stored DB password could not be decrypted; clearing it so the user is prompted.');
+          config.database.password = '';
         }
       }
 
@@ -129,11 +151,31 @@ export class ConfigManager {
   }
 
   /**
-   * Decrypt text using AES-256
+   * Decrypt with the current (stable) key, falling back to the legacy
+   * install-path key. Returns the plaintext plus whether the legacy key was
+   * needed, so the caller can migrate the file to the stable key.
+   *
+   * A wrong key yields empty/garbage output (or throws on UTF-8 conversion),
+   * so each candidate that produces a non-empty string is accepted in order.
    */
-  private decrypt(ciphertext: string): string {
-    const bytes = CryptoJS.AES.decrypt(ciphertext, this.encryptionKey);
-    return bytes.toString(CryptoJS.enc.Utf8);
+  private decryptWithFallback(ciphertext: string): { value: string | null; legacy: boolean } {
+    const candidates: Array<{ key: string; legacy: boolean }> = [
+      { key: this.encryptionKey, legacy: false },
+      { key: this.legacyEncryptionKey, legacy: true },
+    ];
+
+    for (const { key, legacy } of candidates) {
+      try {
+        const text = CryptoJS.AES.decrypt(ciphertext, key).toString(CryptoJS.enc.Utf8);
+        if (text && text.length > 0) {
+          return { value: text, legacy };
+        }
+      } catch {
+        // Wrong key — malformed UTF-8. Try the next candidate.
+      }
+    }
+
+    return { value: null, legacy: false };
   }
 
   /**
