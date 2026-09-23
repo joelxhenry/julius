@@ -48,28 +48,66 @@ function copyDirSafe(src: string, dest: string) {
   }
 }
 
-// Given a package name, read its package.json and recursively collect its
-// runtime dependencies that are hoisted to the top-level node_modules. Deps
-// nested inside a package's own node_modules are copied with it recursively,
-// so we only need to resolve the hoisted ones here.
-function collectTransitiveDeps(
-  srcNodeModules: string,
-  pkg: string,
-  seen: Set<string>
-) {
-  if (seen.has(pkg)) return;
-  const pkgJsonPath = path.join(srcNodeModules, pkg, 'package.json');
-  if (!fs.existsSync(pkgJsonPath)) return; // nested/optional — copied with parent
-  seen.add(pkg);
+// Resolve a dependency the way Node does: search `<dir>/node_modules/<dep>` from
+// the requiring package's directory upward through every ancestor node_modules,
+// ending at the root node_modules. Returns the resolved package directory or null.
+function resolveDepDir(fromDir: string, dep: string, rootNodeModules: string): string | null {
+  const nmSegment = `${path.sep}node_modules${path.sep}`;
+  const candidates: string[] = [path.join(fromDir, 'node_modules')];
 
+  // Every ancestor node_modules directory along fromDir's path.
+  let s = fromDir;
+  let i = s.lastIndexOf(nmSegment);
+  while (i !== -1) {
+    candidates.push(s.substring(0, i + nmSegment.length - 1)); // ".../node_modules"
+    s = s.substring(0, i);
+    i = s.lastIndexOf(nmSegment);
+  }
+  if (!candidates.includes(rootNodeModules)) candidates.push(rootNodeModules);
+
+  for (const nm of candidates) {
+    const candidate = path.join(nm, dep);
+    if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
+  }
+  return null;
+}
+
+// Walk a package's dependency graph on disk (following real nesting), collecting
+// the names of every package that lives at the TOP-LEVEL node_modules and must
+// be copied explicitly. Packages nested inside another package's node_modules
+// are copied recursively with their parent, so they are only descended into —
+// but their own hoisted (top-level) dependencies are still collected here. This
+// mirrors npm's hoisting layout, where different versions of the same package
+// (e.g. readable-stream v2 vs v3) coexist and pull different transitive deps.
+function collectTopLevelDeps(
+  pkgDir: string,
+  rootNodeModules: string,
+  topLevelNames: Set<string>,
+  seenDirs: Set<string>
+) {
+  if (seenDirs.has(pkgDir)) return;
+  seenDirs.add(pkgDir);
+
+  const pkgJsonPath = path.join(pkgDir, 'package.json');
+  if (!fs.existsSync(pkgJsonPath)) return;
+
+  let deps: Record<string, string> = {};
   try {
     const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-    const deps = { ...(pkgJson.dependencies || {}), ...(pkgJson.optionalDependencies || {}) };
-    for (const dep of Object.keys(deps)) {
-      collectTransitiveDeps(srcNodeModules, dep, seen);
-    }
+    deps = { ...(pkgJson.dependencies || {}), ...(pkgJson.optionalDependencies || {}) };
   } catch {
-    // Malformed package.json — still copy the package itself.
+    return; // malformed — nothing more to walk
+  }
+
+  for (const dep of Object.keys(deps)) {
+    const depDir = resolveDepDir(pkgDir, dep, rootNodeModules);
+    if (!depDir) continue; // builtin, missing optional, etc.
+
+    // Is this the copy at the top-level node_modules (vs nested under a parent)?
+    if (path.dirname(depDir) === rootNodeModules || path.dirname(path.dirname(depDir)) === rootNodeModules) {
+      topLevelNames.add(path.relative(rootNodeModules, depDir).split(path.sep).join('/'));
+    }
+    collectTopLevelDeps(depDir, rootNodeModules, topLevelNames, seenDirs);
   }
 }
 
@@ -96,11 +134,14 @@ function copyNodeModules(buildPath: string) {
 
   const srcNodeModules = path.join(process.cwd(), 'node_modules');
 
-  // Backup feature: externalized packages + their full hoisted dependency trees.
+  // Backup feature: externalized packages + their full dependency closure,
+  // resolved on disk so nested version trees (e.g. readable-stream v2 under
+  // archiver) and their hoisted deps (process-nextick-args, etc.) are included.
   const backupRoots = ['@googleapis/drive', 'google-auth-library', 'archiver', 'unzipper'];
-  const backupDeps = new Set<string>();
+  const backupDeps = new Set<string>(backupRoots);
+  const seenDirs = new Set<string>();
   for (const root of backupRoots) {
-    collectTransitiveDeps(srcNodeModules, root, backupDeps);
+    collectTopLevelDeps(path.join(srcNodeModules, root), srcNodeModules, backupDeps, seenDirs);
   }
   for (const dep of backupDeps) {
     if (!modulesToCopy.includes(dep)) modulesToCopy.push(dep);

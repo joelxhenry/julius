@@ -1,7 +1,7 @@
 {
   "name": "turbo-julius",
   "productName": "Julius Auto Parts",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "scripts": {
@@ -43,7 +43,7 @@
     "@electron-forge/publisher-github": "^7.10.2",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.1",
-    "@types/archiver": "^8.0.0",
+    "@types/archiver": "^6.0.4",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/numeral": "^2.0.5",
     "@types/react": "^19.2.7",
@@ -84,7 +84,7 @@
     "@tabler/icons-react": "^3.35.0",
     "@types/crypto-js": "^4.2.2",
     "@types/pg": "^8.15.6",
-    "archiver": "^8.0.0",
+    "archiver": "^7.0.1",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.19",
     "drizzle-orm": "^0.44.7",
