@@ -1,9 +1,13 @@
-import { ipcMain } from 'electron';
+import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { getDatabaseOrNull, initDatabase, closeDatabase, getConnectionError, runMigrationsAndSeeds } from '../database';
 import { IpcChannel } from '../../shared/types/ipc';
 import { SetupIpc, SetupState } from '../../shared/types/setup';
+import { BackupIpc, BackupProgress, BackupSettings } from '../../shared/types/backup';
 import { ConfigManager } from '../config/ConfigManager';
 import { MachineRole } from '../config/types';
+import { GoogleDriveService } from '../services/GoogleDriveService';
+import { BackupService } from '../services/BackupService';
+import { BackupController } from '../controllers/BackupController';
 
 // Track which handlers have been registered to avoid duplicates
 let configHandlersRegistered = false;
@@ -192,6 +196,70 @@ export function registerIpcHandlers() {
         };
       }
     });
+
+    // ===== GOOGLE DRIVE BACKUP HANDLERS =====
+    // Registered on raw BackupIpc channels (not IpcChannel) so they survive the
+    // data-handler teardown on every DB reconnect — restore itself reconnects
+    // the database, so these must keep working while the pool is down.
+    {
+      const backupConfigManager = new ConfigManager();
+      const driveService = new GoogleDriveService(backupConfigManager);
+      const backupService = new BackupService(backupConfigManager);
+      const backupController = new BackupController(backupConfigManager, driveService, backupService);
+
+      // Stream progress back to whichever window invoked the operation.
+      const progressTo = (event: Electron.IpcMainInvokeEvent) => (p: BackupProgress) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(BackupIpc.PROGRESS, p);
+        }
+      };
+
+      ipcMain.handle(BackupIpc.GET_STATUS, () => backupController.getStatus());
+
+      ipcMain.handle(BackupIpc.SAVE_SETTINGS, (_, settings: Partial<BackupSettings>) =>
+        backupController.saveSettings(settings)
+      );
+
+      ipcMain.handle(BackupIpc.CONNECT, () => backupController.connect());
+
+      ipcMain.handle(BackupIpc.DISCONNECT, () => backupController.disconnect());
+
+      ipcMain.handle(BackupIpc.LIST, () => backupController.listBackups());
+
+      ipcMain.handle(BackupIpc.BACKUP_NOW, (event) =>
+        backupController.backupNow(progressTo(event))
+      );
+
+      ipcMain.handle(BackupIpc.DELETE, (_, { fileId }: { fileId: string }) =>
+        backupController.deleteBackup(fileId)
+      );
+
+      ipcMain.handle(BackupIpc.RESTORE, async (event, { fileId }: { fileId: string }) => {
+        const result = await backupController.restore(fileId, progressTo(event));
+        if (result.success) {
+          // The database pool was replaced during restore; rebind the data-layer
+          // IPC handlers to the fresh connection (mirrors RECONNECT_DATABASE).
+          removeDataHandlers();
+          registerDataHandlers();
+        }
+        return result;
+      });
+
+      ipcMain.handle(BackupIpc.DOWNLOAD, async (event, { fileId, name }: { fileId: string; name: string }) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const options = {
+          defaultPath: name,
+          filters: [{ name: 'Backup Archive', extensions: ['zip'] }],
+        };
+        const dialogResult = win
+          ? await dialog.showSaveDialog(win, options)
+          : await dialog.showSaveDialog(options);
+        if (dialogResult.canceled || !dialogResult.filePath) {
+          return { success: false, error: 'Download cancelled' };
+        }
+        return backupController.downloadToPath(fileId, dialogResult.filePath, progressTo(event));
+      });
+    }
 
     configHandlersRegistered = true;
   }

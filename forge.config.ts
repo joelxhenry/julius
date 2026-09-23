@@ -48,6 +48,31 @@ function copyDirSafe(src: string, dest: string) {
   }
 }
 
+// Given a package name, read its package.json and recursively collect its
+// runtime dependencies that are hoisted to the top-level node_modules. Deps
+// nested inside a package's own node_modules are copied with it recursively,
+// so we only need to resolve the hoisted ones here.
+function collectTransitiveDeps(
+  srcNodeModules: string,
+  pkg: string,
+  seen: Set<string>
+) {
+  if (seen.has(pkg)) return;
+  const pkgJsonPath = path.join(srcNodeModules, pkg, 'package.json');
+  if (!fs.existsSync(pkgJsonPath)) return; // nested/optional — copied with parent
+  seen.add(pkg);
+
+  try {
+    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    const deps = { ...(pkgJson.dependencies || {}), ...(pkgJson.optionalDependencies || {}) };
+    for (const dep of Object.keys(deps)) {
+      collectTransitiveDeps(srcNodeModules, dep, seen);
+    }
+  } catch {
+    // Malformed package.json — still copy the package itself.
+  }
+}
+
 // Copy node_modules that need to be external (not bundled)
 function copyNodeModules(buildPath: string) {
   const modulesToCopy = [
@@ -70,6 +95,16 @@ function copyNodeModules(buildPath: string) {
   ];
 
   const srcNodeModules = path.join(process.cwd(), 'node_modules');
+
+  // Backup feature: externalized packages + their full hoisted dependency trees.
+  const backupRoots = ['@googleapis/drive', 'google-auth-library', 'archiver', 'unzipper'];
+  const backupDeps = new Set<string>();
+  for (const root of backupRoots) {
+    collectTransitiveDeps(srcNodeModules, root, backupDeps);
+  }
+  for (const dep of backupDeps) {
+    if (!modulesToCopy.includes(dep)) modulesToCopy.push(dep);
+  }
 
   // Also copy @img scoped packages (sharp native binaries)
   const imgScopePath = path.join(srcNodeModules, '@img');

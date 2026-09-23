@@ -1,7 +1,7 @@
 {
   "name": "turbo-julius",
-  "productName": "turbo-julius",
-  "version": "1.0.3",
+  "productName": "Julius Auto Parts",
+  "version": "1.0.4",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "scripts": {
@@ -43,10 +43,12 @@
     "@electron-forge/publisher-github": "^7.10.2",
     "@electron/fuses": "^1.8.0",
     "@electron/rebuild": "^4.0.1",
+    "@types/archiver": "^8.0.0",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/numeral": "^2.0.5",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/unzipper": "^0.10.11",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^5.1.1",
@@ -70,6 +72,7 @@
     "vite": "^5.4.21"
   },
   "dependencies": {
+    "@googleapis/drive": "^26.0.0",
     "@mantine/core": "^8.3.9",
     "@mantine/dates": "^8.3.9",
     "@mantine/dropzone": "^8.3.9",
@@ -81,10 +84,12 @@
     "@tabler/icons-react": "^3.35.0",
     "@types/crypto-js": "^4.2.2",
     "@types/pg": "^8.15.6",
+    "archiver": "^8.0.0",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.19",
     "drizzle-orm": "^0.44.7",
     "electron-squirrel-startup": "^1.0.1",
+    "google-auth-library": "^11.1.0",
     "numeral": "^2.0.6",
     "pg": "^8.16.3",
     "react": "^19.2.0",
@@ -92,6 +97,7 @@
     "react-router": "^7.9.6",
     "react-router-dom": "^7.9.6",
     "sharp": "^0.34.5",
+    "unzipper": "^0.12.5",
     "update-electron-app": "^3.3.0",
     "xlsx": "^0.18.5",
     "zod": "^4.1.13"

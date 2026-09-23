@@ -4,10 +4,20 @@ import started from 'electron-squirrel-startup';
 import { initDatabase, getConnectionError, getDatabaseOrNull, runBackgroundSeeds } from './main/database';
 import { registerIpcHandlers } from './main/ipc/handlers';
 import { initAutoUpdater } from './main/updater/AutoUpdater';
+import { BackupScheduler } from './main/backup/BackupScheduler';
 
 // Declare Vite global variables
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
+
+// The display name ("Julius Auto Parts", from package.json productName) is what
+// Electron would normally use for the userData directory. But config.json, the
+// database, and the DB-password encryption key seed all live under and derive
+// from `<appData>/turbo-julius` (the original product name). Pin userData to
+// that legacy location so renaming the product for the desktop label does NOT
+// move existing installs' data or invalidate the stored encryption key. See
+// src/main/config/ConfigManager.ts (getStableSeed).
+app.setPath('userData', path.join(app.getPath('appData'), 'turbo-julius'));
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -15,6 +25,7 @@ if (started) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let backupScheduler: BackupScheduler | null = null;
 
 const createWindow = async () => {
   const iconPath = app.isPackaged
@@ -56,6 +67,13 @@ const createWindow = async () => {
 
   // Initialize auto-updates (no-op unless this is a packaged Windows build).
   initAutoUpdater(mainWindow);
+
+  // Start the automatic backup scheduler (no-op unless Drive is connected and
+  // auto-backup is enabled). Points at whichever window is current.
+  if (!backupScheduler) {
+    backupScheduler = new BackupScheduler(() => mainWindow);
+    backupScheduler.start();
+  }
 
   // Send connection status to renderer after window loads
   const error = getConnectionError();

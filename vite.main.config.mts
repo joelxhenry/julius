@@ -26,6 +26,12 @@ export default defineConfig({
       'drizzle-orm/node-postgres',
       'drizzle-orm/node-postgres/migrator',
       'sharp',
+      // Backup feature: CJS/large packages that don't bundle cleanly. Loaded
+      // at runtime from node_modules (copied by forge.config.ts copyNodeModules).
+      '@googleapis/drive',
+      'google-auth-library',
+      'archiver',
+      'unzipper',
     ],
   },
   build: {
@@ -46,6 +52,11 @@ export default defineConfig({
         'drizzle-orm',
         /^drizzle-orm\/.*/,
         'sharp',
+        // Backup feature runtime deps (see ssr.external above).
+        '@googleapis/drive',
+        'google-auth-library',
+        'archiver',
+        'unzipper',
         ...builtinModules,
         ...builtinModules.map(m => `node:${m}`),
       ],

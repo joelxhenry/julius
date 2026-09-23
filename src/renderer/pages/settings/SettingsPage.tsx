@@ -16,6 +16,7 @@ import {
   IconFolder,
   IconArrowLeft,
   IconInfoCircle,
+  IconCloudUpload,
 } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
@@ -25,6 +26,7 @@ import { TaxSettingsTab } from './TaxSettingsTab';
 import { StorageSettingsTab } from './StorageSettingsTab';
 import { DocumentSettingsTab } from './DocumentSettingsTab';
 import { AboutSettingsTab } from './AboutSettingsTab';
+import { BackupSettingsTab } from './BackupSettingsTab';
 import { usePermissions } from '../../permissions';
 
 interface SettingsTab {
@@ -43,6 +45,7 @@ const settingsTabs: SettingsTab[] = [
   { value: 'documents', label: 'Documents', icon: <IconFileText size={16} />, permission: 'MANAGE_DOCUMENTS', component: <DocumentSettingsTab /> },
   { value: 'tax', label: 'Tax', icon: <IconReceipt size={16} />, permission: 'MANAGE_TAX', component: <TaxSettingsTab /> },
   { value: 'storage', label: 'Storage', icon: <IconFolder size={16} />, permission: 'MANAGE_STORAGE', component: <StorageSettingsTab /> },
+  { value: 'backup', label: 'Backup', icon: <IconCloudUpload size={16} />, permission: 'MANAGE_DATABASE', component: <BackupSettingsTab /> },
   { value: 'about', label: 'About', icon: <IconInfoCircle size={16} />, component: <AboutSettingsTab /> },
 ];
 

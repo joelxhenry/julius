@@ -2,6 +2,11 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcChannel } from './shared/types/ipc';
 import { UpdateIpc, type UpdateStatus } from './shared/types/update';
 import { SetupIpc, type SetupState, type MachineRole } from './shared/types/setup';
+import {
+  BackupIpc,
+  type BackupProgress,
+  type BackupSettings,
+} from './shared/types/backup';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -51,6 +56,26 @@ contextBridge.exposeInMainWorld('electron', {
   getSetupState: (): Promise<SetupState> => ipcRenderer.invoke(SetupIpc.GET_STATE),
   completeSetup: (role: MachineRole): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(SetupIpc.COMPLETE, { role }),
+
+  // ===== Google Drive backup =====
+  getBackupStatus: () => ipcRenderer.invoke(BackupIpc.GET_STATUS),
+  saveBackupSettings: (settings: Partial<BackupSettings>) =>
+    ipcRenderer.invoke(BackupIpc.SAVE_SETTINGS, settings),
+  connectGoogleDrive: () => ipcRenderer.invoke(BackupIpc.CONNECT),
+  disconnectGoogleDrive: () => ipcRenderer.invoke(BackupIpc.DISCONNECT),
+  backupNow: () => ipcRenderer.invoke(BackupIpc.BACKUP_NOW),
+  listBackups: () => ipcRenderer.invoke(BackupIpc.LIST),
+  restoreBackup: (fileId: string) => ipcRenderer.invoke(BackupIpc.RESTORE, { fileId }),
+  deleteBackup: (fileId: string) => ipcRenderer.invoke(BackupIpc.DELETE, { fileId }),
+  downloadBackup: (fileId: string, name: string) =>
+    ipcRenderer.invoke(BackupIpc.DOWNLOAD, { fileId, name }),
+  onBackupProgress: (callback: (progress: BackupProgress) => void) => {
+    const listener = (_: unknown, data: BackupProgress) => callback(data);
+    ipcRenderer.on(BackupIpc.PROGRESS, listener);
+    return () => {
+      ipcRenderer.removeListener(BackupIpc.PROGRESS, listener);
+    };
+  },
 });
 
 // See the Electron documentation for details on how to use preload scripts:
