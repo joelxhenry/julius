@@ -16,6 +16,8 @@ import {
   UnstyledButton,
   Text,
   Center,
+  Badge,
+  Group,
 } from '@mantine/core';
 import { IconSearch, IconTag, IconCar } from '@tabler/icons-react';
 import { ProductDisplay } from '../common';
@@ -192,16 +194,25 @@ export const ProductSearchPanel = forwardRef<ProductSearchPanelHandle, ProductSe
                           : undefined,
                       }}
                     >
-                      <ProductDisplay
-                        product={{
-                          sku: item.sku,
-                          category: item.category,
-                          model: item.model,
-                          price: item.price,
-                        }}
-                        size={size}
-                        showCopyButton={false}
-                      />
+                      <Group gap="xs" wrap="nowrap" justify="space-between" align="flex-start">
+                        <ProductDisplay
+                          product={{
+                            sku: item.sku,
+                            category: item.category,
+                            model: item.model,
+                            price: item.price,
+                          }}
+                          size={size}
+                          showCopyButton={false}
+                        />
+                        <Badge
+                          color={item.quantity > 10 ? 'green' : item.quantity > 0 ? 'orange' : 'red'}
+                          variant="light"
+                          size={size}
+                        >
+                          {item.quantity} in stock
+                        </Badge>
+                      </Group>
                       {(item.variantName || item.description1) && (
                         <Text size="xs" c="dimmed" mt={2} lineClamp={1}>
                           {item.variantName || item.description1}
