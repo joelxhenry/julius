@@ -1,8 +1,9 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, ilike, asc, count, or } from 'drizzle-orm';
+import { eq, and, asc, count } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
+import { buildForgivingSearchCondition } from './searchUtils';
 
 export interface VariantQueryParams {
   page?: number;
@@ -93,15 +94,13 @@ export class VariantService extends BaseService<
     const conditions = [];
 
     if (search && search.trim()) {
-      const searchTerm = `%${search.trim()}%`;
-      conditions.push(
-        or(
-          ilike(schema.variants.variantSku, searchTerm),
-          ilike(schema.variants.variantName, searchTerm),
-          ilike(schema.variants.description, searchTerm),
-          ilike(schema.variants.parentSku, searchTerm)
-        )
-      );
+      const condition = buildForgivingSearchCondition(search, [
+        schema.variants.variantSku,
+        schema.variants.variantName,
+        schema.variants.description,
+        schema.variants.parentSku,
+      ]);
+      if (condition) conditions.push(condition);
     }
 
     if (parentSku) {
@@ -198,15 +197,13 @@ export class VariantService extends BaseService<
     const conditions = [];
 
     if (query && query.trim()) {
-      const searchTerm = `%${query.trim()}%`;
-      conditions.push(
-        or(
-          ilike(schema.variants.variantSku, searchTerm),
-          ilike(schema.variants.variantName, searchTerm),
-          ilike(schema.variants.parentSku, searchTerm),
-          ilike(schema.inventory.description1, searchTerm)
-        )
-      );
+      const condition = buildForgivingSearchCondition(query, [
+        schema.variants.variantSku,
+        schema.variants.variantName,
+        schema.variants.parentSku,
+        schema.inventory.description1,
+      ]);
+      if (condition) conditions.push(condition);
     }
 
     // Always filter active variants

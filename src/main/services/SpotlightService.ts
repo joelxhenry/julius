@@ -1,6 +1,7 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { or, ilike, asc, desc, eq } from 'drizzle-orm';
 import * as schema from '../database/schema';
+import { buildForgivingSearchCondition } from './searchUtils';
 
 export interface SpotlightResult {
   id: number;
@@ -113,11 +114,11 @@ export class SpotlightService {
           .from(schema.variants)
           .innerJoin(schema.inventory, eq(schema.variants.parentSku, schema.inventory.sku))
           .where(
-            or(
-              ilike(schema.variants.variantSku, searchTerm),
-              ilike(schema.variants.variantName, searchTerm),
-              ilike(schema.variants.description, searchTerm)
-            )
+            buildForgivingSearchCondition(query, [
+              schema.variants.variantSku,
+              schema.variants.variantName,
+              schema.variants.description,
+            ])
           )
           .orderBy(asc(schema.variants.variantSku))
           .limit(limitPerType);

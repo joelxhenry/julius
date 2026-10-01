@@ -1,9 +1,10 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or, and, ilike, asc, count, sql, inArray } from 'drizzle-orm';
+import { eq, and, ilike, asc, count, sql, inArray } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
 import { normalizeToArray } from '../../shared/utils/arrayFields';
+import { buildForgivingSearchCondition, forgivingIncludes } from './searchUtils';
 
 export interface InventoryQueryParams {
   page?: number;
@@ -147,17 +148,15 @@ export class InventoryService extends BaseService<
     const conditions = [];
 
     if (search && search.trim()) {
-      const searchTerm = `%${search.trim()}%`;
-      conditions.push(
-        or(
-          ilike(schema.inventory.sku, searchTerm),
-          ilike(schema.inventory.description1, searchTerm),
-          ilike(schema.inventory.description2, searchTerm),
-          ilike(schema.inventory.model, searchTerm),
-          ilike(schema.inventory.category, searchTerm),
-          ilike(schema.inventory.location, searchTerm)
-        )
-      );
+      const condition = buildForgivingSearchCondition(search, [
+        schema.inventory.sku,
+        schema.inventory.description1,
+        schema.inventory.description2,
+        schema.inventory.model,
+        schema.inventory.category,
+        schema.inventory.location,
+      ]);
+      if (condition) conditions.push(condition);
     }
 
     if (category && category.trim() && category !== 'all') {
@@ -301,18 +300,16 @@ export class InventoryService extends BaseService<
   }
 
   async search(query: string): Promise<schema.Inventory[]> {
-    const searchTerm = `%${query}%`;
+    const condition = buildForgivingSearchCondition(query, [
+      schema.inventory.sku,
+      schema.inventory.description1,
+      schema.inventory.description2,
+      schema.inventory.model,
+    ]);
     return this.db
       .select()
       .from(schema.inventory)
-      .where(
-        or(
-          like(schema.inventory.sku, searchTerm),
-          like(schema.inventory.description1, searchTerm),
-          like(schema.inventory.description2, searchTerm),
-          like(schema.inventory.model, searchTerm)
-        )
-      )
+      .where(condition)
       .orderBy(asc(schema.inventory.sku));
   }
 
@@ -320,14 +317,12 @@ export class InventoryService extends BaseService<
     const conditions = [];
 
     if (query && query.trim()) {
-      const searchTerm = `%${query.trim()}%`;
-      conditions.push(
-        or(
-          ilike(schema.inventory.sku, searchTerm),
-          ilike(schema.inventory.description1, searchTerm),
-          ilike(schema.inventory.model, searchTerm)
-        )
-      );
+      const condition = buildForgivingSearchCondition(query, [
+        schema.inventory.sku,
+        schema.inventory.description1,
+        schema.inventory.model,
+      ]);
+      if (condition) conditions.push(condition);
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
@@ -432,17 +427,15 @@ export class InventoryService extends BaseService<
     const conditions = [eq(schema.variants.isActive, true)];
 
     if (trimmedQuery) {
-      const searchTerm = `%${trimmedQuery}%`;
-      conditions.push(
-        or(
-          ilike(schema.variants.variantSku, searchTerm),
-          ilike(schema.variants.variantName, searchTerm),
-          ilike(schema.variants.description, searchTerm),
-          ilike(schema.variants.parentSku, searchTerm),
-          ilike(schema.inventory.description1, searchTerm),
-          ilike(schema.inventory.model, searchTerm)
-        )!
-      );
+      const condition = buildForgivingSearchCondition(trimmedQuery, [
+        schema.variants.variantSku,
+        schema.variants.variantName,
+        schema.variants.description,
+        schema.variants.parentSku,
+        schema.inventory.description1,
+        schema.inventory.model,
+      ]);
+      if (condition) conditions.push(condition);
     }
 
     if (category) {
@@ -524,8 +517,7 @@ export class InventoryService extends BaseService<
 
     // Filter by search if provided
     if (search && search.trim()) {
-      const searchLower = search.toLowerCase().trim();
-      sorted = sorted.filter((c) => c.toLowerCase().includes(searchLower));
+      sorted = sorted.filter((c) => forgivingIncludes(c, search));
     }
 
     return sorted.slice(0, limit);
@@ -554,8 +546,7 @@ export class InventoryService extends BaseService<
 
     // Filter by search if provided
     if (search && search.trim()) {
-      const searchLower = search.toLowerCase().trim();
-      sorted = sorted.filter((m) => m.toLowerCase().includes(searchLower));
+      sorted = sorted.filter((m) => forgivingIncludes(m, search));
     }
 
     return sorted.slice(0, limit);
