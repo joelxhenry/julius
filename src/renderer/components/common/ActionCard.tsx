@@ -5,7 +5,7 @@ interface ActionCardProps {
   icon: React.ReactNode;
   title: string;
   description?: string;
-  shortcut: string;
+  shortcut?: string;
   onClick: () => void;
   color?: MantineColor;
 }
@@ -76,7 +76,7 @@ export function ActionCard({
             >
               {icon}
             </Text>
-            <Kbd size="xs">{shortcut}</Kbd>
+            {shortcut && <Kbd size="xs">{shortcut}</Kbd>}
           </Group>
           <Stack gap={4}>
             <Text fw={600} size="md">

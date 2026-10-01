@@ -24,12 +24,11 @@ const actionItems = [
     color: 'blue',
   },
   {
-    id: 'create-quotation',
-    title: 'Create Quotation',
-    description: 'Create a new price quotation',
+    id: 'quotations',
+    title: 'Quotations',
+    description: 'View and search all quotations',
     icon: <IconFileText size={24} />,
-    shortcut: 'Alt+Q',
-    path: '/quotations/new',
+    path: '/quotations',
     color: 'violet',
   },
   {
