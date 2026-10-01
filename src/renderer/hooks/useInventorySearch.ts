@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { IpcChannel } from '../../shared/types/ipc';
+import { formatVariantName } from '../../shared/utils/variantName';
 
 export interface InventorySearchItem {
   id: number;
@@ -49,7 +50,10 @@ export function useInventorySearch(config: UseInventorySearchOptions = {}) {
           result.data.map((item: InventorySearchItem) => {
             // Every product has at least one variant, so there's no distinct
             // "base product" to flag - all results render identically as variants.
-            const label = `${item.sku}    -    ${item.variantName || item.description1 || 'No description'}`;
+            // description2 carries the parent's name here (description1 is the
+            // variant's own name/description - see InventoryService.searchWithVariants).
+            const name = formatVariantName(item.description2, item.variantName, item.isBase) || 'No description';
+            const label = `${item.sku}    -    ${name}`;
             return { value: item.sku, label, item };
           })
         );

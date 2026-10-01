@@ -459,7 +459,11 @@ export class InventoryService extends BaseService<
       .orderBy(asc(schema.variants.variantSku))
       .limit(limit);
 
-    // Add variant items to results
+    // Add variant items to results.
+    // Note: description1/description2 are swapped relative to the inventory table -
+    // description1 here is the variant's own name/description, description2 is the
+    // parent product's name. Consumers combining base + variant names must read
+    // description2 as the base name (see shared/utils/variantName.ts).
     for (const { variant, parent } of variantItems) {
       results.push({
         id: variant.id,

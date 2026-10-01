@@ -1,6 +1,7 @@
 import { Modal, Stack, Text, Table, Badge, Button, Group, Loader, Alert } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { CopyButton } from '../common';
+import { formatVariantName } from '../../../shared/utils/variantName';
 
 export interface Variant {
   id: number;
@@ -11,12 +12,15 @@ export interface Variant {
   quantity: number;
   price: string;
   isActive: boolean;
+  isBase?: boolean;
 }
 
 interface VariantSelectorModalProps {
   opened: boolean;
   onClose: () => void;
   parentSku: string;
+  /** Base product's name - always prepended to each variant's name. */
+  parentName?: string | null;
   variants: Variant[];
   isLoading: boolean;
   onSelectVariant: (variant: Variant) => void;
@@ -26,6 +30,7 @@ export function VariantSelectorModal({
   opened,
   onClose,
   parentSku,
+  parentName,
   variants,
   isLoading,
   onSelectVariant,
@@ -91,7 +96,7 @@ export function VariantSelectorModal({
                     <Table.Td>
                       <Stack gap={2}>
                         <Text size="sm" fw={500}>
-                          {variant.variantName}
+                          {formatVariantName(parentName, variant.variantName, variant.isBase)}
                         </Text>
                         <Group gap="xs">
                           <Text size="xs" c="dimmed">

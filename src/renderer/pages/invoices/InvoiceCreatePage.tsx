@@ -6,6 +6,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { formatVariantName } from '../../../shared/utils/variantName';
 import { useTabContext } from '../../contexts/TabContext';
 import { AccessCodeConfirmModal, recordActionAuthorization, type ConfirmedActor } from '../../permissions';
 import { useAuth } from '../../contexts/AuthContext';
@@ -432,7 +433,12 @@ export function InvoiceCreatePage() {
         const itemForPricing = useVariantPrice
           ? { ...pendingItem, price: variant.price, cost: variant.cost || pendingItem.cost }
           : pendingItem;
-        addLineItemFromInventory(itemForPricing, variant.variantSku, variant.variantName || variant.description, true);
+        addLineItemFromInventory(
+          itemForPricing,
+          variant.variantSku,
+          formatVariantName(pendingItem.description2, variant.variantName, variant.isBase) || variant.description,
+          true
+        );
         setPendingItem(null);
         clearVariants();
       }
@@ -445,7 +451,9 @@ export function InvoiceCreatePage() {
     async (item: ProductSearchItem) => {
       // If the item is already a variant (from unified search), add it directly
       if (item.isVariant) {
-        addLineItemFromInventory(item, item.sku, item.variantName || item.description1 || '', true);
+        // description2 carries the parent's name here (description1 is the
+        // variant's own name/description - see InventoryService.searchWithVariants).
+        addLineItemFromInventory(item, item.sku, formatVariantName(item.description2, item.variantName, item.isBase), true);
         return;
       }
 
@@ -919,6 +927,7 @@ export function InvoiceCreatePage() {
         opened={variantModalOpen}
         onClose={() => { setVariantModalOpen(false); setPendingItem(null); clearVariants(); }}
         parentSku={pendingItem?.sku || ''}
+        parentName={pendingItem?.description2}
         variants={variants}
         isLoading={isLoadingVariants}
         onSelectVariant={handleVariantSelect}

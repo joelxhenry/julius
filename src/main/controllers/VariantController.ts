@@ -60,7 +60,7 @@ export class VariantController extends BaseController<VariantService> {
 
   async getByVariantSku(variantSku: string) {
     try {
-      const variant = await this.service.findByVariantSku(variantSku);
+      const variant = await this.service.findByVariantSkuWithInventory(variantSku);
       if (!variant) {
         return { success: false, error: 'Variant not found' };
       }

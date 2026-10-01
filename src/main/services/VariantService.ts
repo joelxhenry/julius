@@ -179,6 +179,42 @@ export class VariantService extends BaseService<
     return results[0] || null;
   }
 
+  /**
+   * Same as findByVariantSku but joined with the parent inventory item, so
+   * callers can build the "base name - variant name" display name.
+   */
+  async findByVariantSkuWithInventory(variantSku: string): Promise<VariantWithInventory | null> {
+    const results = await this.db
+      .select({
+        id: schema.variants.id,
+        parentSku: schema.variants.parentSku,
+        variantSku: schema.variants.variantSku,
+        variantName: schema.variants.variantName,
+        location: schema.variants.location,
+        attributes: schema.variants.attributes,
+        description: schema.variants.description,
+        quantity: schema.variants.quantity,
+        cost: schema.variants.cost,
+        costCurrency: schema.variants.costCurrency,
+        price: schema.variants.price,
+        priceCurrency: schema.variants.priceCurrency,
+        wholesalePrice: schema.variants.wholesalePrice,
+        isActive: schema.variants.isActive,
+        isBase: schema.variants.isBase,
+        createdAt: schema.variants.createdAt,
+        updatedAt: schema.variants.updatedAt,
+        parentDescription1: schema.inventory.description1,
+        parentDescription2: schema.inventory.description2,
+        parentCategory: schema.inventory.category,
+        parentIsTaxable: schema.inventory.isTaxable,
+      })
+      .from(schema.variants)
+      .innerJoin(schema.inventory, eq(schema.variants.parentSku, schema.inventory.sku))
+      .where(eq(schema.variants.variantSku, variantSku))
+      .limit(1);
+    return results[0] || null;
+  }
+
   async findActive(parentSku?: string): Promise<schema.Variant[]> {
     const conditions = [eq(schema.variants.isActive, true)];
 

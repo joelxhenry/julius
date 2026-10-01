@@ -4,6 +4,7 @@ import { IconPlus, IconEdit, IconTrash, IconDotsVertical } from '@tabler/icons-r
 import { DataTable, Column, CopyButton } from '../common';
 import { MarkButton } from '../tray/MarkButton';
 import { AddToListButton } from '../lists';
+import { formatVariantName } from '../../../shared/utils/variantName';
 
 interface Variant {
   id: number;
@@ -20,23 +21,26 @@ interface Variant {
   priceCurrency: string;
   wholesalePrice: string | null;
   isActive: boolean;
+  isBase: boolean;
 }
 
 interface VariantsTabProps {
   variants: Variant[];
   loading: boolean;
   parentIsTaxable: boolean;
+  /** Base product's name - always prepended to each variant's name. */
+  parentName: string | null;
   onAddVariant: () => void;
   onEditVariant: (variant: Variant) => void;
   onDeleteVariant: (variantId: number) => void;
 }
 
-export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, onEditVariant, onDeleteVariant }: VariantsTabProps) {
+export function VariantsTab({ variants, loading, parentIsTaxable, parentName, onAddVariant, onEditVariant, onDeleteVariant }: VariantsTabProps) {
   const variantsColumns: Column<Variant>[] = useMemo(
     () => [
       {
         key: 'variantSku',
-        header: 'Variant Part ID',
+        header: 'Part',
         width: 180,
         render: (variant) => (
           <Group gap="xs">
@@ -44,11 +48,6 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
             <CopyButton value={variant.variantSku} />
           </Group>
         ),
-      },
-      {
-        key: 'variantName',
-        header: 'Name',
-        render: (variant) => variant.variantName || '-',
       },
       {
         key: 'location',
@@ -89,7 +88,7 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
               mode="variant"
               item={{
                 partNumber: variant.variantSku,
-                description: variant.description ?? variant.variantName ?? '',
+                description: variant.description ?? formatVariantName(parentName, variant.variantName, variant.isBase),
                 unitPrice: Number(variant.price ?? 0) || 0,
                 isTaxable: parentIsTaxable,
                 isVariant: true,
@@ -101,7 +100,7 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
               item={{
                 sku: variant.variantSku,
                 isVariant: true,
-                description: variant.description ?? variant.variantName ?? '',
+                description: variant.description ?? formatVariantName(parentName, variant.variantName, variant.isBase),
               }}
             />
           </Group>
@@ -130,7 +129,7 @@ export function VariantsTab({ variants, loading, parentIsTaxable, onAddVariant, 
         ),
       },
     ],
-    [onEditVariant, onDeleteVariant, parentIsTaxable]
+    [onEditVariant, onDeleteVariant, parentIsTaxable, parentName]
   );
 
   return (

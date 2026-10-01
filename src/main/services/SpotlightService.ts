@@ -2,6 +2,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { or, ilike, asc, desc, eq } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { buildForgivingSearchCondition } from './searchUtils';
+import { formatVariantName } from '../../shared/utils/variantName';
 
 export interface SpotlightResult {
   id: number;
@@ -128,7 +129,10 @@ export class SpotlightService {
             id: parent.id,
             type: 'inventory',
             title: `${variant.variantSku}`,
-            subtitle: variant.variantName || variant.description || `Variant of ${parent.sku}`,
+            subtitle:
+              formatVariantName(parent.description1, variant.variantName, variant.isBase) ||
+              variant.description ||
+              `Variant of ${parent.sku}`,
             url: `/inventory/${parent.id}`,
           });
         }

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Select, Loader, Text, Group, Stack } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { formatVariantName } from '../../../shared/utils/variantName';
 
 interface VariantItem {
   id: number;
@@ -12,6 +13,7 @@ interface VariantItem {
   quantity: number;
   price: string | null;
   isActive: boolean;
+  isBase?: boolean;
   parentDescription1?: string | null;
 }
 
@@ -68,9 +70,10 @@ export function VariantSelect({
 
         const newOptions = filteredData.map((item: VariantItem) => {
           newItemsMap.set(item.variantSku, item);
+          const name = formatVariantName(item.parentDescription1, item.variantName, item.isBase) || item.description || 'No name';
           return {
             value: item.variantSku,
-            label: `${item.variantSku} - ${item.variantName || item.description || 'No name'}`,
+            label: `${item.variantSku} - ${name}`,
             item,
           };
         });
@@ -100,11 +103,12 @@ export function VariantSelect({
             setItemsMap((prev) => new Map(prev).set(item.variantSku, item));
             setOptions((prev) => {
               if (prev.some((opt) => opt.value === item.variantSku)) return prev;
+              const name = formatVariantName(item.parentDescription1, item.variantName, item.isBase) || item.description || 'No name';
               return [
                 ...prev,
                 {
                   value: item.variantSku,
-                  label: `${item.variantSku} - ${item.variantName || item.description || 'No name'}`,
+                  label: `${item.variantSku} - ${name}`,
                   item,
                 },
               ];
@@ -136,7 +140,7 @@ export function VariantSelect({
           <Text size="xs" c="dimmed">Qty: {item.quantity}</Text>
         </Group>
         <Text size="xs" c="dimmed" lineClamp={1}>
-          {item.variantName || item.description || item.parentDescription1 || 'No description'}
+          {formatVariantName(item.parentDescription1, item.variantName, item.isBase) || item.description || 'No description'}
         </Text>
       </Stack>
     );

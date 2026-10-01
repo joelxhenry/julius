@@ -39,6 +39,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { VariantForm } from '../../components/forms';
 import { CategoryTagsInput, ModelTagsInput } from '../../components/inputs';
 import { arrayToJsonString } from '../../../shared/utils/arrayFields';
+import { formatVariantName } from '../../../shared/utils/variantName';
 
 interface PendingVariant {
   tempId: string;
@@ -471,7 +472,7 @@ export function InventoryEditorPage() {
                             </Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm">{variant.variantName || '-'}</Text>
+                            <Text size="sm">{formatVariantName(form.values.description1, variant.variantName) || '-'}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="sm">{variant.quantity}</Text>

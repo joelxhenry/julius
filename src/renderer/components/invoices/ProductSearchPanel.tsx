@@ -22,6 +22,7 @@ import {
 import { IconSearch, IconTag, IconCar } from '@tabler/icons-react';
 import { ProductDisplay } from '../common';
 import type { ProductSearchItem } from '../../hooks/useProductSearch';
+import { formatVariantName } from '../../../shared/utils/variantName';
 
 export interface ProductSearchPanelHandle {
   /** Move keyboard focus to the first filter field (part number / description). */
@@ -213,11 +214,16 @@ export const ProductSearchPanel = forwardRef<ProductSearchPanelHandle, ProductSe
                           {item.quantity} in stock
                         </Badge>
                       </Group>
-                      {(item.variantName || item.description1) && (
-                        <Text size="xs" c="dimmed" mt={2} lineClamp={1}>
-                          {item.variantName || item.description1}
-                        </Text>
-                      )}
+                      {(() => {
+                        // description2 carries the parent's name here (description1 is
+                        // the variant's own name/description - see searchWithVariants).
+                        const name = formatVariantName(item.description2, item.variantName, item.isBase);
+                        return name ? (
+                          <Text size="xs" c="dimmed" mt={2} lineClamp={1}>
+                            {name}
+                          </Text>
+                        ) : null;
+                      })()}
                     </UnstyledButton>
                   );
                 })}

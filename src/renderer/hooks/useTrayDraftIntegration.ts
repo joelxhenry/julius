@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../shared/types/ipc';
+import { formatVariantName } from '../../shared/utils/variantName';
 import { useMarkedItems, MarkedItem, DraftDocType } from './useMarkedItems';
 import { useTabPath } from '../components/layout/TabContainer';
 
@@ -126,13 +127,15 @@ async function fetchLineItem(
       description: string | null;
       price: string | null;
       cost: string | null;
+      isBase: boolean;
+      parentDescription1: string | null;
     };
     const cost = parseFloat(v.cost ?? '0');
     const price = parseFloat(v.price ?? '0');
     const unitPrice = pricing === 'W' ? cost * 1.15 : price;
     return {
       sku: v.variantSku,
-      description: v.description ?? v.variantName ?? t.description ?? '',
+      description: v.description || formatVariantName(v.parentDescription1, v.variantName, v.isBase) || t.description || '',
       unitPrice: Number.isFinite(unitPrice) ? unitPrice : 0,
       isTaxable: t.isTaxable,
       inventoryId: t.inventoryId,

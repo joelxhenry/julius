@@ -13,6 +13,7 @@ import { PrintDocumentType, PrintOutputMode, PrintSettingsConfig, PrintFormat, T
 import type { SalesSummaryResult, PurchaseSummaryResult } from './ReportService';
 import { CANONICAL_PAYMENT_TYPES } from '../../shared/constants/payments';
 import { MONTH_NAMES } from '../../shared/constants/months';
+import { formatVariantName } from '../../shared/utils/variantName';
 import {
   CompanyInfo,
   InvoiceTemplateData,
@@ -614,13 +615,12 @@ export class PrintService {
     if (record.variantSku) {
       const variant = await this.variantService.findByVariantSku(record.variantSku);
       if (variant) {
-        const desc = variant.description || variant.variantName;
-        if (desc) return desc;
-        if (variant.parentSku) {
-          const parent = await this.inventoryService.findBySku(variant.parentSku);
-          const parentDesc = [parent?.description1, parent?.description2].filter(Boolean).join(' - ');
-          if (parentDesc) return parentDesc;
-        }
+        if (variant.description) return variant.description;
+        const parent = await this.inventoryService.findBySku(variant.parentSku);
+        const name = formatVariantName(parent?.description1, variant.variantName, variant.isBase);
+        if (name) return name;
+        const parentDesc = [parent?.description1, parent?.description2].filter(Boolean).join(' - ');
+        if (parentDesc) return parentDesc;
       }
       return record.variantSku;
     }

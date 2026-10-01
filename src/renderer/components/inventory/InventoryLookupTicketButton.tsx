@@ -17,6 +17,7 @@ import { notifications } from '@mantine/notifications';
 import { useLookupTicket } from '../../hooks/useLookupTicket';
 import { IpcChannel } from '../../../shared/types/ipc';
 import type { LookupTicketItem } from '../../../shared/types/lookupTicket';
+import { formatVariantName } from '../../../shared/utils/variantName';
 
 interface Variant {
   id: number;
@@ -33,6 +34,8 @@ interface Variant {
 interface InventoryLookupTicketButtonProps {
   inventoryId: number;
   parentSku: string;
+  /** Base product's name - always prepended to each variant's name. */
+  parentName?: string | null;
   size?: ButtonProps['size'];
   variant?: ButtonProps['variant'];
 }
@@ -45,6 +48,7 @@ interface InventoryLookupTicketButtonProps {
 export function InventoryLookupTicketButton({
   inventoryId,
   parentSku,
+  parentName,
   size = 'xs',
   variant = 'light',
 }: InventoryLookupTicketButtonProps) {
@@ -87,7 +91,7 @@ export function InventoryLookupTicketButton({
 
     const items: LookupTicketItem[] = chosen.map((v) => ({
       sku: v.variantSku,
-      description: v.variantName || v.description || v.variantSku,
+      description: formatVariantName(parentName, v.variantName, v.isBase) || v.description || v.variantSku,
       location: v.location || '',
       quantity: v.quantity,
     }));
@@ -99,7 +103,7 @@ export function InventoryLookupTicketButton({
       sourceReference: `Item ${parentSku}`,
     });
     setPickerOpen(false);
-  }, [variants, selected, outputMode, parentSku, printLookupTicket]);
+  }, [variants, selected, outputMode, parentSku, parentName, printLookupTicket]);
 
   return (
     <>

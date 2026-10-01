@@ -17,6 +17,7 @@ import {
 import { useDisclosure, useDebouncedCallback } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { formatVariantName } from '../../../shared/utils/variantName';
 import { useAuth } from '../../contexts/AuthContext';
 import { useActionConfirm } from '../../permissions';
 import { useTabContext } from '../../contexts/TabContext';
@@ -343,7 +344,12 @@ export function QuotationCreatePage() {
         const itemForPricing = useVariantPrice
           ? { ...pendingItem, price: variant.price, cost: variant.cost || pendingItem.cost }
           : pendingItem;
-        addLineItemFromInventory(itemForPricing, variant.variantSku, variant.variantName || variant.description, true);
+        addLineItemFromInventory(
+          itemForPricing,
+          variant.variantSku,
+          formatVariantName(pendingItem.description2, variant.variantName, variant.isBase) || variant.description,
+          true
+        );
         setPendingItem(null);
         clearVariants();
       }
@@ -355,7 +361,9 @@ export function QuotationCreatePage() {
   const handleProductSelect = useCallback(
     async (item: ProductSearchItem) => {
       if (item.isVariant) {
-        addLineItemFromInventory(item, item.sku, item.variantName || item.description1 || '', true);
+        // description2 carries the parent's name here (description1 is the
+        // variant's own name/description - see InventoryService.searchWithVariants).
+        addLineItemFromInventory(item, item.sku, formatVariantName(item.description2, item.variantName, item.isBase), true);
         return;
       }
 
@@ -765,6 +773,7 @@ export function QuotationCreatePage() {
           clearVariants();
         }}
         parentSku={pendingItem?.sku || ''}
+        parentName={pendingItem?.description2}
         variants={variants}
         isLoading={isLoadingVariants}
         onSelectVariant={handleVariantSelect}

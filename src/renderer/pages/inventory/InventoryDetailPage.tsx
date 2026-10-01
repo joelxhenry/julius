@@ -39,6 +39,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { formatVariantName } from '../../../shared/utils/variantName';
 import { useTabContext } from '../../contexts/TabContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { employeeDisplayName } from '../../utils/employeeName';
@@ -744,7 +745,7 @@ export function InventoryDetailPage() {
     { value: '__base__', label: 'Base item only' },
     ...variants.map((v) => ({
       value: v.variantSku,
-      label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
+      label: `${v.variantSku} - ${formatVariantName(item.description1, v.variantName, v.isBase)}`,
     })),
   ];
 
@@ -753,7 +754,7 @@ export function InventoryDetailPage() {
     { value: 'all', label: 'All variants' },
     ...variants.map((v) => ({
       value: v.variantSku,
-      label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
+      label: `${v.variantSku} - ${formatVariantName(item.description1, v.variantName, v.isBase)}`,
     })),
   ];
 
@@ -761,7 +762,7 @@ export function InventoryDetailPage() {
   // variant, so there's no separate "base item" to adjust; only variants show.
   const adjustVariantOptions = variants.map((v) => ({
     value: v.variantSku,
-    label: v.variantName ? `${v.variantSku} - ${v.variantName}` : v.variantSku,
+    label: `${v.variantSku} - ${formatVariantName(item.description1, v.variantName, v.isBase)}`,
   }));
 
   if (loading) {
@@ -941,6 +942,7 @@ export function InventoryDetailPage() {
           <InventoryLookupTicketButton
             inventoryId={item.id}
             parentSku={item.sku}
+            parentName={item.description1}
           />
           <PermissionButton
             permission="ADJUST_STOCK"
@@ -1059,6 +1061,7 @@ export function InventoryDetailPage() {
             variants={variants}
             loading={variantsLoading}
             parentIsTaxable={item.isTaxable}
+            parentName={item.description1}
             onAddVariant={() =>
               runWithPermission(
                 { permissionCode: 'MANAGE_VARIANTS', actionLabel: `Add variant to ${item.sku}`, context: { entity: 'inventory', id: item.id } },
