@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Stack,
   Title,
@@ -10,6 +10,8 @@ import {
   ActionIcon,
   Text,
   NumberFormatter,
+  Loader,
+  Center,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -64,10 +66,11 @@ export function InventoryListPage() {
   const { replaceCurrentTab } = useTabContext();
   const [newPartOpened, { open: openNewPart, close: closeNewPart }] = useDisclosure(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [modelFilter, setModelFilter] = useState('');
@@ -77,44 +80,78 @@ export function InventoryListPage() {
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
 
-  const pageSize = 20;
+  const pageSize = 30;
 
-  const fetchInventory = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_PAGINATED, {
-        page,
-        pageSize,
-        search: debouncedSearch,
-        category: debouncedCategory,
-        model: debouncedModel,
-      });
-
-      console.log('Inventory fetch result:', result);
-
-      if (result.success && result.data) {
-        const paginatedResult = result.data as PaginatedResult;
-        setInventory(paginatedResult.data);
-        setTotal(paginatedResult.total);
-        setTotalPages(paginatedResult.totalPages);
-      } else if (!result.success) {
-        console.error('Inventory fetch failed:', result.error);
+  // Fetches a single page of results. When `append` is true, the results are
+  // added to the existing list (infinite scroll); otherwise they replace it.
+  const fetchPage = useCallback(
+    async (pageNum: number, append: boolean) => {
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
       }
-    } catch (error) {
-      console.error('Failed to fetch inventory:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, debouncedSearch, debouncedCategory, debouncedModel]);
+      try {
+        const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_PAGINATED, {
+          page: pageNum,
+          pageSize,
+          search: debouncedSearch,
+          category: debouncedCategory,
+          model: debouncedModel,
+        });
 
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
+        if (result.success && result.data) {
+          const paginatedResult = result.data as PaginatedResult;
+          setInventory((prev) =>
+            append ? [...prev, ...paginatedResult.data] : paginatedResult.data
+          );
+          setTotal(paginatedResult.total);
+          setHasMore(pageNum < paginatedResult.totalPages);
+          setPage(pageNum);
+        } else if (!result.success) {
+          console.error('Inventory fetch failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Failed to fetch inventory:', error);
+      } finally {
+        if (append) {
+          setLoadingMore(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    },
+    [pageSize, debouncedSearch, debouncedCategory, debouncedModel]
+  );
 
-  // Reset to page 1 when filters change
+  // Reload from page 1 whenever the search/filters change
   useEffect(() => {
-    setPage(1);
+    fetchPage(1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, debouncedCategory, debouncedModel]);
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    fetchPage(page + 1, true);
+  }, [loading, loadingMore, hasMore, page, fetchPage]);
+
+  // Infinite scroll: observe a sentinel element below the table and load the
+  // next page once it scrolls into view, instead of numbered pagination.
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   // Load distinct categories/models for autocomplete suggestions
   useEffect(() => {
@@ -290,7 +327,7 @@ export function InventoryListPage() {
               clearable
               style={{ flex: 1, minWidth: 180 }}
             />
-            <ActionIcon variant="subtle" onClick={fetchInventory} title="Refresh">
+            <ActionIcon variant="subtle" onClick={() => fetchPage(1, false)} title="Refresh">
               <IconRefresh size={18} />
             </ActionIcon>
           </Group>
@@ -308,19 +345,30 @@ export function InventoryListPage() {
             keyField="id"
             onRowClick={(item) => replaceCurrentTab(`/inventory/${item.id}`)}
             emptyMessage="No inventory items found"
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
             skeletonRows={5}
             minWidth={1000}
           />
+
+          {/* Infinite scroll sentinel */}
+          {!loading && hasMore && (
+            <Center ref={sentinelRef} py="md">
+              {loadingMore && <Loader size="sm" />}
+            </Center>
+          )}
+          {!loading && !hasMore && inventory.length > 0 && (
+            <Center py="md">
+              <Text size="xs" c="dimmed">
+                All {total} items loaded
+              </Text>
+            </Center>
+          )}
         </Stack>
       </Paper>
 
       <NewPartModal
         opened={newPartOpened}
         onClose={closeNewPart}
-        onCreated={() => fetchInventory()}
+        onCreated={() => fetchPage(1, false)}
       />
     </Stack>
   );
