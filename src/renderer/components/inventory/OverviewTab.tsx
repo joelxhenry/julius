@@ -3,6 +3,9 @@ import { Paper, Stack, Title, SimpleGrid, Text, Group, Textarea, Button, Tooltip
 import { IconDeviceFloppy, IconX, IconNotes } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { CopyButton, DataTable, type Column } from '../common';
+import { MarkButton } from '../tray/MarkButton';
+import { AddToListButton } from '../lists';
+import { formatVariantName } from '../../../shared/utils/variantName';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { usePermissions } from '../../permissions';
@@ -32,13 +35,16 @@ interface Inventory {
 
 interface Variant {
   id: number;
+  parentSku: string;
   variantSku: string;
   variantName: string | null;
   location: string | null;
+  description: string | null;
   quantity: number;
   price: string | null;
   priceCurrency: string;
   isActive: boolean;
+  isBase: boolean;
 }
 
 interface OverviewTabProps {
@@ -58,16 +64,19 @@ export function OverviewTab({ item, variants, onNotesSaved }: OverviewTabProps) 
       {
         key: 'variantSku',
         header: 'Variant',
-        render: (variant) => (
-          <Group gap="xs">
-            <Text fw={500}>{variant.variantSku}</Text>
-            {variant.variantName && (
-              <Text size="sm" c="dimmed">
-                {variant.variantName}
-              </Text>
-            )}
-          </Group>
-        ),
+        render: (variant) => {
+          const name = formatVariantName(item.description1, variant.variantName, variant.isBase);
+          return (
+            <Group gap="xs">
+              <Text fw={500}>{variant.variantSku}</Text>
+              {name && (
+                <Text size="sm" c="dimmed">
+                  {name}
+                </Text>
+              )}
+            </Group>
+          );
+        },
       },
       {
         key: 'quantity',
@@ -92,8 +101,36 @@ export function OverviewTab({ item, variants, onNotesSaved }: OverviewTabProps) 
         width: 120,
         render: (variant) => variant.location || '-',
       },
+      {
+        key: 'mark',
+        header: '',
+        width: 84,
+        render: (variant) => (
+          <Group gap={4} wrap="nowrap">
+            <MarkButton
+              mode="variant"
+              item={{
+                partNumber: variant.variantSku,
+                description: variant.description ?? formatVariantName(item.description1, variant.variantName, variant.isBase),
+                unitPrice: Number(variant.price ?? 0) || 0,
+                isTaxable: item.isTaxable,
+                isVariant: true,
+                parentPartNumber: variant.parentSku,
+              }}
+            />
+            <AddToListButton
+              mode="variant"
+              item={{
+                sku: variant.variantSku,
+                isVariant: true,
+                description: variant.description ?? formatVariantName(item.description1, variant.variantName, variant.isBase),
+              }}
+            />
+          </Group>
+        ),
+      },
     ],
-    []
+    [item.description1, item.isTaxable]
   );
 
   const [editing, setEditing] = useState(false);
