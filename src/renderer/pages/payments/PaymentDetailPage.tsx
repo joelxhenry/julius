@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import {
   Stack,
@@ -37,6 +37,7 @@ import {
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { PrintButton } from '../../components/common';
 import { usePermissions, RestrictedLink } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
@@ -94,7 +95,8 @@ export function PaymentDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { openTab, updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { openTab, updateTabTitle } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [processedByName, setProcessedByName] = useState<string | null>(null);
@@ -314,7 +316,7 @@ export function PaymentDetailPage() {
           <Title order={3}>Payment Not Found</Title>
           <Text c="dimmed">The payment you&apos;re looking for doesn&apos;t exist or has been deleted.</Text>
         </Stack>
-        <Button leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/payments')}>
+        <Button leftSection={<IconArrowLeft size={16} />} {...bind('/payments')}>
           Back to Payments
         </Button>
       </Stack>
@@ -333,7 +335,7 @@ export function PaymentDetailPage() {
             <ActionIcon
               variant="subtle"
               size="lg"
-              onClick={() => replaceCurrentTab('/payments')}
+              {...bind('/payments')}
               title="Back to Payments"
             >
               <IconArrowLeft size={20} />
@@ -531,7 +533,7 @@ export function PaymentDetailPage() {
                         size="sm"
                         fw={500}
                         color="violet"
-                        onClick={() => openTab(`/employees/${payment.processedById}`)}
+                        {...bind(`/employees/${payment.processedById}`)}
                       >
                         {processedByName || `Employee #${payment.processedById}`}
                       </RestrictedLink>

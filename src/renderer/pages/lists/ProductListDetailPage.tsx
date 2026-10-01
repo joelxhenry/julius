@@ -32,7 +32,7 @@ import {
   IconPrinter,
   IconRefresh,
 } from '@tabler/icons-react';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { InventorySelect } from '../../components/selects/InventorySelect';
 import { usePermissions } from '../../permissions';
 import { productListsApi } from '../../hooks/useProductLists';
@@ -56,7 +56,7 @@ const formatDate = (value: string | Date) =>
 export function ProductListDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const listId = Number(id);
-  const { replaceCurrentTab } = useTabContext();
+  const { bind } = useContentNavigation();
   const { can } = usePermissions();
   const canManage = can('MANAGE_PRODUCT_LISTS');
   const canExport = can('EXPORT_REPORT');
@@ -258,7 +258,7 @@ export function ProductListDetailPage() {
   if (!list) {
     return (
       <Stack gap="md">
-        <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => replaceCurrentTab('/lists')}>
+        <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} {...bind('/lists')}>
           Back to lists
         </Button>
         <Text c="dimmed">List not found.</Text>
@@ -272,7 +272,7 @@ export function ProductListDetailPage() {
     <Stack gap="lg">
       <Group justify="space-between" align="flex-start">
         <Group gap="sm" align="center">
-          <ActionIcon variant="subtle" onClick={() => replaceCurrentTab('/lists')} aria-label="Back to lists">
+          <ActionIcon variant="subtle" {...bind('/lists')} aria-label="Back to lists">
             <IconArrowLeft size={18} />
           </ActionIcon>
           <Title order={2}>{list.title}</Title>

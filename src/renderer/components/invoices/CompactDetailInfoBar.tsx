@@ -13,14 +13,19 @@ interface Invoice {
   pricing: string | null;
 }
 
+type NavHandler = (event: React.MouseEvent) => void;
+
 interface CompactDetailInfoBarProps {
   invoice: Invoice;
-  onViewClient: () => void;
+  onViewClient: NavHandler;
+  onViewClientContextMenu?: NavHandler;
   salespersonName?: string | null;
-  onViewSalesperson?: () => void;
+  onViewSalesperson?: NavHandler;
+  onViewSalespersonContextMenu?: NavHandler;
   /** Employee whose access code authorised issuing this invoice ("on record"). */
   issuedByName?: string | null;
-  onViewIssuedBy?: () => void;
+  onViewIssuedBy?: NavHandler;
+  onViewIssuedByContextMenu?: NavHandler;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -33,7 +38,17 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, onViewSalesperson, issuedByName, onViewIssuedBy }: CompactDetailInfoBarProps) {
+export function CompactDetailInfoBar({
+  invoice,
+  onViewClient,
+  onViewClientContextMenu,
+  salespersonName,
+  onViewSalesperson,
+  onViewSalespersonContextMenu,
+  issuedByName,
+  onViewIssuedBy,
+  onViewIssuedByContextMenu,
+}: CompactDetailInfoBarProps) {
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 40 }}>
       <Group gap="lg" wrap="nowrap" h="100%">
@@ -43,7 +58,13 @@ export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, o
           <Group gap={4} wrap="nowrap">
             <IconUser size={14} color="gray" />
             {invoice.clientId ? (
-              <RestrictedLink permission="VIEW_CLIENTS" size="sm" color="blue" onClick={onViewClient}>
+              <RestrictedLink
+                permission="VIEW_CLIENTS"
+                size="sm"
+                color="blue"
+                onClick={onViewClient}
+                onContextMenu={onViewClientContextMenu}
+              >
                 {invoice.clientName}
               </RestrictedLink>
             ) : (
@@ -60,7 +81,13 @@ export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, o
           <Group gap={4} wrap="nowrap">
             <IconUserCheck size={14} color="gray" />
             <Text size="sm" c="dimmed">Salesperson:</Text>
-            <RestrictedLink permission="VIEW_EMPLOYEES" size="sm" color="violet" onClick={() => onViewSalesperson?.()}>
+            <RestrictedLink
+              permission="VIEW_EMPLOYEES"
+              size="sm"
+              color="violet"
+              onClick={(e) => onViewSalesperson?.(e)}
+              onContextMenu={onViewSalespersonContextMenu}
+            >
               {salespersonName}
             </RestrictedLink>
           </Group>
@@ -71,7 +98,13 @@ export function CompactDetailInfoBar({ invoice, onViewClient, salespersonName, o
           <Group gap={4} wrap="nowrap">
             <IconLock size={14} color="gray" />
             <Text size="sm" c="dimmed">On record:</Text>
-            <RestrictedLink permission="VIEW_EMPLOYEES" size="sm" color="teal" onClick={() => onViewIssuedBy?.()}>
+            <RestrictedLink
+              permission="VIEW_EMPLOYEES"
+              size="sm"
+              color="teal"
+              onClick={(e) => onViewIssuedBy?.(e)}
+              onContextMenu={onViewIssuedByContextMenu}
+            >
               {issuedByName}
             </RestrictedLink>
           </Group>

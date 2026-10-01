@@ -24,9 +24,8 @@ import {
   IconShieldCheck,
   IconCheck,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   PERMISSION_CATEGORIES,
@@ -39,9 +38,8 @@ import {
 const EDITOR_CATEGORIES = PERMISSION_CATEGORIES.filter((c) => c !== 'Administration');
 
 export function RoleEditorPage() {
-  const navigate = useNavigate();
   const { id } = useTabParams<{ id?: string }>();
-  const { replaceCurrentTab } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const isEditing = !!id && id !== 'new';
 
   const [loading, setLoading] = useState(isEditing);
@@ -123,7 +121,7 @@ export function RoleEditorPage() {
           color: 'green',
           icon: <IconCheck size={16} />,
         });
-        replaceCurrentTab('/roles');
+        go('/roles');
       } else {
         setError(result.error || 'Failed to save role');
       }
@@ -147,7 +145,7 @@ export function RoleEditorPage() {
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="flex-start">
         <Group>
-          <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/roles')}>
+          <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} {...bind('/roles')}>
             Back
           </Button>
           <Stack gap={2}>
@@ -270,7 +268,7 @@ export function RoleEditorPage() {
       )}
 
       <Group justify="flex-end">
-        <Button variant="subtle" onClick={() => navigate('/roles')}>
+        <Button variant="subtle" {...bind('/roles')}>
           Cancel
         </Button>
         <Button leftSection={<IconDeviceFloppy size={16} />} onClick={handleSave} loading={saving}>

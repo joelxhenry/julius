@@ -14,7 +14,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IconPlus, IconTrash, IconClipboardList, IconRefresh } from '@tabler/icons-react';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { NewListModal } from '../../components/lists';
 import { usePermissions } from '../../permissions';
@@ -34,7 +34,7 @@ const formatDate = (value: string | Date) =>
   new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
 export function ProductListsPage() {
-  const { replaceCurrentTab } = useTabContext();
+  const { go } = useContentNavigation();
   const { can } = usePermissions();
   const [filter, setFilter] = useState<'all' | ProductListStatus>('all');
   const [lists, setLists] = useState<ProductListWithCount[]>([]);
@@ -63,13 +63,6 @@ export function ProductListsPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  const openList = useCallback(
-    (list: ProductListWithCount) => {
-      replaceCurrentTab(`/lists/${list.id}`, { fromListing: true });
-    },
-    [replaceCurrentTab]
-  );
 
   const handleDelete = useCallback(
     (list: ProductListWithCount) => {
@@ -212,7 +205,8 @@ export function ProductListsPage() {
           data={lists}
           loading={loading}
           keyField="id"
-          onRowClick={openList}
+          getRowPath={(list) => `/lists/${list.id}`}
+          getRowState={() => ({ fromListing: true })}
           emptyMessage="No lists yet. Add a product to a list from Inventory, or create one here."
         />
       </Stack>
@@ -220,7 +214,7 @@ export function ProductListsPage() {
       <NewListModal
         opened={newOpened}
         onClose={closeNew}
-        onCreated={(list) => replaceCurrentTab(`/lists/${list.id}`, { fromListing: true })}
+        onCreated={(list) => go(`/lists/${list.id}`, undefined, { fromListing: true })}
       />
     </>
   );

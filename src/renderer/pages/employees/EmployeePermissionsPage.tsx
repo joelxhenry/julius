@@ -28,9 +28,8 @@ import {
   IconKey,
   IconRefresh,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { getPermissionByCode } from '../../../shared/constants/permissions';
 import { CopyButton } from '../../components/common';
@@ -56,9 +55,8 @@ interface Role {
 }
 
 export function EmployeePermissionsPage() {
-  const navigate = useNavigate();
   const { id } = useTabParams<{ id: string }>();
-  const { replaceCurrentTab } = useTabContext();
+  const { bind } = useContentNavigation();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -180,7 +178,7 @@ export function EmployeePermissionsPage() {
   if (error || !employee) {
     return (
       <Stack p="xl" gap="lg">
-        <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => replaceCurrentTab('/employees')}>
+        <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} {...bind('/employees')}>
           Back to Employees
         </Button>
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
@@ -203,7 +201,7 @@ export function EmployeePermissionsPage() {
       {/* Header */}
       <Group justify="space-between" align="flex-start">
         <Group>
-          <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => replaceCurrentTab(`/employees/${employee.id}`)}>
+          <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} {...bind(`/employees/${employee.id}`)}>
             Back
           </Button>
           <Stack gap={4}>
@@ -253,7 +251,7 @@ export function EmployeePermissionsPage() {
             <Button
               variant="light"
               leftSection={<IconPencil size={16} />}
-              onClick={() => navigate('/roles')}
+              {...bind('/roles')}
             >
               Manage Roles
             </Button>

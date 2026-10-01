@@ -8,6 +8,7 @@ import { modals } from '@mantine/modals';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { formatVariantName } from '../../../shared/utils/variantName';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { AccessCodeConfirmModal, recordActionAuthorization, type ConfirmedActor } from '../../permissions';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -49,7 +50,8 @@ interface LocationState {
 export function InvoiceCreatePage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { markTabDirty, updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { markTabDirty, updateTabTitle } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const tabPath = useTabPath();
   // Owning-tab path: prefer the tab the page is mounted in (stable across active-tab
   // switches) and only fall back to the live URL when not rendered inside a tab.
@@ -342,7 +344,7 @@ export function InvoiceCreatePage() {
             message: `Invoice ${inv.invNumber} has been issued and can no longer be edited. Use Process Return to make corrections.`,
             color: 'yellow',
           });
-          replaceCurrentTab(`/invoices/${invoiceId}`);
+          go(`/invoices/${invoiceId}`);
           return;
         }
 
@@ -553,7 +555,7 @@ export function InvoiceCreatePage() {
           if (warnings.length > 0) {
             warnings.forEach((w: string) => notifications.show({ message: w, color: 'yellow' }));
           }
-          replaceCurrentTab(`/invoices/${invoice.id}`);
+          go(`/invoices/${invoice.id}`);
         } else {
           notifications.show({ title: 'Error', message: result.error, color: 'red' });
         }
@@ -709,7 +711,7 @@ export function InvoiceCreatePage() {
             : `Invoice ${invNumber} ${isEditing ? 'updated' : 'created and issued'}`,
           color: isCancelling ? 'orange' : 'green',
         });
-        replaceCurrentTab(`/invoices/${invoiceId}`);
+        go(`/invoices/${invoiceId}`);
       } catch (error) {
         console.error('Failed to issue invoice:', error);
         notifications.show({
@@ -741,7 +743,7 @@ export function InvoiceCreatePage() {
 
       await proceed();
     },
-    [formState, client, totals, lineItems, replaceCurrentTab, isEditing, id]
+    [formState, client, totals, lineItems, go, isEditing, id]
   );
 
   if (isLoading) {
@@ -765,7 +767,7 @@ export function InvoiceCreatePage() {
                   {recentInvoices.map((inv) => (
                     <UnstyledButton
                       key={inv.id}
-                      onClick={() => replaceCurrentTab(`/invoices/${inv.id}`)}
+                      {...bind(`/invoices/${inv.id}`)}
                       style={{ flexShrink: 0 }}
                     >
                       <Paper

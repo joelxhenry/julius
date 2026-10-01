@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Paper, Badge, Text, Group, Stack } from '@mantine/core';
 import { DataTable, Column } from '../common/DataTable';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { useTabContext } from '../../contexts/TabContext';
 
 interface CreditNote {
   id: number;
@@ -30,7 +29,6 @@ const formatDate = (dateStr: string) => {
 };
 
 export function ClientCreditNotesTab({ clientId }: ClientCreditNotesTabProps) {
-  const { openTab } = useTabContext();
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -157,7 +155,7 @@ export function ClientCreditNotesTab({ clientId }: ClientCreditNotesTabProps) {
         keyField="id"
         emptyMessage="No credit notes found for this client"
         minWidth={700}
-        onRowClick={(cn) => openTab(`/credit-notes/${cn.id}`)}
+        getRowPath={(cn) => `/credit-notes/${cn.id}`}
       />
       </Paper>
     </Stack>

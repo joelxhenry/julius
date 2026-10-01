@@ -9,7 +9,7 @@ import {
   IconLayoutSidebarLeftExpand,
   IconArrowLeft,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { SalesSummaryReport } from './SalesSummaryReport';
 import { PurchaseReport } from './PurchaseReport';
 import { ReceivablesReport } from './ReceivablesReport';
@@ -51,7 +51,7 @@ const reports: ReportEntry[] = [
 ];
 
 export function ReportsPage() {
-  const navigate = useNavigate();
+  const { bind } = useContentNavigation();
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -87,7 +87,7 @@ export function ReportsPage() {
                 variant="subtle"
                 color="gray"
                 size="lg"
-                onClick={() => navigate('/dashboard')}
+                {...bind('/dashboard')}
                 style={{ width: '100%' }}
                 aria-label="Back to Dashboard"
               >
@@ -100,7 +100,7 @@ export function ReportsPage() {
               color="gray"
               size="sm"
               leftSection={<IconArrowLeft size={16} />}
-              onClick={() => navigate('/dashboard')}
+              {...bind('/dashboard')}
               fullWidth
               justify="flex-start"
             >

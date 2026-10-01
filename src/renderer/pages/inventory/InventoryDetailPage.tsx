@@ -36,8 +36,9 @@ import {
   IconPackageImport,
   IconCurrencyDollar,
 } from '@tabler/icons-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { formatVariantName } from '../../../shared/utils/variantName';
 import { useTabContext } from '../../contexts/TabContext';
@@ -143,10 +144,10 @@ interface PaginatedResult<T> {
 }
 
 export function InventoryDetailPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { updateTabTitle, openTab } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const { user } = useAuth();
 
@@ -387,7 +388,7 @@ export function InventoryDetailPage() {
   // Open the related invoice document in a new tab
   const handleOpenSaleDocument = (sale: SaleRecord) => {
     if (sale.invoiceId) {
-      openTab(`/invoices/${sale.invoiceId}`);
+      go(`/invoices/${sale.invoiceId}`);
     } else {
       notifications.show({
         title: 'Document Unavailable',
@@ -712,7 +713,7 @@ export function InventoryDetailPage() {
     try {
       const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_BY_SKU, { sku: alternateSku });
       if (result.success && result.data) {
-        navigate(`/inventory/${result.data.id}`);
+        go(`/inventory/${result.data.id}`);
       } else {
         notifications.show({
           title: 'Item Not Found',
@@ -780,7 +781,7 @@ export function InventoryDetailPage() {
         <Button
           variant="subtle"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={() => navigate('/inventory')}
+          {...bind('/inventory')}
         >
           Back to Inventory
         </Button>
@@ -891,7 +892,7 @@ export function InventoryDetailPage() {
           <ActionIcon
             variant="subtle"
             size="lg"
-            onClick={() => replaceCurrentTab('/inventory')}
+            {...bind('/inventory')}
             title="Back to Inventory"
           >
             <IconArrowLeft size={20} />

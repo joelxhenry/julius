@@ -12,6 +12,7 @@ import {
   rem,
 } from '@mantine/core';
 import { IconChevronUp, IconChevronDown, IconSelector } from '@tabler/icons-react';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -31,6 +32,11 @@ export interface DataTableProps<T> {
   loading?: boolean;
   keyField: keyof T;
   onRowClick?: (row: T) => void;
+  // Preferred over onRowClick: gives rows browser-like navigation
+  // (plain click = same tab, Ctrl/Cmd+click or right-click = new tab).
+  getRowPath?: (row: T) => string | undefined;
+  // Optional router state to carry along with getRowPath (e.g. { fromListing: true }).
+  getRowState?: (row: T) => Record<string, unknown> | undefined;
   emptyMessage?: string;
   minWidth?: number;
   // Pagination
@@ -56,6 +62,8 @@ export function DataTable<T>({
   loading = false,
   keyField,
   onRowClick,
+  getRowPath,
+  getRowState,
   emptyMessage = 'No data found',
   minWidth = 800,
   page,
@@ -69,6 +77,8 @@ export function DataTable<T>({
   sortDirection,
   onSort,
 }: DataTableProps<T>) {
+  const { bind } = useContentNavigation();
+
   const handleSort = (column: Column<T>) => {
     if (!column.sortable || !onSort) return;
     const key = column.sortKey || column.key;
@@ -129,14 +139,21 @@ export function DataTable<T>({
   const renderDataRows = () => {
     return data.map((row) => {
       const key = String(row[keyField]);
-      const isClickable = Boolean(onRowClick);
+      const rowPath = getRowPath?.(row);
+      const isClickable = Boolean(rowPath) || Boolean(onRowClick);
       const lastColumnIndex = columns.length - 1;
+
+      const rowHandlers = rowPath
+        ? bind(rowPath, getRowState?.(row))
+        : onRowClick
+          ? { onClick: () => onRowClick(row) }
+          : {};
 
       return (
         <Table.Tr
           key={key}
           style={isClickable ? { cursor: 'pointer' } : undefined}
-          onClick={isClickable ? () => onRowClick!(row) : undefined}
+          {...rowHandlers}
         >
           {columns.map((column, columnIndex) => {
             const isActionsColumn = stickyActionsColumn && columnIndex === lastColumnIndex;

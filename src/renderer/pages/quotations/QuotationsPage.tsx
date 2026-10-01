@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import {
   Stack,
   Title,
@@ -67,8 +66,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export function QuotationsPage() {
-  const navigate = useNavigate();
-  const { replaceCurrentTab } = useTabContext();
+  const { bind, go } = useContentNavigation();
   const { open: openSpotlight } = useSpotlight();
   const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -163,30 +161,20 @@ export function QuotationsPage() {
     (employee: SafeEmployee) => {
       closeAccessModal();
       const employeeName = employeeDisplayName(employee);
-      navigate('/quotations/new', {
-        state: {
-          salespersonId: employee.id,
-          salespersonName: employeeName,
-        },
+      go('/quotations/new', undefined, {
+        salespersonId: employee.id,
+        salespersonName: employeeName,
       });
     },
-    [closeAccessModal, navigate]
-  );
-
-  // View quotation
-  const handleViewQuotation = useCallback(
-    (quotation: Quotation) => {
-      replaceCurrentTab(`/quotations/${quotation.id}`, { fromListing: true });
-    },
-    [replaceCurrentTab]
+    [closeAccessModal, go]
   );
 
   // Edit draft quotation
   const handleEditDraft = useCallback(
     (id: number) => {
-      navigate(`/quotations/${id}/edit`);
+      go(`/quotations/${id}/edit`);
     },
-    [navigate]
+    [go]
   );
 
   // Base columns for all quotation tables
@@ -246,7 +234,7 @@ export function QuotationsPage() {
         render: (quotation) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`, { fromListing: true })}>
+              <ActionIcon variant="subtle" {...bind(`/quotations/${quotation.id}`, { fromListing: true })}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>
@@ -262,7 +250,7 @@ export function QuotationsPage() {
                 <ActionIcon
                   variant="subtle"
                   color="violet"
-                  onClick={() => replaceCurrentTab(`/quotations/${quotation.id}`, { fromListing: true })}
+                  {...bind(`/quotations/${quotation.id}`, { fromListing: true })}
                 >
                   <IconFileInvoice size={16} />
                 </ActionIcon>
@@ -272,7 +260,7 @@ export function QuotationsPage() {
         ),
       },
     ],
-    [baseColumns, replaceCurrentTab, handleEditDraft]
+    [baseColumns, bind, handleEditDraft]
   );
 
   return (
@@ -375,7 +363,8 @@ export function QuotationsPage() {
                 data={activeTab === 'recent' ? quotations : []}
                 loading={isLoading && activeTab === 'recent'}
                 keyField="id"
-                onRowClick={handleViewQuotation}
+                getRowPath={(quotation) => `/quotations/${quotation.id}`}
+                getRowState={() => ({ fromListing: true })}
                 emptyMessage="No recent quotations"
                 stickyActionsColumn
                 sortField={sortField}
@@ -391,7 +380,8 @@ export function QuotationsPage() {
                 data={activeTab === 'all' ? quotations : []}
                 loading={isLoading && activeTab === 'all'}
                 keyField="id"
-                onRowClick={handleViewQuotation}
+                getRowPath={(quotation) => `/quotations/${quotation.id}`}
+                getRowState={() => ({ fromListing: true })}
                 emptyMessage={
                   searchQuery.length >= 2
                     ? `No quotations found for "${searchQuery}"`

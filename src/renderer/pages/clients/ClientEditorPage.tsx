@@ -30,6 +30,7 @@ import {
   IconMapPin,
 } from '@tabler/icons-react';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface ClientFormValues {
@@ -49,7 +50,8 @@ interface ClientFormValues {
 }
 
 export function ClientEditorPage() {
-  const { replaceCurrentTab, closeCurrentTab } = useTabContext();
+  const { closeCurrentTab } = useTabContext();
+  const { go, bind } = useContentNavigation();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -142,7 +144,7 @@ export function ClientEditorPage() {
           icon: <IconCheck size={16} />,
         });
         const clientId = result.data?.id;
-        replaceCurrentTab(clientId ? `/clients/${clientId}` : '/clients');
+        go(clientId ? `/clients/${clientId}` : '/clients');
       } else {
         setError(result.error || 'Failed to create client');
       }
@@ -354,7 +356,7 @@ export function ClientEditorPage() {
 
           {/* Actions */}
           <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => replaceCurrentTab('/clients')}>
+            <Button variant="subtle" {...bind('/clients')}>
               Cancel
             </Button>
             <Button type="submit" leftSection={<IconDeviceFloppy size={16} />} loading={submitting}>

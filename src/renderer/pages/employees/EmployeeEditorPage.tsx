@@ -27,8 +27,8 @@ import {
   IconPhone,
   IconBriefcase,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface EmployeeFormValues {
@@ -48,7 +48,7 @@ interface EmployeeFormValues {
 }
 
 export function EmployeeEditorPage() {
-  const navigate = useNavigate();
+  const { go, bind } = useContentNavigation();
   const { id } = useTabParams<{ id: string }>();
   const isEditing = Boolean(id) && /^\d+$/.test(id!);
 
@@ -181,7 +181,7 @@ export function EmployeeEditorPage() {
           color: 'green',
           icon: <IconCheck size={16} />,
         });
-        navigate('/employees');
+        go('/employees');
       } else {
         setError(result.error || 'Failed to save employee');
       }
@@ -208,7 +208,7 @@ export function EmployeeEditorPage() {
           <Button
             variant="subtle"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/employees')}
+            {...bind('/employees')}
           >
             Back
           </Button>
@@ -353,7 +353,7 @@ export function EmployeeEditorPage() {
           <Group justify="flex-end">
             <Button
               variant="subtle"
-              onClick={() => navigate('/employees')}
+              {...bind('/employees')}
             >
               Cancel
             </Button>

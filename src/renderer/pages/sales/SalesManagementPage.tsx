@@ -19,7 +19,7 @@ import {
   IconLayoutSidebarLeftExpand,
   IconArrowLeft,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { InvoicesPage } from '../invoices';
 import { QuotationsPage } from '../quotations';
 import { CreditNotesPage } from '../credit-notes';
@@ -66,7 +66,7 @@ const salesSections: SalesSection[] = [
 ];
 
 export function SalesManagementPage() {
-  const navigate = useNavigate();
+  const { bind } = useContentNavigation();
   const { can } = usePermissions();
   const [selected, setSelected] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -116,7 +116,7 @@ export function SalesManagementPage() {
                 variant="subtle"
                 color="gray"
                 size="lg"
-                onClick={() => navigate('/dashboard')}
+                {...bind('/dashboard')}
                 style={{ width: '100%' }}
                 aria-label="Back to Dashboard"
               >
@@ -129,7 +129,7 @@ export function SalesManagementPage() {
               color="gray"
               size="sm"
               leftSection={<IconArrowLeft size={16} />}
-              onClick={() => navigate('/dashboard')}
+              {...bind('/dashboard')}
               fullWidth
               justify="flex-start"
             >

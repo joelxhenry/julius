@@ -21,7 +21,6 @@ import {
   IconCar,
   IconPlus,
 } from '@tabler/icons-react';
-import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import { DataTable, Column, CopyButton } from '../../components/common';
@@ -63,7 +62,6 @@ interface PaginatedResult {
 }
 
 export function InventoryListPage() {
-  const { replaceCurrentTab } = useTabContext();
   const [newPartOpened, { open: openNewPart, close: closeNewPart }] = useDisclosure(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -343,7 +341,7 @@ export function InventoryListPage() {
             data={inventory}
             loading={loading}
             keyField="id"
-            onRowClick={(item) => replaceCurrentTab(`/inventory/${item.id}`)}
+            getRowPath={(item) => `/inventory/${item.id}`}
             emptyMessage="No inventory items found"
             skeletonRows={5}
             minWidth={1000}

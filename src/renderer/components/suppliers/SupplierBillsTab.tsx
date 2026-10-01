@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { Paper, Badge, Text, ActionIcon, Stack, Group, Select, Button } from '@mantine/core';
 import { IconEye, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
@@ -52,7 +52,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export function SupplierBillsTab({ supplierId }: SupplierBillsTabProps) {
-  const navigate = useNavigate();
+  const { bind } = useContentNavigation();
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string>('all');
@@ -168,13 +168,13 @@ export function SupplierBillsTab({ supplierId }: SupplierBillsTabProps) {
         header: 'Actions',
         width: 80,
         render: (bill) => (
-          <ActionIcon variant="subtle" onClick={() => navigate(`/bills/${bill.id}`)}>
+          <ActionIcon variant="subtle" {...bind(`/bills/${bill.id}`)}>
             <IconEye size={16} />
           </ActionIcon>
         ),
       },
     ],
-    [navigate]
+    [bind]
   );
 
   return (
@@ -211,7 +211,7 @@ export function SupplierBillsTab({ supplierId }: SupplierBillsTabProps) {
           keyField="id"
           emptyMessage="No bills found for this supplier"
           minWidth={700}
-          onRowClick={(bill) => navigate(`/bills/${bill.id}`)}
+          getRowPath={(bill) => `/bills/${bill.id}`}
           stickyActionsColumn
         />
       </Paper>

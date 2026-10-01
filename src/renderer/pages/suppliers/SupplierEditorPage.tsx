@@ -27,6 +27,7 @@ import {
   IconMail,
 } from '@tabler/icons-react';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface SupplierFormValues {
@@ -50,7 +51,8 @@ interface SupplierFormValues {
 }
 
 export function SupplierEditorPage() {
-  const { replaceCurrentTab, closeCurrentTab } = useTabContext();
+  const { closeCurrentTab } = useTabContext();
+  const { go } = useContentNavigation();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +121,7 @@ export function SupplierEditorPage() {
           icon: <IconCheck size={16} />,
         });
         const supplierId = result.data?.id;
-        replaceCurrentTab(supplierId ? `/suppliers/${supplierId}` : '/suppliers');
+        go(supplierId ? `/suppliers/${supplierId}` : '/suppliers');
       } else {
         setError(result.error || 'Failed to create supplier');
       }

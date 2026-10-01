@@ -28,7 +28,7 @@ interface CompactDetailHeaderProps {
   onNavigateAdjacent?: (id: number | null) => void;
   onRecordPayment: () => void;
   onProcessReturn?: () => void;
-  onViewClient: () => void;
+  onViewClient: (event: React.MouseEvent) => void;
   onArchive: () => void;
   onEdit?: () => void;
 }

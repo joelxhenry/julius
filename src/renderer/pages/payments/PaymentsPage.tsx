@@ -76,7 +76,7 @@ const formatDate = (dateStr: string | null) => {
 
 export function PaymentsPage() {
   const { user } = useAuth();
-  const { openTab, replaceCurrentTab } = useTabContext();
+  const { openTab } = useTabContext();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -269,10 +269,6 @@ export function PaymentsPage() {
       </Badge>
     );
   };
-
-  const handleViewPayment = useCallback((payment: Payment) => {
-    replaceCurrentTab(`/payments/${payment.id}`);
-  }, [replaceCurrentTab]);
 
   const handleViewDocument = useCallback(async (payment: Payment) => {
     if (payment.documentType === 'INVOICE' && payment.invoiceNumber) {
@@ -529,7 +525,7 @@ export function PaymentsPage() {
           data={payments}
           loading={isLoading}
           keyField="id"
-          onRowClick={handleViewPayment}
+          getRowPath={(payment) => `/payments/${payment.id}`}
           emptyMessage="No payments found"
           page={page}
           totalPages={totalPages}

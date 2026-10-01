@@ -16,7 +16,6 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import type { ExportColumn, ExportFormat, ExportRequest } from '../../../shared/types/export';
 import type { PrintOutputMode } from '../../../shared/types/print';
 import { usePaymentReportPrint } from '../../hooks';
-import { useTabContext } from '../../contexts/TabContext';
 
 interface PaymentMethod {
   id: number;
@@ -86,7 +85,6 @@ const formatDate = (dateStr: string) => {
 };
 
 export function ClientPaymentsTab({ clientId, clientName, refreshToken }: ClientPaymentsTabProps) {
-  const { openTab } = useTabContext();
   const { printPaymentReport, isPrinting } = usePaymentReportPrint();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -396,9 +394,7 @@ export function ClientPaymentsTab({ clientId, clientName, refreshToken }: Client
         keyField="id"
         emptyMessage="No payments found for this client"
         minWidth={700}
-        onRowClick={(payment) => {
-          openTab(`/payments/${payment.id}`);
-        }}
+        getRowPath={(payment) => `/payments/${payment.id}`}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}

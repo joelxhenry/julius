@@ -26,7 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../common/DateRangeFilter';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { useReceivingReferencePrint } from '../../hooks/useReceivingReferencePrint';
 import { IpcChannel } from '../../../shared/types/ipc';
 import type { ExportColumn, ExportFormat, ExportRequest } from '../../../shared/types/export';
@@ -84,7 +84,7 @@ const formatDate = (dateStr: string | null) => {
 };
 
 export function ReceivingTab({ sku }: ReceivingTabProps) {
-  const { openTab } = useTabContext();
+  const { bind } = useContentNavigation();
   const { printReceivingReference, isPrinting } = useReceivingReferencePrint();
   const [receiving, setReceiving] = useState<InventoryReceiving[]>([]);
   const [loading, setLoading] = useState(true);
@@ -249,12 +249,12 @@ export function ReceivingTab({ sku }: ReceivingTabProps) {
       );
     }
     return (
-      <Tooltip label="Open supplier in new tab" withArrow position="top">
+      <Tooltip label="Open supplier" withArrow position="top">
         <Anchor
           component="button"
           type="button"
           size="sm"
-          onClick={() => openTab(`/suppliers/${group.supplierId}`)}
+          {...bind(`/suppliers/${group.supplierId}`)}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
           {group.supplier}

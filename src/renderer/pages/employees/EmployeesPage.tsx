@@ -18,8 +18,7 @@ import {
   IconRefresh,
   IconArrowLeft,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
@@ -56,8 +55,7 @@ interface PaginatedResult {
 }
 
 export function EmployeesPage() {
-  const navigate = useNavigate();
-  const { replaceCurrentTab } = useTabContext();
+  const { bind, go } = useContentNavigation();
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [total, setTotal] = useState(0);
@@ -189,7 +187,7 @@ export function EmployeesPage() {
           color="gray"
           size="sm"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={() => navigate('/dashboard')}
+          {...bind('/dashboard')}
         >
           Back to Dashboard
         </Button>
@@ -200,7 +198,7 @@ export function EmployeesPage() {
           permission="CREATE_EMPLOYEE"
           whenDenied="disable"
           leftSection={<IconPlus size={16} />}
-          onClick={() => navigate('/employees/new')}
+          onClick={() => go('/employees/new')}
         >
           Add Employee
         </PermissionButton>
@@ -246,7 +244,7 @@ export function EmployeesPage() {
             data={employees}
             loading={loading}
             keyField="id"
-            onRowClick={(employee) => replaceCurrentTab(`/employees/${employee.id}`)}
+            getRowPath={(employee) => `/employees/${employee.id}`}
             emptyMessage="No employees found"
             page={page}
             totalPages={totalPages}

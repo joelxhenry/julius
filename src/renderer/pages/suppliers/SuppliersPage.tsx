@@ -22,8 +22,7 @@ import {
   IconCheck,
   IconX,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
@@ -51,8 +50,7 @@ interface PaginatedResult {
 }
 
 export function SuppliersPage() {
-  const navigate = useNavigate();
-  const { replaceCurrentTab } = useTabContext();
+  const { bind, go } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -223,10 +221,7 @@ export function SuppliersPage() {
             <ActionIcon
               variant="subtle"
               color="blue"
-              onClick={(e) => {
-                e.stopPropagation();
-                replaceCurrentTab(`/suppliers/${supplier.id}`);
-              }}
+              {...bind(`/suppliers/${supplier.id}`)}
               title="View details"
             >
               <IconEye size={16} />
@@ -240,7 +235,7 @@ export function SuppliersPage() {
               <Menu.Dropdown>
                 <Menu.Item
                   leftSection={<IconEdit size={14} />}
-                  onClick={() => navigate(`/suppliers/${supplier.id}/edit`)}
+                  {...bind(`/suppliers/${supplier.id}/edit`)}
                 >
                   Edit
                 </Menu.Item>
@@ -264,7 +259,7 @@ export function SuppliersPage() {
         ),
       },
     ],
-    [navigate, replaceCurrentTab]
+    [bind]
   );
 
   return (
@@ -275,7 +270,7 @@ export function SuppliersPage() {
           permission="CREATE_SUPPLIER"
           whenDenied="disable"
           leftSection={<IconPlus size={16} />}
-          onClick={() => navigate('/suppliers/new')}
+          onClick={() => go('/suppliers/new')}
         >
           Add Supplier
         </PermissionButton>
@@ -313,7 +308,7 @@ export function SuppliersPage() {
             data={suppliers}
             loading={loading}
             keyField="id"
-            onRowClick={(supplier) => replaceCurrentTab(`/suppliers/${supplier.id}`)}
+            getRowPath={(supplier) => `/suppliers/${supplier.id}`}
             emptyMessage="No suppliers found"
             page={page}
             totalPages={totalPages}

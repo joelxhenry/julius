@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Paper, Stack, Text, ActionIcon, Group, Button, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -64,10 +65,10 @@ const formatCurrency = (value: string | null) => {
 };
 
 export function QuotationDetailPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { updateTabTitle } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -206,7 +207,7 @@ export function QuotationDetailPage() {
             message: 'Quotation not found',
             color: 'red',
           });
-          navigate('/quotations');
+          go('/quotations');
         }
       } catch (error) {
         console.error('Failed to load quotation:', error);
@@ -220,7 +221,7 @@ export function QuotationDetailPage() {
       }
     };
     loadQuotation();
-  }, [id, navigate, loadQuotationData, prefetchAdjacentQuotations]);
+  }, [id, go, loadQuotationData, prefetchAdjacentQuotations]);
 
   const fromListing = location.state?.fromListing === true;
 
@@ -228,10 +229,10 @@ export function QuotationDetailPage() {
   const handleNavigateAdjacent = useCallback(
     (targetId: number | null) => {
       if (targetId) {
-        replaceCurrentTab(`/quotations/${targetId}`, { fromListing: true });
+        go(`/quotations/${targetId}`, undefined, { fromListing: true });
       }
     },
-    [replaceCurrentTab]
+    [go]
   );
 
   // Look up the current inventory price for a line item, using the same
@@ -406,7 +407,7 @@ export function QuotationDetailPage() {
         closePriceWarning();
 
         // Navigate to the new invoice
-        replaceCurrentTab(`/invoices/${newInvoice.id}`);
+        go(`/invoices/${newInvoice.id}`);
       } catch (error) {
         console.error('Failed to convert quotation:', error);
         notifications.show({
@@ -418,7 +419,7 @@ export function QuotationDetailPage() {
         setIsConverting(false);
       }
     },
-    [quotation, lineItems, priceChanges, taxRate, closeConvertModal, closePriceWarning, replaceCurrentTab]
+    [quotation, lineItems, priceChanges, taxRate, closeConvertModal, closePriceWarning, go]
   );
 
   // Edit quotation
@@ -426,9 +427,9 @@ export function QuotationDetailPage() {
     if (!quotation) return;
     runWithPermission(
       { permissionCode: 'EDIT_QUOTATION', actionLabel: `Edit quotation ${quotation.quoteNum}`, context: { entity: 'quotation', id: quotation.id } },
-      () => navigate(`/quotations/${quotation.id}/edit`)
+      () => go(`/quotations/${quotation.id}/edit`)
     );
-  }, [quotation, navigate, runWithPermission]);
+  }, [quotation, go, runWithPermission]);
 
   // Archive quotation
   const handleArchive = useCallback(() => {
@@ -444,7 +445,7 @@ export function QuotationDetailPage() {
               message: `Quotation ${quotation.quoteNum} has been archived`,
               color: 'green',
             });
-            navigate('/quotations');
+            go('/quotations');
           }
         } catch (error) {
           notifications.show({
@@ -455,7 +456,7 @@ export function QuotationDetailPage() {
         }
       }
     );
-  }, [quotation, navigate, runWithPermission]);
+  }, [quotation, go, runWithPermission]);
 
   // Mark as expired
   const handleExpire = useCallback(async () => {
@@ -513,13 +514,6 @@ export function QuotationDetailPage() {
     }
   }, [quotation, loadQuotationData]);
 
-  // Navigate to client
-  const handleViewClient = useCallback(() => {
-    if (quotation?.clientId) {
-      navigate(`/clients/${quotation.clientId}`);
-    }
-  }, [quotation, navigate]);
-
   if (isLoading) {
     return (
       <Center h="60vh">
@@ -532,6 +526,9 @@ export function QuotationDetailPage() {
     return null;
   }
 
+  const viewClient = bind(quotation.clientId ? `/clients/${quotation.clientId}` : undefined);
+  const viewSalesperson = bind(quotation.salespersonId ? `/employees/${quotation.salespersonId}` : undefined);
+
   return (
     <>
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
@@ -541,7 +538,7 @@ export function QuotationDetailPage() {
             <ActionIcon
               variant="subtle"
               size="lg"
-              onClick={() => replaceCurrentTab('/quotations')}
+              {...bind('/quotations')}
               title="Back to Quotations"
             >
               <IconArrowLeft size={20} />
@@ -550,7 +547,7 @@ export function QuotationDetailPage() {
             <ActionIcon
               variant="subtle"
               size="lg"
-              onClick={() => replaceCurrentTab('/quotations/new')}
+              {...bind('/quotations/new')}
               title="New Quotation"
             >
               <IconPlus size={20} />
@@ -564,7 +561,7 @@ export function QuotationDetailPage() {
               onConvertToInvoice={handleOpenConvert}
               isConvertLoading={isCheckingPrices}
               onEdit={handleEdit}
-              onViewClient={handleViewClient}
+              onViewClient={viewClient.onClick}
               onExpire={handleExpire}
               onArchive={handleArchive}
             />
@@ -579,9 +576,11 @@ export function QuotationDetailPage() {
         {/* Compact Info Bar */}
         <QuotationDetailInfoBar
           quotation={quotation}
-          onViewClient={handleViewClient}
+          onViewClient={viewClient.onClick}
+          onViewClientContextMenu={viewClient.onContextMenu}
           salespersonName={salespersonName}
-          onViewSalesperson={() => quotation.salespersonId && openTab(`/employees/${quotation.salespersonId}`)}
+          onViewSalesperson={viewSalesperson.onClick}
+          onViewSalespersonContextMenu={viewSalesperson.onContextMenu}
         />
 
         {/* Notes */}

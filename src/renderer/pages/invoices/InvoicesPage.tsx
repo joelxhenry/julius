@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import {
   Stack,
   Title,
@@ -82,8 +81,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export function InvoicesPage() {
-  const navigate = useNavigate();
-  const { replaceCurrentTab } = useTabContext();
+  const { bind, go } = useContentNavigation();
   const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [searchResults, setSearchResults] = useState<Invoice[]>([]);
@@ -198,22 +196,12 @@ export function InvoicesPage() {
       closeAccessModal();
       // Navigate to invoice editor with salesperson info
       const employeeName = employeeDisplayName(employee);
-      navigate('/invoices/form', {
-        state: {
-          salespersonId: employee.id,
-          salespersonName: employeeName,
-        },
+      go('/invoices/form', undefined, {
+        salespersonId: employee.id,
+        salespersonName: employeeName,
       });
     },
-    [closeAccessModal, navigate]
-  );
-
-  // View invoice
-  const handleViewInvoice = useCallback(
-    (invoice: Invoice) => {
-      replaceCurrentTab(`/invoices/${invoice.id}`, { fromListing: true });
-    },
-    [replaceCurrentTab]
+    [closeAccessModal, go]
   );
 
   // Base columns for all invoice tables
@@ -280,7 +268,7 @@ export function InvoicesPage() {
         render: (invoice) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => replaceCurrentTab(`/invoices/${invoice.id}`, { fromListing: true })}>
+              <ActionIcon variant="subtle" {...bind(`/invoices/${invoice.id}`, { fromListing: true })}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>
@@ -288,7 +276,7 @@ export function InvoicesPage() {
         ),
       },
     ],
-    [baseColumns, replaceCurrentTab]
+    [baseColumns, bind]
   );
 
   return (
@@ -360,7 +348,8 @@ export function InvoicesPage() {
                 data={filteredRecent}
                 loading={isLoadingRecent}
                 keyField="id"
-                onRowClick={handleViewInvoice}
+                getRowPath={(invoice) => `/invoices/${invoice.id}`}
+                getRowState={() => ({ fromListing: true })}
                 emptyMessage={statusFilter === 'all' ? 'No recent invoices' : `No ${statusLabels[statusFilter]?.toLowerCase() || statusFilter} invoices`}
                 stickyActionsColumn
                 sortField={sortField}
@@ -386,7 +375,8 @@ export function InvoicesPage() {
                   data={filteredSearch}
                   loading={isSearching}
                   keyField="id"
-                  onRowClick={handleViewInvoice}
+                  getRowPath={(invoice) => `/invoices/${invoice.id}`}
+                getRowState={() => ({ fromListing: true })}
                   emptyMessage={statusFilter === 'all' ? `No invoices found for "${searchQuery}"` : `No ${statusLabels[statusFilter]?.toLowerCase() || statusFilter} invoices found for "${searchQuery}"`}
                   stickyActionsColumn
                   sortField={sortField}

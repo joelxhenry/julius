@@ -12,11 +12,15 @@ interface Quotation {
   pricing: string | null;
 }
 
+type NavHandler = (event: React.MouseEvent) => void;
+
 interface QuotationDetailInfoBarProps {
   quotation: Quotation;
-  onViewClient: () => void;
+  onViewClient: NavHandler;
+  onViewClientContextMenu?: NavHandler;
   salespersonName?: string | null;
-  onViewSalesperson?: () => void;
+  onViewSalesperson?: NavHandler;
+  onViewSalespersonContextMenu?: NavHandler;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -29,7 +33,14 @@ const formatDate = (dateStr: string | null) => {
   });
 };
 
-export function QuotationDetailInfoBar({ quotation, onViewClient, salespersonName, onViewSalesperson }: QuotationDetailInfoBarProps) {
+export function QuotationDetailInfoBar({
+  quotation,
+  onViewClient,
+  onViewClientContextMenu,
+  salespersonName,
+  onViewSalesperson,
+  onViewSalespersonContextMenu,
+}: QuotationDetailInfoBarProps) {
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 40 }}>
       <Group gap="lg" wrap="nowrap" h="100%">
@@ -37,7 +48,13 @@ export function QuotationDetailInfoBar({ quotation, onViewClient, salespersonNam
         {quotation.clientName && (
           <Group gap={4} wrap="nowrap">
             <IconUser size={14} color="gray" />
-            <RestrictedLink permission="VIEW_CLIENTS" size="sm" color="blue" onClick={onViewClient}>
+            <RestrictedLink
+              permission="VIEW_CLIENTS"
+              size="sm"
+              color="blue"
+              onClick={onViewClient}
+              onContextMenu={onViewClientContextMenu}
+            >
               {quotation.clientName}
             </RestrictedLink>
           </Group>
@@ -48,7 +65,13 @@ export function QuotationDetailInfoBar({ quotation, onViewClient, salespersonNam
           <Group gap={4} wrap="nowrap">
             <IconUserCheck size={14} color="gray" />
             <Text size="sm" c="dimmed">Salesperson:</Text>
-            <RestrictedLink permission="VIEW_EMPLOYEES" size="sm" color="violet" onClick={() => onViewSalesperson?.()}>
+            <RestrictedLink
+              permission="VIEW_EMPLOYEES"
+              size="sm"
+              color="violet"
+              onClick={(e) => onViewSalesperson?.(e)}
+              onContextMenu={onViewSalespersonContextMenu}
+            >
               {salespersonName}
             </RestrictedLink>
           </Group>

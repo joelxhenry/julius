@@ -10,7 +10,7 @@ import {
   IconShield,
   IconArrowLeft,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
@@ -27,7 +27,7 @@ interface Role {
 }
 
 export function RolesPage() {
-  const navigate = useNavigate();
+  const { bind, go } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -146,7 +146,7 @@ export function RolesPage() {
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item leftSection={<IconEdit size={14} />} onClick={() => navigate(`/roles/${role.id}`)}>
+              <Menu.Item leftSection={<IconEdit size={14} />} {...bind(`/roles/${role.id}`)}>
                 Edit
               </Menu.Item>
               {!role.isSystem && (
@@ -162,7 +162,7 @@ export function RolesPage() {
         ),
       },
     ],
-    [navigate, requestDelete]
+    [bind, requestDelete]
   );
 
   return (
@@ -173,7 +173,7 @@ export function RolesPage() {
           color="gray"
           size="sm"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={() => navigate('/dashboard')}
+          {...bind('/dashboard')}
         >
           Back to Dashboard
         </Button>
@@ -193,7 +193,7 @@ export function RolesPage() {
             permission="MANAGE_ROLES"
             whenDenied="disable"
             leftSection={<IconPlus size={16} />}
-            onClick={() => navigate('/roles/new')}
+            onClick={() => go('/roles/new')}
           >
             Add Role
           </PermissionButton>
@@ -206,7 +206,7 @@ export function RolesPage() {
           data={roles}
           loading={loading}
           keyField="id"
-          onRowClick={(role) => navigate(`/roles/${role.id}`)}
+          getRowPath={(role) => `/roles/${role.id}`}
           emptyMessage="No roles yet"
           skeletonRows={4}
           stickyActionsColumn

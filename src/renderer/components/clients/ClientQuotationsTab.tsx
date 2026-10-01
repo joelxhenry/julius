@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { Paper, Text, ActionIcon, Group, Button } from '@mantine/core';
 import { IconEye, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
@@ -39,7 +39,7 @@ const formatDate = (dateStr: string | null) => {
 };
 
 export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
-  const navigate = useNavigate();
+  const { bind } = useContentNavigation();
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -111,13 +111,13 @@ export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
         header: 'Actions',
         width: 80,
         render: (quotation) => (
-          <ActionIcon variant="subtle" onClick={() => navigate(`/quotations/${quotation.id}`)}>
+          <ActionIcon variant="subtle" {...bind(`/quotations/${quotation.id}`)}>
             <IconEye size={16} />
           </ActionIcon>
         ),
       },
     ],
-    [navigate]
+    [bind]
   );
 
   return (
@@ -143,7 +143,7 @@ export function ClientQuotationsTab({ clientId }: ClientQuotationsTabProps) {
         keyField="id"
         emptyMessage="No quotations found for this client"
         minWidth={700}
-        onRowClick={(quotation) => navigate(`/quotations/${quotation.id}`)}
+        getRowPath={(quotation) => `/quotations/${quotation.id}`}
         stickyActionsColumn
         page={page}
         totalPages={totalPages}

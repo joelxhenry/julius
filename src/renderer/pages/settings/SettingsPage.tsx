@@ -18,7 +18,7 @@ import {
   IconInfoCircle,
   IconCloudUpload,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
 import { InterfaceSettingsTab } from './InterfaceSettingsTab';
 import { CompanySettingsTab } from './CompanySettingsTab';
@@ -50,7 +50,7 @@ const settingsTabs: SettingsTab[] = [
 ];
 
 export function SettingsPage() {
-  const navigate = useNavigate();
+  const { bind } = useContentNavigation();
   const { canAny } = usePermissions();
 
   // Hide tabs the user can't manage. The MANAGE_SETTINGS umbrella grants all of them.
@@ -68,7 +68,7 @@ export function SettingsPage() {
           color="gray"
           size="sm"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={() => navigate('/dashboard')}
+          {...bind('/dashboard')}
         >
           Back to Dashboard
         </Button>

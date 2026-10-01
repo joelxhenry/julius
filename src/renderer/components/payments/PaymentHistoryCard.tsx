@@ -5,7 +5,7 @@ import { notifications } from '@mantine/notifications';
 import { IconCash, IconReceipt, IconDotsVertical, IconX } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { DataTable, Column } from '../common/DataTable';
 
 interface Payment {
@@ -51,7 +51,7 @@ const formatDate = (dateStr: string | null) => {
 
 export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onPaymentVoided }: PaymentHistoryCardProps) {
   const { user } = useAuth();
-  const { openTab } = useTabContext();
+  const { bind } = useContentNavigation();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [voidModalOpen, { open: openVoidModal, close: closeVoidModal }] = useDisclosure(false);
@@ -185,10 +185,7 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
                   color="teal"
                   variant="light"
                   style={{ cursor: 'pointer' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openTab(`/credit-notes?search=${payment.creditNoteNumber}`);
-                  }}
+                  {...bind(`/credit-notes?search=${payment.creditNoteNumber}`)}
                 >
                   {payment.creditNoteNumber}
                 </Badge>
@@ -273,7 +270,7 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
         );
       },
     },
-  ], [handleVoidClick, voidedIds, openTab]);
+  ], [handleVoidClick, voidedIds, bind]);
 
   return (
     <div>
@@ -311,14 +308,7 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
               minWidth={400}
               skeletonRows={3}
               stickyActionsColumn
-              onRowClick={(payment) => {
-                console.log('PaymentHistoryCard: Clicking payment:', payment);
-                console.log('PaymentHistoryCard: Payment ID:', payment.id);
-                console.log('PaymentHistoryCard: Opening tab with path:', `/payments/${payment.id}`);
-                const paymentId = payment.id;
-                console.log('PaymentHistoryCard: Captured payment ID:', paymentId);
-                openTab(`/payments/${paymentId}`);
-              }}
+              getRowPath={(payment) => `/payments/${payment.id}`}
             />
 
             {payments.length > 0 && (

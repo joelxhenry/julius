@@ -21,6 +21,7 @@ import { formatVariantName } from '../../../shared/utils/variantName';
 import { useAuth } from '../../contexts/AuthContext';
 import { useActionConfirm } from '../../permissions';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { useKeyboardShortcutContext } from '../../contexts/KeyboardShortcutContext';
 import {
   CompactQuotationToolbar,
@@ -50,7 +51,8 @@ export function QuotationCreatePage() {
   const { id } = useTabParams<{ id: string }>();
   const { user } = useAuth();
   const { confirmAction } = useActionConfirm();
-  const { markTabDirty, updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { markTabDirty, updateTabTitle } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
   const tabPath = useTabPath();
   // Owning-tab path: prefer the tab the page is mounted in (stable across active-tab
@@ -533,7 +535,7 @@ export function QuotationCreatePage() {
         color: 'green',
       });
 
-      replaceCurrentTab(`/quotations/${quotationId}`);
+      go(`/quotations/${quotationId}`);
     } catch (error) {
       console.error('Failed to save quotation:', error);
       notifications.show({
@@ -558,7 +560,7 @@ export function QuotationCreatePage() {
     isTaxable,
     pricing,
     lineItems,
-    replaceCurrentTab,
+    go,
     confirmAction,
   ]);
 
@@ -682,7 +684,7 @@ export function QuotationCreatePage() {
                   {recentQuotations.map((quote) => (
                     <UnstyledButton
                       key={quote.id}
-                      onClick={() => replaceCurrentTab(`/quotations/${quote.id}`)}
+                      {...bind(`/quotations/${quote.id}`)}
                       style={{ flexShrink: 0 }}
                     >
                       <Paper

@@ -36,6 +36,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal, ClientStatementModal, ClientBulkPaymentModal } from '../../components/clients';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { PermissionButton, PermissionGate } from '../../permissions';
 
 interface Client {
@@ -62,7 +63,8 @@ interface Client {
 
 export function ClientDetailPage() {
   const location = useLocation();
-  const { updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { updateTabTitle } = useTabContext();
+  const { bind } = useContentNavigation();
   const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -143,7 +145,7 @@ export function ClientDetailPage() {
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Client not found'}
         </Alert>
-        <Button leftSection={<IconArrowLeft size={16} />} onClick={() => replaceCurrentTab('/clients')}>
+        <Button leftSection={<IconArrowLeft size={16} />} {...bind('/clients')}>
           Back to Clients
         </Button>
       </Stack>
@@ -158,7 +160,7 @@ export function ClientDetailPage() {
           <ActionIcon
             variant="subtle"
             size="lg"
-            onClick={() => replaceCurrentTab('/clients')}
+            {...bind('/clients')}
             title="Back to Clients"
           >
             <IconArrowLeft size={20} />

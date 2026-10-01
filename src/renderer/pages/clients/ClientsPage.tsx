@@ -20,8 +20,7 @@ import {
   IconTrash,
   IconRefresh,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { IpcChannel } from '../../../shared/types/ipc';
@@ -50,8 +49,7 @@ interface PaginatedResult {
 }
 
 export function ClientsPage() {
-  const navigate = useNavigate();
-  const { replaceCurrentTab } = useTabContext();
+  const { bind, go } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<Client[]>([]);
@@ -220,10 +218,7 @@ export function ClientsPage() {
             <ActionIcon
               variant="subtle"
               color="blue"
-              onClick={(e) => {
-                e.stopPropagation();
-                replaceCurrentTab(`/clients/${client.id}`);
-              }}
+              {...bind(`/clients/${client.id}`)}
               title="View details"
             >
               <IconEye size={16} />
@@ -240,7 +235,7 @@ export function ClientsPage() {
               <Menu.Dropdown>
                 <Menu.Item
                   leftSection={<IconEdit size={14} />}
-                  onClick={() => navigate(`/clients/${client.id}/edit`)}
+                  {...bind(`/clients/${client.id}/edit`)}
                 >
                   Edit
                 </Menu.Item>
@@ -258,7 +253,7 @@ export function ClientsPage() {
         ),
       },
     ],
-    [navigate, replaceCurrentTab]
+    [bind]
   );
 
   return (
@@ -269,7 +264,7 @@ export function ClientsPage() {
           permission="CREATE_CLIENT"
           whenDenied="disable"
           leftSection={<IconPlus size={16} />}
-          onClick={() => navigate('/clients/new')}
+          onClick={() => go('/clients/new')}
         >
           Add Client
         </PermissionButton>
@@ -312,7 +307,7 @@ export function ClientsPage() {
             data={clients}
             loading={loading}
             keyField="id"
-            onRowClick={(client) => replaceCurrentTab(`/clients/${client.id}`)}
+            getRowPath={(client) => `/clients/${client.id}`}
             emptyMessage="No clients found"
             page={page}
             totalPages={totalPages}

@@ -28,7 +28,7 @@ interface QuotationDetailHeaderProps {
   onConvertToInvoice: () => void;
   isConvertLoading?: boolean;
   onEdit: () => void;
-  onViewClient: () => void;
+  onViewClient: (event: React.MouseEvent) => void;
   onExpire: () => void;
   onArchive: () => void;
 }

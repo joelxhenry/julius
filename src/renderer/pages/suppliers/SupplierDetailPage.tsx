@@ -32,6 +32,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { SupplierEditModal, SupplierReceivingTab, SupplierBillsTab } from '../../components/suppliers';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { PermissionButton, PermissionGate } from '../../permissions';
 
 interface Supplier {
@@ -60,7 +61,8 @@ interface Supplier {
 
 export function SupplierDetailPage() {
   const location = useLocation();
-  const { updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { updateTabTitle } = useTabContext();
+  const { bind } = useContentNavigation();
   const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -137,7 +139,7 @@ export function SupplierDetailPage() {
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Supplier not found'}
         </Alert>
-        <Button leftSection={<IconArrowLeft size={16} />} onClick={() => replaceCurrentTab('/suppliers')}>
+        <Button leftSection={<IconArrowLeft size={16} />} {...bind('/suppliers')}>
           Back to Suppliers
         </Button>
       </Stack>
@@ -152,7 +154,7 @@ export function SupplierDetailPage() {
           <ActionIcon
             variant="subtle"
             size="lg"
-            onClick={() => replaceCurrentTab('/suppliers')}
+            {...bind('/suppliers')}
             title="Back to Suppliers"
           >
             <IconArrowLeft size={20} />

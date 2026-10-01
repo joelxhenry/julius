@@ -34,8 +34,9 @@ import {
   IconUserX,
   IconTrash,
 } from '@tabler/icons-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { useTabContext } from '../../contexts/TabContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PermissionButton, PermissionGate, usePermissions } from '../../permissions';
@@ -66,10 +67,10 @@ interface Employee {
 }
 
 export function EmployeeDetailPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle, replaceCurrentTab } = useTabContext();
+  const { updateTabTitle } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const { runWithPermission } = usePermissions();
 
   const [loading, setLoading] = useState(true);
@@ -162,7 +163,7 @@ export function EmployeeDetailPage() {
           const result = await window.electron.invoke(IpcChannel.DELETE_EMPLOYEE, { id: employee.id });
           if (result.success) {
             notifications.show({ title: 'Deleted', message: `${name} has been deleted`, color: 'green' });
-            navigate('/employees');
+            go('/employees');
           } else {
             notifications.show({ title: 'Delete Failed', message: result.error || 'Failed to delete employee', color: 'red' });
           }
@@ -199,7 +200,7 @@ export function EmployeeDetailPage() {
         <Button
           variant="subtle"
           leftSection={<IconArrowLeft size={16} />}
-          onClick={() => navigate('/employees')}
+          {...bind('/employees')}
         >
           Back to Employees
         </Button>
@@ -220,7 +221,7 @@ export function EmployeeDetailPage() {
           <Button
             variant="subtle"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/employees')}
+            {...bind('/employees')}
           >
             Back
           </Button>
@@ -291,7 +292,7 @@ export function EmployeeDetailPage() {
             context={{ entity: 'employee', id: employee.id }}
             variant="outline"
             leftSection={<IconShield size={16} />}
-            onClick={() => replaceCurrentTab(`/employees/${employee.id}/permissions`)}
+            onClick={() => go(`/employees/${employee.id}/permissions`)}
           >
             Permissions
           </PermissionButton>
@@ -301,7 +302,7 @@ export function EmployeeDetailPage() {
             actionLabel={`Edit employee ${employeeName}`}
             context={{ entity: 'employee', id: employee.id }}
             leftSection={<IconEdit size={16} />}
-            onClick={() => replaceCurrentTab(`/employees/${employee.id}/edit`)}
+            onClick={() => go(`/employees/${employee.id}/edit`)}
           >
             Edit
           </PermissionButton>

@@ -8,7 +8,9 @@ interface RestrictedLinkProps {
   /** When multiple codes are given, require ANY instead of ALL. */
   requireAny?: boolean;
   /** Navigation handler — only invoked when permitted. */
-  onClick: () => void;
+  onClick: (event: React.MouseEvent) => void;
+  /** Right-click handler (e.g. "Open in new tab" menu) — only invoked when permitted. */
+  onContextMenu?: (event: React.MouseEvent) => void;
   /** Link colour when permitted (Mantine colour). */
   color?: string;
   size?: string;
@@ -34,6 +36,7 @@ export function RestrictedLink({
   permission,
   requireAny = false,
   onClick,
+  onContextMenu,
   color = 'blue',
   size,
   fw,
@@ -46,7 +49,15 @@ export function RestrictedLink({
 
   if (allowed) {
     return (
-      <Anchor size={size} c={color} fw={fw} mt={mt} onClick={onClick} style={{ cursor: 'pointer' }}>
+      <Anchor
+        size={size}
+        c={color}
+        fw={fw}
+        mt={mt}
+        onClick={onClick}
+        onContextMenu={onContextMenu}
+        style={{ cursor: 'pointer' }}
+      >
         {children}
       </Anchor>
     );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { Paper, Badge, Text, Group, Select, Button } from '@mantine/core';
 import { IconEye, IconCash, IconFilterOff } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
@@ -68,7 +68,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export function ClientInvoicesTab({ clientId, clientName, refreshToken }: ClientInvoicesTabProps) {
-  const navigate = useNavigate();
+  const { bind } = useContentNavigation();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -192,10 +192,7 @@ export function ClientInvoicesTab({ clientId, clientName, refreshToken }: Client
                 variant="light"
                 size="xs"
                 leftSection={<IconEye size={14} />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/invoices/${invoice.id}`);
-                }}
+                {...bind(`/invoices/${invoice.id}`)}
               >
                 View
               </Button>
@@ -218,7 +215,7 @@ export function ClientInvoicesTab({ clientId, clientName, refreshToken }: Client
         },
       },
     ],
-    [navigate]
+    [bind]
   );
 
   return (
@@ -255,7 +252,7 @@ export function ClientInvoicesTab({ clientId, clientName, refreshToken }: Client
         keyField="id"
         emptyMessage="No invoices found for this client"
         minWidth={700}
-        onRowClick={(invoice) => navigate(`/invoices/${invoice.id}`)}
+        getRowPath={(invoice) => `/invoices/${invoice.id}`}
         stickyActionsColumn
         page={page}
         totalPages={totalPages}

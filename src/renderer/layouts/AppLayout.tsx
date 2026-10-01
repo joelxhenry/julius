@@ -14,6 +14,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useKeyboardShortcutContext } from '../contexts/KeyboardShortcutContext';
 import { SpotlightProvider } from '../contexts/SpotlightContext';
 import { TabProvider, useTabContext } from '../contexts/TabContext';
+import { NavigationMenuProvider } from '../contexts/NavigationMenuContext';
 import { useAuth, SafeEmployee } from '../contexts/AuthContext';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
 import { KeyboardShortcut } from '../hooks/useKeyboardShortcuts';
@@ -345,7 +346,9 @@ function AppLayoutContent() {
 export function AppLayout() {
   return (
     <TabProvider getComponentForPath={getComponentForPath}>
-      <AppLayoutContent />
+      <NavigationMenuProvider>
+        <AppLayoutContent />
+      </NavigationMenuProvider>
     </TabProvider>
   );
 }

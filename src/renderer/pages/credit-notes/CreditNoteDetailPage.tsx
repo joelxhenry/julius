@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { usePermissions, RestrictedLink } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
 import {
@@ -120,7 +121,8 @@ const formatDate = (dateStr: string | null) => {
 export function CreditNoteDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const location = useLocation();
-  const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { updateTabTitle, openTab } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const [creditNote, setCreditNote] = useState<CreditNote | null>(null);
   const [usage, setUsage] = useState<UsagePayment[]>([]);
@@ -163,14 +165,14 @@ export function CreditNoteDetailPage() {
         }
       } else {
         notifications.show({ title: 'Error', message: 'Credit note not found', color: 'red' });
-        replaceCurrentTab('/credit-notes');
+        go('/credit-notes');
       }
     } catch (error) {
       notifications.show({ title: 'Error', message: 'Failed to load credit note', color: 'red' });
     } finally {
       setIsLoading(false);
     }
-  }, [id, replaceCurrentTab]);
+  }, [id, go]);
 
   useEffect(() => {
     loadCreditNote();
@@ -225,13 +227,11 @@ export function CreditNoteDetailPage() {
     );
   }, [creditNote, runWithPermission]);
 
-  const handleViewInvoice = useCallback(() => {
-    if (sourceInvoice) {
-      openTab(`/invoices/${sourceInvoice.id}`);
-    } else if (creditNote?.invNumber) {
+  const handleViewInvoiceNotFound = useCallback(() => {
+    if (!sourceInvoice && creditNote?.invNumber) {
       notifications.show({ title: 'Invoice Not Found', message: `Invoice ${creditNote.invNumber} could not be found`, color: 'orange' });
     }
-  }, [sourceInvoice, creditNote, openTab]);
+  }, [sourceInvoice, creditNote]);
 
   // Open the invoice a usage entry was applied to (looked up by number → id).
   const openInvoiceByNumber = useCallback(async (invNumber: string | null) => {
@@ -337,6 +337,10 @@ export function CreditNoteDetailPage() {
 
   if (!creditNote) return null;
 
+  const viewInvoice = bind(sourceInvoice ? `/invoices/${sourceInvoice.id}` : undefined);
+  const viewClientRecord = bind(client ? `/clients/${client.id}` : undefined);
+  const viewSalesperson = bind(creditNote.salespersonId ? `/employees/${creditNote.salespersonId}` : undefined);
+
   const total = parseFloat(creditNote.total);
   const totalUsed = parseFloat(creditNote.totalUsed);
   const balance = total - totalUsed;
@@ -351,7 +355,7 @@ export function CreditNoteDetailPage() {
         <ActionIcon
           variant="subtle"
           size="lg"
-          onClick={() => replaceCurrentTab('/credit-notes')}
+          {...bind('/credit-notes')}
           title="Back to Credit Notes"
         >
           <IconArrowLeft size={20} />
@@ -393,7 +397,12 @@ export function CreditNoteDetailPage() {
                   <IconRefresh size={18} />
                 </ActionIcon>
                 {creditNote.invNumber && (
-                  <Button size="xs" variant="light" leftSection={<IconFileInvoice size={14} />} onClick={handleViewInvoice}>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    leftSection={<IconFileInvoice size={14} />}
+                    {...(sourceInvoice ? viewInvoice : { onClick: handleViewInvoiceNotFound })}
+                  >
                     View Invoice
                   </Button>
                 )}
@@ -443,7 +452,8 @@ export function CreditNoteDetailPage() {
                 permission="VIEW_EMPLOYEES"
                 color="violet"
                 fw={500}
-                onClick={() => openTab(`/employees/${creditNote.salespersonId}`)}
+                onClick={viewSalesperson.onClick}
+                onContextMenu={viewSalesperson.onContextMenu}
               >
                 {salespersonName}
               </RestrictedLink>
@@ -464,7 +474,7 @@ export function CreditNoteDetailPage() {
           </Group>
           {sourceInvoice ? (
             <UnstyledButton
-              onClick={handleViewInvoice}
+              {...viewInvoice}
               style={{ width: '100%', borderRadius: 'var(--mantine-radius-sm)' }}
             >
               <Group justify="space-between" wrap="nowrap">
@@ -503,7 +513,7 @@ export function CreditNoteDetailPage() {
           </Group>
           {client ? (
             <UnstyledButton
-              onClick={() => openTab(`/clients/${client.id}`)}
+              {...viewClientRecord}
               style={{ width: '100%', borderRadius: 'var(--mantine-radius-sm)' }}
             >
               <Group justify="space-between" wrap="nowrap" align="flex-start">

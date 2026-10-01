@@ -17,7 +17,7 @@ import {
 import { useDebouncedCallback } from '@mantine/hooks';
 import { IconSearch, IconClock, IconArchive, IconEye, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 
@@ -69,7 +69,7 @@ const statusFilterParams = (statusFilter: string) => {
 };
 
 export function CreditNotesPage() {
-  const { openTab, replaceCurrentTab } = useTabContext();
+  const { bind } = useContentNavigation();
   const [activeTab, setActiveTab] = useState<string | null>('recent');
   const [recentNotes, setRecentNotes] = useState<CreditNote[]>([]);
   const [searchResults, setSearchResults] = useState<CreditNote[]>([]);
@@ -166,13 +166,6 @@ export function CreditNotesPage() {
     [debouncedSearch]
   );
 
-  const handleViewNote = useCallback(
-    (note: CreditNote) => {
-      replaceCurrentTab(`/credit-notes/${note.id}`);
-    },
-    [replaceCurrentTab]
-  );
-
   const baseColumns: Column<CreditNote>[] = useMemo(
     () => [
       {
@@ -253,7 +246,7 @@ export function CreditNotesPage() {
         render: (note) => (
           <Group gap="xs" justify="flex-end">
             <Tooltip label="View">
-              <ActionIcon variant="subtle" onClick={() => openTab(`/credit-notes/${note.id}`)}>
+              <ActionIcon variant="subtle" {...bind(`/credit-notes/${note.id}`)}>
                 <IconEye size={16} />
               </ActionIcon>
             </Tooltip>
@@ -261,7 +254,7 @@ export function CreditNotesPage() {
         ),
       },
     ],
-    [baseColumns, openTab]
+    [baseColumns, bind]
   );
 
   return (
@@ -326,7 +319,7 @@ export function CreditNotesPage() {
               data={recentNotes}
               loading={isLoadingRecent}
               keyField="id"
-              onRowClick={handleViewNote}
+              getRowPath={(note) => `/credit-notes/${note.id}`}
               emptyMessage="No recent credit notes"
               stickyActionsColumn
               sortField={sortField}
@@ -351,7 +344,7 @@ export function CreditNotesPage() {
                 data={searchResults}
                 loading={isSearching}
                 keyField="id"
-                onRowClick={handleViewNote}
+                getRowPath={(note) => `/credit-notes/${note.id}`}
                 emptyMessage={`No credit notes found for "${searchQuery}"`}
                 stickyActionsColumn
                 sortField={sortField}

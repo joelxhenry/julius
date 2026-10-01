@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTabContext } from '../../contexts/TabContext';
+import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Tooltip, Table } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -86,10 +87,10 @@ const formatCurrency = (value: string | null) => {
 };
 
 export function InvoiceDetailPage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
-  const { updateTabTitle, replaceCurrentTab, openTab } = useTabContext();
+  const { updateTabTitle } = useTabContext();
+  const { go, bind } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -259,7 +260,7 @@ export function InvoiceDetailPage() {
             message: 'Invoice not found',
             color: 'red',
           });
-          navigate('/invoices');
+          go('/invoices');
         }
       } catch (error) {
         console.error('Failed to load invoice:', error);
@@ -273,7 +274,7 @@ export function InvoiceDetailPage() {
       }
     };
     loadInvoice();
-  }, [id, navigate, loadInvoiceData, prefetchAdjacentInvoices, loadCreditNotes]);
+  }, [id, go, loadInvoiceData, prefetchAdjacentInvoices, loadCreditNotes]);
 
   // Navigate to previous/next invoice (same tab)
   const fromListing = location.state?.fromListing === true;
@@ -281,11 +282,11 @@ export function InvoiceDetailPage() {
   const handleNavigateAdjacent = useCallback(
     (targetId: number | null) => {
       if (targetId) {
-        // Use replaceCurrentTab to stay in the same tab, preserve fromListing state
-        replaceCurrentTab(`/invoices/${targetId}`, { fromListing: true });
+        // Stay in the same tab, preserve fromListing state
+        go(`/invoices/${targetId}`, undefined, { fromListing: true });
       }
     },
-    [replaceCurrentTab]
+    [go]
   );
 
   // Archive invoice
@@ -302,7 +303,7 @@ export function InvoiceDetailPage() {
               message: `Invoice ${invoice.invNumber} has been archived`,
               color: 'green',
             });
-            navigate('/invoices');
+            go('/invoices');
           }
         } catch (error) {
           notifications.show({
@@ -313,7 +314,7 @@ export function InvoiceDetailPage() {
         }
       }
     );
-  }, [invoice, navigate, runWithPermission]);
+  }, [invoice, go, runWithPermission]);
 
   // Open payment modal (gated: recording a payment requires CREATE_PAYMENT)
   const handleRecordPayment = useCallback(() => {
@@ -380,13 +381,6 @@ export function InvoiceDetailPage() {
     loadCreditNotes(invoice.invNumber);
   }, [invoice, loadCreditNotes]);
 
-  // Navigate to client
-  const handleViewClient = useCallback(() => {
-    if (invoice?.clientId) {
-      navigate(`/clients/${invoice.clientId}`);
-    }
-  }, [invoice, navigate]);
-
   // Refresh all page content (bypass cache)
   const handleRefresh = useCallback(async () => {
     if (!invoice) return;
@@ -405,9 +399,9 @@ export function InvoiceDetailPage() {
     if (!invoice) return;
     runWithPermission(
       { permissionCode: 'EDIT_INVOICE', actionLabel: `Edit invoice ${invoice.invNumber}`, context: { entity: 'invoice', id: invoice.id } },
-      () => replaceCurrentTab(`/invoices/edit/${invoice.id}`)
+      () => go(`/invoices/edit/${invoice.id}`)
     );
-  }, [invoice, replaceCurrentTab, runWithPermission]);
+  }, [invoice, go, runWithPermission]);
 
   // Issued invoices are final records and cannot be edited. Corrections are made
   // through Process Return / credit notes instead.
@@ -425,6 +419,10 @@ export function InvoiceDetailPage() {
     return null;
   }
 
+  const viewClient = bind(invoice.clientId ? `/clients/${invoice.clientId}` : undefined);
+  const viewSalesperson = bind(invoice.salespersonId ? `/employees/${invoice.salespersonId}` : undefined);
+  const viewIssuedBy = bind(invoice.issuedById ? `/employees/${invoice.issuedById}` : undefined);
+
   return (
     <>
       <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
@@ -434,7 +432,7 @@ export function InvoiceDetailPage() {
             <ActionIcon
               variant="subtle"
               size="lg"
-              onClick={() => replaceCurrentTab('/invoices')}
+              {...bind('/invoices')}
               title="Back to Invoices"
             >
               <IconArrowLeft size={20} />
@@ -443,7 +441,7 @@ export function InvoiceDetailPage() {
             <ActionIcon
               variant="subtle"
               size="lg"
-              onClick={() => replaceCurrentTab('/invoices/form')}
+              {...bind('/invoices/form')}
               title="New Invoice"
             >
               <IconPlus size={20} />
@@ -456,7 +454,7 @@ export function InvoiceDetailPage() {
               onNavigateAdjacent={fromListing ? handleNavigateAdjacent : undefined}
               onRecordPayment={handleRecordPayment}
               onProcessReturn={handleProcessReturn}
-              onViewClient={handleViewClient}
+              onViewClient={viewClient.onClick}
               onArchive={handleArchive}
               onEdit={canEdit ? handleEdit : undefined}
             />
@@ -471,11 +469,14 @@ export function InvoiceDetailPage() {
         {/* Compact Info Bar */}
         <CompactDetailInfoBar
           invoice={invoice}
-          onViewClient={handleViewClient}
+          onViewClient={viewClient.onClick}
+          onViewClientContextMenu={viewClient.onContextMenu}
           salespersonName={salespersonName}
-          onViewSalesperson={() => invoice.salespersonId && openTab(`/employees/${invoice.salespersonId}`)}
+          onViewSalesperson={viewSalesperson.onClick}
+          onViewSalespersonContextMenu={viewSalesperson.onContextMenu}
           issuedByName={issuedByName}
-          onViewIssuedBy={() => invoice.issuedById && openTab(`/employees/${invoice.issuedById}`)}
+          onViewIssuedBy={viewIssuedBy.onClick}
+          onViewIssuedByContextMenu={viewIssuedBy.onContextMenu}
         />
 
         {/* Admin Override Info */}
@@ -580,7 +581,7 @@ export function InvoiceDetailPage() {
                         </Table.Td>
                         <Table.Td>
                           <Tooltip label="View Credit Note">
-                            <ActionIcon variant="subtle" size="sm" onClick={() => openTab(`/credit-notes/${cn.id}`)}>
+                            <ActionIcon variant="subtle" size="sm" {...bind(`/credit-notes/${cn.id}`)}>
                               <IconEye size={14} />
                             </ActionIcon>
                           </Tooltip>
