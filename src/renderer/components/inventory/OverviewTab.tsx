@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Paper, Stack, Title, SimpleGrid, Text, Group, Textarea, Button, Tooltip } from '@mantine/core';
+import { useMemo, useState } from 'react';
+import { Paper, Stack, Title, SimpleGrid, Text, Group, Textarea, Button, Tooltip, NumberFormatter } from '@mantine/core';
 import { IconDeviceFloppy, IconX, IconNotes } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
-import { CopyButton } from '../common';
+import { CopyButton, DataTable, type Column } from '../common';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { usePermissions } from '../../permissions';
@@ -30,14 +30,71 @@ interface Inventory {
   updatedAt: Date;
 }
 
+interface Variant {
+  id: number;
+  variantSku: string;
+  variantName: string | null;
+  location: string | null;
+  quantity: number;
+  price: string | null;
+  priceCurrency: string;
+  isActive: boolean;
+}
+
 interface OverviewTabProps {
   item: Inventory;
+  variants: Variant[];
   /** Called after notes are persisted so the parent can reflect the new value. */
   onNotesSaved?: (notes: string | null) => void;
 }
 
-export function OverviewTab({ item, onNotesSaved }: OverviewTabProps) {
+export function OverviewTab({ item, variants, onNotesSaved }: OverviewTabProps) {
   const { runWithPermission } = usePermissions();
+
+  const activeVariants = useMemo(() => variants.filter((v) => v.isActive), [variants]);
+
+  const variantColumns: Column<Variant>[] = useMemo(
+    () => [
+      {
+        key: 'variantSku',
+        header: 'Variant',
+        render: (variant) => (
+          <Group gap="xs">
+            <Text fw={500}>{variant.variantSku}</Text>
+            {variant.variantName && (
+              <Text size="sm" c="dimmed">
+                {variant.variantName}
+              </Text>
+            )}
+          </Group>
+        ),
+      },
+      {
+        key: 'quantity',
+        header: 'Quantity',
+        width: 100,
+        accessor: 'quantity',
+      },
+      {
+        key: 'price',
+        header: 'Price',
+        width: 120,
+        render: (variant) =>
+          variant.price ? (
+            <NumberFormatter value={variant.price} prefix="$" thousandSeparator decimalScale={2} />
+          ) : (
+            '-'
+          ),
+      },
+      {
+        key: 'location',
+        header: 'Location',
+        width: 120,
+        render: (variant) => variant.location || '-',
+      },
+    ],
+    []
+  );
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -142,6 +199,20 @@ export function OverviewTab({ item, onNotesSaved }: OverviewTabProps) {
               <Text>{item.description2}</Text>
             </Stack>
           )}
+
+          <Stack gap="xs">
+            <Text size="xs" c="dimmed">
+              Variants
+            </Text>
+            <DataTable
+              columns={variantColumns}
+              data={activeVariants}
+              loading={false}
+              keyField="id"
+              emptyMessage="No active variants"
+              minWidth={500}
+            />
+          </Stack>
 
           {/* Notes — click the value to edit in place, gated by EDIT_INVENTORY_NOTES */}
           <Stack gap={4}>

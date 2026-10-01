@@ -46,7 +46,7 @@ import { VariantForm } from '../../components/forms/VariantForm';
 import { AlternateForm } from '../../components/forms/AlternateForm';
 import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, SalesTab, ReceivingTab, InventoryEditModal, InventoryLookupTicketButton } from '../../components/inventory';
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
-import { PermissionGate, PermissionButton, RestrictedValue, usePermissions } from '../../permissions';
+import { PermissionGate, PermissionButton, usePermissions } from '../../permissions';
 import { ProductImageModal } from '../../components/common/ProductImageModal';
 import { CopyButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
@@ -839,23 +839,21 @@ export function InventoryDetailPage() {
     return { min: Math.min(...nums), max: Math.max(...nums) };
   };
 
-  const costRange = summaryVariants.length > 0 ? numericRange((v) => v.cost) : null;
   const priceRange = summaryVariants.length > 0 ? numericRange((v) => v.price) : null;
   const wholesaleRange = summaryVariants.length > 0 ? numericRange((v) => v.wholesalePrice) : null;
 
-  // Margin derives from each variant's own cost/price pair, then we take the span.
-  const marginValues = summaryVariants
-    .map((v) => {
-      const c = parseFloat(v.cost ?? '');
-      const p = parseFloat(v.price ?? '');
-      if (!Number.isFinite(c) || c <= 0 || !Number.isFinite(p)) return null;
-      return ((p - c) / c) * 100;
-    })
-    .filter((m): m is number => m != null);
-  const marginRange =
-    marginValues.length > 0
-      ? { min: Math.min(...marginValues), max: Math.max(...marginValues) }
-      : null;
+  // Location doesn't collapse into a numeric range - show it when every summary
+  // variant agrees, otherwise flag that it varies. Falls back to the product's
+  // own location while variants are still loading.
+  const summaryLocations = Array.from(
+    new Set(summaryVariants.map((v) => v.location).filter((l): l is string => !!l && l.trim() !== ''))
+  );
+  const locationLabel =
+    summaryLocations.length === 0
+      ? item.location || '-'
+      : summaryLocations.length === 1
+      ? summaryLocations[0]
+      : 'Multiple';
 
   // Render a currency range: a single formatted value when uniform, else min–max.
   // Falls back to the base-variant/product value when variants carry no figure.
@@ -881,14 +879,6 @@ export function InventoryDetailPage() {
       </>
     );
   };
-
-  const marginLabel = marginRange
-    ? marginRange.min === marginRange.max
-      ? `${marginRange.min.toFixed(1)}%`
-      : `${marginRange.min.toFixed(1)}% – ${marginRange.max.toFixed(1)}%`
-    : displayMargin
-    ? `${displayMargin}%`
-    : '-';
 
   const isLowStock = totalQuantity <= item.minLevel;
 
@@ -988,7 +978,7 @@ export function InventoryDetailPage() {
       </Group>
 
       {/* Summary Cards */}
-      <SimpleGrid cols={{ base: 2, sm: 3, md: 5 }} spacing="md">
+      <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="md">
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Quantity</Text>
           <Text size="xl" fw={700} c={isLowStock ? 'orange' : undefined}>
@@ -997,13 +987,10 @@ export function InventoryDetailPage() {
           <Text size="xs" c="dimmed">Min: {item.minLevel}</Text>
         </Card>
         <Card withBorder radius="md" p="md">
-          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Cost</Text>
+          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Location</Text>
           <Text size="xl" fw={700}>
-            <RestrictedValue permission="VIEW_COST">
-              {renderCurrencyRange(costRange, displayCost)}
-            </RestrictedValue>
+            {locationLabel}
           </Text>
-          <Text size="xs" c="dimmed">{displayCostCurrency}</Text>
         </Card>
         <Card withBorder radius="md" p="md">
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Price</Text>
@@ -1016,14 +1003,6 @@ export function InventoryDetailPage() {
           <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Wholesale</Text>
           <Text size="xl" fw={700}>
             {renderCurrencyRange(wholesaleRange, displayWholesale)}
-          </Text>
-        </Card>
-        <Card withBorder radius="md" p="md">
-          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Margin</Text>
-          <Text size="xl" fw={700}>
-            <RestrictedValue permission="VIEW_COST">
-              {marginLabel}
-            </RestrictedValue>
           </Text>
         </Card>
       </SimpleGrid>
@@ -1064,6 +1043,7 @@ export function InventoryDetailPage() {
         <Tabs.Panel value="overview" pt="md">
           <OverviewTab
             item={item}
+            variants={variants}
             onNotesSaved={(notes) => setItem((prev) => (prev ? { ...prev, notes } : prev))}
           />
         </Tabs.Panel>
