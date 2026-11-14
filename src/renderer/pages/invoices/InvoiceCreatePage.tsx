@@ -570,7 +570,7 @@ export function InvoiceCreatePage() {
         closePaymentEntryModal();
       }
     },
-    [formState, client, totals, lineItems, replaceCurrentTab, closePaymentEntryModal, adminOverride]
+    [formState, client, totals, lineItems, go, closePaymentEntryModal, adminOverride]
   );
 
   // Issue invoice after verification

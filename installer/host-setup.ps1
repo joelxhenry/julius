@@ -153,17 +153,23 @@ function Install-PostgreSQL {
     }
 
     Write-Step 'Installing PostgreSQL silently (this can take a few minutes)...'
+    # Start-Process -ArgumentList does NOT quote array elements that contain
+    # spaces; it just space-joins them before handing the string to the
+    # child process. Paths under "C:\Program Files\..." would otherwise get
+    # split into two separate installer args and break the silent install.
     $pgArgs = @(
         '--mode', 'unattended',
         '--unattendedmodeui', 'minimal',
         '--superpassword', $script:SuperPasswordResolved,
         '--serverport', "$Port",
         '--enable-stackbuilder', '0',
-        '--prefix', $script:PgRoot,
-        '--datadir', $script:PgData
+        '--prefix', "`"$($script:PgRoot)`"",
+        '--datadir', "`"$($script:PgData)`""
     )
     $proc = Start-Process -FilePath $installer -ArgumentList $pgArgs -Wait -PassThru
-    if ($proc.ExitCode -ne 0) { throw "PostgreSQL installer exited with code $($proc.ExitCode)." }
+    if ($proc.ExitCode -ne 0) {
+        throw "PostgreSQL installer exited with code $($proc.ExitCode). Check the installer log under $env:TEMP\postgresql*.log for details."
+    }
 
     if (-not (Get-Service -Name $script:Service -ErrorAction SilentlyContinue)) {
         throw "Install finished but service $script:Service was not created."
