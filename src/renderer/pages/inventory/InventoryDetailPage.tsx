@@ -19,6 +19,7 @@ import {
   ActionIcon,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
@@ -35,6 +36,8 @@ import {
   IconCheck,
   IconPackageImport,
   IconCurrencyDollar,
+  IconTrash,
+  IconRotate,
 } from '@tabler/icons-react';
 import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
@@ -73,6 +76,7 @@ interface Inventory {
   model: string | null;
   wholesalePrice: string | null;
   notes: string | null;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -277,6 +281,83 @@ export function InventoryDetailPage() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (!item) return;
+    modals.openConfirmModal({
+      title: 'Delete Product',
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete <strong>{item.sku}</strong>? If this product has
+          any stock transaction, receiving, or variant history, it will be archived instead
+          of deleted so that history is preserved.
+        </Text>
+      ),
+      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          const result = await window.electron.invoke(IpcChannel.DELETE_INVENTORY, { id: item.id });
+          if (result.success) {
+            if (result.data.action === 'archived') {
+              notifications.show({
+                title: 'Product Archived',
+                message: `${item.sku} has existing history, so it was archived instead of deleted.`,
+                color: 'yellow',
+              });
+              loadInventoryItem(item.id);
+            } else {
+              notifications.show({
+                title: 'Product Deleted',
+                message: `${item.sku} has been deleted successfully`,
+                color: 'green',
+              });
+              go('/inventory');
+            }
+          } else {
+            notifications.show({
+              title: 'Error',
+              message: result.error || 'Failed to delete product',
+              color: 'red',
+            });
+          }
+        } catch (err) {
+          notifications.show({
+            title: 'Error',
+            message: 'An unexpected error occurred',
+            color: 'red',
+          });
+        }
+      },
+    });
+  };
+
+  const handleReactivate = async () => {
+    if (!item) return;
+    try {
+      const result = await window.electron.invoke(IpcChannel.ACTIVATE_INVENTORY, { id: item.id });
+      if (result.success) {
+        notifications.show({
+          title: 'Product Reactivated',
+          message: `${item.sku} is active again`,
+          color: 'green',
+        });
+        loadInventoryItem(item.id);
+      } else {
+        notifications.show({
+          title: 'Error',
+          message: result.error || 'Failed to reactivate product',
+          color: 'red',
+        });
+      }
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: 'An unexpected error occurred',
+        color: 'red',
+      });
     }
   };
 
@@ -920,6 +1001,11 @@ export function InventoryDetailPage() {
                   Taxable
                 </Badge>
               )}
+              {!item.isActive && (
+                <Badge color="gray" variant="light" size="sm">
+                  Archived
+                </Badge>
+              )}
             </Group>
             <Text c="dimmed" size="sm">
               {item.description1}
@@ -977,6 +1063,32 @@ export function InventoryDetailPage() {
           >
             Edit
           </PermissionButton>
+          {item.isActive ? (
+            <PermissionButton
+              permission="DELETE_INVENTORY"
+              whenDenied="elevate"
+              actionLabel={`Delete product ${item.sku}`}
+              context={{ entity: 'inventory', id: item.id }}
+              variant="outline"
+              color="red"
+              leftSection={<IconTrash size={16} />}
+              onClick={handleDelete}
+            >
+              Delete
+            </PermissionButton>
+          ) : (
+            <PermissionButton
+              permission="EDIT_INVENTORY"
+              whenDenied="elevate"
+              actionLabel={`Reactivate product ${item.sku}`}
+              context={{ entity: 'inventory', id: item.id }}
+              variant="outline"
+              leftSection={<IconRotate size={16} />}
+              onClick={handleReactivate}
+            >
+              Reactivate
+            </PermissionButton>
+          )}
         </Group>
       </Group>
 

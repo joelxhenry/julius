@@ -25,12 +25,14 @@ export const inventory = pgTable('inventory', {
   wholesalePrice: numeric('wholesale_price', { precision: 15, scale: 2 }),
   notes: text('notes'),
   icheck: varchar('icheck', { length: 10 }),
+  isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_inventory_sku').on(table.sku),
   index('idx_inventory_category').on(table.category),
   index('idx_inventory_location').on(table.location),
+  index('idx_inventory_active').on(table.isActive),
 ]);
 
 // VARIANTS table - part variants with flexible JSONB attributes

@@ -183,6 +183,13 @@
       "when": 1788527020000,
       "tag": "0025_client_wholesale",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1794839500746,
+      "tag": "0027_slimy_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

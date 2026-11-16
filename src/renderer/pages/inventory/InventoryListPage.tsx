@@ -12,6 +12,7 @@ import {
   NumberFormatter,
   Loader,
   Center,
+  Checkbox,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -49,6 +50,7 @@ interface Inventory {
   category: string | null;
   model: string | null;
   wholesalePrice: string | null;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,6 +79,7 @@ export function InventoryListPage() {
   const [debouncedModel] = useDebouncedValue(modelFilter, 500);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   const pageSize = 30;
 
@@ -96,6 +99,7 @@ export function InventoryListPage() {
           search: debouncedSearch,
           category: debouncedCategory,
           model: debouncedModel,
+          includeArchived: showArchived,
         });
 
         if (result.success && result.data) {
@@ -119,14 +123,14 @@ export function InventoryListPage() {
         }
       }
     },
-    [pageSize, debouncedSearch, debouncedCategory, debouncedModel]
+    [pageSize, debouncedSearch, debouncedCategory, debouncedModel, showArchived]
   );
 
   // Reload from page 1 whenever the search/filters change
   useEffect(() => {
     fetchPage(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, debouncedCategory, debouncedModel]);
+  }, [debouncedSearch, debouncedCategory, debouncedModel, showArchived]);
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -188,6 +192,11 @@ export function InventoryListPage() {
             <CopyButton value={item.sku} />
             {isLowStock(item) && (
               <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
+            )}
+            {!item.isActive && (
+              <Badge color="gray" variant="light" size="xs">
+                Archived
+              </Badge>
             )}
           </Group>
         ),
@@ -324,6 +333,11 @@ export function InventoryListPage() {
               limit={20}
               clearable
               style={{ flex: 1, minWidth: 180 }}
+            />
+            <Checkbox
+              label="Show archived"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.currentTarget.checked)}
             />
             <ActionIcon variant="subtle" onClick={() => fetchPage(1, false)} title="Refresh">
               <IconRefresh size={18} />

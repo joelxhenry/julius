@@ -90,6 +90,8 @@ export enum IpcChannel {
   CREATE_INVENTORY = 'db:create-inventory',
   UPDATE_INVENTORY = 'db:update-inventory',
   DELETE_INVENTORY = 'db:delete-inventory',
+  ACTIVATE_INVENTORY = 'db:activate-inventory',
+  DEACTIVATE_INVENTORY = 'db:deactivate-inventory',
   UPDATE_INVENTORY_STOCK = 'db:update-inventory-stock',
 
   // Product list operations (reorder pads)

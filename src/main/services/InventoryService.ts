@@ -13,6 +13,13 @@ export interface InventoryQueryParams {
   category?: string;
   model?: string;
   location?: string;
+  includeArchived?: boolean;
+}
+
+export interface DeletionImpact {
+  hasTransactions: boolean;
+  hasReceiving: boolean;
+  hasVariants: boolean;
 }
 
 /**
@@ -142,10 +149,14 @@ export class InventoryService extends BaseService<
   }
 
   async findPaginated(params: InventoryQueryParams = {}): Promise<PaginatedResult<InventoryWithStock>> {
-    const { page = 1, pageSize = 50, search, category, model, location } = params;
+    const { page = 1, pageSize = 50, search, category, model, location, includeArchived = false } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
+
+    if (!includeArchived) {
+      conditions.push(eq(schema.inventory.isActive, true));
+    }
 
     if (search && search.trim()) {
       const condition = buildForgivingSearchCondition(search, [
@@ -309,12 +320,12 @@ export class InventoryService extends BaseService<
     return this.db
       .select()
       .from(schema.inventory)
-      .where(condition)
+      .where(condition ? and(eq(schema.inventory.isActive, true), condition) : eq(schema.inventory.isActive, true))
       .orderBy(asc(schema.inventory.sku));
   }
 
   async searchForSelect(query: string, limit = 20): Promise<schema.Inventory[]> {
-    const conditions = [];
+    const conditions = [eq(schema.inventory.isActive, true)];
 
     if (query && query.trim()) {
       const condition = buildForgivingSearchCondition(query, [
@@ -325,12 +336,10 @@ export class InventoryService extends BaseService<
       if (condition) conditions.push(condition);
     }
 
-    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
-
     return this.db
       .select()
       .from(schema.inventory)
-      .where(whereCondition)
+      .where(and(...conditions))
       .orderBy(asc(schema.inventory.sku))
       .limit(limit);
   }
@@ -350,6 +359,69 @@ export class InventoryService extends BaseService<
       .where(and(eq(schema.variants.parentSku, parentSku), eq(schema.variants.isActive, true)));
 
     return Number(variants[0]?.count ?? 0) > 0;
+  }
+
+  async findActive(): Promise<schema.Inventory[]> {
+    return this.db
+      .select()
+      .from(schema.inventory)
+      .where(eq(schema.inventory.isActive, true))
+      .orderBy(asc(schema.inventory.sku));
+  }
+
+  async activate(id: number): Promise<schema.Inventory | null> {
+    return this.update(id, { isActive: true });
+  }
+
+  async deactivate(id: number): Promise<schema.Inventory | null> {
+    return this.update(id, { isActive: false });
+  }
+
+  /**
+   * Checks whether an inventory item has records that would be lost (cascade-deleted
+   * or orphaned) by a hard delete: stock transactions, receiving history, or
+   * variants beyond the auto-created base variant.
+   */
+  async getDeletionImpact(sku: string): Promise<DeletionImpact> {
+    const [transactionRows, receivingRows, variantRows] = await Promise.all([
+      this.db
+        .select({ count: count() })
+        .from(schema.inventoryTransactions)
+        .where(eq(schema.inventoryTransactions.sku, sku)),
+      this.db
+        .select({ count: count() })
+        .from(schema.inventoryReceiving)
+        .where(eq(schema.inventoryReceiving.sku, sku)),
+      this.db
+        .select({ count: count() })
+        .from(schema.variants)
+        .where(and(eq(schema.variants.parentSku, sku), eq(schema.variants.isBase, false))),
+    ]);
+
+    return {
+      hasTransactions: Number(transactionRows[0]?.count ?? 0) > 0,
+      hasReceiving: Number(receivingRows[0]?.count ?? 0) > 0,
+      hasVariants: Number(variantRows[0]?.count ?? 0) > 0,
+    };
+  }
+
+  /**
+   * Deletes an inventory item if it has no history, otherwise archives it
+   * (isActive = false) so its stock/receiving history and variants are preserved
+   * instead of being cascade-deleted or orphaned.
+   */
+  async removeOrArchive(id: number): Promise<{ action: 'deleted' | 'archived' } | null> {
+    const item = await this.findById(id);
+    if (!item) return null;
+
+    const impact = await this.getDeletionImpact(item.sku);
+    if (impact.hasTransactions || impact.hasReceiving || impact.hasVariants) {
+      await this.deactivate(id);
+      return { action: 'archived' };
+    }
+
+    await this.delete(id);
+    return { action: 'deleted' };
   }
 
   async updateQuantity(sku: string, quantityChange: number): Promise<schema.Inventory | null> {
@@ -424,7 +496,7 @@ export class InventoryService extends BaseService<
 
     // Build AND-combined conditions: free-text query (across sku/description/model)
     // plus optional category/model narrowing from the parent inventory record.
-    const conditions = [eq(schema.variants.isActive, true)];
+    const conditions = [eq(schema.variants.isActive, true), eq(schema.inventory.isActive, true)];
 
     if (trimmedQuery) {
       const condition = buildForgivingSearchCondition(trimmedQuery, [

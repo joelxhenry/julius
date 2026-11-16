@@ -127,8 +127,20 @@ export function useInventory() {
 
   const deleteInventory = useCallback(async (
     id: number
-  ): Promise<IpcResult<boolean>> => {
+  ): Promise<IpcResult<{ action: 'deleted' | 'archived' }>> => {
     return window.electron.invoke(IpcChannel.DELETE_INVENTORY, { id });
+  }, []);
+
+  const activateInventory = useCallback(async (
+    id: number
+  ): Promise<IpcResult<InventoryItem>> => {
+    return window.electron.invoke(IpcChannel.ACTIVATE_INVENTORY, { id });
+  }, []);
+
+  const deactivateInventory = useCallback(async (
+    id: number
+  ): Promise<IpcResult<InventoryItem>> => {
+    return window.electron.invoke(IpcChannel.DEACTIVATE_INVENTORY, { id });
   }, []);
 
   const updateInventoryStock = useCallback(async (
@@ -150,6 +162,8 @@ export function useInventory() {
     createInventory,
     updateInventory,
     deleteInventory,
+    activateInventory,
+    deactivateInventory,
     updateInventoryStock,
   };
 }

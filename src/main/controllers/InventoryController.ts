@@ -171,8 +171,11 @@ export class InventoryController extends BaseController<InventoryService> {
 
   async delete(id: number) {
     try {
-      await this.service.delete(id);
-      return this.wrapSuccess({ deleted: true });
+      const result = await this.service.removeOrArchive(id);
+      if (!result) {
+        return { success: false, error: 'Inventory item not found' };
+      }
+      return this.wrapSuccess(result);
     } catch (error) {
       return this.handleError(error);
     }

@@ -467,6 +467,8 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.CREATE_INVENTORY, (_, data: any) => inventoryController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY, (_, { id, data }: any) => inventoryController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_INVENTORY, (_, { id }: { id: number }) => inventoryController.delete(id));
+  ipcMain.handle(IpcChannel.ACTIVATE_INVENTORY, (_, { id }: { id: number }) => inventoryController.activate(id));
+  ipcMain.handle(IpcChannel.DEACTIVATE_INVENTORY, (_, { id }: { id: number }) => inventoryController.deactivate(id));
   ipcMain.handle(IpcChannel.UPDATE_INVENTORY_STOCK, (_, { id, quantity }: { id: number; quantity: number }) => inventoryController.updateStock(id, quantity));
   ipcMain.handle(IpcChannel.GET_INVENTORY_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.getVariants(parentSku));
   ipcMain.handle(IpcChannel.CHECK_HAS_VARIANTS, (_, { parentSku }: { parentSku: string }) => inventoryController.checkHasVariants(parentSku));
