@@ -312,7 +312,7 @@ export const PERMISSIONS: PermissionDefinition[] = [
   {
     code: 'MASS_UPDATE_INVENTORY',
     label: 'Mass Update Inventory',
-    description: 'Bulk-edit price, stock, supplier, vehicle and more via import',
+    description: 'Bulk-edit price, stock, supplier, make and more via import',
     category: 'Inventory',
   },
   {

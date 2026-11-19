@@ -142,8 +142,8 @@ export const ProductSearchPanel = forwardRef<ProductSearchPanelHandle, ProductSe
           </Grid.Col>
           <Grid.Col span={{ base: 6, sm: 3 }}>
             <Autocomplete
-              label={compact ? undefined : 'Category'}
-              placeholder="Category"
+              label={compact ? undefined : 'Make'}
+              placeholder="Make"
               value={category}
               onChange={setCategory}
               data={categoryOptions}

@@ -222,7 +222,7 @@ export function OverviewTab({ item, variants, onNotesSaved }: OverviewTabProps) 
             return (
               <Stack gap={2}>
                 <Text size="xs" c="dimmed">
-                  Vehicle &amp; Models
+                  Make &amp; Models
                 </Text>
                 <Text fw={500}>{values.length > 0 ? values.join(', ') : '-'}</Text>
               </Stack>

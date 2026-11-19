@@ -57,7 +57,7 @@ const managementSections: ManagementSection[] = [
   {
     key: 'mass-update',
     label: 'Mass Update',
-    description: 'Bulk-edit price, stock, supplier, vehicle, and more',
+    description: 'Bulk-edit price, stock, supplier, make, and more',
     icon: <IconTableImport size={20} />,
     color: 'orange',
     permission: 'MASS_UPDATE_INVENTORY',
