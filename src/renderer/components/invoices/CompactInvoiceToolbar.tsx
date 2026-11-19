@@ -1,5 +1,5 @@
 import { Group, Text, Button, ActionIcon, Paper } from '@mantine/core';
-import { IconCheck, IconKeyboard, IconCash, IconBan } from '@tabler/icons-react';
+import { IconCheck, IconKeyboard, IconCash } from '@tabler/icons-react';
 
 interface InvoiceTotals {
   subTotal: number;
@@ -41,9 +41,6 @@ export function CompactInvoiceToolbar({
   onSaveAndPay,
   onOpenShortcuts,
 }: CompactInvoiceToolbarProps) {
-  // Editing an existing invoice down to zero line items cancels it.
-  const isCancelling = isEditing && !hasLineItems;
-
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 48 }}>
       <Group justify="space-between" wrap="nowrap" h="100%">
@@ -83,24 +80,26 @@ export function CompactInvoiceToolbar({
           </ActionIcon>
           <Button
             size="xs"
-            color={isCancelling ? 'red' : 'green'}
-            leftSection={isCancelling ? <IconBan size={14} /> : <IconCheck size={14} />}
+            color="green"
+            leftSection={<IconCheck size={14} />}
             onClick={onIssueInvoice}
             loading={isIssuing}
-            disabled={(!hasLineItems && !isCancelling) || isProcessingPayment}
+            disabled={!hasLineItems || isProcessingPayment}
           >
-            {isCancelling ? 'Cancel Invoice' : 'Save & Issue'}
+            {isEditing ? 'Save Changes' : 'Save & Issue'}
           </Button>
-          <Button
-            size="xs"
-            color="teal"
-            leftSection={<IconCash size={14} />}
-            onClick={onSaveAndPay}
-            loading={isProcessingPayment}
-            disabled={!hasLineItems || isIssuing}
-          >
-            Save & Pay
-          </Button>
+          {!isEditing && (
+            <Button
+              size="xs"
+              color="teal"
+              leftSection={<IconCash size={14} />}
+              onClick={onSaveAndPay}
+              loading={isProcessingPayment}
+              disabled={!hasLineItems || isIssuing}
+            >
+              Save & Pay
+            </Button>
+          )}
         </Group>
       </Group>
     </Paper>

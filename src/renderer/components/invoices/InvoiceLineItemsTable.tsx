@@ -45,6 +45,8 @@ interface InvoiceLineItemsTableProps {
   onStopEditing?: () => void;
   // Layout mode
   compact?: boolean;
+  /** Locks inventory items: hides the search/add panel and all per-row edit/remove controls. */
+  readOnly?: boolean;
 }
 
 export function InvoiceLineItemsTable({
@@ -62,6 +64,7 @@ export function InvoiceLineItemsTable({
   onStartEditing,
   onStopEditing,
   compact = false,
+  readOnly = false,
 }: InvoiceLineItemsTableProps) {
   // Row height based on mode
   const rowHeight = compact ? 40 : 56;
@@ -189,21 +192,29 @@ export function InvoiceLineItemsTable({
     <Box>
       <Stack gap="md">
         {/* Multi-field product search + navigable results list */}
-        <ProductSearchPanel
-          ref={searchPanelRef}
-          query={productSearch.query}
-          setQuery={productSearch.setQuery}
-          category={productSearch.category}
-          setCategory={productSearch.setCategory}
-          model={productSearch.model}
-          setModel={productSearch.setModel}
-          results={productSearch.results}
-          isSearching={productSearch.isSearching}
-          categoryOptions={productSearch.categoryOptions}
-          modelOptions={productSearch.modelOptions}
-          onSelectProduct={handleProductSelect}
-          compact={compact}
-        />
+        {readOnly ? (
+          <Alert color="blue" variant="light">
+            <Text size="sm">
+              Inventory items are locked while editing an invoice. Use Process Return to adjust quantities.
+            </Text>
+          </Alert>
+        ) : (
+          <ProductSearchPanel
+            ref={searchPanelRef}
+            query={productSearch.query}
+            setQuery={productSearch.setQuery}
+            category={productSearch.category}
+            setCategory={productSearch.setCategory}
+            model={productSearch.model}
+            setModel={productSearch.setModel}
+            results={productSearch.results}
+            isSearching={productSearch.isSearching}
+            categoryOptions={productSearch.categoryOptions}
+            modelOptions={productSearch.modelOptions}
+            onSelectProduct={handleProductSelect}
+            compact={compact}
+          />
+        )}
 
       <Paper withBorder p="md" radius="md">
         <Stack gap="md">
@@ -258,6 +269,7 @@ export function InvoiceLineItemsTable({
                             value={item.sku}
                             onChange={(e) => onUpdateLineItem(item.id, 'sku', e.currentTarget.value)}
                             placeholder="Part Number"
+                            readOnly={readOnly}
                             styles={{ input: { minWidth: 80, fontSize: compact ? 12 : 14 } }}
                           />
                           {item.sku && <CopyButton value={item.sku} />}
@@ -278,6 +290,7 @@ export function InvoiceLineItemsTable({
                             value={item.description}
                             onChange={(e) => onUpdateLineItem(item.id, 'description', e.currentTarget.value)}
                             placeholder="Description"
+                            readOnly={readOnly}
                             styles={{ input: { fontSize: compact ? 12 : 16, fontWeight: 500 } }}
                           />
                           <PartLabels
@@ -287,8 +300,8 @@ export function InvoiceLineItemsTable({
                         </Stack>
                       </Table.Td>
                       <Table.Td
-                        style={{ height: rowHeight, cursor: 'text' }}
-                        onClick={(e) => { e.stopPropagation(); handleCellClick(item.id, 'quantity'); }}
+                        style={{ height: rowHeight, cursor: readOnly ? 'default' : 'text' }}
+                        onClick={(e) => { e.stopPropagation(); if (!readOnly) handleCellClick(item.id, 'quantity'); }}
                       >
                         <NumberInput
                           ref={(el) => {
@@ -304,6 +317,7 @@ export function InvoiceLineItemsTable({
                           onKeyDown={(e) => handleCellKeyDown(e, idx, 'quantity')}
                           min={0}
                           ta="center"
+                          readOnly={readOnly}
                           styles={{ input: { fontSize: compact ? 12 : 14, fontWeight: 600 } }}
                         />
                       </Table.Td>
@@ -313,8 +327,8 @@ export function InvoiceLineItemsTable({
                         </Text>
                       </Table.Td>
                       <Table.Td
-                        style={{ height: rowHeight, cursor: 'text' }}
-                        onClick={(e) => { e.stopPropagation(); handleCellClick(item.id, 'discount'); }}
+                        style={{ height: rowHeight, cursor: readOnly ? 'default' : 'text' }}
+                        onClick={(e) => { e.stopPropagation(); if (!readOnly) handleCellClick(item.id, 'discount'); }}
                       >
                         <NumberInput
                           ref={(el) => {
@@ -331,6 +345,7 @@ export function InvoiceLineItemsTable({
                           min={0}
                           max={100}
                           ta="right"
+                          readOnly={readOnly}
                           styles={{ input: { fontSize: compact ? 12 : 14 } }}
                         />
                       </Table.Td>
@@ -340,48 +355,50 @@ export function InvoiceLineItemsTable({
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Group gap="xs" justify="flex-end">
-                          {warning && warning.hasAlternates && (
-                            <Menu position="bottom-end" shadow="md" width={300}>
-                              <Menu.Target>
-                                <Tooltip label="Replace with alternative">
-                                  <ActionIcon variant="light" color="blue" size="sm">
-                                    <IconReplace size={14} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                <Menu.Label>Available Alternatives</Menu.Label>
-                                {warning.alternates.map((alt) => (
-                                  <Menu.Item
-                                    key={alt.sku}
-                                    onClick={() => {
-                                      onUpdateLineItem(item.id, 'sku', alt.sku);
-                                      onUpdateLineItem(item.id, 'description', alt.description);
-                                    }}
-                                    rightSection={
-                                      <Badge color="green" variant="light" size="sm">
-                                        {alt.availableQty}
-                                      </Badge>
-                                    }
-                                  >
-                                    <Stack gap={2}>
-                                      <Text size="sm" fw={500}>
-                                        {alt.sku}
-                                      </Text>
-                                      <Text size="xs" c="dimmed">
-                                        {alt.description}
-                                      </Text>
-                                    </Stack>
-                                  </Menu.Item>
-                                ))}
-                              </Menu.Dropdown>
-                            </Menu>
-                          )}
-                          <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onRemoveLineItem(item.id)}>
-                            <IconTrash size={14} />
-                          </ActionIcon>
-                        </Group>
+                        {!readOnly && (
+                          <Group gap="xs" justify="flex-end">
+                            {warning && warning.hasAlternates && (
+                              <Menu position="bottom-end" shadow="md" width={300}>
+                                <Menu.Target>
+                                  <Tooltip label="Replace with alternative">
+                                    <ActionIcon variant="light" color="blue" size="sm">
+                                      <IconReplace size={14} />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Label>Available Alternatives</Menu.Label>
+                                  {warning.alternates.map((alt) => (
+                                    <Menu.Item
+                                      key={alt.sku}
+                                      onClick={() => {
+                                        onUpdateLineItem(item.id, 'sku', alt.sku);
+                                        onUpdateLineItem(item.id, 'description', alt.description);
+                                      }}
+                                      rightSection={
+                                        <Badge color="green" variant="light" size="sm">
+                                          {alt.availableQty}
+                                        </Badge>
+                                      }
+                                    >
+                                      <Stack gap={2}>
+                                        <Text size="sm" fw={500}>
+                                          {alt.sku}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                          {alt.description}
+                                        </Text>
+                                      </Stack>
+                                    </Menu.Item>
+                                  ))}
+                                </Menu.Dropdown>
+                              </Menu>
+                            )}
+                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => onRemoveLineItem(item.id)}>
+                              <IconTrash size={14} />
+                            </ActionIcon>
+                          </Group>
+                        )}
                       </Table.Td>
                     </Table.Tr>
                     {warning && (

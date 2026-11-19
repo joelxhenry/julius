@@ -4,7 +4,6 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Stack, Loader, Center, Modal, Text, Group, Button, Paper, Badge, ScrollArea, UnstyledButton } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { modals } from '@mantine/modals';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { formatVariantName } from '../../../shared/utils/variantName';
 import { useTabContext } from '../../contexts/TabContext';
@@ -576,24 +575,21 @@ export function InvoiceCreatePage() {
   // Issue invoice after verification
   const handleIssueVerified = useCallback(
     async (override?: AdminOverrideResult, actor?: ConfirmedActor) => {
-      // Editing an existing invoice down to zero line items cancels it.
-      // Creating a new invoice still requires at least one line item.
-      const isCancelling =
-        isEditing && !!id && !!formState.originalInvNumber && lineItems.length === 0;
-
-      if (lineItems.length === 0 && !isCancelling) {
+      // Inventory items are locked once editing, so a new invoice is the only
+      // case that still needs at least one line item.
+      if (!isEditing && lineItems.length === 0) {
         notifications.show({ title: 'Error', message: 'Please add at least one line item', color: 'red' });
         return;
       }
 
-      const proceed = async () => {
       setSavingAction('issue');
       try {
         let invoiceId: number;
         let invNumber: string;
 
         if (isEditing && id && formState.originalInvNumber) {
-          // Update existing invoice
+          // Update invoice details only — inventory items are locked once an
+          // invoice exists; use Process Return to adjust quantities/stock.
           const updateData = {
             invDate: formState.invDate.toISOString().split('T')[0],
             salespersonId: formState.salespersonId,
@@ -604,26 +600,15 @@ export function InvoiceCreatePage() {
             clientPhone: client?.phone || null,
             reference: formState.reference || null,
             notes: formState.notes || null,
-            subTotal: totals.subTotal.toFixed(2),
-            tax: totals.tax.toFixed(2),
-            total: totals.total.toFixed(2),
             isTaxable: formState.isTaxable,
             pricing: formState.pricing,
             creditTerms: formState.creditTerms || null,
-            // Zero line items on edit cancels the invoice; otherwise status is preserved.
-            ...(isCancelling && { status: 'cancelled' }),
             ...(override && {
               adminOverrideById: override.adminId,
               adminOverrideNotes: override.notes,
               adminOverrideAt: new Date(),
             }),
           };
-
-          // Delete existing line items
-          await window.electron.invoke(IpcChannel.DELETE_DOCUMENT_LINE_ITEMS_BY_DOCUMENT, {
-            documentType: 'INVOICE',
-            documentNumber: formState.originalInvNumber,
-          });
 
           const result = await window.electron.invoke(IpcChannel.UPDATE_INVOICE, {
             id: parseInt(id, 10),
@@ -669,47 +654,41 @@ export function InvoiceCreatePage() {
           invNumber = result.data.invNumber;
         }
 
-        // Save line items
-        for (let i = 0; i < lineItems.length; i++) {
-          const item = lineItems[i];
-          await window.electron.invoke(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, {
-            documentType: 'INVOICE',
-            documentNumber: invNumber,
-            lineNumber: i + 1,
-            sku: item.sku || null,
-            description: item.description,
-            quantity: item.quantity.toString(),
-            unitPrice: item.unitPrice.toFixed(2),
-            discount: item.discount.toFixed(2),
-            isTaxable: item.isTaxable,
-            amount: item.amount.toFixed(2),
-          });
-        }
+        // Line items and stock are only touched when creating a new invoice.
+        // Editing an existing invoice never changes inventory items.
+        if (!isEditing) {
+          for (let i = 0; i < lineItems.length; i++) {
+            const item = lineItems[i];
+            await window.electron.invoke(IpcChannel.CREATE_DOCUMENT_LINE_ITEM, {
+              documentType: 'INVOICE',
+              documentNumber: invNumber,
+              lineNumber: i + 1,
+              sku: item.sku || null,
+              description: item.description,
+              quantity: item.quantity.toString(),
+              unitPrice: item.unitPrice.toFixed(2),
+              discount: item.discount.toFixed(2),
+              isTaxable: item.isTaxable,
+              amount: item.amount.toFixed(2),
+            });
+          }
 
-        // Reconcile inventory & activity records.
-        // - New invoice: create SALE transactions and deduct stock.
-        // - Edit: reverse the original SALE deductions and re-apply from the new
-        //   line items (empty line items = cancel, which just restores stock).
-        const transactionResult = await window.electron.invoke(
-          isEditing ? IpcChannel.REISSUE_INVOICE_TRANSACTIONS : IpcChannel.CREATE_INVOICE_TRANSACTIONS,
-          {
+          const transactionResult = await window.electron.invoke(IpcChannel.CREATE_INVOICE_TRANSACTIONS, {
             invNumber,
             lineItems: lineItems.map(item => ({ sku: item.sku, quantity: item.quantity })),
             invDate: formState.invDate.toISOString().split('T')[0],
-          }
-        );
+          });
 
-        if (!transactionResult.success) {
-          console.error('Warning: Failed to update inventory transactions:', transactionResult.error);
-          notifications.show({ title: 'Warning', message: 'Invoice saved but inventory may not have been updated', color: 'yellow' });
+          if (!transactionResult.success) {
+            console.error('Warning: Failed to update inventory transactions:', transactionResult.error);
+            notifications.show({ title: 'Warning', message: 'Invoice saved but inventory may not have been updated', color: 'yellow' });
+          }
         }
 
         notifications.show({
-          title: isCancelling ? 'Invoice Cancelled' : 'Success',
-          message: isCancelling
-            ? `Invoice ${invNumber} has been cancelled`
-            : `Invoice ${invNumber} ${isEditing ? 'updated' : 'created and issued'}`,
-          color: isCancelling ? 'orange' : 'green',
+          title: 'Success',
+          message: `Invoice ${invNumber} ${isEditing ? 'updated' : 'created and issued'}`,
+          color: 'green',
         });
         go(`/invoices/${invoiceId}`);
       } catch (error) {
@@ -722,26 +701,6 @@ export function InvoiceCreatePage() {
       } finally {
         setSavingAction(null);
       }
-      };
-
-      if (isCancelling) {
-        modals.openConfirmModal({
-          title: 'Cancel Invoice',
-          children: (
-            <Text size="sm">
-              This invoice has no line items. Saving will mark invoice{' '}
-              <strong>{formState.originalInvNumber}</strong> as <strong>Cancelled</strong>.
-              This action cannot be undone.
-            </Text>
-          ),
-          labels: { confirm: 'Cancel Invoice', cancel: 'Keep Editing' },
-          confirmProps: { color: 'red' },
-          onConfirm: () => { void proceed(); },
-        });
-        return;
-      }
-
-      await proceed();
     },
     [formState, client, totals, lineItems, go, isEditing, id]
   );
@@ -853,6 +812,7 @@ export function InvoiceCreatePage() {
           editingCell={editingCell}
           onStartEditing={startEditing}
           onStopEditing={stopEditing}
+          readOnly={isEditing}
         />
       </Box>
 
@@ -894,7 +854,7 @@ export function InvoiceCreatePage() {
       <AccessCodeConfirmModal
         opened={issueModalOpen}
         permissionCode="CREATE_INVOICE"
-        actionLabel={isPaymentFlow ? 'Create & pay invoice' : 'Issue invoice'}
+        actionLabel={isPaymentFlow ? 'Create & pay invoice' : isEditing ? 'Update invoice' : 'Issue invoice'}
         currentUserId={user?.id ?? null}
         onCancel={() => {
           closeIssueModal();
@@ -907,7 +867,7 @@ export function InvoiceCreatePage() {
           if (!actor.isCurrentUser) {
             await recordActionAuthorization(user, actor, {
               permissionCode: 'CREATE_INVOICE',
-              actionLabel: isPaymentFlow ? 'Create & pay invoice' : 'Issue invoice',
+              actionLabel: isPaymentFlow ? 'Create & pay invoice' : isEditing ? 'Update invoice' : 'Issue invoice',
               context: { entity: 'invoice' },
             });
           }
