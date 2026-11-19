@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from './AuthContext';
+import { clearListState } from '../hooks/useListState';
 
 // Tab interface
 export interface Tab {
@@ -13,6 +14,10 @@ export interface Tab {
   component: React.ReactNode;
   createdAt: number;
   lastAccessedAt: number;
+  // Stack of paths previously visited within this tab (most recent last),
+  // so goBack() can return the tab to where it came from instead of a
+  // hardcoded parent route.
+  history: string[];
 }
 
 interface TabContextValue {
@@ -25,6 +30,8 @@ interface TabContextValue {
   closeTab: (tabId: string) => Promise<boolean>;
   switchToTab: (tabId: string) => void;
   replaceCurrentTab: (path: string, state?: Record<string, unknown>) => void;
+  goBack: () => void;
+  canGoBack: boolean;
 
   // Management
   updateTabTitle: (tabIdOrPath: string, title: string) => void;
@@ -153,6 +160,7 @@ export function TabProvider({
       setTabs([]);
       setActiveTabId(null);
       localStorage.removeItem(TABS_STORAGE_KEY);
+      clearListState();
       // Navigate to dashboard after clearing tabs
       skipNextLocationChange.current = true;
       navigate('/', { replace: true });
@@ -227,6 +235,7 @@ export function TabProvider({
         hasUnsavedChanges: false,
         createdAt: Date.now(),
         lastAccessedAt: Date.now(),
+        history: [],
       };
 
       setTabs((prev) => [...prev, newTab]);
@@ -339,17 +348,29 @@ export function TabProvider({
   // Replace current tab's path and component (for same-tab navigation like next/prev invoice)
   const replaceCurrentTab = useCallback(
     (path: string, state?: Record<string, unknown>) => {
-      if (!activeTabId) return;
+      // No tab to replace (e.g. first navigation after launch) — open one instead.
+      if (!activeTabId) {
+        openTab(path);
+        return;
+      }
 
       // Generate new component for the path
       const component = getComponentForPath(path);
       const title = generateTitleFromPath(path);
 
-      // Update the current tab with new path and component
+      // Update the current tab with new path and component, recording the
+      // path we're leaving so goBack() can return to it later.
       setTabs((prev) =>
         prev.map((tab) =>
           tab.id === activeTabId
-            ? { ...tab, path, component, title, lastAccessedAt: Date.now() }
+            ? {
+                ...tab,
+                history: tab.path === path ? tab.history : [...tab.history, tab.path],
+                path,
+                component,
+                title,
+                lastAccessedAt: Date.now(),
+              }
             : tab
         )
       );
@@ -359,8 +380,36 @@ export function TabProvider({
       skipNextLocationChange.current = true;
       navigate(path, { replace: true, state: { tabReplace: true, ...state } });
     },
-    [activeTabId, navigate]
+    [activeTabId, navigate, openTab]
   );
+
+  // Go back to the previously visited page within the active tab, popping
+  // it off that tab's history stack. No-op if the tab has no history (e.g.
+  // it was opened directly rather than navigated to from another page).
+  const goBack = useCallback(() => {
+    if (!activeTabId) return;
+
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab || tab.history.length === 0) return;
+
+    const newHistory = [...tab.history];
+    const previousPath = newHistory.pop() as string;
+    const component = getComponentForPath(previousPath);
+    const title = generateTitleFromPath(previousPath);
+
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.id === activeTabId
+          ? { ...t, path: previousPath, component, title, history: newHistory, lastAccessedAt: Date.now() }
+          : t
+      )
+    );
+
+    skipNextLocationChange.current = true;
+    navigate(previousPath, { replace: true, state: { tabReplace: true } });
+  }, [activeTabId, tabs, navigate]);
+
+  const canGoBack = Boolean(activeTab && activeTab.history.length > 0);
 
   // Keyboard navigation: close current tab
   const closeCurrentTab = useCallback(() => {
@@ -417,11 +466,20 @@ export function TabProvider({
     }
   }, []);
 
-  // Navigation interceptor: automatically open tabs for direct navigate() calls
-  useEffect(() => {
-    const path = location.pathname;
-    const state = location.state as { tabReplace?: boolean } | null;
-
+  // Navigation interceptor: automatically open tabs for direct navigate() calls.
+  //
+  // The handler reads tabs/activeTabId/etc. via a ref instead of the effect's
+  // dependency array on purpose. React Router's navigate() resolves location
+  // through its own (slower) transition, while replaceCurrentTab's setTabs
+  // call commits as a plain, faster state update. If `tabs` were a dependency
+  // here, the effect would also fire the instant replaceCurrentTab updates
+  // tabs - before location has caught up to the new path - and that premature
+  // run would consume the one-shot skip flag. By the time location actually
+  // updates, the flag is already spent, so this effect would mistake the
+  // (still-stale) old path for a fresh external navigation and open a stray
+  // tab for it. Depending only on location.pathname/location.state ensures
+  // this only runs in response to the URL genuinely changing.
+  const handleLocationChange = (path: string, state: { tabReplace?: boolean } | null) => {
     // Skip if we just navigated programmatically from tab operations
     // Check both the ref and the location state for reliability
     if (skipNextLocationChange.current || state?.tabReplace) {
@@ -454,7 +512,19 @@ export function TabProvider({
         );
       }
     }
-  }, [location.pathname, location.state, isTabbed, findTabByPath, activeTabId, openTab, tabs]);
+  };
+
+  // Keep the latest handler in a ref (synced after every render, not during
+  // it) so the effect that actually fires on navigation only needs to depend
+  // on location.pathname/location.state, not on tabs/activeTabId/etc.
+  const handleLocationChangeRef = useRef(handleLocationChange);
+  useEffect(() => {
+    handleLocationChangeRef.current = handleLocationChange;
+  });
+
+  useEffect(() => {
+    handleLocationChangeRef.current(location.pathname, location.state as { tabReplace?: boolean } | null);
+  }, [location.pathname, location.state]);
 
   const value: TabContextValue = {
     tabs,
@@ -464,6 +534,8 @@ export function TabProvider({
     closeTab,
     switchToTab,
     replaceCurrentTab,
+    goBack,
+    canGoBack,
     updateTabTitle,
     markTabDirty,
     findTabByPath,

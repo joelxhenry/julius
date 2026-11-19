@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Modal, Stack, Text, Button, Alert, Group, Loader } from '@mantine/core';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
-import { PINInput } from './PINInput';
+import { EmployeeCredentialFields } from './EmployeeCredentialFields';
 import { useAuth, SafeEmployee } from '../../contexts/AuthContext';
 
 interface PinVerificationModalProps {
@@ -18,11 +18,12 @@ export function PinVerificationModal({
   onClose,
   onVerified,
   requiredPermission,
-  title = 'Enter Access Code',
-  description = 'Enter your access code to continue',
+  title = 'Sign In Required',
+  description = 'Search for your name and enter your password to continue',
 }: PinVerificationModalProps) {
-  const { verifyPin, hasPermission, isSessionValid, user, refreshActivity } = useAuth();
-  const [pin, setPin] = useState('');
+  const { verifyCredentials, hasPermission, isSessionValid, user, refreshActivity } = useAuth();
+  const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,7 +31,8 @@ export function PinVerificationModal({
   // Clear state when modal opens/closes
   useEffect(() => {
     if (opened) {
-      setPin('');
+      setSelectedUsername(null);
+      setPassword('');
       setError(null);
       // Focus input after a short delay to ensure modal is rendered
       setTimeout(() => {
@@ -39,21 +41,24 @@ export function PinVerificationModal({
     }
   }, [opened]);
 
-  // Check if user is already authenticated with valid session
+  // Check if user is already authenticated with valid session.
+  // Guarded by `!isLoading`: handleSubmit's verifyCredentials() call updates `user`/
+  // `isSessionValid` partway through (before its own onVerified call), which
+  // would otherwise re-run this effect and fire onVerified a second time
+  // while the manual submission is still in flight.
   useEffect(() => {
-    if (opened && user && isSessionValid) {
+    if (opened && user && isSessionValid && !isLoading) {
       // User has valid session, check permission
       if (!requiredPermission || hasPermission(requiredPermission)) {
         refreshActivity();
         onVerified(user);
-        onClose();
       }
     }
-  }, [opened, user, isSessionValid, requiredPermission, hasPermission, refreshActivity, onVerified, onClose]);
+  }, [opened, user, isSessionValid, isLoading, requiredPermission, hasPermission, refreshActivity, onVerified]);
 
   const handleSubmit = useCallback(async () => {
-    if (!pin.trim()) {
-      setError('Please enter your access code');
+    if (!selectedUsername || !password.trim()) {
+      setError('Please select your name and enter your password');
       return;
     }
 
@@ -61,7 +66,7 @@ export function PinVerificationModal({
     setError(null);
 
     try {
-      const employee = await verifyPin(pin);
+      const employee = await verifyCredentials(selectedUsername, password);
 
       // Check permission if required
       if (requiredPermission) {
@@ -70,22 +75,24 @@ export function PinVerificationModal({
 
         if (!hasAccess) {
           setError('You do not have permission for this action');
-          setPin('');
+          setPassword('');
           setIsLoading(false);
           return;
         }
       }
 
+      // Don't call onClose() here - every caller already closes the modal inside
+      // onVerified. Calling both fires the parent's cancel/close logic (e.g.
+      // AppLayout navigating back to the previous path) against a stale
+      // pendingNavigation, since that state hasn't re-rendered yet.
       onVerified(employee);
-      onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid access code');
-      setPin('');
-      inputRef.current?.focus();
+      setError(err instanceof Error ? err.message : 'Invalid username or password');
+      setPassword('');
     } finally {
       setIsLoading(false);
     }
-  }, [pin, verifyPin, requiredPermission, onVerified, onClose]);
+  }, [selectedUsername, password, verifyCredentials, requiredPermission, onVerified]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -124,21 +131,23 @@ export function PinVerificationModal({
           </Alert>
         )}
 
-        <PINInput
-          ref={inputRef}
-          value={pin}
-          onChange={(e) => setPin(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          error={!!error}
-          placeholder='Enter Access Code'
-        />
+        <div onKeyDown={handleKeyDown}>
+          <EmployeeCredentialFields
+            employeeInputRef={inputRef}
+            selectedUsername={selectedUsername}
+            onSelectUsername={setSelectedUsername}
+            password={password}
+            onPasswordChange={setPassword}
+            disabled={isLoading}
+            error={!!error}
+          />
+        </div>
 
         <Group justify="flex-end" gap="sm">
           <Button variant="subtle" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isLoading || !pin.trim()}>
+          <Button onClick={handleSubmit} disabled={isLoading || !selectedUsername || !password.trim()}>
             {isLoading ? <Loader size="xs" color="white" /> : 'Verify'}
           </Button>
         </Group>
