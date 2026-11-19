@@ -91,7 +91,7 @@ function generateTitleFromPath(path: string): string {
   if (path.includes('/inventory/') && path.includes('/edit')) return 'Edit Item';
   if (path.includes('/employees/new')) return 'New Employee';
   if (path.includes('/employees/') && path.includes('/edit')) return 'Edit Employee';
-  if (path.includes('/employees/') && path.includes('/permissions')) return 'Employee Permissions';
+  if (path.includes('/employees/') && path.includes('/permissions')) return 'Security Settings';
   if (path.includes('/employees/')) return 'Employee';
   if (path.includes('/clients/new')) return 'New Client';
   if (path.includes('/clients/') && path.includes('/edit')) return 'Edit Client';

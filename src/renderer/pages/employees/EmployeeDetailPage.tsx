@@ -282,7 +282,7 @@ export function EmployeeDetailPage() {
             leftSection={<IconShield size={16} />}
             onClick={() => go(`/employees/${employee.id}/permissions`)}
           >
-            Permissions
+            Security Settings
           </PermissionButton>
           <PermissionButton
             permission="EDIT_EMPLOYEE"

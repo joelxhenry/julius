@@ -19,6 +19,7 @@ import {
   IconCloudUpload,
   IconUserCheck,
   IconBug,
+  IconKey,
 } from '@tabler/icons-react';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { DatabaseSettingsTab } from './DatabaseSettingsTab';
@@ -31,6 +32,7 @@ import { AboutSettingsTab } from './AboutSettingsTab';
 import { BackupSettingsTab } from './BackupSettingsTab';
 import { UserActivityTab } from './UserActivityTab';
 import { ErrorLogsTab } from './ErrorLogsTab';
+import { UserPasswordsTab } from './UserPasswordsTab';
 import { usePermissions } from '../../permissions';
 
 interface SettingsTab {
@@ -51,6 +53,7 @@ const settingsTabs: SettingsTab[] = [
   { value: 'storage', label: 'Storage', icon: <IconFolder size={16} />, permission: 'MANAGE_STORAGE', component: <StorageSettingsTab /> },
   { value: 'backup', label: 'Backup', icon: <IconCloudUpload size={16} />, permission: 'MANAGE_DATABASE', component: <BackupSettingsTab /> },
   { value: 'user-activity', label: 'User Activity', icon: <IconUserCheck size={16} />, permission: 'VIEW_USER_ACTIVITY', component: <UserActivityTab /> },
+  { value: 'user-passwords', label: 'User Passwords', icon: <IconKey size={16} />, permission: 'RESET_EMPLOYEE_PASSWORD', component: <UserPasswordsTab /> },
   { value: 'error-logs', label: 'Error Logs', icon: <IconBug size={16} />, permission: 'VIEW_ERROR_LOGS', component: <ErrorLogsTab /> },
   { value: 'about', label: 'About', icon: <IconInfoCircle size={16} />, component: <AboutSettingsTab /> },
 ];

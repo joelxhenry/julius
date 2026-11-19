@@ -199,7 +199,7 @@ export function EmployeePermissionsPage() {
           <Stack gap={4}>
             <Group gap="sm">
               <IconShield size={24} />
-              <Title order={2}>Assign Role</Title>
+              <Title order={2}>Security Settings</Title>
             </Group>
             <Text c="dimmed" size="sm">
               {employeeName}
