@@ -9,6 +9,7 @@ export interface ErrorLogQueryParams {
   pageSize?: number;
   resolved?: boolean;
   source?: string;
+  severity?: string;
 }
 
 /**
@@ -45,12 +46,13 @@ export class ErrorLogService extends BaseService<
   }
 
   async findPaginated(params: ErrorLogQueryParams = {}): Promise<PaginatedResult<schema.ErrorLog>> {
-    const { resolved, source, page = 1, pageSize = 20 } = params;
+    const { resolved, source, severity, page = 1, pageSize = 20 } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions: SQL[] = [];
     if (resolved !== undefined) conditions.push(eq(schema.errorLogs.resolved, resolved));
     if (source) conditions.push(eq(schema.errorLogs.source, source));
+    if (severity) conditions.push(eq(schema.errorLogs.severity, severity));
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countResult = await this.db

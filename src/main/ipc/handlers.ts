@@ -220,6 +220,7 @@ export function registerIpcHandlers() {
         const log = await svc.log({
           source: 'renderer',
           context: 'ErrorBoundary',
+          severity: 'critical',
           userMessage: sanitized.userMessage,
           technicalMessage: payload?.stack || sanitized.technicalMessage,
           stack: payload?.stack,

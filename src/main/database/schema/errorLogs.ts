@@ -9,6 +9,7 @@ export const errorLogs = pgTable('error_logs', {
 
   source: varchar('source', { length: 20 }).notNull(), // 'ipc' | 'main' | 'renderer'
   context: varchar('context', { length: 150 }), // IPC channel / controller / component name
+  severity: varchar('severity', { length: 10 }).notNull().default('error'), // 'critical' | 'error' | 'warning'
 
   userMessage: text('user_message').notNull(), // sanitized message shown to the user
   technicalMessage: text('technical_message').notNull(), // raw message (+ cause) for developers
@@ -27,6 +28,7 @@ export const errorLogs = pgTable('error_logs', {
 }, (table) => [
   index('idx_error_logs_created').on(table.createdAt),
   index('idx_error_logs_resolved').on(table.resolved),
+  index('idx_error_logs_severity').on(table.severity),
 ]);
 
 // Export types

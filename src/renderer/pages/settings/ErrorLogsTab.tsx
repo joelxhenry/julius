@@ -5,9 +5,16 @@ import dayjs from 'dayjs';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: 'red',
+  error: 'orange',
+  warning: 'yellow',
+};
+
 interface ErrorLogRow {
   id: number;
   source: string;
+  severity: string;
   context: string | null;
   userMessage: string;
   technicalMessage: string;
@@ -26,27 +33,29 @@ export function ErrorLogsTab() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string | null>('open');
+  const [severityFilter, setSeverityFilter] = useState<string | null>('all');
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<ErrorLogRow | null>(null);
 
   useEffect(() => {
-    load(1, statusFilter);
+    load(1, statusFilter, severityFilter);
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+  }, [statusFilter, severityFilter]);
 
   useEffect(() => {
-    load(page, statusFilter);
+    load(page, statusFilter, severityFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-  const load = async (p: number, status: string | null) => {
+  const load = async (p: number, status: string | null, severity: string | null) => {
     setLoading(true);
     try {
       const result = await window.electron.invoke(IpcChannel.GET_ERROR_LOGS, {
         page: p,
         pageSize: 20,
         resolved: status === 'open' ? false : status === 'resolved' ? true : undefined,
+        severity: severity && severity !== 'all' ? severity : undefined,
       });
       if (result.success && result.data) {
         setLogs(result.data.data);
@@ -74,7 +83,7 @@ export function ErrorLogsTab() {
       if (result.success) {
         notifications.show({ title: 'Resolved', message: 'Error log marked as resolved', color: 'green' });
         setSelected(null);
-        load(page, statusFilter);
+        load(page, statusFilter, severityFilter);
       } else {
         notifications.show({ title: 'Error', message: result.error || 'Failed to resolve error log', color: 'red' });
       }
@@ -91,23 +100,38 @@ export function ErrorLogsTab() {
     <Paper p="md" radius="md" withBorder>
       <Group justify="space-between" mb="md">
         <Text fw={500}>System Error Log</Text>
-        <Select
-          value={statusFilter}
-          onChange={setStatusFilter}
-          data={[
-            { value: 'all', label: 'All errors' },
-            { value: 'open', label: 'Open' },
-            { value: 'resolved', label: 'Resolved' },
-          ]}
-          size="sm"
-          w={180}
-        />
+        <Group gap="xs">
+          <Select
+            value={severityFilter}
+            onChange={setSeverityFilter}
+            data={[
+              { value: 'all', label: 'All severities' },
+              { value: 'critical', label: 'Critical' },
+              { value: 'error', label: 'Error' },
+              { value: 'warning', label: 'Warning' },
+            ]}
+            size="sm"
+            w={160}
+          />
+          <Select
+            value={statusFilter}
+            onChange={setStatusFilter}
+            data={[
+              { value: 'all', label: 'All errors' },
+              { value: 'open', label: 'Open' },
+              { value: 'resolved', label: 'Resolved' },
+            ]}
+            size="sm"
+            w={180}
+          />
+        </Group>
       </Group>
       <Table.ScrollContainer minWidth={800}>
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Time</Table.Th>
+              <Table.Th>Severity</Table.Th>
               <Table.Th>Source</Table.Th>
               <Table.Th>Message</Table.Th>
               <Table.Th>Status</Table.Th>
@@ -118,14 +142,14 @@ export function ErrorLogsTab() {
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <Table.Tr key={i}>
-                  {Array.from({ length: 5 }).map((_, j) => (
+                  {Array.from({ length: 6 }).map((_, j) => (
                     <Table.Td key={j}><Skeleton height={20} /></Table.Td>
                   ))}
                 </Table.Tr>
               ))
             ) : logs.length === 0 ? (
               <Table.Tr>
-                <Table.Td colSpan={5}>
+                <Table.Td colSpan={6}>
                   <Text c="dimmed" ta="center" py="xl">No errors recorded</Text>
                 </Table.Td>
               </Table.Tr>
@@ -133,6 +157,11 @@ export function ErrorLogsTab() {
               logs.map((log) => (
                 <Table.Tr key={log.id}>
                   <Table.Td>{dayjs(log.createdAt).format('MMM D, YYYY h:mm A')}</Table.Td>
+                  <Table.Td>
+                    <Badge color={SEVERITY_COLORS[log.severity] ?? 'gray'} variant="light" size="sm">
+                      {log.severity}
+                    </Badge>
+                  </Table.Td>
                   <Table.Td>
                     <Badge color="gray" variant="light" size="sm">{log.source}</Badge>
                   </Table.Td>
@@ -167,6 +196,7 @@ export function ErrorLogsTab() {
         {selected && (
           <Stack gap="sm">
             <Group gap="xs">
+              <Badge color={SEVERITY_COLORS[selected.severity] ?? 'gray'} variant="light">{selected.severity}</Badge>
               <Badge color="gray" variant="light">{selected.source}</Badge>
               {selected.context && <Badge color="blue" variant="light">{selected.context}</Badge>}
               {selected.errorCode && <Badge color="orange" variant="light">code {selected.errorCode}</Badge>}

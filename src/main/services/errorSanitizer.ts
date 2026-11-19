@@ -1,5 +1,7 @@
 import { ErrorLogService } from './ErrorLogService';
 
+export type ErrorSeverity = 'critical' | 'error' | 'warning';
+
 export interface SanitizedError {
   /** true when userMessage is the original error message, passed through unchanged */
   safe: boolean;
@@ -7,6 +9,7 @@ export interface SanitizedError {
   technicalMessage: string;
   stack?: string;
   errorCode?: string;
+  severity: ErrorSeverity;
 }
 
 const PG_CODE_MESSAGES: Record<string, string> = {
@@ -58,20 +61,22 @@ export function sanitizeError(error: unknown): SanitizedError {
 
   if (code) {
     if (CONNECTION_CODES.has(code)) {
-      return { safe: false, userMessage: CONNECTION_MESSAGE, technicalMessage, stack, errorCode: code };
+      return { safe: false, userMessage: CONNECTION_MESSAGE, technicalMessage, stack, errorCode: code, severity: 'critical' };
     }
-    return { safe: false, userMessage: PG_CODE_MESSAGES[code] ?? GENERIC_MESSAGE, technicalMessage, stack, errorCode: code };
+    return { safe: false, userMessage: PG_CODE_MESSAGES[code] ?? GENERIC_MESSAGE, technicalMessage, stack, errorCode: code, severity: 'error' };
   }
 
   if (/ECONNREFUSED|ETIMEDOUT|ECONNRESET/i.test(baseMessage)) {
-    return { safe: false, userMessage: CONNECTION_MESSAGE, technicalMessage, stack };
+    return { safe: false, userMessage: CONNECTION_MESSAGE, technicalMessage, stack, severity: 'critical' };
   }
 
   if (!causeMessage && !looksTechnical(baseMessage)) {
-    return { safe: true, userMessage: baseMessage, technicalMessage, stack };
+    // Deliberately-thrown business messages are expected, user-correctable
+    // situations (e.g. "Client already has an active invoice") rather than bugs.
+    return { safe: true, userMessage: baseMessage, technicalMessage, stack, severity: 'warning' };
   }
 
-  return { safe: false, userMessage: GENERIC_MESSAGE, technicalMessage, stack };
+  return { safe: false, userMessage: GENERIC_MESSAGE, technicalMessage, stack, severity: 'error' };
 }
 
 /**
@@ -80,23 +85,25 @@ export function sanitizeError(error: unknown): SanitizedError {
  */
 export async function recordError(
   error: unknown,
-  meta: { source: 'ipc' | 'main' | 'renderer'; context?: string; employeeId?: number; employeeName?: string }
+  meta: { source: 'ipc' | 'main' | 'renderer'; context?: string; employeeId?: number; employeeName?: string; severity?: ErrorSeverity }
 ): Promise<SanitizedError & { logId?: number }> {
   const sanitized = sanitizeError(error);
+  const severity = meta.severity ?? sanitized.severity;
   const svc = ErrorLogService.getInstance();
-  if (!svc) return sanitized;
+  if (!svc) return { ...sanitized, severity };
   try {
     const row = await svc.log({
       ...meta,
+      severity,
       userMessage: sanitized.userMessage,
       technicalMessage: sanitized.technicalMessage,
       stack: sanitized.stack,
       errorCode: sanitized.errorCode,
     });
-    return { ...sanitized, logId: row.id };
+    return { ...sanitized, severity, logId: row.id };
   } catch (logErr) {
     console.error('Failed to persist error log:', logErr);
-    return sanitized;
+    return { ...sanitized, severity };
   }
 }
 
@@ -115,6 +122,7 @@ export function reportError(error: unknown, fallback: string, context?: string):
       .log({
         source: 'ipc',
         context,
+        severity: sanitized.severity,
         userMessage: message,
         technicalMessage: sanitized.technicalMessage,
         stack: sanitized.stack,

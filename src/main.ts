@@ -13,12 +13,12 @@ import { recordError } from './main/services/errorSanitizer';
 // keep running — exiting here would kill the whole app over one bad request.
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception:', error);
-  void recordError(error, { source: 'main', context: 'uncaughtException' });
+  void recordError(error, { source: 'main', context: 'uncaughtException', severity: 'critical' });
 });
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason);
-  void recordError(reason, { source: 'main', context: 'unhandledRejection' });
+  void recordError(reason, { source: 'main', context: 'unhandledRejection', severity: 'critical' });
 });
 
 // Declare Vite global variables
