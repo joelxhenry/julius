@@ -6,6 +6,7 @@ import { IconCash, IconReceipt, IconDotsVertical, IconX } from '@tabler/icons-re
 import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
+import { useEmployeeNames } from '../../hooks/useEmployeeNames';
 import { DataTable, Column } from '../common/DataTable';
 
 interface Payment {
@@ -58,6 +59,7 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [voidReason, setVoidReason] = useState('');
   const [isVoiding, setIsVoiding] = useState(false);
+  const processedByNames = useEmployeeNames(payments.map((p) => p.processedById));
 
   const loadPayments = useCallback(async () => {
     setIsLoading(true);
@@ -223,6 +225,20 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
       },
     },
     {
+      key: 'processedBy',
+      header: 'Processed By',
+      render: (payment) => {
+        if (payment.processedById == null) {
+          return <Text size="sm" c="dimmed">—</Text>;
+        }
+        return (
+          <Text size="sm">
+            {processedByNames.get(payment.processedById) ?? `Employee #${payment.processedById}`}
+          </Text>
+        );
+      },
+    },
+    {
       key: 'notes',
       header: 'Notes/Ref',
       render: (payment) => {
@@ -249,7 +265,12 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
         const amount = parseFloat(payment.amount);
         const isVoidEntry = amount < 0 || payment.paymentDesc?.includes('VOID');
         const isVoided = voidedIds.has(payment.id);
-        if (isVoidEntry || isVoided || amount <= 0) return null;
+        // Mirrors the backend guard in PaymentTransactionService.voidPayment:
+        // once the invoice's paid balance has dropped below this payment's
+        // amount (e.g. a refund already returned the money), there is
+        // nothing left on the invoice to void.
+        const alreadyReversedElsewhere = totalPaid < amount - 0.01;
+        if (isVoidEntry || isVoided || amount <= 0 || alreadyReversedElsewhere) return null;
         return (
           <Menu shadow="md" width={150} position="bottom-end">
             <Menu.Target>
@@ -270,7 +291,7 @@ export function PaymentHistoryCard({ invoiceNumber, invoiceTotal, totalPaid, onP
         );
       },
     },
-  ], [handleVoidClick, voidedIds, bind]);
+  ], [handleVoidClick, voidedIds, bind, totalPaid, processedByNames]);
 
   return (
     <div>

@@ -270,6 +270,23 @@ export class PaymentTransactionService {
       throw new Error('This payment has already been voided');
     }
 
+    const reversalAmount = Math.abs(parseFloat(originalPayment.amount));
+
+    // Guard against voiding a payment whose value has already left the
+    // invoice via another channel (e.g. a refund processed through
+    // "Process Return"). Without this, the invoice's totalPaid would be
+    // clamped to 0 below and silently hide a double reversal.
+    let invoiceForVoid: schema.Invoice | null = null;
+    if (originalPayment.invoiceNumber) {
+      invoiceForVoid = await this.invoiceService.findByInvNumber(originalPayment.invoiceNumber);
+      if (invoiceForVoid) {
+        const currentPaid = parseFloat(invoiceForVoid.totalPaid || '0');
+        if (reversalAmount > currentPaid + 0.01) {
+          throw new Error('This payment has already been reversed (refunded or voided) and cannot be voided again');
+        }
+      }
+    }
+
     const paymentDate = new Date().toISOString().split('T')[0];
 
     // Create reversal payment (negative amount)
@@ -279,7 +296,7 @@ export class PaymentTransactionService {
       invoiceNumber: originalPayment.invoiceNumber,
       creditNoteNumber: originalPayment.creditNoteNumber,
       billNumber: originalPayment.billNumber,
-      amount: (-Math.abs(parseFloat(originalPayment.amount))).toFixed(2),
+      amount: (-reversalAmount).toFixed(2),
       payerName: originalPayment.payerName,
       paymentDesc: `VOID: ${voidReason}`,
       paymentDate,
@@ -291,11 +308,10 @@ export class PaymentTransactionService {
 
     // Update invoice if this was an invoice payment
     if (originalPayment.invoiceNumber) {
-      const invoice = await this.invoiceService.findByInvNumber(originalPayment.invoiceNumber);
+      const invoice = invoiceForVoid;
       if (invoice) {
         // Decrease totalPaid
         const currentPaid = parseFloat(invoice.totalPaid || '0');
-        const reversalAmount = Math.abs(parseFloat(originalPayment.amount));
         const newTotalPaid = Math.max(0, currentPaid - reversalAmount);
         const total = parseFloat(invoice.total || '0');
 

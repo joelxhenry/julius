@@ -98,6 +98,7 @@ export function PaymentDetailPage() {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [processedByName, setProcessedByName] = useState<string | null>(null);
+  const [invoiceTotalPaid, setInvoiceTotalPaid] = useState<number | null>(null);
 
   const { runWithPermission } = usePermissions();
 
@@ -127,6 +128,21 @@ export function PaymentDetailPage() {
       }
     });
   }, [payment?.processedById]);
+
+  // Fetch the linked invoice's current paid balance so Void Payment can be
+  // hidden once that balance has already been reduced below this payment's
+  // amount (e.g. by a refund via "Process Return") - mirrors the guard in
+  // PaymentTransactionService.voidPayment and PaymentHistoryCard.
+  useEffect(() => {
+    if (!payment?.invoiceNumber) { setInvoiceTotalPaid(null); return; }
+    window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, { invNumber: payment.invoiceNumber }).then((res) => {
+      if (res.success && res.data) {
+        setInvoiceTotalPaid(parseFloat(res.data.totalPaid || '0'));
+      } else {
+        setInvoiceTotalPaid(null);
+      }
+    });
+  }, [payment?.invoiceNumber]);
 
   const loadPayment = useCallback(async () => {
     if (!id) {
@@ -225,7 +241,9 @@ export function PaymentDetailPage() {
   const canVoidPayment = (p: Payment) => {
     const amount = parseFloat(p.amount);
     const isVoidEntry = amount < 0 || p.paymentDesc?.includes('VOID');
-    return !isVoidEntry && amount > 0;
+    if (isVoidEntry || amount <= 0) return false;
+    if (p.invoiceNumber && invoiceTotalPaid !== null && invoiceTotalPaid < amount - 0.01) return false;
+    return true;
   };
 
   const getDocumentTypeIcon = (type: string) => {
