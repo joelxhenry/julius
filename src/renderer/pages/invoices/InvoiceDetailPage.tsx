@@ -6,7 +6,7 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Alert, Badge, Text, ActionIcon, Group, Paper, Stack, Tooltip, Table } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconCash, IconAlertTriangle, IconArrowLeft, IconReceipt, IconPlus, IconEye, IconRefresh } from '@tabler/icons-react';
+import { IconCash, IconAlertTriangle, IconReceipt, IconPlus, IconEye, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import {
   RecordPaymentModal,
@@ -16,7 +16,7 @@ import {
   ProcessReturnModal,
 } from '../../components/invoices';
 import { PaymentHistoryCard } from '../../components/payments';
-import { CollapsibleSection, LookupTicketButton, PrintButton } from '../../components/common';
+import { CollapsibleSection, LookupTicketButton, PrintButton, BackButton } from '../../components/common';
 import { usePermissions } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
 
@@ -429,14 +429,7 @@ export function InvoiceDetailPage() {
         {/* Header with Back Button */}
         <Group gap="sm" align="center" wrap="nowrap">
           {fromListing ? (
-            <ActionIcon
-              variant="subtle"
-              size="lg"
-              {...bind('/invoices')}
-              title="Back to Invoices"
-            >
-              <IconArrowLeft size={20} />
-            </ActionIcon>
+            <BackButton fallbackPath="/invoices" title="Back to Invoices" />
           ) : (
             <ActionIcon
               variant="subtle"

@@ -1,5 +1,6 @@
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
 import { DatabaseConfig } from '../config/types';
+import { reportError } from '../services/errorSanitizer';
 
 export class DatabaseSettingsController {
   constructor(private service: DatabaseSettingsService) {}
@@ -11,7 +12,7 @@ export class DatabaseSettingsController {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: reportError(error, 'Unknown error', 'DatabaseSettingsController'),
       };
     }
   }
@@ -23,7 +24,7 @@ export class DatabaseSettingsController {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: reportError(error, 'Unknown error', 'DatabaseSettingsController'),
       };
     }
   }
@@ -35,7 +36,7 @@ export class DatabaseSettingsController {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: reportError(error, 'Unknown error', 'DatabaseSettingsController'),
       };
     }
   }

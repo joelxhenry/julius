@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, like, or, ilike, desc, count, and, sql, gte, lte, sum } from 'drizzle-orm';
+import { eq, like, or, ilike, desc, count, and, sql, gte, lte, sum, isNotNull } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { BaseService } from './BaseService';
 import { PaginatedResult } from './types';
@@ -39,12 +39,6 @@ export interface AuthResult {
   employee?: SafeEmployee;
   error?: string;
   requiresPasswordChange?: boolean;
-}
-
-export interface PinVerificationResult {
-  success: boolean;
-  employee?: SafeEmployee;
-  error?: string;
 }
 
 export class EmployeeService extends BaseService<
@@ -192,11 +186,20 @@ export class EmployeeService extends BaseService<
       );
   }
 
-  async searchForSelect(query: string, limit = 20, activeOnly = true): Promise<schema.Employee[]> {
+  async searchForSelect(
+    query: string,
+    limit = 20,
+    activeOnly = true,
+    requireUsername = false
+  ): Promise<Array<Pick<schema.Employee, 'id' | 'code' | 'firstName' | 'lastName' | 'username' | 'status' | 'isSalesperson'>>> {
     const conditions = [];
 
     if (activeOnly) {
       conditions.push(eq(schema.employees.status, 'active'));
+    }
+
+    if (requireUsername) {
+      conditions.push(isNotNull(schema.employees.username));
     }
 
     if (query && query.trim()) {
@@ -213,8 +216,18 @@ export class EmployeeService extends BaseService<
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
+    // Narrow projection: this feeds picker dropdowns in the renderer, so
+    // sensitive columns (passwordHash, permissions, accessCodes) never leave the main process.
     return this.db
-      .select()
+      .select({
+        id: schema.employees.id,
+        code: schema.employees.code,
+        firstName: schema.employees.firstName,
+        lastName: schema.employees.lastName,
+        username: schema.employees.username,
+        status: schema.employees.status,
+        isSalesperson: schema.employees.isSalesperson,
+      })
       .from(schema.employees)
       .where(whereCondition)
       .orderBy(desc(schema.employees.id))
@@ -250,16 +263,6 @@ export class EmployeeService extends BaseService<
   /** Assign (or clear, with null) an employee's RBAC role. */
   async assignRole(id: number, roleId: number | null): Promise<schema.Employee | null> {
     return this.update(id, { roleId });
-  }
-
-  /**
-   * Reset an employee's access code to a freshly generated, unique value.
-   * The access code (the `code` column) is what's entered for PIN verification
-   * and one-time authorisations.
-   */
-  async resetAccessCode(id: number): Promise<schema.Employee | null> {
-    const newCode = await this.generateNextCode();
-    return this.update(id, { code: newCode });
   }
 
   /**
@@ -383,51 +386,6 @@ export class EmployeeService extends BaseService<
   async updatePasswordSecure(id: number, newPassword: string): Promise<schema.Employee | null> {
     const hashedPassword = hashPassword(newPassword);
     return this.update(id, { passwordHash: hashedPassword });
-  }
-
-  /**
-   * Verify an employee by their unique code (used as PIN)
-   * Code lookup is case-insensitive
-   */
-  async verifyPin(code: string): Promise<PinVerificationResult> {
-    if (!code || !code.trim()) {
-      return {
-        success: false,
-        error: 'Please enter your employee code',
-      };
-    }
-
-    // Find employee by code (case-insensitive)
-    const results = await this.db
-      .select()
-      .from(schema.employees)
-      .where(ilike(schema.employees.code, code.trim()))
-      .limit(1);
-
-    const employee = results[0];
-
-    if (!employee) {
-      return {
-        success: false,
-        error: 'Employee code not recognized. Please check and try again.',
-      };
-    }
-
-    // Check if employee is active
-    if (employee.status !== 'active') {
-      return {
-        success: false,
-        error: 'Your account is not active. Please contact an administrator.',
-      };
-    }
-
-    // Remove sensitive fields from response
-    const { passwordHash, ...safeEmployee } = employee;
-
-    return {
-      success: true,
-      employee: await this.withEffectivePermissions(safeEmployee),
-    };
   }
 
   // Export hash function for use elsewhere

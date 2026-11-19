@@ -15,7 +15,8 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconShieldCheck, IconCheck, IconPackage } from '@tabler/icons-react';
-import { PINInput } from '../auth/PINInput';
+import { EmployeeCredentialFields } from '../auth/EmployeeCredentialFields';
+import { useAuth } from '../../contexts/AuthContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import type { AdminOverrideResult } from './AdminOverrideModal';
 
@@ -41,7 +42,10 @@ interface StockOverrideModalProps {
  * adjustments will go negative on issue, which is called out clearly.
  */
 export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: StockOverrideModalProps) {
-  const [accessCode, setAccessCode] = useState('');
+  const { user } = useAuth();
+  const currentUsername = user?.username ?? null;
+  const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
   const [admin, setAdmin] = useState<{ id: number; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -51,10 +55,13 @@ export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: 
   const [inputQty, setInputQty] = useState<Record<string, number | string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset local state whenever the modal opens with a fresh set of short items.
+  // Reset local state whenever the modal opens with a fresh set of short items,
+  // pre-selecting the signed-in user as a starting point (they can still pick
+  // a different admin).
   useEffect(() => {
     if (opened) {
-      setAccessCode('');
+      setSelectedUsername(currentUsername);
+      setPassword('');
       setAdmin(null);
       setError(null);
       setAdjustingSku(null);
@@ -62,13 +69,14 @@ export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: 
       setInputQty(Object.fromEntries(shortItems.map((i) => [i.sku, i.requestedQty])));
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-    // shortItems is captured on open; it does not change while the modal is open.
+    // shortItems/currentUsername are captured on open; re-running on every
+    // change would clobber in-progress state or re-trigger the reset.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   const handleVerify = useCallback(async () => {
-    if (!accessCode.trim()) {
-      setError('Please enter admin access code');
+    if (!selectedUsername || !password.trim()) {
+      setError('Please select the admin and enter their password');
       return;
     }
 
@@ -76,14 +84,14 @@ export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: 
     setError(null);
 
     try {
-      const result = await window.electron.invoke(IpcChannel.VERIFY_ACCESS_CODE, {
-        accessCode: accessCode.trim(),
+      const result = await window.electron.invoke(IpcChannel.VERIFY_EMPLOYEE_CREDENTIALS, {
+        username: selectedUsername,
+        password,
       });
 
       if (!result.success) {
         setError(result.error || 'Verification failed');
-        setAccessCode('');
-        inputRef.current?.focus();
+        setPassword('');
         return;
       }
 
@@ -98,20 +106,18 @@ export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: 
 
       if (!hasPermission) {
         setError('This action requires admin privileges (ADMIN or ADJUST_STOCK permission)');
-        setAccessCode('');
-        inputRef.current?.focus();
+        setPassword('');
         return;
       }
 
       setAdmin({ id: result.data.employeeId, name: result.data.employeeName });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
-      setAccessCode('');
-      inputRef.current?.focus();
+      setPassword('');
     } finally {
       setIsVerifying(false);
     }
-  }, [accessCode]);
+  }, [selectedUsername, password]);
 
   const handleAdjust = useCallback(
     async (sku: string) => {
@@ -304,18 +310,21 @@ export function StockOverrideModal({ opened, onClose, shortItems, onApproved }: 
                 {error}
               </Alert>
             )}
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-              <PINInput
-                ref={inputRef}
-                value={accessCode}
-                onChange={(e) => setAccessCode(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isVerifying}
-                error={!!error}
-                placeholder="Admin Access Code"
-                style={{ flex: 1 }}
-              />
-              <Button size="lg" onClick={handleVerify} disabled={isVerifying || !accessCode.trim()} color="orange">
+            <Group gap="xs" wrap="nowrap" align="flex-end" onKeyDown={handleKeyDown}>
+              <div style={{ flex: 1 }}>
+                <EmployeeCredentialFields
+                  employeeInputRef={inputRef}
+                  employeeLabel="Administrator"
+                  selectedUsername={selectedUsername}
+                  onSelectUsername={setSelectedUsername}
+                  initialEmployee={currentUsername ? { username: currentUsername, firstName: user?.firstName ?? null, lastName: user?.lastName ?? null } : null}
+                  password={password}
+                  onPasswordChange={setPassword}
+                  disabled={isVerifying}
+                  error={!!error}
+                />
+              </div>
+              <Button size="lg" onClick={handleVerify} disabled={isVerifying || !selectedUsername || !password.trim()} color="orange">
                 {isVerifying ? <Loader size="xs" color="white" /> : 'Verify'}
               </Button>
             </Group>

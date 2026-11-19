@@ -23,6 +23,7 @@ import { useTabContext } from '../../contexts/TabContext';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 import { CANONICAL_PAYMENT_METHOD_CODES } from '../../../shared/constants/payments';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 
 interface Payment {
   id: number;
@@ -77,16 +78,18 @@ const formatDate = (dateStr: string | null) => {
 export function PaymentsPage() {
   const { user } = useAuth();
   const { openTab } = useTabContext();
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useListState<Payment[]>('payments:payments', []);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [documentType, setDocumentType] = useState<string | null>('INVOICE');
-  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(() => !wasPersisted('payments:payments'));
+  const [search, setSearch] = useListState('payments:search', '');
+  const [documentType, setDocumentType] = useListState<string | null>('payments:documentType', 'INVOICE');
+  const [paymentMethod, setPaymentMethod] = useListState<string | null>('payments:paymentMethod', null);
+  const [dateRange, setDateRange] = useListState<DateRangeValue>('payments:dateRange', [null, null]);
+  const [page, setPage] = useListState('payments:page', 1);
+  const [totalPages, setTotalPages] = useListState('payments:totalPages', 1);
+  const [total, setTotal] = useListState('payments:total', 0);
+  const skipInitialFetch = useRestoreGuard('payments:payments');
+  const skipInitialPageReset = useRestoreGuard('payments:payments');
 
   // Void modal state
   const [voidModalOpen, { open: openVoidModal, close: closeVoidModal }] = useDisclosure(false);
@@ -131,11 +134,12 @@ export function PaymentsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, documentType, paymentMethod, startDate, endDate]);
+  }, [page, search, documentType, paymentMethod, startDate, endDate, setPayments, setTotalPages, setTotal]);
 
   useEffect(() => {
+    if (skipInitialFetch()) return;
     loadPayments();
-  }, [loadPayments]);
+  }, [loadPayments, skipInitialFetch]);
 
   // Load active payment methods so we can resolve stored codes to display names
   useEffect(() => {
@@ -185,8 +189,9 @@ export function PaymentsPage() {
 
   // Reset to page 1 when filters change
   useEffect(() => {
+    if (skipInitialPageReset()) return;
     setPage(1);
-  }, [search, documentType, paymentMethod, startDate, endDate]);
+  }, [search, documentType, paymentMethod, startDate, endDate, skipInitialPageReset, setPage]);
 
   const handleVoidClick = useCallback((payment: Payment) => {
     setSelectedPayment(payment);

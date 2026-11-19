@@ -40,6 +40,12 @@ export * from './SystemSettingsController';
 // Access Override Controller (permission audit)
 export * from './AccessOverrideController';
 
+// User Session Controller (System User Tracking — login/logout log)
+export * from './UserSessionController';
+
+// Error Log Controller (global error log, reviewable from Settings)
+export * from './ErrorLogController';
+
 // RBAC Role Controller
 export * from './RoleController';
 

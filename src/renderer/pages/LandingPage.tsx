@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { ActionCard } from '../components/common/ActionCard';
 import { PinVerificationModal } from '../components/auth/PinVerificationModal';
-import { useProtectedNavigation } from '../hooks/useProtectedNavigation';
+import { useProtectedTabNavigation } from '../hooks/useProtectedTabNavigation';
 import { getRouteDescription } from '../router/permissions';
 
 const actionItems = [
@@ -82,12 +82,13 @@ const dashboardItem = {
 export function LandingPage() {
   const {
     navigateTo,
+    bind,
     pinModalOpen,
     pendingNavigation,
     requiredPermission,
     handlePinVerified,
     handlePinModalClose,
-  } = useProtectedNavigation();
+  } = useProtectedTabNavigation();
 
   // Quick Actions shows every option regardless of permission; restrictions are
   // still enforced on click via navigateTo (PIN prompt / access check).
@@ -110,7 +111,8 @@ export function LandingPage() {
                 title={item.title}
                 description={item.description}
                 shortcut={item.shortcut}
-                onClick={() => navigateTo(item.path)}
+                onClick={(e) => navigateTo(item.path, e)}
+                onContextMenu={bind(item.path).onContextMenu}
                 color={item.color}
               />
             ))}
@@ -122,7 +124,8 @@ export function LandingPage() {
               title={dashboardItem.title}
               description={dashboardItem.description}
               shortcut={dashboardItem.shortcut}
-              onClick={() => navigateTo(dashboardItem.path)}
+              onClick={(e) => navigateTo(dashboardItem.path, e)}
+              onContextMenu={bind(dashboardItem.path).onContextMenu}
               color={dashboardItem.color}
             />
           </Box>
@@ -145,7 +148,7 @@ export function LandingPage() {
         onVerified={handlePinVerified}
         requiredPermission={requiredPermission}
         title="Authentication Required"
-        description={`Enter your access code to ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
+        description={`Search for your name and enter your password to ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
       />
     </>
   );

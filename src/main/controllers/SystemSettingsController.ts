@@ -1,4 +1,5 @@
 import { SystemSettingsService } from '../services/SystemSettingsService';
+import { reportError } from '../services/errorSanitizer';
 
 export class SystemSettingsController {
   constructor(private service: SystemSettingsService) {}
@@ -6,7 +7,7 @@ export class SystemSettingsController {
   private handleError(error: unknown) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: reportError(error, 'Unknown error', 'SystemSettingsController'),
     };
   }
 

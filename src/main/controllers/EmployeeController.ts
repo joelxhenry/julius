@@ -106,9 +106,9 @@ export class EmployeeController extends BaseController<EmployeeService> {
     }
   }
 
-  async searchForSelect(query: string, limit = 20, activeOnly = true) {
+  async searchForSelect(query: string, limit = 20, activeOnly = true, requireUsername = false) {
     try {
-      const employees = await this.service.searchForSelect(query, limit, activeOnly);
+      const employees = await this.service.searchForSelect(query, limit, activeOnly, requireUsername);
       return this.wrapSuccess(employees);
     } catch (error) {
       return this.handleError(error);
@@ -148,20 +148,6 @@ export class EmployeeController extends BaseController<EmployeeService> {
   async authenticate(username: string, password: string) {
     try {
       const result = await this.service.authenticate(username, password);
-      if (result.success) {
-        return this.wrapSuccess({
-          employee: result.employee,
-        });
-      }
-      return { success: false, error: result.error };
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async verifyPin(pin: string) {
-    try {
-      const result = await this.service.verifyPin(pin);
       if (result.success) {
         return this.wrapSuccess({
           employee: result.employee,
@@ -230,19 +216,6 @@ export class EmployeeController extends BaseController<EmployeeService> {
         return { success: false, error: 'Employee not found' };
       }
       return this.wrapSuccess(employee);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async resetAccessCode(id: number) {
-    try {
-      const employee = await this.service.resetAccessCode(id);
-      if (!employee) {
-        return { success: false, error: 'Employee not found' };
-      }
-      // Return only the new code (and id); avoid leaking the full record.
-      return this.wrapSuccess({ id: employee.id, code: employee.code });
     } catch (error) {
       return this.handleError(error);
     }

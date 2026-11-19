@@ -7,7 +7,10 @@ export type { KeyboardShortcut } from './useKeyboardShortcuts';
 
 // Auth hooks
 export { useIdleTimeout } from './useIdleTimeout';
-export { useProtectedNavigation } from './useProtectedNavigation';
+export { useProtectedTabNavigation } from './useProtectedTabNavigation';
+
+// List page state persistence
+export { useListState, useRestoreGuard, wasPersisted, clearListState } from './useListState';
 
 // Inventory hooks
 export { useInventory } from './useInventory';

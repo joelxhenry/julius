@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Stack, Text, Button, Alert, Group, Loader, Badge } from '@mantine/core';
 import { IconAlertCircle, IconLock } from '@tabler/icons-react';
-import { PINInput } from './PINInput';
+import { EmployeeCredentialFields } from './EmployeeCredentialFields';
+import { useAuth } from '../../contexts/AuthContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { getPermissionByCode } from '../../../shared/constants/permissions';
 
@@ -25,14 +26,14 @@ interface AccessCodeConfirmModalProps {
 }
 
 /**
- * Access-code gate for financial actions (create invoice / quotation, record
- * payment). The code is ALWAYS required to complete the action.
+ * Credential gate for financial actions (create invoice / quotation, record
+ * payment). A password is ALWAYS required to complete the action.
  *
- * Verification uses VERIFY_ACCESS_CODE, which resolves the code owner's identity
- * and effective permissions WITHOUT switching the logged-in session. If the code
- * belongs to a different, suitably-permissioned user, that user is returned as
- * the actor so the caller can put them "on record" — the session stays signed in
- * as the original user.
+ * Verification uses VERIFY_EMPLOYEE_CREDENTIALS, which resolves the employee's
+ * identity and effective permissions WITHOUT switching the logged-in session. If
+ * the credentials belong to a different, suitably-permissioned user, that user is
+ * returned as the actor so the caller can put them "on record" — the session
+ * stays signed in as the original user.
  */
 export function AccessCodeConfirmModal({
   opened,
@@ -42,7 +43,10 @@ export function AccessCodeConfirmModal({
   onConfirmed,
   onCancel,
 }: AccessCodeConfirmModalProps) {
-  const [accessCode, setAccessCode] = useState('');
+  const { user } = useAuth();
+  const currentUsername = user?.username ?? null;
+  const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -50,25 +54,31 @@ export function AccessCodeConfirmModal({
   const permission = getPermissionByCode(permissionCode);
   const permissionLabel = permission?.label ?? permissionCode;
 
-  // Focus the input when the modal opens (DOM side-effect only — no setState here).
+  // Pre-select the signed-in user on open (they're the common case for "on
+  // record" confirmations), and focus the input (DOM side-effect only).
   // State is reset on cancel and after a successful confirm instead.
   useEffect(() => {
     if (opened) {
+      setSelectedUsername(currentUsername);
       const t = setTimeout(() => inputRef.current?.focus(), 100);
       return () => clearTimeout(t);
     }
+    // currentUsername is read once per open; re-running on every session change
+    // would clobber an in-progress selection of a different authoriser.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   const handleCancel = useCallback(() => {
     if (isLoading) return;
-    setAccessCode('');
+    setSelectedUsername(currentUsername);
+    setPassword('');
     setError(null);
     onCancel();
-  }, [isLoading, onCancel]);
+  }, [isLoading, onCancel, currentUsername]);
 
   const handleSubmit = useCallback(async () => {
-    if (!accessCode.trim()) {
-      setError('Please enter your access code');
+    if (!selectedUsername || !password.trim()) {
+      setError('Please select your name and enter your password');
       return;
     }
 
@@ -76,14 +86,14 @@ export function AccessCodeConfirmModal({
     setError(null);
 
     try {
-      const result = await window.electron.invoke(IpcChannel.VERIFY_ACCESS_CODE, {
-        accessCode: accessCode.trim(),
+      const result = await window.electron.invoke(IpcChannel.VERIFY_EMPLOYEE_CREDENTIALS, {
+        username: selectedUsername,
+        password,
       });
 
       if (!result.success) {
-        setError(result.error || 'Invalid access code');
-        setAccessCode('');
-        inputRef.current?.focus();
+        setError(result.error || 'Invalid username or password');
+        setPassword('');
         setIsLoading(false);
         return;
       }
@@ -96,8 +106,7 @@ export function AccessCodeConfirmModal({
 
       if (!isAdmin && !hasRequired && !isLegacyAdmin) {
         setError(`This user is not permitted to "${permissionLabel}"`);
-        setAccessCode('');
-        inputRef.current?.focus();
+        setPassword('');
         setIsLoading(false);
         return;
       }
@@ -108,16 +117,16 @@ export function AccessCodeConfirmModal({
         isCurrentUser: currentUserId != null && result.data.employeeId === currentUserId,
       });
       // Parent closes the modal by clearing the pending request; reset for next open.
-      setAccessCode('');
+      setSelectedUsername(currentUsername);
+      setPassword('');
       setError(null);
       setIsLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
-      setAccessCode('');
-      inputRef.current?.focus();
+      setPassword('');
       setIsLoading(false);
     }
-  }, [accessCode, permissionCode, permissionLabel, currentUserId, onConfirmed]);
+  }, [selectedUsername, password, permissionCode, permissionLabel, currentUserId, onConfirmed, currentUsername]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -134,7 +143,7 @@ export function AccessCodeConfirmModal({
       title={
         <Group gap="xs">
           <IconLock size={20} />
-          <Text fw={600}>Confirm with Access Code</Text>
+          <Text fw={600}>Confirm with Password</Text>
         </Group>
       }
       centered
@@ -147,7 +156,7 @@ export function AccessCodeConfirmModal({
     >
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Enter your access code to complete this action. It affects financial
+          Enter your password to complete this action. It affects financial
           records, so the person authorising it is put on record.
         </Text>
 
@@ -170,21 +179,24 @@ export function AccessCodeConfirmModal({
           </Alert>
         )}
 
-        <PINInput
-          ref={inputRef}
-          value={accessCode}
-          onChange={(e) => setAccessCode(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          error={!!error}
-          placeholder="Enter Access Code"
-        />
+        <div onKeyDown={handleKeyDown}>
+          <EmployeeCredentialFields
+            employeeInputRef={inputRef}
+            selectedUsername={selectedUsername}
+            onSelectUsername={setSelectedUsername}
+            initialEmployee={currentUsername ? { username: currentUsername, firstName: user?.firstName ?? null, lastName: user?.lastName ?? null } : null}
+            password={password}
+            onPasswordChange={setPassword}
+            disabled={isLoading}
+            error={!!error}
+          />
+        </div>
 
         <Group justify="flex-end" gap="sm">
           <Button variant="subtle" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isLoading || !accessCode.trim()}>
+          <Button onClick={handleSubmit} disabled={isLoading || !selectedUsername || !password.trim()}>
             {isLoading ? <Loader size="xs" color="white" /> : 'Confirm'}
           </Button>
         </Group>

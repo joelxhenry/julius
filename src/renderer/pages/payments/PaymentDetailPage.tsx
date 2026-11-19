@@ -22,7 +22,6 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft,
   IconCash,
   IconFileInvoice,
   IconReceipt,
@@ -38,7 +37,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTabContext } from '../../contexts/TabContext';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
-import { PrintButton } from '../../components/common';
+import { PrintButton, BackButton } from '../../components/common';
 import { usePermissions, RestrictedLink } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
 
@@ -92,7 +91,6 @@ const formatDateTime = (dateStr: string | null) => {
 
 export function PaymentDetailPage() {
   const { id } = useTabParams<{ id: string }>();
-  const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { openTab, updateTabTitle } = useTabContext();
@@ -316,9 +314,7 @@ export function PaymentDetailPage() {
           <Title order={3}>Payment Not Found</Title>
           <Text c="dimmed">The payment you&apos;re looking for doesn&apos;t exist or has been deleted.</Text>
         </Stack>
-        <Button leftSection={<IconArrowLeft size={16} />} {...bind('/payments')}>
-          Back to Payments
-        </Button>
+        <BackButton fallbackPath="/payments" label="Back to Payments" />
       </Stack>
     );
   }
@@ -332,14 +328,7 @@ export function PaymentDetailPage() {
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="md">
-            <ActionIcon
-              variant="subtle"
-              size="lg"
-              {...bind('/payments')}
-              title="Back to Payments"
-            >
-              <IconArrowLeft size={20} />
-            </ActionIcon>
+            <BackButton fallbackPath="/payments" title="Back to Payments" />
             <Stack gap={4}>
               <Group gap="sm">
                 <Title order={2}>Payment #{payment.id}</Title>

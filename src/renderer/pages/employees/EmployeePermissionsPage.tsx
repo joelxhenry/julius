@@ -14,25 +14,24 @@ import {
   ThemeIcon,
   SimpleGrid,
   Modal,
+  PasswordInput,
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { modals } from '@mantine/modals';
 import {
-  IconArrowLeft,
   IconDeviceFloppy,
   IconAlertCircle,
   IconCheck,
   IconShield,
   IconShieldCheck,
   IconPencil,
-  IconKey,
-  IconRefresh,
+  IconLock,
 } from '@tabler/icons-react';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
+import { BackButton } from '../../components/common';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { getPermissionByCode } from '../../../shared/constants/permissions';
-import { CopyButton } from '../../components/common';
 import { PermissionButton } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
 
@@ -65,8 +64,17 @@ export function EmployeePermissionsPage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const [newCode, setNewCode] = useState<string | null>(null);
+  const [passwordModalOpened, setPasswordModalOpened] = useState(false);
+  const [settingPassword, setSettingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const passwordForm = useForm<{ newPassword: string; confirmPassword: string }>({
+    initialValues: { newPassword: '', confirmPassword: '' },
+    validate: {
+      newPassword: (value) => (value.length < 4 ? 'Password must be at least 4 characters' : null),
+      confirmPassword: (value, values) => (value !== values.newPassword ? 'Passwords do not match' : null),
+    },
+  });
 
   useEffect(() => {
     if (id) load(parseInt(id, 10));
@@ -126,44 +134,32 @@ export function EmployeePermissionsPage() {
     }
   };
 
-  const doResetAccessCode = async () => {
+  const handleSetPassword = async (values: { newPassword: string; confirmPassword: string }) => {
     if (!employee) return;
-    setResetting(true);
+    setSettingPassword(true);
+    setPasswordError(null);
     try {
-      const result = await window.electron.invoke(IpcChannel.RESET_EMPLOYEE_ACCESS_CODE, { id: employee.id });
-      if (result.success && result.data?.code) {
-        setEmployee((prev) => (prev ? { ...prev, code: result.data.code } : null));
-        setNewCode(result.data.code);
+      const result = await window.electron.invoke(IpcChannel.UPDATE_EMPLOYEE_PASSWORD, {
+        id: employee.id,
+        newPassword: values.newPassword,
+      });
+      if (result.success) {
         notifications.show({
-          title: 'Access Code Reset',
-          message: 'A new access code has been generated',
+          title: 'Password Reset',
+          message: `A new login password has been set for ${employeeDisplayName(employee)}`,
           color: 'green',
           icon: <IconCheck size={16} />,
         });
+        setPasswordModalOpened(false);
+        passwordForm.reset();
       } else {
-        notifications.show({ title: 'Error', message: result.error || 'Failed to reset access code', color: 'red' });
+        setPasswordError(result.error || 'Failed to reset password');
       }
     } catch (err) {
-      notifications.show({ title: 'Error', message: err instanceof Error ? err.message : 'An error occurred', color: 'red' });
+      setPasswordError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      setResetting(false);
+      setSettingPassword(false);
     }
-  };
-
-  const confirmResetAccessCode = () => {
-    if (!employee) return;
-    const name = employeeDisplayName(employee);
-    modals.openConfirmModal({
-      title: 'Reset Access Code',
-      children: (
-        <Text size="sm">
-          Generate a new access code for <strong>{name}</strong>? Their current code will stop working immediately.
-        </Text>
-      ),
-      labels: { confirm: 'Reset & Generate', cancel: 'Cancel' },
-      confirmProps: { color: 'orange' },
-      onConfirm: doResetAccessCode,
-    });
   };
 
   if (loading) {
@@ -178,9 +174,7 @@ export function EmployeePermissionsPage() {
   if (error || !employee) {
     return (
       <Stack p="xl" gap="lg">
-        <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} {...bind('/employees')}>
-          Back to Employees
-        </Button>
+        <BackButton fallbackPath="/employees" label="Back to Employees" />
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Employee not found'}
         </Alert>
@@ -201,9 +195,7 @@ export function EmployeePermissionsPage() {
       {/* Header */}
       <Group justify="space-between" align="flex-start">
         <Group>
-          <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} {...bind(`/employees/${employee.id}`)}>
-            Back
-          </Button>
+          <BackButton fallbackPath={`/employees/${employee.id}`} label="Back" />
           <Stack gap={4}>
             <Group gap="sm">
               <IconShield size={24} />
@@ -302,57 +294,90 @@ export function EmployeePermissionsPage() {
         </Stack>
       </Paper>
 
-      {/* Access Code */}
+      {/* Login Password */}
       <Paper p="lg" radius="md" withBorder>
         <Group justify="space-between" wrap="nowrap">
           <Group gap="sm" wrap="nowrap">
             <ThemeIcon variant="light" color="grape" size="lg" radius="md">
-              <IconKey size={18} />
+              <IconLock size={18} />
             </ThemeIcon>
             <Stack gap={2}>
               <Text fw={500} size="sm">
-                Access Code
+                Login Password
               </Text>
               <Text size="xs" c="dimmed">
-                A private credential for PIN verification and one-time authorisations. Reset to generate a new one.
+                This employee&apos;s login password. Resetting sets a new one immediately.
               </Text>
             </Stack>
           </Group>
-          <Group gap="sm" wrap="nowrap">
-            <Badge size="lg" variant="light" color="grape" style={{ fontFamily: 'monospace', letterSpacing: 2 }}>
-              ••••••
-            </Badge>
-            <PermissionButton
-              permission="RESET_EMPLOYEE_PASSWORD"
-              whenDenied="elevate"
-              actionLabel={`Reset access code for ${employeeName}`}
-              context={{ entity: 'employee', id: employee.id }}
-              variant="light"
-              color="orange"
-              leftSection={<IconRefresh size={16} />}
-              loading={resetting}
-              onClick={confirmResetAccessCode}
-            >
-              Reset Access Code
-            </PermissionButton>
-          </Group>
+          <PermissionButton
+            permission="RESET_EMPLOYEE_PASSWORD"
+            whenDenied="elevate"
+            actionLabel={`Reset password for ${employeeName}`}
+            context={{ entity: 'employee', id: employee.id }}
+            variant="light"
+            color="orange"
+            leftSection={<IconLock size={16} />}
+            onClick={() => {
+              passwordForm.reset();
+              setPasswordError(null);
+              setPasswordModalOpened(true);
+            }}
+          >
+            Reset Password
+          </PermissionButton>
         </Group>
       </Paper>
 
-      {/* Newly generated code */}
-      <Modal opened={!!newCode} onClose={() => setNewCode(null)} title="New Access Code" centered>
-        <Stack align="center" gap="md" py="sm">
-          <Text size="sm" c="dimmed" ta="center">
-            Share this new access code with the employee. Their previous code no longer works.
-          </Text>
-          <Group gap="xs" align="center">
-            <Title order={1} style={{ fontFamily: 'monospace', letterSpacing: 4 }}>
-              {newCode}
-            </Title>
-            {newCode && <CopyButton value={newCode} size="md" tooltip="Copy access code" />}
+      {/* Reset login password */}
+      <Modal
+        opened={passwordModalOpened}
+        onClose={() => setPasswordModalOpened(false)}
+        title={
+          <Group gap="xs">
+            <IconShield size={18} />
+            <Text fw={600}>Reset Login Password</Text>
           </Group>
-          <Button onClick={() => setNewCode(null)}>Done</Button>
-        </Stack>
+        }
+        centered
+      >
+        <form onSubmit={passwordForm.onSubmit(handleSetPassword)}>
+          <Stack gap="md">
+            <Text size="sm" c="dimmed">
+              Set a new login password for <strong>{employeeName}</strong>. Their previous password will stop working immediately.
+            </Text>
+
+            {passwordError && (
+              <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+                {passwordError}
+              </Alert>
+            )}
+
+            <PasswordInput
+              label="New Password"
+              placeholder="Enter a password"
+              leftSection={<IconLock size={16} />}
+              required
+              {...passwordForm.getInputProps('newPassword')}
+            />
+            <PasswordInput
+              label="Confirm Password"
+              placeholder="Re-enter the password"
+              leftSection={<IconLock size={16} />}
+              required
+              {...passwordForm.getInputProps('confirmPassword')}
+            />
+
+            <Group justify="flex-end">
+              <Button variant="subtle" onClick={() => setPasswordModalOpened(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" leftSection={<IconDeviceFloppy size={16} />} loading={settingPassword}>
+                Reset Password
+              </Button>
+            </Group>
+          </Stack>
+        </form>
       </Modal>
     </Stack>
   );

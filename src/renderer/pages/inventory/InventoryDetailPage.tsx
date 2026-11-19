@@ -22,7 +22,6 @@ import { useForm } from '@mantine/form';
 import { modals } from '@mantine/modals';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft,
   IconEdit,
   IconRefresh,
   IconAlertCircle,
@@ -45,6 +44,7 @@ import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { formatVariantName } from '../../../shared/utils/variantName';
 import { useTabContext } from '../../contexts/TabContext';
+import { useNavigationMenu } from '../../contexts/NavigationMenuContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { employeeDisplayName } from '../../utils/employeeName';
 import { VariantForm } from '../../components/forms/VariantForm';
@@ -53,7 +53,7 @@ import { OverviewTab, PricingTab, VariantsTab, AlternatesTab, TransactionsTab, S
 import { ProductThumbnail } from '../../components/common/ProductThumbnail';
 import { PermissionGate, PermissionButton, usePermissions } from '../../permissions';
 import { ProductImageModal } from '../../components/common/ProductImageModal';
-import { CopyButton } from '../../components/common';
+import { CopyButton, BackButton } from '../../components/common';
 import { MarkButton } from '../../components/tray/MarkButton';
 import { AddToListButton } from '../../components/lists';
 
@@ -151,7 +151,8 @@ export function InventoryDetailPage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle, openTab } = useTabContext();
-  const { go, bind } = useContentNavigation();
+  const { go } = useContentNavigation();
+  const { requestMenu } = useNavigationMenu();
   const { runWithPermission } = usePermissions();
   const { user } = useAuth();
 
@@ -789,22 +790,36 @@ export function InventoryDetailPage() {
     }
   };
 
-  // Handler for navigating to alternate SKU
-  const handleNavigateToAlternate = async (alternateSku: string) => {
+  // Resolve an alternate part number to its inventory tab path (async lookup,
+  // so the path isn't known until this resolves — shared by click and the
+  // right-click "Open in new tab" menu).
+  const resolveAlternatePath = async (alternateSku: string): Promise<string | null> => {
     try {
       const result = await window.electron.invoke(IpcChannel.GET_INVENTORY_BY_SKU, { sku: alternateSku });
       if (result.success && result.data) {
-        go(`/inventory/${result.data.id}`);
-      } else {
-        notifications.show({
-          title: 'Item Not Found',
-          message: `Could not find inventory item with part number: ${alternateSku}`,
-          color: 'orange',
-        });
+        return `/inventory/${result.data.id}`;
       }
+      notifications.show({
+        title: 'Item Not Found',
+        message: `Could not find inventory item with part number: ${alternateSku}`,
+        color: 'orange',
+      });
     } catch (err) {
       console.error('Failed to navigate to alternate:', err);
     }
+    return null;
+  };
+
+  // Handler for navigating to alternate SKU
+  const handleNavigateToAlternate = async (alternateSku: string, event?: React.MouseEvent) => {
+    const path = await resolveAlternatePath(alternateSku);
+    if (path) go(path, event);
+  };
+
+  const handleContextMenuAlternate = (alternateSku: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    requestMenu(event.clientX, event.clientY, () => resolveAlternatePath(alternateSku));
   };
 
   // Category/model may be persisted as JSON array strings (e.g. '["HONDA ACURA"]').
@@ -859,13 +874,7 @@ export function InventoryDetailPage() {
   if (error || !item) {
     return (
       <Stack p="xl" gap="lg">
-        <Button
-          variant="subtle"
-          leftSection={<IconArrowLeft size={16} />}
-          {...bind('/inventory')}
-        >
-          Back to Inventory
-        </Button>
+        <BackButton fallbackPath="/inventory" label="Back to Inventory" />
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Inventory item not found'}
         </Alert>
@@ -970,14 +979,7 @@ export function InventoryDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="flex-start">
         <Group gap="md">
-          <ActionIcon
-            variant="subtle"
-            size="lg"
-            {...bind('/inventory')}
-            title="Back to Inventory"
-          >
-            <IconArrowLeft size={20} />
-          </ActionIcon>
+          <BackButton fallbackPath="/inventory" title="Back to Inventory" />
           <ProductThumbnail
             sku={item.sku}
             isVariant={false}
@@ -1221,6 +1223,7 @@ export function InventoryDetailPage() {
               )
             }
             onNavigateToAlternate={handleNavigateToAlternate}
+            onContextMenuAlternate={handleContextMenuAlternate}
           />
         </Tabs.Panel>
 

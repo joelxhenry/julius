@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Modal, Stack, Text, Button, Alert, Group, Loader, Textarea, List, ThemeIcon, Badge } from '@mantine/core';
 import { IconAlertTriangle, IconShieldCheck, IconX } from '@tabler/icons-react';
-import { PINInput } from '../auth/PINInput';
+import { EmployeeCredentialFields } from '../auth/EmployeeCredentialFields';
+import { useAuth } from '../../contexts/AuthContext';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 export interface CreditIssue {
@@ -31,27 +32,35 @@ export function AdminOverrideModal({
   clientName,
   creditIssues,
 }: AdminOverrideModalProps) {
-  const [accessCode, setAccessCode] = useState('');
+  const { user } = useAuth();
+  const currentUsername = user?.username ?? null;
+  const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Clear state when modal opens/closes
+  // Reset state when the modal opens, pre-selecting the signed-in user as a
+  // starting point (they can still pick a different admin).
   useEffect(() => {
     if (opened) {
-      setAccessCode('');
+      setSelectedUsername(currentUsername);
+      setPassword('');
       setNotes('');
       setError(null);
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
     }
+    // currentUsername is read once per open; re-running on every session change
+    // would clobber an in-progress selection of a different admin.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   const handleSubmit = useCallback(async () => {
-    if (!accessCode.trim()) {
-      setError('Please enter admin access code');
+    if (!selectedUsername || !password.trim()) {
+      setError('Please select the admin and enter their password');
       return;
     }
 
@@ -59,26 +68,20 @@ export function AdminOverrideModal({
     setError(null);
 
     try {
-      // Verify the access code and check for admin permission
-      const result = await window.electron.invoke(IpcChannel.VERIFY_ACCESS_CODE, {
-        accessCode: accessCode.trim(),
+      // Verify the credentials and check for admin permission
+      const result = await window.electron.invoke(IpcChannel.VERIFY_EMPLOYEE_CREDENTIALS, {
+        username: selectedUsername,
+        password,
       });
-
-
-      console.log('[AdminOverrideModal] Access code verification result:', result);
 
       if (!result.success) {
         setError(result.error || 'Verification failed');
-        setAccessCode('');
-        inputRef.current?.focus();
+        setPassword('');
         return;
       }
 
-      // Check for admin permission
-      const permissions = result.data.permissions as Record<string, boolean> | null;
-      console.log('[AdminOverrideModal] Received permissions:', permissions);
-
       // Check for admin-level permissions (case-insensitive check)
+      const permissions = result.data.permissions as Record<string, boolean> | null;
       const hasAdminPermission =
         permissions?.ADMIN === true ||
         permissions?.admin === true ||
@@ -89,8 +92,7 @@ export function AdminOverrideModal({
 
       if (!hasAdminPermission) {
         setError('This action requires admin privileges (ADMIN or OVERRIDE_CREDIT permission)');
-        setAccessCode('');
-        inputRef.current?.focus();
+        setPassword('');
         return;
       }
 
@@ -102,12 +104,11 @@ export function AdminOverrideModal({
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
-      setAccessCode('');
-      inputRef.current?.focus();
+      setPassword('');
     } finally {
       setIsLoading(false);
     }
-  }, [accessCode, notes, onApproved, onClose]);
+  }, [selectedUsername, password, notes, onApproved, onClose]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -169,15 +170,19 @@ export function AdminOverrideModal({
           </Alert>
         )}
 
-        <PINInput
-          ref={inputRef}
-          value={accessCode}
-          onChange={(e) => setAccessCode(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          error={!!error}
-          placeholder="Admin Access Code"
-        />
+        <div onKeyDown={handleKeyDown}>
+          <EmployeeCredentialFields
+            employeeInputRef={inputRef}
+            employeeLabel="Administrator"
+            selectedUsername={selectedUsername}
+            onSelectUsername={setSelectedUsername}
+            initialEmployee={currentUsername ? { username: currentUsername, firstName: user?.firstName ?? null, lastName: user?.lastName ?? null } : null}
+            password={password}
+            onPasswordChange={setPassword}
+            disabled={isLoading}
+            error={!!error}
+          />
+        </div>
 
         <Textarea
           label="Override Notes (optional)"
@@ -195,7 +200,7 @@ export function AdminOverrideModal({
           <Button
             color="orange"
             onClick={handleSubmit}
-            disabled={isLoading || !accessCode.trim()}
+            disabled={isLoading || !selectedUsername || !password.trim()}
           >
             {isLoading ? <Loader size="xs" color="white" /> : 'Approve Override'}
           </Button>

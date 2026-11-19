@@ -1,6 +1,9 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { Container, Title, Text, Button, Stack, Paper, Code, Group } from '@mantine/core';
 import { IconAlertTriangle, IconRefresh, IconHome } from '@tabler/icons-react';
+import { IpcChannel } from '../../../shared/types/ipc';
+
+const AUTH_STORAGE_KEY = 'turbo-julius-auth';
 
 interface Props {
   children: ReactNode;
@@ -26,6 +29,28 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({ errorInfo });
+
+    // Best-effort report to the main process so it lands in the reviewable
+    // error log. This boundary sits above AuthProvider, so there's no React
+    // context for the current user — read the session straight from storage.
+    try {
+      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+      const user = stored ? JSON.parse(stored)?.user : null;
+      const employeeName = user
+        ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username
+        : undefined;
+
+      window.electron
+        .invoke(IpcChannel.LOG_RENDERER_ERROR, {
+          message: error.message,
+          stack: error.stack,
+          employeeId: user?.id,
+          employeeName,
+        })
+        .catch(() => { /* logging must never compound the crash */ });
+    } catch {
+      // Swallow — telemetry must never break the fallback UI
+    }
   }
 
   handleReload = () => {
@@ -63,12 +88,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
               {this.state.error && (
                 <Paper withBorder p="md" bg="red.0" w="100%">
-                  <Text size="sm" fw={600} mb="xs" c="red.8">
-                    Error Details:
+                  <Text size="sm" c="red.8" ta="center">
+                    This has been logged for review. If it keeps happening, please contact support.
                   </Text>
-                  <Code block c="red.7">
-                    {this.state.error.message}
-                  </Code>
                 </Paper>
               )}
 

@@ -10,6 +10,7 @@ import { seedRecomputeCreditNoteTotals } from './seedRecomputeCreditNoteTotals';
 import { seedReconcileCreditNoteStatus } from './seedReconcileCreditNoteStatus';
 import { seedNormalizeCreditTerms } from './seedNormalizeCreditTerms';
 import { seedRecomputeCreditStanding } from './seedRecomputeCreditStanding';
+import { reportError } from '../services/errorSanitizer';
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -26,7 +27,7 @@ export interface SuperUserConfig {
 const DEFAULT_SUPER_USER: SuperUserConfig = {
   code: 'ADMIN',
   username: 'admin',
-  password: 'admin123',
+  password: 'admin',
   firstName: 'System',
   lastName: 'Administrator',
 };
@@ -141,8 +142,8 @@ export async function runBackgroundSeeds(
       await run();
       report?.({ task, label, status: 'completed' });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Background seed '${task}' failed:`, error);
+      const message = reportError(error, 'Unknown error', `backgroundSeed:${task}`);
       report?.({ task, label, status: 'error', message });
     }
   }

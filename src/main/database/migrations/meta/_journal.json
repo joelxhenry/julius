@@ -185,10 +185,24 @@
       "breakpoints": true
     },
     {
+      "idx": 26,
+      "version": "7",
+      "when": 1794685508891,
+      "tag": "0026_smart_famine",
+      "breakpoints": true
+    },
+    {
       "idx": 27,
       "version": "7",
       "when": 1794839500746,
       "tag": "0027_slimy_doctor_doom",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795058876181,
+      "tag": "0028_natural_stick",
       "breakpoints": true
     }
   ]

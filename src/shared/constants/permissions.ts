@@ -49,6 +49,18 @@ export const PERMISSIONS: PermissionDefinition[] = [
     description: 'Bypasses all permission checks — grants unrestricted access to every feature',
     category: 'Administration',
   },
+  {
+    code: 'VIEW_USER_ACTIVITY',
+    label: 'View User Activity Log',
+    description: 'View the login/logout history of every user',
+    category: 'Administration',
+  },
+  {
+    code: 'VIEW_ERROR_LOGS',
+    label: 'View Error Logs',
+    description: 'View system error logs for troubleshooting',
+    category: 'Administration',
+  },
 
   // ===== Dashboard =====
   {

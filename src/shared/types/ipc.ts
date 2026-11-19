@@ -59,10 +59,8 @@ export enum IpcChannel {
   DELETE_EMPLOYEE = 'db:delete-employee',
   GENERATE_EMPLOYEE_CODE = 'db:generate-employee-code',
   AUTHENTICATE_EMPLOYEE = 'db:authenticate-employee',
-  VERIFY_EMPLOYEE_PIN = 'db:verify-employee-pin',
   UPDATE_EMPLOYEE_PASSWORD = 'db:update-employee-password',
   UPDATE_EMPLOYEE_PERMISSIONS = 'db:update-employee-permissions',
-  RESET_EMPLOYEE_ACCESS_CODE = 'db:reset-employee-access-code',
 
   // Employee activity queries
   GET_EMPLOYEE_INVOICES = 'db:get-employee-invoices',
@@ -153,13 +151,23 @@ export enum IpcChannel {
   // Spotlight search
   SPOTLIGHT_SEARCH = 'db:spotlight-search',
 
-  // Access code verification
-  VERIFY_ACCESS_CODE = 'db:verify-access-code',
-  CHECK_SALESPERSON_ACCESS = 'db:check-salesperson-access',
+  // Employee credential verification (username + password; identifies/authorises an
+  // employee for a one-time action without necessarily changing the signed-in session)
+  VERIFY_EMPLOYEE_CREDENTIALS = 'db:verify-employee-credentials',
 
   // Permission override audit (one-time elevated access grants)
   RECORD_ACCESS_OVERRIDE = 'db:record-access-override',
   GET_ACCESS_OVERRIDES = 'db:get-access-overrides',
+
+  // User session tracking (System User Tracking — login/logout log)
+  RECORD_USER_LOGIN = 'db:record-user-login',
+  RECORD_USER_LOGOUT = 'db:record-user-logout',
+  GET_USER_SESSIONS = 'db:get-user-sessions',
+
+  // Error logging (global error log, reviewable from Settings)
+  GET_ERROR_LOGS = 'db:get-error-logs',
+  MARK_ERROR_LOG_RESOLVED = 'db:mark-error-log-resolved',
+  LOG_RENDERER_ERROR = 'db:log-renderer-error',
 
   // RBAC role operations
   GET_ROLES = 'db:get-roles',

@@ -1,5 +1,4 @@
-import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import * as schema from '../database/schema';
+import { recordError } from '../services/errorSanitizer';
 
 export abstract class BaseController<TService> {
   protected service: TService;
@@ -8,20 +7,25 @@ export abstract class BaseController<TService> {
     this.service = service;
   }
 
-  async handleError(error: any): Promise<{ success: false; error: string }> {
+  /**
+   * Never returns a raw/technical error to the renderer. Known business
+   * errors (short messages deliberately thrown by services) pass through
+   * unchanged; anything else (driver errors, stack traces, etc.) is replaced
+   * with a generic, non-technical message. The full technical detail is
+   * always persisted to the error log (see errorSanitizer.ts), reviewable
+   * from Settings > Error Logs.
+   */
+  async handleError(error: any, context?: string): Promise<{ success: false; error: string; logId?: number }> {
     console.error('Controller error:', error);
-    // Drizzle wraps driver failures in a "Failed query: ..." error and puts the
-    // real reason (e.g. a dropped/timed-out DB connection) on `.cause`. Surface
-    // that underlying cause so the renderer shows why the query failed, not just
-    // the SQL text.
-    const cause = (error as { cause?: unknown })?.cause;
-    const causeMessage =
-      cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : undefined;
-    const baseMessage = error?.message || 'An error occurred';
+    const { safe, userMessage, logId } = await recordError(error, {
+      source: 'ipc',
+      context: context ?? this.constructor.name,
+    });
 
     return {
       success: false,
-      error: causeMessage ? `${baseMessage} (${causeMessage})` : baseMessage,
+      error: !safe && logId ? `${userMessage} (Ref #${logId})` : userMessage,
+      logId,
     };
   }
 

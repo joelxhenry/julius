@@ -37,6 +37,17 @@ export class QuotationService extends BaseService<
     super(db, schema.quotations);
   }
 
+  async create(data: schema.InsertQuotation): Promise<schema.Quotation> {
+    // Generate quote number if not provided
+    if (!data.quoteNum) {
+      const result = await this.db.execute(sql`SELECT nextval('seq_quote_number') as next_num`);
+      const nextNum = (result.rows[0] as any).next_num;
+      data.quoteNum = nextNum.toString();
+    }
+
+    return super.create(data);
+  }
+
   async findPaginated(params: QuotationQueryParams = {}): Promise<PaginatedResult<schema.Quotation>> {
     const {
       page = 1,

@@ -4,14 +4,19 @@ import { IconExternalLink } from '@tabler/icons-react';
 import { useClickOutside } from '@mantine/hooks';
 import { useTabContext } from './TabContext';
 
+// A plain path when known synchronously, or a resolver for rows whose target
+// path requires an async lookup first (e.g. resolving a part/invoice number
+// to an id). A resolver returning null means "not found" — no tab is opened.
+type MenuPath = string | (() => Promise<string | null>);
+
 interface MenuState {
   x: number;
   y: number;
-  path: string;
+  path: MenuPath;
 }
 
 interface NavigationMenuContextValue {
-  requestMenu: (x: number, y: number, path: string) => void;
+  requestMenu: (x: number, y: number, path: MenuPath) => void;
 }
 
 const NavigationMenuContext = createContext<NavigationMenuContextValue | undefined>(undefined);
@@ -67,9 +72,10 @@ function NavigationContextMenu({
     >
       <Stack gap={0}>
         <UnstyledButton
-          onClick={() => {
-            openTab(menu.path);
+          onClick={async () => {
             onClose();
+            const path = typeof menu.path === 'string' ? menu.path : await menu.path();
+            if (path) openTab(path);
           }}
           px="sm"
           py={6}
@@ -89,7 +95,7 @@ function NavigationContextMenu({
 export function NavigationMenuProvider({ children }: { children: React.ReactNode }) {
   const [menu, setMenu] = useState<MenuState | null>(null);
 
-  const requestMenu = useCallback((x: number, y: number, path: string) => {
+  const requestMenu = useCallback((x: number, y: number, path: MenuPath) => {
     setMenu({ x, y, path });
   }, []);
 

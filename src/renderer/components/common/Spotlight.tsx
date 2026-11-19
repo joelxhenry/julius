@@ -1,6 +1,8 @@
 import { Modal, TextInput, Stack, Group, Text, Badge, Loader, Kbd, Paper, UnstyledButton, Box, Center } from '@mantine/core';
 import { IconSearch, IconFileInvoice, IconUser, IconPackage, IconFileText, IconReceipt } from '@tabler/icons-react';
 import { useSpotlight, SpotlightResult } from '../../contexts/SpotlightContext';
+import { useNavigationMenu } from '../../contexts/NavigationMenuContext';
+import { useTabContext } from '../../contexts/TabContext';
 import { CopyButton } from './CopyButton';
 import { MarkButton } from '../tray/MarkButton';
 
@@ -44,13 +46,15 @@ const statusColors: Record<string, string> = {
 interface SpotlightResultItemProps {
   result: SpotlightResult;
   isSelected: boolean;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent) => void;
+  onContextMenu: (event: React.MouseEvent) => void;
 }
 
-function SpotlightResultItem({ result, isSelected, onClick }: SpotlightResultItemProps) {
+function SpotlightResultItem({ result, isSelected, onClick, onContextMenu }: SpotlightResultItemProps) {
   return (
     <UnstyledButton
       onClick={onClick}
+      onContextMenu={onContextMenu}
       w="100%"
       p="sm"
       style={{
@@ -103,6 +107,8 @@ export function Spotlight() {
     setSelectedIndex,
     navigateToResult,
   } = useSpotlight();
+  const { requestMenu } = useNavigationMenu();
+  const { isTabbed } = useTabContext();
 
   return (
     <Modal
@@ -156,10 +162,16 @@ export function Spotlight() {
                     key={`${result.type}-${result.id}`}
                     result={result}
                     isSelected={index === selectedIndex}
-                    onClick={() => {
+                    onClick={(e) => {
                       // Navigate directly using the clicked result
                       // Don't rely on selectedIndex state which updates asynchronously
-                      navigateToResult(result);
+                      navigateToResult(result, e);
+                    }}
+                    onContextMenu={(e) => {
+                      if (!isTabbed(result.url)) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      requestMenu(e.clientX, e.clientY, result.url);
                     }}
                   />
                 ))}

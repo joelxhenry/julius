@@ -219,7 +219,7 @@ export function Header({
                 <Menu.Item
                   color="red"
                   leftSection={<IconLogout size={14} />}
-                  onClick={logout}
+                  onClick={() => logout()}
                 >
                   Logout
                 </Menu.Item>

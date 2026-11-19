@@ -63,6 +63,13 @@ export { ReportService } from './ReportService';
 // Access Overrides (permission audit)
 export { AccessOverrideService, type AccessOverrideQueryParams } from './AccessOverrideService';
 
+// User Sessions (System User Tracking — login/logout log)
+export { UserSessionService, type UserSessionQueryParams } from './UserSessionService';
+
+// Error Logging (global error log + sanitization helpers)
+export { ErrorLogService, type ErrorLogQueryParams } from './ErrorLogService';
+export { sanitizeError, recordError, reportError, type SanitizedError } from './errorSanitizer';
+
 // RBAC Roles
 export { RoleService } from './RoleService';
 

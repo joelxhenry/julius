@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 import {
   Stack,
   Title,
@@ -82,24 +83,26 @@ const formatDate = (dateStr: string) => {
 
 export function InvoicesPage() {
   const { bind, go } = useContentNavigation();
-  const [activeTab, setActiveTab] = useState<string | null>('recent');
-  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
-  const [searchResults, setSearchResults] = useState<Invoice[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoadingRecent, setIsLoadingRecent] = useState(true);
+  const [activeTab, setActiveTab] = useListState<string | null>('invoices:activeTab', 'recent');
+  const [recentInvoices, setRecentInvoices] = useListState<Invoice[]>('invoices:recent', []);
+  const [searchResults, setSearchResults] = useListState<Invoice[]>('invoices:searchResults', []);
+  const [searchQuery, setSearchQuery] = useListState('invoices:query', '');
+  const [isLoadingRecent, setIsLoadingRecent] = useState(() => !wasPersisted('invoices:recent'));
   const [isSearching, setIsSearching] = useState(false);
   const [accessModalOpen, { open: openAccessModal, close: closeAccessModal }] = useDisclosure(false);
-  const [sortField, setSortField] = useState<string>('invDate');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [sortField, setSortField] = useListState<string>('invoices:sortField', 'invDate');
+  const [sortDirection, setSortDirection] = useListState<SortDirection>('invoices:sortDirection', 'desc');
+  const [statusFilter, setStatusFilter] = useListState<string>('invoices:statusFilter', 'all');
+  const [dateRange, setDateRange] = useListState<DateRangeValue>('invoices:dateRange', [null, null]);
   const [startDate, endDate] = dateRange;
+  const skipInitialRecentFetch = useRestoreGuard('invoices:recent');
+  const skipInitialSearch = useRestoreGuard('invoices:searchResults');
 
   // Handle sort change
   const handleSort = useCallback((field: string, direction: SortDirection) => {
     setSortField(field);
     setSortDirection(direction);
-  }, []);
+  }, [setSortField, setSortDirection]);
 
   // Filter invoices by status
   const filteredRecent = useMemo(() => {
@@ -131,11 +134,12 @@ export function InvoicesPage() {
     } finally {
       setIsLoadingRecent(false);
     }
-  }, [sortField, sortDirection, startDate, endDate]);
+  }, [sortField, sortDirection, startDate, endDate, setRecentInvoices]);
 
   useEffect(() => {
+    if (skipInitialRecentFetch()) return;
     loadRecent();
-  }, [loadRecent]);
+  }, [loadRecent, skipInitialRecentFetch]);
 
   // Search invoices
   const searchInvoices = useCallback(async (query: string) => {
@@ -163,16 +167,17 @@ export function InvoicesPage() {
     } finally {
       setIsSearching(false);
     }
-  }, [sortField, sortDirection, startDate, endDate]);
+  }, [sortField, sortDirection, startDate, endDate, setSearchResults]);
 
   const debouncedSearch = useDebouncedCallback(searchInvoices, 400);
 
   // Re-search when sort changes
   useEffect(() => {
+    if (skipInitialSearch()) return;
     if (searchQuery.length >= 2) {
       searchInvoices(searchQuery);
     }
-  }, [sortField, sortDirection, searchInvoices, searchQuery]);
+  }, [sortField, sortDirection, searchInvoices, searchQuery, skipInitialSearch]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -183,7 +188,7 @@ export function InvoicesPage() {
       }
       debouncedSearch(value);
     },
-    [debouncedSearch]
+    [debouncedSearch, setSearchQuery, setActiveTab]
   );
 
   // Handle salesperson verification for new invoice
@@ -396,7 +401,7 @@ export function InvoicesPage() {
         onClose={closeAccessModal}
         onVerified={handleAccessVerified}
         title="Salesperson Verification"
-        description="Enter your access code to create an invoice."
+        description="Search for the salesperson's name and enter their password to create an invoice."
         requiredPermission="CREATE_INVOICE"
       />
     </>

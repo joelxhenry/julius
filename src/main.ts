@@ -5,6 +5,21 @@ import { initDatabase, getConnectionError, getDatabaseOrNull, runBackgroundSeeds
 import { registerIpcHandlers } from './main/ipc/handlers';
 import { initAutoUpdater } from './main/updater/AutoUpdater';
 import { BackupScheduler } from './main/backup/BackupScheduler';
+import { recordError } from './main/services/errorSanitizer';
+
+// Catch anything that slips past local try/catch blocks (anywhere in the main
+// process) so it's captured in the reviewable error log instead of only
+// hitting the console (invisible once packaged) or crashing the app. Log and
+// keep running — exiting here would kill the whole app over one bad request.
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
+  void recordError(error, { source: 'main', context: 'uncaughtException' });
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+  void recordError(reason, { source: 'main', context: 'unhandledRejection' });
+});
 
 // Declare Vite global variables
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;

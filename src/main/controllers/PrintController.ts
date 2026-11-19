@@ -2,6 +2,7 @@ import { PrintService, PrintResult } from '../services/PrintService';
 import { PrintDocumentType, PrintOutputMode, ReceivingReferenceRequest, ClientStatementRequest, PaymentReportRequest, SalesReportPrintRequest, PurchaseReportPrintRequest } from '../../shared/types/print';
 import { LookupTicketRequest } from '../../shared/types/lookupTicket';
 import type { SalesSummaryResult, PurchaseSummaryResult } from '../services/ReportService';
+import { reportError } from '../services/errorSanitizer';
 
 export class PrintController {
   constructor(private printService: PrintService) {}
@@ -9,7 +10,7 @@ export class PrintController {
   private handleError(error: unknown) {
     return {
       success: false as const,
-      error: error instanceof Error ? error.message : 'Unknown print error',
+      error: reportError(error, 'Unknown print error', 'PrintController'),
     };
   }
 

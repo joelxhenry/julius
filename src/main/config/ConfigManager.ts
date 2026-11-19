@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { AppConfig, GoogleDriveConfig, MachineRole } from './types';
+import { reportError } from '../services/errorSanitizer';
 
 export class ConfigManager {
   private configPath: string;
@@ -176,7 +177,7 @@ export class ConfigManager {
       console.log('Configuration saved successfully');
     } catch (error) {
       console.error('Failed to save config:', error);
-      throw new Error(`Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(reportError(error, 'Failed to save configuration.', 'ConfigManager.saveConfig'));
     }
   }
 

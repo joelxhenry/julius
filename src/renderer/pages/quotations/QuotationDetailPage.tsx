@@ -6,12 +6,12 @@ import { useTabParams } from '../../hooks/useTabParams';
 import { Box, Loader, Center, Paper, Stack, Text, ActionIcon, Group, Button, Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconFileInvoice, IconPlus, IconRefresh } from '@tabler/icons-react';
+import { IconFileInvoice, IconPlus, IconRefresh } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { QuotationDetailHeader, QuotationDetailInfoBar, PriceChangeWarningModal } from '../../components/quotations';
 import type { PriceChange } from '../../components/quotations';
 import { InvoiceLineItemsReadOnly } from '../../components/invoices';
-import { LookupTicketButton, PrintButton } from '../../components/common';
+import { LookupTicketButton, PrintButton, BackButton } from '../../components/common';
 import { useTaxRate } from '../../hooks';
 import { usePermissions } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
@@ -535,14 +535,7 @@ export function QuotationDetailPage() {
         {/* Header with Back Button */}
         <Group gap="sm" align="center" wrap="nowrap">
           {fromListing ? (
-            <ActionIcon
-              variant="subtle"
-              size="lg"
-              {...bind('/quotations')}
-              title="Back to Quotations"
-            >
-              <IconArrowLeft size={20} />
-            </ActionIcon>
+            <BackButton fallbackPath="/quotations" title="Back to Quotations" />
           ) : (
             <ActionIcon
               variant="subtle"

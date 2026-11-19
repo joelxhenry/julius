@@ -7,6 +7,7 @@ import * as schema from './schema/index';
 import { ConfigManager } from '../config/ConfigManager';
 import { DatabaseConfig } from '../config/types';
 import { runSeeds, runBackgroundSeeds } from './seed';
+import { reportError } from '../services/errorSanitizer';
 
 export { runBackgroundSeeds } from './seed';
 export type { SeedProgressEvent, SeedProgressStatus, SeedProgressReporter } from './seed';
@@ -173,7 +174,7 @@ export async function testDatabaseConnection(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: reportError(error, 'Connection test failed.', 'testDatabaseConnection'),
     };
   } finally {
     await testPool.end();
@@ -237,7 +238,7 @@ export async function runMigrationsAndSeeds(): Promise<{
     console.error('Error running migrations and seeds:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      message: reportError(error, 'Unknown error occurred', 'runMigrationsAndSeeds'),
       migrationsRan,
       seedsRan,
     };

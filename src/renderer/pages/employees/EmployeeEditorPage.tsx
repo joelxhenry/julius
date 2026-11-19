@@ -8,27 +8,29 @@ import {
   Textarea,
   Button,
   Select,
-  Checkbox,
   NumberInput,
-  Divider,
   Text,
   Loader,
   Alert,
+  Modal,
+  PasswordInput,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft,
   IconDeviceFloppy,
   IconAlertCircle,
   IconCheck,
   IconUser,
   IconPhone,
   IconBriefcase,
+  IconLock,
+  IconShield,
 } from '@tabler/icons-react';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
+import { BackButton } from '../../components/common';
 import { IpcChannel } from '../../../shared/types/ipc';
 
 interface EmployeeFormValues {
@@ -45,6 +47,18 @@ interface EmployeeFormValues {
   isSalesperson: boolean;
   commission: number | null;
   username: string;
+  roleId: string | null;
+}
+
+interface PasswordSetupValues {
+  newPassword: string;
+  confirmPassword: string;
+}
+
+interface Role {
+  id: number;
+  name: string;
+  isSuperAdmin: boolean;
 }
 
 export function EmployeeEditorPage() {
@@ -55,6 +69,12 @@ export function EmployeeEditorPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  const [newEmployeeId, setNewEmployeeId] = useState<number | null>(null);
+  const [newEmployeeName, setNewEmployeeName] = useState('');
+  const [settingPassword, setSettingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const form = useForm<EmployeeFormValues>({
     initialValues: {
@@ -68,14 +88,26 @@ export function EmployeeEditorPage() {
       emergencyContact: '',
       startDate: null,
       status: 'active',
-      isSalesperson: false,
+      isSalesperson: true,
       commission: null,
       username: '',
+      roleId: null,
     },
     validate: {
       code: (value) => (!value ? 'Employee code is required' : null),
       firstName: (value) => (!value ? 'First name is required' : null),
       lastName: (value) => (!value ? 'Last name is required' : null),
+    },
+  });
+
+  const passwordForm = useForm<PasswordSetupValues>({
+    initialValues: {
+      newPassword: '',
+      confirmPassword: '',
+    },
+    validate: {
+      newPassword: (value) => (value.length < 4 ? 'Password must be at least 4 characters' : null),
+      confirmPassword: (value, values) => (value !== values.newPassword ? 'Passwords do not match' : null),
     },
   });
 
@@ -86,6 +118,9 @@ export function EmployeeEditorPage() {
       // Generate a new employee code for new employees
       generateEmployeeCode();
     }
+    window.electron.invoke(IpcChannel.GET_ROLES).then((result) => {
+      if (result.success && result.data) setRoles(result.data);
+    });
   }, [id, isEditing]);
 
   const generateEmployeeCode = async (isInitialLoad = true) => {
@@ -132,6 +167,7 @@ export function EmployeeEditorPage() {
           isSalesperson: employee.isSalesperson || false,
           commission: employee.commission ? parseFloat(employee.commission) : null,
           username: employee.username || '',
+          roleId: employee.roleId != null ? String(employee.roleId) : null,
         });
       } else {
         setError(result.error || 'Failed to load employee');
@@ -162,6 +198,7 @@ export function EmployeeEditorPage() {
         isSalesperson: values.isSalesperson,
         commission: values.commission?.toString() || null,
         username: values.username || null,
+        roleId: values.roleId ? parseInt(values.roleId, 10) : null,
       };
 
       let result;
@@ -181,7 +218,17 @@ export function EmployeeEditorPage() {
           color: 'green',
           icon: <IconCheck size={16} />,
         });
-        go('/employees');
+
+        if (!isEditing && result.data?.id) {
+          // Prompt for a login password for the newly created employee instead
+          // of navigating away immediately.
+          setNewEmployeeId(result.data.id);
+          setNewEmployeeName(`${values.firstName} ${values.lastName}`.trim());
+          passwordForm.reset();
+          setPasswordError(null);
+        } else {
+          go('/employees');
+        }
       } else {
         setError(result.error || 'Failed to save employee');
       }
@@ -189,6 +236,34 @@ export function EmployeeEditorPage() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSetPassword = async (values: PasswordSetupValues) => {
+    if (!newEmployeeId) return;
+    setSettingPassword(true);
+    setPasswordError(null);
+    try {
+      const result = await window.electron.invoke(IpcChannel.UPDATE_EMPLOYEE_PASSWORD, {
+        id: newEmployeeId,
+        newPassword: values.newPassword,
+      });
+      if (result.success) {
+        notifications.show({
+          title: 'Password Set',
+          message: `A login password has been set for ${newEmployeeName}`,
+          color: 'green',
+          icon: <IconCheck size={16} />,
+        });
+        setNewEmployeeId(null);
+        go('/employees');
+      } else {
+        setPasswordError(result.error || 'Failed to set password');
+      }
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setSettingPassword(false);
     }
   };
 
@@ -205,13 +280,7 @@ export function EmployeeEditorPage() {
     <Stack p="xl" gap="lg">
       <Group justify="space-between" align="center">
         <Group>
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            {...bind('/employees')}
-          >
-            Back
-          </Button>
+          <BackButton fallbackPath="/employees" label="Back" />
           <Title order={2}>{isEditing ? 'Edit Employee' : 'Add Employee'}</Title>
         </Group>
       </Group>
@@ -233,19 +302,8 @@ export function EmployeeEditorPage() {
               </Group>
 
               {/* Access code is auto-generated on the backend and managed from the
-                  employee's access page — it is a private credential, not shown here. */}
-              <Group grow>
-                <Select
-                  label="Status"
-                  data={[
-                    { value: 'active', label: 'Active' },
-                    { value: 'inactive', label: 'Inactive' },
-                    { value: 'suspended', label: 'Suspended' },
-                  ]}
-                  {...form.getInputProps('status')}
-                />
-              </Group>
-
+                  employee's access page — it is a private credential, not shown here.
+                  Status is managed from the employee detail page, not this form. */}
               <Group grow>
                 <TextInput
                   label="First Name"
@@ -299,15 +357,15 @@ export function EmployeeEditorPage() {
                 />
               </Group>
 
-              <Divider />
-
-              <Checkbox
-                label="Is Salesperson"
-                description="Check if this employee is a salesperson"
-                {...form.getInputProps('isSalesperson', { type: 'checkbox' })}
-              />
-
-              {form.values.isSalesperson && (
+              <Group grow>
+                <Select
+                  label="Role"
+                  description="Determines the employee's permissions"
+                  placeholder="No role (no access)"
+                  data={roles.map((r) => ({ value: String(r.id), label: r.isSuperAdmin ? `${r.name} (Full access)` : r.name }))}
+                  clearable
+                  {...form.getInputProps('roleId')}
+                />
                 <NumberInput
                   label="Commission Rate (%)"
                   placeholder="e.g., 5"
@@ -316,7 +374,7 @@ export function EmployeeEditorPage() {
                   decimalScale={2}
                   {...form.getInputProps('commission')}
                 />
-              )}
+              </Group>
             </Stack>
           </Paper>
 
@@ -367,6 +425,69 @@ export function EmployeeEditorPage() {
           </Group>
         </Stack>
       </form>
+
+      {/* Prompt for a login password right after the employee is created */}
+      <Modal
+        opened={newEmployeeId !== null}
+        onClose={() => {
+          setNewEmployeeId(null);
+          go('/employees');
+        }}
+        withCloseButton={false}
+        closeOnClickOutside={false}
+        closeOnEscape={false}
+        title={
+          <Group gap="xs">
+            <IconShield size={18} />
+            <Text fw={600}>Set a Login Password</Text>
+          </Group>
+        }
+        centered
+      >
+        <form onSubmit={passwordForm.onSubmit(handleSetPassword)}>
+          <Stack gap="md">
+            <Text size="sm" c="dimmed">
+              Set a login password for <strong>{newEmployeeName}</strong>. They will use this with their username to sign in.
+            </Text>
+
+            {passwordError && (
+              <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+                {passwordError}
+              </Alert>
+            )}
+
+            <PasswordInput
+              label="New Password"
+              placeholder="Enter a password"
+              leftSection={<IconLock size={16} />}
+              required
+              {...passwordForm.getInputProps('newPassword')}
+            />
+            <PasswordInput
+              label="Confirm Password"
+              placeholder="Re-enter the password"
+              leftSection={<IconLock size={16} />}
+              required
+              {...passwordForm.getInputProps('confirmPassword')}
+            />
+
+            <Group justify="flex-end">
+              <Button
+                variant="subtle"
+                onClick={() => {
+                  setNewEmployeeId(null);
+                  go('/employees');
+                }}
+              >
+                Skip for Now
+              </Button>
+              <Button type="submit" leftSection={<IconDeviceFloppy size={16} />} loading={settingPassword}>
+                Set Password
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
     </Stack>
   );
 }

@@ -27,6 +27,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { PermissionButton, usePermissions } from '../../permissions';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 
 interface Client {
   id: number;
@@ -51,15 +52,17 @@ interface PaginatedResult {
 export function ClientsPage() {
   const { bind, go } = useContentNavigation();
   const { runWithPermission } = usePermissions();
-  const [loading, setLoading] = useState(true);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(() => !wasPersisted('clients:clients'));
+  const [clients, setClients] = useListState<Client[]>('clients:clients', []);
+  const [total, setTotal] = useListState('clients:total', 0);
+  const [page, setPage] = useListState('clients:page', 1);
+  const [totalPages, setTotalPages] = useListState('clients:totalPages', 1);
+  const [search, setSearch] = useListState('clients:search', '');
   const [debouncedSearch] = useDebouncedValue(search, 300);
-  const [badCreditOnly, setBadCreditOnly] = useState(false);
-  const [taxableOnly, setTaxableOnly] = useState(false);
+  const [badCreditOnly, setBadCreditOnly] = useListState('clients:badCreditOnly', false);
+  const [taxableOnly, setTaxableOnly] = useListState('clients:taxableOnly', false);
+  const skipInitialFetch = useRestoreGuard('clients:clients');
+  const skipInitialPageReset = useRestoreGuard('clients:clients');
 
   const pageSize = 20;
 
@@ -93,16 +96,18 @@ export function ClientsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, badCreditOnly, taxableOnly]);
+  }, [page, pageSize, debouncedSearch, badCreditOnly, taxableOnly, setClients, setTotal, setTotalPages]);
 
   useEffect(() => {
+    if (skipInitialFetch()) return;
     fetchClients();
-  }, [fetchClients]);
+  }, [fetchClients, skipInitialFetch]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
+    if (skipInitialPageReset()) return;
     setPage(1);
-  }, [debouncedSearch, badCreditOnly, taxableOnly]);
+  }, [debouncedSearch, badCreditOnly, taxableOnly, skipInitialPageReset, setPage]);
 
   // Sensitive action: if the user lacks DELETE_CLIENT, another authorised user
   // can approve it once (recorded), then the identity reverts to the current user.

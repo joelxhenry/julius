@@ -43,6 +43,10 @@ import {
   SystemSettingsService,
   AccessOverrideService,
   RoleService,
+  UserSessionService,
+  ErrorLogService,
+  reportError,
+  sanitizeError,
 } from '../services';
 import { PaymentTransactionService, ProcessInvoicePaymentParams, VoidPaymentParams, RefundInvoiceParams, CashOutCreditNoteParams, ProcessClientBulkPaymentParams } from '../services/PaymentTransactionService';
 import { ImageStorageService } from '../services/ImageStorageService';
@@ -81,9 +85,11 @@ import {
   SystemSettingsController,
   AccessOverrideController,
   RoleController,
+  UserSessionController,
   PrintController,
   ReportController,
   ExportController,
+  ErrorLogController,
 } from '../controllers';
 
 import { DatabaseSettingsService } from '../services/DatabaseSettingsService';
@@ -107,7 +113,8 @@ function removeDataHandlers() {
       !channel.startsWith('db:test-connection') &&
       !channel.startsWith('db:reconnect') &&
       !channel.startsWith('db:check-status') &&
-      !channel.startsWith('db:run-migrations-and-seeds')) {
+      !channel.startsWith('db:run-migrations-and-seeds') &&
+      !channel.startsWith('db:log-renderer-error')) {
       removeHandler(channel as IpcChannel);
     }
   });
@@ -144,11 +151,14 @@ export function registerIpcHandlers() {
           return { success: true };
         }
         const error = getConnectionError();
-        return { success: false, error: error?.message || 'Connection failed' };
+        return {
+          success: false,
+          error: error ? reportError(error, 'Connection failed', 'RECONNECT_DATABASE') : 'Connection failed',
+        };
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: reportError(error, 'Unknown error', 'RECONNECT_DATABASE'),
         };
       }
     });
@@ -158,7 +168,7 @@ export function registerIpcHandlers() {
       const error = getConnectionError();
       return {
         connected: db !== null,
-        error: error?.message || null,
+        error: error ? reportError(error, 'Could not connect to the database.', 'CHECK_DATABASE_STATUS') : null,
       };
     });
 
@@ -169,7 +179,7 @@ export function registerIpcHandlers() {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: reportError(error, 'Unknown error', 'RUN_MIGRATIONS_AND_SEEDS'),
         };
       }
     });
@@ -192,8 +202,34 @@ export function registerIpcHandlers() {
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to complete setup',
+          error: reportError(error, 'Failed to complete setup', 'SETUP_COMPLETE'),
         };
+      }
+    });
+
+    // Always available (works even before the DB connects) so the renderer's
+    // error boundary can report crashes for later developer review.
+    ipcMain.handle(IpcChannel.LOG_RENDERER_ERROR, async (_, payload: { message: string; stack?: string; employeeId?: number; employeeName?: string }) => {
+      const svc = ErrorLogService.getInstance();
+      if (!svc) {
+        console.error('Renderer error (no DB, not persisted):', payload?.message, payload?.stack);
+        return { success: true };
+      }
+      try {
+        const sanitized = sanitizeError(new Error(payload?.message || 'Unknown renderer error'));
+        const log = await svc.log({
+          source: 'renderer',
+          context: 'ErrorBoundary',
+          userMessage: sanitized.userMessage,
+          technicalMessage: payload?.stack || sanitized.technicalMessage,
+          stack: payload?.stack,
+          employeeId: payload?.employeeId,
+          employeeName: payload?.employeeName,
+        });
+        return { success: true, data: { logId: log.id } };
+      } catch (error) {
+        console.error('Failed to log renderer error:', error);
+        return { success: true };
       }
     });
 
@@ -283,6 +319,12 @@ function registerDataHandlers() {
     return;
   }
 
+  // Register the error log service first so every other controller's
+  // handleError() can persist errors from the moment they're constructed.
+  const errorLogService = new ErrorLogService(db);
+  ErrorLogService.setInstance(errorLogService);
+  const errorLogController = new ErrorLogController(errorLogService);
+
   // Initialize services
   const branchService = new BranchService(db);
   const categoryService = new CategoryService(db);
@@ -313,6 +355,7 @@ function registerDataHandlers() {
   const systemSettingsService = new SystemSettingsService(db);
   const accessOverrideService = new AccessOverrideService(db);
   const roleService = new RoleService(db);
+  const userSessionService = new UserSessionService(db);
   const paymentTransactionService = new PaymentTransactionService(db, paymentService, invoiceService, creditNoteService);
   const imageStorageService = new ImageStorageService();
   // Initialize system settings defaults and then storage from settings
@@ -363,6 +406,7 @@ function registerDataHandlers() {
   const systemSettingsController = new SystemSettingsController(systemSettingsService);
   const accessOverrideController = new AccessOverrideController(accessOverrideService);
   const roleController = new RoleController(roleService);
+  const userSessionController = new UserSessionController(userSessionService);
   const printController = new PrintController(printService);
 
   // ===== BRANCH HANDLERS =====
@@ -408,7 +452,7 @@ function registerDataHandlers() {
       const data = await supplierService.searchForSelect(query, limit);
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: reportError(error, 'Unknown error') };
     }
   });
   ipcMain.handle(IpcChannel.CREATE_SUPPLIER, (_, data: any) => supplierController.create(data));
@@ -426,16 +470,14 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.GET_ACTIVE_EMPLOYEES, () => employeeController.getActive());
   ipcMain.handle(IpcChannel.GET_SALESPEOPLE, () => employeeController.getSalespeople());
   ipcMain.handle(IpcChannel.SEARCH_EMPLOYEES, (_, { query }: { query: string }) => employeeController.search(query));
-  ipcMain.handle(IpcChannel.SEARCH_EMPLOYEES_FOR_SELECT, (_, { query, limit, activeOnly }: { query: string; limit?: number; activeOnly?: boolean }) => employeeController.searchForSelect(query, limit, activeOnly));
+  ipcMain.handle(IpcChannel.SEARCH_EMPLOYEES_FOR_SELECT, (_, { query, limit, activeOnly, requireUsername }: { query: string; limit?: number; activeOnly?: boolean; requireUsername?: boolean }) => employeeController.searchForSelect(query, limit, activeOnly, requireUsername));
   ipcMain.handle(IpcChannel.CREATE_EMPLOYEE, (_, data: any) => employeeController.create(data));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE, (_, { id, data }: any) => employeeController.update(id, data));
   ipcMain.handle(IpcChannel.DELETE_EMPLOYEE, (_, { id }: { id: number }) => employeeController.delete(id));
   ipcMain.handle(IpcChannel.GENERATE_EMPLOYEE_CODE, () => employeeController.generateNextCode());
   ipcMain.handle(IpcChannel.AUTHENTICATE_EMPLOYEE, (_, { username, password }: { username: string; password: string }) => employeeController.authenticate(username, password));
-  ipcMain.handle(IpcChannel.VERIFY_EMPLOYEE_PIN, (_, { pin }: { pin: string }) => employeeController.verifyPin(pin));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PASSWORD, (_, { id, newPassword }: { id: number; newPassword: string }) => employeeController.updatePassword(id, newPassword));
   ipcMain.handle(IpcChannel.UPDATE_EMPLOYEE_PERMISSIONS, (_, { id, permissions }: { id: number; permissions: Record<string, any> }) => employeeController.updatePermissions(id, permissions));
-  ipcMain.handle(IpcChannel.RESET_EMPLOYEE_ACCESS_CODE, (_, { id }: { id: number }) => employeeController.resetAccessCode(id));
 
   // ===== EMPLOYEE ACTIVITY HANDLERS =====
   ipcMain.handle(IpcChannel.GET_EMPLOYEE_INVOICES, (_, { employeeId, ...params }: { employeeId: number; page?: number; pageSize?: number; startDate?: string; endDate?: string }) => employeeController.getEmployeeInvoices(employeeId, params));
@@ -561,7 +603,7 @@ function registerDataHandlers() {
         const data = await invoiceService.findRecentInvoices(limit, sortField, sortDirection, startDate, endDate);
         return { success: true, data };
       } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: reportError(error, 'Unknown error') };
       }
     }
   );
@@ -570,7 +612,7 @@ function registerDataHandlers() {
       const data = await invoiceService.findOverdueInvoices(creditTermsDays);
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: reportError(error, 'Unknown error') };
     }
   });
   ipcMain.handle(
@@ -580,7 +622,7 @@ function registerDataHandlers() {
         const data = await invoiceService.searchInvoices(query, limit, sortField, sortDirection, startDate, endDate);
         return { success: true, data };
       } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: reportError(error, 'Unknown error') };
       }
     }
   );
@@ -631,7 +673,7 @@ function registerDataHandlers() {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create invoice with payment',
+        error: reportError(error, 'Failed to create invoice with payment'),
       };
     }
   });
@@ -642,75 +684,48 @@ function registerDataHandlers() {
       const data = await spotlightService.search(params);
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: reportError(error, 'Unknown error') };
     }
   });
 
-  // ===== ACCESS CODE VERIFICATION HANDLERS =====
-  ipcMain.handle(IpcChannel.VERIFY_ACCESS_CODE, async (_, { accessCode }: { accessCode: string }) => {
+  // ===== EMPLOYEE CREDENTIAL VERIFICATION HANDLERS =====
+  // Identifies/authorises an employee by username + password for a one-time
+  // action (elevation, financial confirmation, admin/stock override) WITHOUT
+  // switching the signed-in session. Replaces the old access-code/PIN flow.
+  ipcMain.handle(IpcChannel.VERIFY_EMPLOYEE_CREDENTIALS, async (_, { username, password }: { username: string; password: string }) => {
     try {
-      // Find employee by code column
-      const employee = await employeeService.findByCode(accessCode);
-
-      if (!employee) {
-        return { success: false, error: 'Invalid access code' };
+      const result = await employeeService.authenticate(username, password);
+      if (!result.success || !result.employee) {
+        return { success: false, error: result.error || 'Invalid username or password' };
       }
 
-      // Resolve effective (role-based + super-admin) permissions so an authoriser's
-      // rights reflect their assigned role, not just direct overrides.
-      const { permissions } = await employeeService.resolveEffectivePermissions(employee);
-
+      const employee = result.employee;
       return {
         success: true,
         data: {
           employeeId: employee.id,
           employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.username || `Employee #${employee.id}`,
           isSalesperson: employee.isSalesperson,
-          permissions,
+          permissions: employee.permissions as Record<string, boolean> | null,
         },
       };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  });
-
-  ipcMain.handle(IpcChannel.CHECK_SALESPERSON_ACCESS, async (_, { accessCode }: { accessCode: string }) => {
-    try {
-      // Find employee by code column
-      const employee = await employeeService.findByCode(accessCode);
-
-      if (!employee) {
-        return { success: false, error: 'Invalid access code' };
-      }
-
-      if (!employee.isSalesperson) {
-        return { success: false, error: 'Access code does not belong to a salesperson' };
-      }
-
-      // Check for CREATE_INVOICE permission
-      const permissions = employee.permissions as Record<string, boolean> | null;
-      const canCreateInvoice = permissions?.CREATE_INVOICE ?? false;
-
-      if (!canCreateInvoice) {
-        return { success: false, error: 'Employee does not have permission to create invoices' };
-      }
-
-      return {
-        success: true,
-        data: {
-          employeeId: employee.id,
-          employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || employee.username || `Employee #${employee.id}`,
-          isSalesperson: true,
-        },
-      };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: reportError(error, 'Unknown error') };
     }
   });
 
   // ===== PERMISSION OVERRIDE AUDIT HANDLERS =====
   ipcMain.handle(IpcChannel.RECORD_ACCESS_OVERRIDE, (_, data: any) => accessOverrideController.record(data));
   ipcMain.handle(IpcChannel.GET_ACCESS_OVERRIDES, (_, params: any = {}) => accessOverrideController.getRecent(params));
+
+  // ===== USER SESSION (LOGIN/LOGOUT) TRACKING HANDLERS =====
+  ipcMain.handle(IpcChannel.RECORD_USER_LOGIN, (_, data: any) => userSessionController.recordLogin(data));
+  ipcMain.handle(IpcChannel.RECORD_USER_LOGOUT, (_, { id, reason }: { id: number; reason?: 'manual' | 'idle_timeout' }) => userSessionController.recordLogout(id, reason));
+  ipcMain.handle(IpcChannel.GET_USER_SESSIONS, (_, params: any = {}) => userSessionController.getPaginated(params));
+
+  // ===== ERROR LOG HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_ERROR_LOGS, (_, params: any = {}) => errorLogController.getPaginated(params));
+  ipcMain.handle(IpcChannel.MARK_ERROR_LOG_RESOLVED, (_, { id, resolvedBy }: { id: number; resolvedBy: string }) => errorLogController.markResolved(id, resolvedBy));
 
   // ===== RBAC ROLE HANDLERS =====
   ipcMain.handle(IpcChannel.GET_ROLES, () => roleController.getAll());
@@ -726,7 +741,7 @@ function registerDataHandlers() {
       const data = await creditCheckService.checkClientCredit(clientId);
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: reportError(error, 'Unknown error') };
     }
   });
 
@@ -735,7 +750,7 @@ function registerDataHandlers() {
       const data = await creditCheckService.getClientArrearsInfo(clientId);
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: reportError(error, 'Unknown error') };
     }
   });
 
@@ -758,7 +773,7 @@ function registerDataHandlers() {
       const data = await quotationService.findRecentQuotations(limit);
       return { success: true, data };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { success: false, error: reportError(error, 'Unknown error') };
     }
   });
 
@@ -782,7 +797,7 @@ function registerDataHandlers() {
         await creditNoteService.restoreInventoryForCreditNote(crNumber, lineItems, crDate);
         return { success: true };
       } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Failed to restore inventory' };
+        return { success: false, error: reportError(error, 'Failed to restore inventory') };
       }
     }
   );
@@ -793,7 +808,7 @@ function registerDataHandlers() {
         await creditNoteService.restoreInventoryForCreditNote(invNumber, lineItems, returnDate, 'RETURN');
         return { success: true };
       } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : 'Failed to process return' };
+        return { success: false, error: reportError(error, 'Failed to process return') };
       }
     }
   );
@@ -883,7 +898,7 @@ function registerDataHandlers() {
       const result = await paymentTransactionService.processInvoicePayment(params);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Payment processing failed' };
+      return { success: false, error: reportError(error, 'Payment processing failed') };
     }
   });
 
@@ -892,7 +907,7 @@ function registerDataHandlers() {
       const result = await paymentTransactionService.voidPayment(params);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Payment voiding failed' };
+      return { success: false, error: reportError(error, 'Payment voiding failed') };
     }
   });
 
@@ -901,7 +916,7 @@ function registerDataHandlers() {
       const result = await paymentTransactionService.refundInvoicePayment(params);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Refund processing failed' };
+      return { success: false, error: reportError(error, 'Refund processing failed') };
     }
   });
 
@@ -910,7 +925,7 @@ function registerDataHandlers() {
       const result = await paymentTransactionService.cashOutCreditNote(params);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Credit note refund failed' };
+      return { success: false, error: reportError(error, 'Credit note refund failed') };
     }
   });
 
@@ -919,7 +934,7 @@ function registerDataHandlers() {
       const creditNotes = await paymentTransactionService.getAvailableCreditNotes(clientId);
       return { success: true, data: creditNotes };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get available credit notes' };
+      return { success: false, error: reportError(error, 'Failed to get available credit notes') };
     }
   });
 
@@ -928,7 +943,7 @@ function registerDataHandlers() {
       const creditNotes = await paymentTransactionService.getAvailableCreditNotesByNumber(query);
       return { success: true, data: creditNotes };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to search credit notes' };
+      return { success: false, error: reportError(error, 'Failed to search credit notes') };
     }
   });
 
@@ -937,7 +952,7 @@ function registerDataHandlers() {
       const invoices = await paymentTransactionService.getClientOutstandingInvoices(clientId);
       return { success: true, data: invoices };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get outstanding invoices' };
+      return { success: false, error: reportError(error, 'Failed to get outstanding invoices') };
     }
   });
 
@@ -946,7 +961,7 @@ function registerDataHandlers() {
       const result = await paymentTransactionService.processClientBulkPayment(params);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Payment processing failed' };
+      return { success: false, error: reportError(error, 'Payment processing failed') };
     }
   });
 
@@ -1012,7 +1027,7 @@ function registerDataHandlers() {
       const result = imageStorageService.validateStoragePath(path);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to validate storage path' };
+      return { success: false, error: reportError(error, 'Failed to validate storage path') };
     }
   });
 
@@ -1021,7 +1036,7 @@ function registerDataHandlers() {
       imageStorageService.reinitialize(type, path);
       return { success: true, data: imageStorageService.getStorageInfo() };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to reinitialize storage' };
+      return { success: false, error: reportError(error, 'Failed to reinitialize storage') };
     }
   });
 
@@ -1030,7 +1045,7 @@ function registerDataHandlers() {
       const info = imageStorageService.getStorageInfo();
       return { success: true, data: info };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get storage info' };
+      return { success: false, error: reportError(error, 'Failed to get storage info') };
     }
   });
 
@@ -1053,7 +1068,7 @@ function registerDataHandlers() {
       return { success: true, data: result };
     } catch (error) {
       console.error(`[IPC] UPLOAD_INVENTORY_IMAGE: Error`, error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to upload image' };
+      return { success: false, error: reportError(error, 'Failed to upload image') };
     }
   });
 
@@ -1062,7 +1077,7 @@ function registerDataHandlers() {
       const result = await inventoryImageService.deleteImage(imageId);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete image' };
+      return { success: false, error: reportError(error, 'Failed to delete image') };
     }
   });
 
@@ -1071,7 +1086,7 @@ function registerDataHandlers() {
       const images = await inventoryImageService.getImagesForSku(sku, isVariant);
       return { success: true, data: images };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get images' };
+      return { success: false, error: reportError(error, 'Failed to get images') };
     }
   });
 
@@ -1080,7 +1095,7 @@ function registerDataHandlers() {
       const images = await inventoryImageService.getImagesWithBase64(sku, isVariant);
       return { success: true, data: images };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get images with data' };
+      return { success: false, error: reportError(error, 'Failed to get images with data') };
     }
   });
 
@@ -1089,7 +1104,7 @@ function registerDataHandlers() {
       const thumbnail = await inventoryImageService.getPrimaryThumbnail(sku, isVariant);
       return { success: true, data: thumbnail };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get primary thumbnail' };
+      return { success: false, error: reportError(error, 'Failed to get primary thumbnail') };
     }
   });
 
@@ -1103,7 +1118,7 @@ function registerDataHandlers() {
       });
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get thumbnails batch' };
+      return { success: false, error: reportError(error, 'Failed to get thumbnails batch') };
     }
   });
 
@@ -1112,7 +1127,7 @@ function registerDataHandlers() {
       const result = await inventoryImageService.setPrimaryImage(imageId);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to set primary image' };
+      return { success: false, error: reportError(error, 'Failed to set primary image') };
     }
   });
 
@@ -1121,7 +1136,7 @@ function registerDataHandlers() {
       await inventoryImageService.reorderImages(imageIds);
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to reorder images' };
+      return { success: false, error: reportError(error, 'Failed to reorder images') };
     }
   });
 
@@ -1130,7 +1145,7 @@ function registerDataHandlers() {
       const base64 = inventoryImageService.getImageBase64(relativePath);
       return { success: true, data: base64 };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get image file' };
+      return { success: false, error: reportError(error, 'Failed to get image file') };
     }
   });
 
@@ -1139,7 +1154,7 @@ function registerDataHandlers() {
       const result = await inventoryImageService.getAllProductImages(mainSku, variantSkus);
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get all product images' };
+      return { success: false, error: reportError(error, 'Failed to get all product images') };
     }
   });
 
@@ -1183,7 +1198,7 @@ function registerDataHandlers() {
       });
       return printController.printSalesReport(params, data);
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to print sales report' };
+      return { success: false, error: reportError(error, 'Failed to print sales report') };
     }
   });
   ipcMain.handle(IpcChannel.PRINT_PURCHASE_REPORT, async (_, params: PurchaseReportPrintRequest) => {
@@ -1191,7 +1206,7 @@ function registerDataHandlers() {
       const data = await reportService.getPurchaseSummary({ year: params.year });
       return printController.printPurchaseReport(params, data);
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to print purchase report' };
+      return { success: false, error: reportError(error, 'Failed to print purchase report') };
     }
   });
 

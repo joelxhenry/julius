@@ -23,7 +23,6 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft,
   IconDotsVertical,
   IconArchive,
   IconFileInvoice,
@@ -34,7 +33,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import { IpcChannel } from '../../../shared/types/ipc';
-import { PrintButton, DataTable, Column } from '../../components/common';
+import { PrintButton, DataTable, Column, BackButton } from '../../components/common';
 import { CreditNoteRefundModal } from '../../components/invoices';
 
 interface CreditNote {
@@ -121,7 +120,7 @@ const formatDate = (dateStr: string | null) => {
 export function CreditNoteDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const location = useLocation();
-  const { updateTabTitle, openTab } = useTabContext();
+  const { updateTabTitle, replaceCurrentTab } = useTabContext();
   const { go, bind } = useContentNavigation();
   const { runWithPermission } = usePermissions();
   const [creditNote, setCreditNote] = useState<CreditNote | null>(null);
@@ -238,11 +237,11 @@ export function CreditNoteDetailPage() {
     if (!invNumber) return;
     const res = await window.electron.invoke(IpcChannel.GET_INVOICE_BY_NUMBER, { invNumber });
     if (res.success && res.data) {
-      openTab(`/invoices/${res.data.id}`);
+      replaceCurrentTab(`/invoices/${res.data.id}`);
     } else {
       notifications.show({ title: 'Invoice Not Found', message: `Invoice ${invNumber} could not be found`, color: 'orange' });
     }
-  }, [openTab]);
+  }, [replaceCurrentTab]);
 
   // Match each positive application to a void reversal so we can strike it through.
   const voidedIds = useMemo(() => {
@@ -352,14 +351,7 @@ export function CreditNoteDetailPage() {
     <Box style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: 8 }}>
       {/* Header with Back Button */}
       <Group gap="sm" align="center" wrap="nowrap">
-        <ActionIcon
-          variant="subtle"
-          size="lg"
-          {...bind('/credit-notes')}
-          title="Back to Credit Notes"
-        >
-          <IconArrowLeft size={20} />
-        </ActionIcon>
+        <BackButton fallbackPath="/credit-notes" title="Back to Credit Notes" />
         <Box style={{ flex: 1 }}>
           <Paper withBorder p="xs" radius="md" style={{ height: 50 }}>
             <Group justify="space-between" wrap="nowrap" h="100%">

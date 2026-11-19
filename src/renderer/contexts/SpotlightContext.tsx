@@ -24,7 +24,7 @@ interface SpotlightContextValue {
   selectedIndex: number;
   setSelectedIndex: (index: number) => void;
   navigateToSelected: () => void;
-  navigateToResult: (result: SpotlightResult) => void;
+  navigateToResult: (result: SpotlightResult, event?: React.MouseEvent) => void;
   moveUp: () => void;
   moveDown: () => void;
 }
@@ -33,12 +33,21 @@ const SpotlightContext = createContext<SpotlightContextValue | null>(null);
 
 interface SpotlightProviderProps {
   children: React.ReactNode;
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, event?: React.MouseEvent) => void;
 }
 
 export function SpotlightProvider({ children, onNavigate }: SpotlightProviderProps) {
   const defaultNavigate = useNavigate();
-  const navigate = onNavigate || defaultNavigate;
+  const navigate = useCallback(
+    (path: string, event?: React.MouseEvent) => {
+      if (onNavigate) {
+        onNavigate(path, event);
+      } else {
+        defaultNavigate(path);
+      }
+    },
+    [onNavigate, defaultNavigate]
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQueryState] = useState('');
   const [results, setResults] = useState<SpotlightResult[]>([]);
@@ -98,8 +107,8 @@ export function SpotlightProvider({ children, onNavigate }: SpotlightProviderPro
     debouncedSearch(newQuery);
   }, [debouncedSearch]);
 
-  const navigateToResult = useCallback((result: SpotlightResult) => {
-    navigate(result.url);
+  const navigateToResult = useCallback((result: SpotlightResult, event?: React.MouseEvent) => {
+    navigate(result.url, event);
     close();
   }, [navigate, close]);
 

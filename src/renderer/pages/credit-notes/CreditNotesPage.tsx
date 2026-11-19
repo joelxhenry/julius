@@ -20,6 +20,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { DataTable, Column, SortDirection } from '../../components/common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 
 interface CreditNote {
   id: number;
@@ -70,22 +71,24 @@ const statusFilterParams = (statusFilter: string) => {
 
 export function CreditNotesPage() {
   const { bind } = useContentNavigation();
-  const [activeTab, setActiveTab] = useState<string | null>('recent');
-  const [recentNotes, setRecentNotes] = useState<CreditNote[]>([]);
-  const [searchResults, setSearchResults] = useState<CreditNote[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoadingRecent, setIsLoadingRecent] = useState(true);
+  const [activeTab, setActiveTab] = useListState<string | null>('creditNotes:activeTab', 'recent');
+  const [recentNotes, setRecentNotes] = useListState<CreditNote[]>('creditNotes:recent', []);
+  const [searchResults, setSearchResults] = useListState<CreditNote[]>('creditNotes:searchResults', []);
+  const [searchQuery, setSearchQuery] = useListState('creditNotes:query', '');
+  const [isLoadingRecent, setIsLoadingRecent] = useState(() => !wasPersisted('creditNotes:recent'));
   const [isSearching, setIsSearching] = useState(false);
-  const [sortField, setSortField] = useState<string>('crDate');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [sortField, setSortField] = useListState<string>('creditNotes:sortField', 'crDate');
+  const [sortDirection, setSortDirection] = useListState<SortDirection>('creditNotes:sortDirection', 'desc');
+  const [statusFilter, setStatusFilter] = useListState<string>('creditNotes:statusFilter', 'all');
+  const [dateRange, setDateRange] = useListState<DateRangeValue>('creditNotes:dateRange', [null, null]);
   const [startDate, endDate] = dateRange;
+  const skipInitialRecentFetch = useRestoreGuard('creditNotes:recent');
+  const skipInitialSearch = useRestoreGuard('creditNotes:searchResults');
 
   const handleSort = useCallback((field: string, direction: SortDirection) => {
     setSortField(field);
     setSortDirection(direction);
-  }, []);
+  }, [setSortField, setSortDirection]);
 
   // Load recent credit notes
   const loadRecent = useCallback(async () => {
@@ -108,11 +111,12 @@ export function CreditNotesPage() {
     } finally {
       setIsLoadingRecent(false);
     }
-  }, [sortField, sortDirection, statusFilter, startDate, endDate]);
+  }, [sortField, sortDirection, statusFilter, startDate, endDate, setRecentNotes]);
 
   useEffect(() => {
+    if (skipInitialRecentFetch()) return;
     loadRecent();
-  }, [loadRecent]);
+  }, [loadRecent, skipInitialRecentFetch]);
 
   // Search credit notes
   const searchNotes = useCallback(
@@ -143,16 +147,17 @@ export function CreditNotesPage() {
         setIsSearching(false);
       }
     },
-    [sortField, sortDirection, statusFilter, startDate, endDate]
+    [sortField, sortDirection, statusFilter, startDate, endDate, setSearchResults]
   );
 
   const debouncedSearch = useDebouncedCallback(searchNotes, 400);
 
   useEffect(() => {
+    if (skipInitialSearch()) return;
     if (searchQuery.length >= 2) {
       searchNotes(searchQuery);
     }
-  }, [sortField, sortDirection, statusFilter, startDate, endDate, searchNotes, searchQuery]);
+  }, [sortField, sortDirection, statusFilter, startDate, endDate, searchNotes, searchQuery, skipInitialSearch]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -163,7 +168,7 @@ export function CreditNotesPage() {
       }
       debouncedSearch(value);
     },
-    [debouncedSearch]
+    [debouncedSearch, setSearchQuery, setActiveTab]
   );
 
   const baseColumns: Column<CreditNote>[] = useMemo(

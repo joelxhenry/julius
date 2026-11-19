@@ -19,6 +19,7 @@ import { DataTable, Column } from '../../components/common/DataTable';
 import { NewListModal } from '../../components/lists';
 import { usePermissions } from '../../permissions';
 import { productListsApi } from '../../hooks/useProductLists';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 import type {
   ProductListStatus,
   ProductListWithCount,
@@ -36,10 +37,11 @@ const formatDate = (value: string | Date) =>
 export function ProductListsPage() {
   const { go } = useContentNavigation();
   const { can } = usePermissions();
-  const [filter, setFilter] = useState<'all' | ProductListStatus>('all');
-  const [lists, setLists] = useState<ProductListWithCount[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useListState<'all' | ProductListStatus>('productLists:filter', 'all');
+  const [lists, setLists] = useListState<ProductListWithCount[]>('productLists:lists', []);
+  const [loading, setLoading] = useState(() => !wasPersisted('productLists:lists'));
   const [newOpened, { open: openNew, close: closeNew }] = useDisclosure(false);
+  const skipInitialFetch = useRestoreGuard('productLists:lists');
 
   const canManage = can('MANAGE_PRODUCT_LISTS');
   const canDelete = can('DELETE_PRODUCT_LIST');
@@ -58,11 +60,12 @@ export function ProductListsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, setLists]);
 
   useEffect(() => {
+    if (skipInitialFetch()) return;
     load();
-  }, [load]);
+  }, [load, skipInitialFetch]);
 
   const handleDelete = useCallback(
     (list: ProductListWithCount) => {

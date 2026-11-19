@@ -15,8 +15,8 @@ interface AuthContextType {
   isSessionValid: boolean;
   idleTimeout: number;
   login: (username: string, password: string) => Promise<void>;
-  verifyPin: (code: string) => Promise<SafeEmployee>;
-  logout: () => void;
+  verifyCredentials: (username: string, password: string) => Promise<SafeEmployee>;
+  logout: (reason?: 'manual' | 'idle_timeout') => void;
   hasPermission: (permissionCode: string) => boolean;
   refreshActivity: () => void;
   setIdleTimeout: (timeout: number) => void;
@@ -32,12 +32,18 @@ interface StoredAuth {
   user: SafeEmployee;
   timestamp: number;
   lastActivity: number;
+  sessionId?: number;
+}
+
+function employeeDisplayName(employee: SafeEmployee): string {
+  return [employee.firstName, employee.lastName].filter(Boolean).join(' ') || employee.username || employee.code;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SafeEmployee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const [sessionId, setSessionId] = useState<number | null>(null);
   const [idleTimeout, setIdleTimeoutState] = useState<number>(() => {
     const stored = localStorage.getItem(IDLE_TIMEOUT_KEY);
     return stored ? parseInt(stored, 10) : DEFAULT_IDLE_TIMEOUT;
@@ -56,13 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const stored = localStorage.getItem(AUTH_STORAGE_KEY);
         if (stored) {
-          const { user: storedUser, lastActivity: storedLastActivity }: StoredAuth = JSON.parse(stored);
+          const { user: storedUser, lastActivity: storedLastActivity, sessionId: storedSessionId }: StoredAuth = JSON.parse(stored);
 
           // Check if session is still valid (within idle timeout)
           const timeSinceActivity = Date.now() - storedLastActivity;
           if (timeSinceActivity < idleTimeout) {
             setUser(storedUser);
             setLastActivity(storedLastActivity);
+            setSessionId(storedSessionId ?? null);
           } else {
             // Session expired
             localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -86,10 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         timestamp: Date.now(),
         lastActivity,
+        sessionId: sessionId ?? undefined,
       };
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
     }
-  }, [user, lastActivity]);
+  }, [user, lastActivity, sessionId]);
 
   // Refresh activity timestamp
   const refreshActivity = useCallback(() => {
@@ -116,19 +124,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(authenticatedEmployee);
       setLastActivity(Date.now());
 
+      // System User Tracking: log this login for the admin-viewable activity log
+      try {
+        const sessionResult = await window.electron.invoke(IpcChannel.RECORD_USER_LOGIN, {
+          employeeId: authenticatedEmployee.id,
+          employeeName: employeeDisplayName(authenticatedEmployee),
+          username: authenticatedEmployee.username,
+        });
+        if (sessionResult.success) {
+          setSessionId(sessionResult.data.id);
+        }
+      } catch (trackingError) {
+        console.error('Failed to record login activity:', trackingError);
+      }
+
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
     }
   }, []);
 
-  // Code verification (quick auth using employee code)
-  const verifyPin = useCallback(async (code: string): Promise<SafeEmployee> => {
+  // Quick credential verification (used to identify/re-authenticate an employee
+  // for in-app actions, e.g. picking a salesperson or route-guard prompts).
+  const verifyCredentials = useCallback(async (username: string, password: string): Promise<SafeEmployee> => {
     try {
-      const result = await window.electron.invoke(IpcChannel.VERIFY_EMPLOYEE_PIN, { pin: code });
+      const result = await window.electron.invoke(IpcChannel.AUTHENTICATE_EMPLOYEE, { username, password });
 
       if (!result.success) {
-        throw new Error(result.error || 'Invalid code');
+        throw new Error(result.error || 'Invalid username or password');
       }
 
       const { employee: verifiedEmployee } = result.data;
@@ -138,16 +161,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return verifiedEmployee;
     } catch (error) {
-      console.error('Code verification failed:', error);
+      console.error('Credential verification failed:', error);
       throw error;
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((reason: 'manual' | 'idle_timeout' = 'manual') => {
+    if (sessionId != null) {
+      window.electron
+        .invoke(IpcChannel.RECORD_USER_LOGOUT, { id: sessionId, reason })
+        .catch((trackingError) => console.error('Failed to record logout activity:', trackingError));
+    }
     setUser(null);
+    setSessionId(null);
     setLastActivity(Date.now());
     localStorage.removeItem(AUTH_STORAGE_KEY);
-  }, []);
+  }, [sessionId]);
 
   // Update user data (e.g., after profile update)
   const updateUser = useCallback((updatedUser: SafeEmployee) => {
@@ -176,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isSessionValid: isSessionValid(),
     idleTimeout,
     login,
-    verifyPin,
+    verifyCredentials,
     logout,
     hasPermission,
     refreshActivity,

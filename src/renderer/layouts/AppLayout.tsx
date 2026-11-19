@@ -1,8 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { AppShell, Box } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { notifications } from '@mantine/notifications';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { TabBar } from '../components/layout/TabBar';
@@ -15,9 +14,10 @@ import { useKeyboardShortcutContext } from '../contexts/KeyboardShortcutContext'
 import { SpotlightProvider } from '../contexts/SpotlightContext';
 import { TabProvider, useTabContext } from '../contexts/TabContext';
 import { NavigationMenuProvider } from '../contexts/NavigationMenuContext';
-import { useAuth, SafeEmployee } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
 import { KeyboardShortcut } from '../hooks/useKeyboardShortcuts';
+import { useProtectedTabNavigation } from '../hooks/useProtectedTabNavigation';
 import { isPublicRoute, getRoutePermission, getRouteDescription } from '../router/permissions';
 import { getComponentForPath } from '../utils/componentMapper';
 
@@ -41,99 +41,35 @@ function AppLayoutContent() {
   const location = useLocation();
   const { registerShortcuts, unregisterShortcuts } = useKeyboardShortcutContext();
   const { isSessionValid, hasPermission } = useAuth();
-  const { tabs, openTab, isTabbed, closeCurrentTab, nextTab, previousTab, selectTabByIndex } = useTabContext();
+  const { tabs, isTabbed, closeCurrentTab, nextTab, previousTab, selectTabByIndex } = useTabContext();
+  const {
+    navigateTo,
+    bind,
+    pinModalOpen,
+    pendingNavigation,
+    requiredPermission,
+    handlePinVerified,
+    handlePinModalClose: closePinModal,
+    requirePinFor,
+  } = useProtectedTabNavigation();
 
   // Initialize idle timeout tracking
   useIdleTimeout();
 
   const isDark = colorScheme === 'dark';
 
-  // PIN verification modal state
-  const [pinModalOpen, setPinModalOpen] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const [requiredPermission, setRequiredPermission] = useState<string | undefined>(undefined);
   const previousPathRef = useRef<string>(location.pathname);
 
-  // Handle navigation with PIN verification
-  const handleProtectedNavigation = useCallback(
-    (path: string) => {
-     
-       // Public routes don't need authentication
-      if (isPublicRoute(path)) {
-        navigate(path);
-        return;
-      }
-
-      const permission = getRoutePermission(path);
-
-       // Public routes don't need authentication
-      if (permission === undefined) {
-        navigate(path);
-        return;
-      }
-
-      // Check if user has valid session
-      if (isSessionValid) {
-        // Session is valid, check permission if required
-        if (permission === null || hasPermission(permission)) {
-          // Check if this route should be tabbed
-          if (isTabbed(path)) {
-            // Create component and open in tab
-            const component = getComponentForPath(path);
-            openTab(path, component);
-          } else {
-            // Non-tabbed route, use regular navigation
-            navigate(path);
-          }
-          return;
-        } else {
-          // Has session but lacks permission
-          notifications.show({
-            title: 'Access Denied',
-            message: `You do not have permission to access ${getRouteDescription(path)}`,
-            color: 'red',
-          });
-          return;
-        }
-      }
-
-      // Need PIN verification
-      setPendingNavigation(path);
-      setRequiredPermission(permission ?? undefined);
-      setPinModalOpen(true);
-    },
-    [isSessionValid, hasPermission, navigate, isTabbed, openTab]
-  );
-
-  // Handle successful PIN verification
-  const handlePinVerified = useCallback(
-    (employee: SafeEmployee) => {
-      if (pendingNavigation) {
-        // Check if this route should be tabbed
-        if (isTabbed(pendingNavigation)) {
-          const component = getComponentForPath(pendingNavigation);
-          openTab(pendingNavigation, component);
-        } else {
-          navigate(pendingNavigation);
-        }
-        setPendingNavigation(null);
-      }
-      setPinModalOpen(false);
-      setRequiredPermission(undefined);
-    },
-    [pendingNavigation, navigate, isTabbed, openTab]
-  );
-
-  // Handle PIN modal close (cancelled)
+  // Handle PIN modal close (cancelled): navigate back to the previous path
+  // if we were trying to access a protected route reached by URL/location
+  // change (browser back/forward, direct link) rather than a click.
   const handlePinModalClose = useCallback(() => {
-    setPinModalOpen(false);
-    setPendingNavigation(null);
-    setRequiredPermission(undefined);
-    // Navigate back to previous path if we were trying to access a protected route
-    if (pendingNavigation && !isPublicRoute(location.pathname)) {
+    const hadPending = pendingNavigation;
+    closePinModal();
+    if (hadPending && !isPublicRoute(location.pathname)) {
       navigate(previousPathRef.current);
     }
-  }, [pendingNavigation, location.pathname, navigate]);
+  }, [pendingNavigation, closePinModal, location.pathname, navigate]);
 
   // Track previous path
   useEffect(() => {
@@ -153,12 +89,9 @@ function AppLayoutContent() {
 
     // Check if session is valid for protected routes
     if (!isSessionValid) {
-      const permission = getRoutePermission(path);
-      setPendingNavigation(path);
-      setRequiredPermission(permission ?? undefined);
-      setPinModalOpen(true);
+      requirePinFor(path);
     }
-  }, [location.pathname, isSessionValid]);
+  }, [location.pathname, isSessionValid, requirePinFor]);
 
   // Register global navigation shortcuts with PIN verification.
   // Skip shortcuts for features the user can't access so the hidden page's
@@ -172,7 +105,7 @@ function AppLayoutContent() {
       .map((item) => ({
         key: item.key,
         alt: true,
-        callback: () => handleProtectedNavigation(item.path),
+        callback: () => navigateTo(item.path),
         description: item.description,
       }));
 
@@ -181,7 +114,7 @@ function AppLayoutContent() {
     return () => {
       unregisterShortcuts('navigation');
     };
-  }, [handleProtectedNavigation, hasPermission, registerShortcuts, unregisterShortcuts]);
+  }, [navigateTo, hasPermission, registerShortcuts, unregisterShortcuts]);
 
   // Register tray keyboard shortcut (Q-B9: Shift+2 / @)
   useEffect(() => {
@@ -249,7 +182,7 @@ function AppLayoutContent() {
   }, [closeCurrentTab, nextTab, previousTab, selectTabByIndex, registerShortcuts, unregisterShortcuts]);
 
   return (
-    <SpotlightProvider onNavigate={handleProtectedNavigation}>
+    <SpotlightProvider onNavigate={navigateTo}>
       <AppShell
         header={{ height: 60 }}
         navbar={{
@@ -290,7 +223,7 @@ function AppLayoutContent() {
             transition: 'background-color 200ms ease, border-color 200ms ease',
           }}
         >
-          <Sidebar onNavigate={handleProtectedNavigation} />
+          <Sidebar onNavigate={navigateTo} bind={bind} />
         </AppShell.Navbar>
 
         <AppShell.Main
@@ -337,7 +270,7 @@ function AppLayoutContent() {
         onVerified={handlePinVerified}
         requiredPermission={requiredPermission}
         title="Authentication Required"
-        description={`Enter your PIN to access ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
+        description={`Search for your name and enter your password to access ${pendingNavigation ? getRouteDescription(pendingNavigation) : 'this feature'}`}
       />
     </SpotlightProvider>
   );

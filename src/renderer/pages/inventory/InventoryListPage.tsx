@@ -30,6 +30,7 @@ import { AddToListButton } from '../../components/lists';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { NewPartModal } from './NewPartModal';
 import { PermissionButton } from '../../permissions';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 
 interface Inventory {
   id: number;
@@ -65,21 +66,22 @@ interface PaginatedResult {
 
 export function InventoryListPage() {
   const [newPartOpened, { open: openNewPart, close: closeNewPart }] = useDisclosure(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !wasPersisted('inventory:inventory'));
   const [loadingMore, setLoadingMore] = useState(false);
-  const [inventory, setInventory] = useState<Inventory[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [modelFilter, setModelFilter] = useState('');
+  const [inventory, setInventory] = useListState<Inventory[]>('inventory:inventory', []);
+  const [total, setTotal] = useListState('inventory:total', 0);
+  const [page, setPage] = useListState('inventory:page', 1);
+  const [hasMore, setHasMore] = useListState('inventory:hasMore', true);
+  const [search, setSearch] = useListState('inventory:search', '');
+  const [categoryFilter, setCategoryFilter] = useListState('inventory:categoryFilter', '');
+  const [modelFilter, setModelFilter] = useListState('inventory:modelFilter', '');
   const [debouncedSearch] = useDebouncedValue(search, 500);
   const [debouncedCategory] = useDebouncedValue(categoryFilter, 500);
   const [debouncedModel] = useDebouncedValue(modelFilter, 500);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
-  const [showArchived, setShowArchived] = useState(false);
+  const [showArchived, setShowArchived] = useListState('inventory:showArchived', false);
+  const skipInitialFetch = useRestoreGuard('inventory:inventory');
 
   const pageSize = 30;
 
@@ -123,14 +125,15 @@ export function InventoryListPage() {
         }
       }
     },
-    [pageSize, debouncedSearch, debouncedCategory, debouncedModel, showArchived]
+    [pageSize, debouncedSearch, debouncedCategory, debouncedModel, showArchived, setInventory, setTotal, setHasMore, setPage]
   );
 
   // Reload from page 1 whenever the search/filters change
   useEffect(() => {
+    if (skipInitialFetch()) return;
     fetchPage(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, debouncedCategory, debouncedModel, showArchived]);
+  }, [debouncedSearch, debouncedCategory, debouncedModel, showArchived, skipInitialFetch]);
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;

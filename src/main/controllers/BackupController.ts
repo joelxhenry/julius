@@ -9,6 +9,7 @@ import {
   BackupSettings,
   BackupStatus,
 } from '../../shared/types/backup';
+import { reportError } from '../services/errorSanitizer';
 
 /** Maximum number of backups to retain in Drive. */
 const MAX_BACKUPS = 5;
@@ -192,7 +193,7 @@ export class BackupController {
   }
 
   private message(error: unknown): string {
-    return error instanceof Error ? error.message : 'Unknown error';
+    return reportError(error, 'Unknown error', 'BackupController');
   }
 
   private fail(error: unknown): { success: false; error: string } {

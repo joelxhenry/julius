@@ -101,10 +101,12 @@ const adminNavItems: NavItem[] = [
 ];
 
 interface SidebarProps {
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, event?: React.MouseEvent) => void;
+  /** Gives nav items browser-like navigation: Ctrl/Cmd+click or right-click opens a new tab. */
+  bind?: (path: string) => { onClick: (e: React.MouseEvent) => void; onContextMenu: (e: React.MouseEvent) => void };
 }
 
-export function Sidebar({ onNavigate }: SidebarProps) {
+export function Sidebar({ onNavigate, bind }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { canAccessPath } = usePermissions();
@@ -114,9 +116,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const visibleBusiness = businessNavItems.filter((item) => canAccessPath(item.path));
   const visibleAdmin = adminNavItems.filter((item) => canAccessPath(item.path));
 
-  const handleNavClick = (path: string) => {
+  const handleNavClick = (path: string, event?: React.MouseEvent) => {
     if (onNavigate) {
-      onNavigate(path);
+      onNavigate(path, event);
     } else {
       navigate(path);
     }
@@ -131,6 +133,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
   const renderNavItem = (item: NavItem) => {
     const isActive = isPathActive(item.path);
+    const navHandlers = bind
+      ? bind(item.path)
+      : { onClick: (e: React.MouseEvent) => handleNavClick(item.path, e) };
 
     return (
       <MantineNavLink
@@ -146,7 +151,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         }
         active={isActive}
         variant="light"
-        onClick={() => handleNavClick(item.path)}
+        {...navHandlers}
         styles={{
           root: {
             borderRadius: "var(--mantine-radius-md)",

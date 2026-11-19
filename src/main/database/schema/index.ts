@@ -34,3 +34,5 @@ export * from './employeeShifts';
 export * from './gctPayments';
 export * from './settings';
 export * from './accessOverrides';
+export * from './userSessions';
+export * from './errorLogs';

@@ -20,7 +20,6 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-  IconArrowLeft,
   IconTrash,
   IconChevronUp,
   IconChevronDown,
@@ -32,7 +31,7 @@ import {
   IconPrinter,
   IconRefresh,
 } from '@tabler/icons-react';
-import { useContentNavigation } from '../../hooks/useContentNavigation';
+import { BackButton } from '../../components/common';
 import { InventorySelect } from '../../components/selects/InventorySelect';
 import { usePermissions } from '../../permissions';
 import { productListsApi } from '../../hooks/useProductLists';
@@ -56,7 +55,6 @@ const formatDate = (value: string | Date) =>
 export function ProductListDetailPage() {
   const { id } = useTabParams<{ id: string }>();
   const listId = Number(id);
-  const { bind } = useContentNavigation();
   const { can } = usePermissions();
   const canManage = can('MANAGE_PRODUCT_LISTS');
   const canExport = can('EXPORT_REPORT');
@@ -258,9 +256,7 @@ export function ProductListDetailPage() {
   if (!list) {
     return (
       <Stack gap="md">
-        <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} {...bind('/lists')}>
-          Back to lists
-        </Button>
+        <BackButton fallbackPath="/lists" label="Back to lists" />
         <Text c="dimmed">List not found.</Text>
       </Stack>
     );
@@ -272,9 +268,7 @@ export function ProductListDetailPage() {
     <Stack gap="lg">
       <Group justify="space-between" align="flex-start">
         <Group gap="sm" align="center">
-          <ActionIcon variant="subtle" {...bind('/lists')} aria-label="Back to lists">
-            <IconArrowLeft size={18} />
-          </ActionIcon>
+          <BackButton fallbackPath="/lists" title="Back to lists" size="md" />
           <Title order={2}>{list.title}</Title>
           <Badge color={statusMeta.color} variant="light" size="lg">{statusMeta.label}</Badge>
         </Group>

@@ -1,10 +1,14 @@
-import { Container, Title, Text, Button, Stack, Group, Paper, Code, ThemeIcon } from '@mantine/core';
+import { useEffect } from 'react';
+import { Container, Title, Text, Button, Stack, Group, Paper, ThemeIcon } from '@mantine/core';
 import { IconAlertCircle, IconHome, IconRefresh } from '@tabler/icons-react';
 import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router-dom';
+import { IpcChannel } from '../../../shared/types/ipc';
+import { useAuth } from '../../contexts/AuthContext';
 
 export function ErrorPage() {
   const error = useRouteError();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleReload = () => {
     window.location.reload();
@@ -16,7 +20,7 @@ export function ErrorPage() {
 
   let errorTitle = 'Something went wrong';
   let errorMessage = 'An unexpected error occurred. Please try again.';
-  let errorDetails: string | null = null;
+  let technicalDetails: string | null = null;
 
   if (isRouteErrorResponse(error)) {
     switch (error.status) {
@@ -40,10 +44,25 @@ export function ErrorPage() {
         errorTitle = `Error ${error.status}`;
         errorMessage = error.statusText || 'An error occurred.';
     }
-    errorDetails = error.data?.message || null;
+    technicalDetails = error.data?.message || null;
   } else if (error instanceof Error) {
-    errorDetails = error.message;
+    technicalDetails = error.message;
   }
+
+  // Best-effort report to the main process so it lands in the reviewable
+  // error log (sanitized server-side; see src/main/services/errorSanitizer.ts).
+  useEffect(() => {
+    if (!technicalDetails) return;
+    window.electron
+      .invoke(IpcChannel.LOG_RENDERER_ERROR, {
+        message: technicalDetails,
+        stack: error instanceof Error ? error.stack : undefined,
+        employeeId: user?.id,
+        employeeName: user ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username : undefined,
+      })
+      .catch(() => { /* logging must never compound the crash */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Container size="sm" py="xl">
@@ -65,14 +84,11 @@ export function ErrorPage() {
           {errorMessage}
         </Text>
 
-        {errorDetails && (
+        {technicalDetails && (
           <Paper withBorder p="md" bg="red.0" w="100%" maw={500}>
-            <Text size="sm" fw={600} mb="xs" c="red.8">
-              Error Details:
+            <Text size="sm" c="red.8" ta="center">
+              This has been logged for review. If it keeps happening, please contact support.
             </Text>
-            <Code block c="red.7">
-              {errorDetails}
-            </Code>
           </Paper>
         )}
 

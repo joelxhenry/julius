@@ -29,6 +29,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { PermissionButton, usePermissions } from '../../permissions';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 
 interface Supplier {
   id: number;
@@ -52,14 +53,16 @@ interface PaginatedResult {
 export function SuppliersPage() {
   const { bind, go } = useContentNavigation();
   const { runWithPermission } = usePermissions();
-  const [loading, setLoading] = useState(true);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(() => !wasPersisted('suppliers:suppliers'));
+  const [suppliers, setSuppliers] = useListState<Supplier[]>('suppliers:suppliers', []);
+  const [total, setTotal] = useListState('suppliers:total', 0);
+  const [page, setPage] = useListState('suppliers:page', 1);
+  const [totalPages, setTotalPages] = useListState('suppliers:totalPages', 1);
+  const [search, setSearch] = useListState('suppliers:search', '');
   const [debouncedSearch] = useDebouncedValue(search, 300);
-  const [activeOnly, setActiveOnly] = useState(true);
+  const [activeOnly, setActiveOnly] = useListState('suppliers:activeOnly', true);
+  const skipInitialFetch = useRestoreGuard('suppliers:suppliers');
+  const skipInitialPageReset = useRestoreGuard('suppliers:suppliers');
 
   const pageSize = 20;
 
@@ -84,16 +87,18 @@ export function SuppliersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, activeOnly]);
+  }, [page, pageSize, debouncedSearch, activeOnly, setSuppliers, setTotal, setTotalPages]);
 
   useEffect(() => {
+    if (skipInitialFetch()) return;
     fetchSuppliers();
-  }, [fetchSuppliers]);
+  }, [fetchSuppliers, skipInitialFetch]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
+    if (skipInitialPageReset()) return;
     setPage(1);
-  }, [debouncedSearch, activeOnly]);
+  }, [debouncedSearch, activeOnly, skipInitialPageReset, setPage]);
 
   // Sensitive actions elevate via another authorised user when the current user
   // lacks permission; the grant is recorded and then reverts to the current user.

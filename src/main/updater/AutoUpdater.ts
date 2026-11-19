@@ -1,6 +1,7 @@
 import { app, autoUpdater, ipcMain, BrowserWindow } from 'electron';
 import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
 import { UpdateIpc, UpdateStatus } from '../../shared/types/update';
+import { reportError } from '../services/errorSanitizer';
 
 const GITHUB_REPO = 'joelxhenry/julius';
 const UPDATE_CHECK_INTERVAL = '1 hour';
@@ -65,7 +66,7 @@ function wireAutoUpdaterEvents(): void {
   autoUpdater.on('error', (error: Error) => {
     broadcast({
       state: 'error',
-      error: error?.message || 'Update failed',
+      error: reportError(error, 'Update failed', 'AutoUpdater'),
       manual: manualCheckPending,
     });
     manualCheckPending = false;
@@ -104,7 +105,7 @@ function registerUpdaterIpc(): void {
       const status: UpdateStatus = {
         state: 'error',
         manual: true,
-        error: error instanceof Error ? error.message : 'Update check failed',
+        error: reportError(error, 'Update check failed', 'AutoUpdater.checkForUpdates'),
       };
       broadcast(status);
       return { supported: true, status };

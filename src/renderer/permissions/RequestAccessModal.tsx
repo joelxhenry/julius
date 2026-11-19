@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Stack, Text, Button, Alert, Group, Loader, Textarea, Badge } from '@mantine/core';
 import { IconAlertTriangle, IconShieldLock } from '@tabler/icons-react';
-import { PINInput } from '../components/auth/PINInput';
+import { EmployeeCredentialFields } from '../components/auth/EmployeeCredentialFields';
+import { useAuth } from '../contexts/AuthContext';
 import { IpcChannel } from '../../shared/types/ipc';
 import { getPermissionByCode } from '../../shared/constants/permissions';
 
@@ -14,12 +15,13 @@ interface RequestAccessModalProps {
 }
 
 /**
- * Prompts a second, authorised user to enter their access code to grant a
- * one-time override for an action the current user cannot perform.
+ * Prompts a second, authorised user to search for their name and enter their
+ * password to grant a one-time override for an action the current user
+ * cannot perform.
  *
- * Verification uses VERIFY_ACCESS_CODE, which returns the grantor's identity and
- * permissions WITHOUT switching the logged-in session — the session stays with
- * the original user throughout.
+ * Verification uses VERIFY_EMPLOYEE_CREDENTIALS, which returns the grantor's
+ * identity and permissions WITHOUT switching the logged-in session — the
+ * session stays with the original user throughout.
  */
 export function RequestAccessModal({
   opened,
@@ -28,7 +30,10 @@ export function RequestAccessModal({
   onGranted,
   onCancel,
 }: RequestAccessModalProps) {
-  const [accessCode, setAccessCode] = useState('');
+  const { user } = useAuth();
+  const currentUsername = user?.username ?? null;
+  const [selectedUsername, setSelectedUsername] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,20 +42,26 @@ export function RequestAccessModal({
   const permission = getPermissionByCode(permissionCode);
   const permissionLabel = permission?.label ?? permissionCode;
 
-  // Focus the input when the modal opens (DOM side-effect only — no setState here).
+  // Pre-select the signed-in user on open (fastest path when they're also the
+  // authoriser), and focus the input (DOM side-effect only — no setState here).
   useEffect(() => {
     if (opened) {
+      setSelectedUsername(currentUsername);
       const t = setTimeout(() => inputRef.current?.focus(), 100);
       return () => clearTimeout(t);
     }
+    // currentUsername is read once per open; re-running on every session change
+    // would clobber the admin's in-progress selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   const resetForm = useCallback(() => {
-    setAccessCode('');
+    setSelectedUsername(currentUsername);
+    setPassword('');
     setNotes('');
     setError(null);
     setIsLoading(false);
-  }, []);
+  }, [currentUsername]);
 
   const handleCancel = useCallback(() => {
     resetForm();
@@ -58,8 +69,8 @@ export function RequestAccessModal({
   }, [resetForm, onCancel]);
 
   const handleSubmit = useCallback(async () => {
-    if (!accessCode.trim()) {
-      setError('Please enter an access code');
+    if (!selectedUsername || !password.trim()) {
+      setError('Please select the authorising employee and enter their password');
       return;
     }
 
@@ -67,14 +78,14 @@ export function RequestAccessModal({
     setError(null);
 
     try {
-      const result = await window.electron.invoke(IpcChannel.VERIFY_ACCESS_CODE, {
-        accessCode: accessCode.trim(),
+      const result = await window.electron.invoke(IpcChannel.VERIFY_EMPLOYEE_CREDENTIALS, {
+        username: selectedUsername,
+        password,
       });
 
       if (!result.success) {
         setError(result.error || 'Verification failed');
-        setAccessCode('');
-        inputRef.current?.focus();
+        setPassword('');
         setIsLoading(false);
         return;
       }
@@ -87,8 +98,7 @@ export function RequestAccessModal({
 
       if (!isAdmin && !hasRequired && !isLegacyAdmin) {
         setError(`This user cannot authorise "${permissionLabel}"`);
-        setAccessCode('');
-        inputRef.current?.focus();
+        setPassword('');
         setIsLoading(false);
         return;
       }
@@ -101,11 +111,10 @@ export function RequestAccessModal({
       resetForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
-      setAccessCode('');
-      inputRef.current?.focus();
+      setPassword('');
       setIsLoading(false);
     }
-  }, [accessCode, notes, onGranted, permissionCode, permissionLabel, resetForm]);
+  }, [selectedUsername, password, notes, onGranted, permissionCode, permissionLabel, resetForm]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -149,8 +158,8 @@ export function RequestAccessModal({
         </Alert>
 
         <Text size="sm" c="dimmed">
-          An authorised user can enter their access code to approve this one action.
-          The session stays signed in as the current user.
+          An authorised employee can search for their name and enter their password to
+          approve this one action. The session stays signed in as the current user.
         </Text>
 
         {error && (
@@ -159,15 +168,19 @@ export function RequestAccessModal({
           </Alert>
         )}
 
-        <PINInput
-          ref={inputRef}
-          value={accessCode}
-          onChange={(e) => setAccessCode(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          error={!!error}
-          placeholder="Authoriser Access Code"
-        />
+        <div onKeyDown={handleKeyDown}>
+          <EmployeeCredentialFields
+            employeeInputRef={inputRef}
+            employeeLabel="Authorising Employee"
+            selectedUsername={selectedUsername}
+            onSelectUsername={setSelectedUsername}
+            initialEmployee={currentUsername ? { username: currentUsername, firstName: user?.firstName ?? null, lastName: user?.lastName ?? null } : null}
+            password={password}
+            onPasswordChange={setPassword}
+            disabled={isLoading}
+            error={!!error}
+          />
+        </div>
 
         <Textarea
           label="Reason (optional)"
@@ -182,7 +195,7 @@ export function RequestAccessModal({
           <Button variant="subtle" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </Button>
-          <Button color="orange" onClick={handleSubmit} disabled={isLoading || !accessCode.trim()}>
+          <Button color="orange" onClick={handleSubmit} disabled={isLoading || !selectedUsername || !password.trim()}>
             {isLoading ? <Loader size="xs" color="white" /> : 'Authorise'}
           </Button>
         </Group>

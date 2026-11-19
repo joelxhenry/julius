@@ -1,4 +1,5 @@
 export { ActionCard } from './ActionCard';
+export { BackButton } from './BackButton';
 export { CollapsibleSection } from './CollapsibleSection';
 export { ConfirmDialog } from './ConfirmDialog';
 export { CopyButton } from './CopyButton';

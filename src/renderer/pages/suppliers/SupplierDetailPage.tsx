@@ -6,7 +6,6 @@ import {
   Group,
   Text,
   Badge,
-  Button,
   Tabs,
   Loader,
   Alert,
@@ -15,7 +14,6 @@ import {
   ActionIcon,
 } from '@mantine/core';
 import {
-  IconArrowLeft,
   IconEdit,
   IconRefresh,
   IconAlertCircle,
@@ -31,8 +29,8 @@ import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { SupplierEditModal, SupplierReceivingTab, SupplierBillsTab } from '../../components/suppliers';
+import { BackButton } from '../../components/common';
 import { useTabContext } from '../../contexts/TabContext';
-import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { PermissionButton, PermissionGate } from '../../permissions';
 
 interface Supplier {
@@ -62,7 +60,6 @@ interface Supplier {
 export function SupplierDetailPage() {
   const location = useLocation();
   const { updateTabTitle } = useTabContext();
-  const { bind } = useContentNavigation();
   const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -139,9 +136,7 @@ export function SupplierDetailPage() {
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Supplier not found'}
         </Alert>
-        <Button leftSection={<IconArrowLeft size={16} />} {...bind('/suppliers')}>
-          Back to Suppliers
-        </Button>
+        <BackButton fallbackPath="/suppliers" label="Back to Suppliers" />
       </Stack>
     );
   }
@@ -151,14 +146,7 @@ export function SupplierDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="center">
         <Group>
-          <ActionIcon
-            variant="subtle"
-            size="lg"
-            {...bind('/suppliers')}
-            title="Back to Suppliers"
-          >
-            <IconArrowLeft size={20} />
-          </ActionIcon>
+          <BackButton fallbackPath="/suppliers" title="Back to Suppliers" />
           <Stack gap={0}>
             <Group gap="sm">
               <Title order={2}>{supplier.company}</Title>

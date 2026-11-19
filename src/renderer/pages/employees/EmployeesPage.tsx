@@ -23,6 +23,7 @@ import { IpcChannel } from '../../../shared/types/ipc';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { PermissionButton } from '../../permissions';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 import { employeeDisplayName } from '../../utils/employeeName';
 
 interface Employee {
@@ -56,16 +57,18 @@ interface PaginatedResult {
 
 export function EmployeesPage() {
   const { bind, go } = useContentNavigation();
-  const [loading, setLoading] = useState(true);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(() => !wasPersisted('employees:employees'));
+  const [employees, setEmployees] = useListState<Employee[]>('employees:employees', []);
+  const [total, setTotal] = useListState('employees:total', 0);
+  const [page, setPage] = useListState('employees:page', 1);
+  const [totalPages, setTotalPages] = useListState('employees:totalPages', 1);
+  const [search, setSearch] = useListState('employees:search', '');
   const [debouncedSearch] = useDebouncedValue(search, 300);
-  const [activeOnly, setActiveOnly] = useState(true);
-  const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [activeOnly, setActiveOnly] = useListState('employees:activeOnly', true);
+  const [roleFilter, setRoleFilter] = useListState<string | null>('employees:roleFilter', null);
   const [roles, setRoles] = useState<Role[]>([]);
+  const skipInitialFetch = useRestoreGuard('employees:employees');
+  const skipInitialPageReset = useRestoreGuard('employees:employees');
 
   const pageSize = 20;
 
@@ -104,16 +107,18 @@ export function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, activeOnly, roleFilter]);
+  }, [page, pageSize, debouncedSearch, activeOnly, roleFilter, setEmployees, setTotal, setTotalPages]);
 
   useEffect(() => {
+    if (skipInitialFetch()) return;
     fetchEmployees();
-  }, [fetchEmployees]);
+  }, [fetchEmployees, skipInitialFetch]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
+    if (skipInitialPageReset()) return;
     setPage(1);
-  }, [debouncedSearch, activeOnly, roleFilter]);
+  }, [debouncedSearch, activeOnly, roleFilter, skipInitialPageReset, setPage]);
 
   const getStatusColor = (status: string | null) => {
     switch (status) {

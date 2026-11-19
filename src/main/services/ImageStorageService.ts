@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import sharp from 'sharp';
 import crypto from 'node:crypto';
 import { SystemSettingsService, SystemSettingKeys } from './SystemSettingsService';
+import { reportError } from './errorSanitizer';
 
 const THUMBNAIL_SIZE = 150;
 const IMAGES_DIR = 'inventory-images';
@@ -106,7 +107,7 @@ export class ImageStorageService {
     } catch (error) {
       return {
         valid: false,
-        error: `Cannot write to path: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: reportError(error, 'Cannot write to this storage path.', 'ImageStorageService.validatePath'),
       };
     }
   }
@@ -274,7 +275,7 @@ export class ImageStorageService {
       if (fs.existsSync(thumbnailPath)) {
         fs.unlinkSync(thumbnailPath);
       }
-      throw new Error(`Failed to process image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(reportError(error, 'Failed to process image.', 'ImageStorageService.processAndSaveImage'));
     }
   }
 

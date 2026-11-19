@@ -28,7 +28,8 @@ interface AlternatesTabProps {
   currentSku: string;
   onAddAlternate: () => void;
   onDeleteAlternate: (alternateSku: string) => void;
-  onNavigateToAlternate: (alternateSku: string) => void;
+  onNavigateToAlternate: (alternateSku: string, event?: React.MouseEvent) => void;
+  onContextMenuAlternate?: (alternateSku: string, event: React.MouseEvent) => void;
 }
 
 export function AlternatesTab({
@@ -38,6 +39,7 @@ export function AlternatesTab({
   onAddAlternate,
   onDeleteAlternate,
   onNavigateToAlternate,
+  onContextMenuAlternate,
 }: AlternatesTabProps) {
   // Resolved full details for each alternate part number that exists in inventory.
   const [details, setDetails] = useState<Record<string, AlternateDetail | null>>({});
@@ -94,7 +96,8 @@ export function AlternatesTab({
           return (
             <Box
               style={{ cursor: 'pointer' }}
-              onClick={() => onNavigateToAlternate(alternateSku)}
+              onClick={(e) => onNavigateToAlternate(alternateSku, e)}
+              onContextMenu={(e) => onContextMenuAlternate?.(alternateSku, e)}
             >
               {detail ? (
                 <Stack gap={2}>
@@ -167,7 +170,7 @@ export function AlternatesTab({
         ),
       },
     ],
-    [altSku, details, onNavigateToAlternate, onDeleteAlternate]
+    [altSku, details, onNavigateToAlternate, onContextMenuAlternate, onDeleteAlternate]
   );
 
   return (

@@ -6,7 +6,8 @@ interface ActionCardProps {
   title: string;
   description?: string;
   shortcut?: string;
-  onClick: () => void;
+  onClick: (event: Pick<React.MouseEvent, 'ctrlKey' | 'metaKey'>) => void;
+  onContextMenu?: (event: React.MouseEvent) => void;
   color?: MantineColor;
 }
 
@@ -16,18 +17,20 @@ export function ActionCard({
   description,
   shortcut,
   onClick,
+  onContextMenu,
   color = 'blue',
 }: ActionCardProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      onClick();
+      onClick(e);
     }
   };
 
   return (
     <UnstyledButton
       onClick={onClick}
+      onContextMenu={onContextMenu}
       onKeyDown={handleKeyDown}
       style={{ width: '100%' }}
     >

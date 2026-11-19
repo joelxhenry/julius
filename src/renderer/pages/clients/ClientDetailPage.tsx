@@ -6,7 +6,6 @@ import {
   Group,
   Text,
   Badge,
-  Button,
   Tabs,
   Loader,
   Alert,
@@ -16,7 +15,6 @@ import {
   ActionIcon,
 } from '@mantine/core';
 import {
-  IconArrowLeft,
   IconEdit,
   IconAlertCircle,
   IconUser,
@@ -35,8 +33,8 @@ import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { ClientInvoicesTab, ClientQuotationsTab, ClientPaymentsTab, ClientCreditNotesTab, ClientEditModal, ClientStatementModal, ClientBulkPaymentModal } from '../../components/clients';
+import { BackButton } from '../../components/common';
 import { useTabContext } from '../../contexts/TabContext';
-import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { PermissionButton, PermissionGate } from '../../permissions';
 
 interface Client {
@@ -64,7 +62,6 @@ interface Client {
 export function ClientDetailPage() {
   const location = useLocation();
   const { updateTabTitle } = useTabContext();
-  const { bind } = useContentNavigation();
   const { id } = useTabParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -145,9 +142,7 @@ export function ClientDetailPage() {
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Client not found'}
         </Alert>
-        <Button leftSection={<IconArrowLeft size={16} />} {...bind('/clients')}>
-          Back to Clients
-        </Button>
+        <BackButton fallbackPath="/clients" label="Back to Clients" />
       </Stack>
     );
   }
@@ -157,14 +152,7 @@ export function ClientDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="center">
         <Group>
-          <ActionIcon
-            variant="subtle"
-            size="lg"
-            {...bind('/clients')}
-            title="Back to Clients"
-          >
-            <IconArrowLeft size={20} />
-          </ActionIcon>
+          <BackButton fallbackPath="/clients" title="Back to Clients" />
           <Stack gap={0}>
             <Title order={2}>{client.clientName}</Title>
             {client.clNumber && (

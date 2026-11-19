@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
+import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
 import {
   Stack,
   Title,
@@ -68,24 +69,25 @@ const formatDate = (dateStr: string) => {
 export function QuotationsPage() {
   const { bind, go } = useContentNavigation();
   const { open: openSpotlight } = useSpotlight();
-  const [activeTab, setActiveTab] = useState<string | null>('recent');
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [archiveFilter, setArchiveFilter] = useState<string>('active');
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useListState<string | null>('quotations:activeTab', 'recent');
+  const [quotations, setQuotations] = useListState<Quotation[]>('quotations:quotations', []);
+  const [searchQuery, setSearchQuery] = useListState('quotations:query', '');
+  const [archiveFilter, setArchiveFilter] = useListState<string>('quotations:archiveFilter', 'active');
+  const [isLoading, setIsLoading] = useState(() => !wasPersisted('quotations:quotations'));
+  const [totalCount, setTotalCount] = useListState('quotations:totalCount', 0);
+  const [page, setPage] = useListState('quotations:page', 1);
   const [accessModalOpen, { open: openAccessModal, close: closeAccessModal }] = useDisclosure(false);
-  const [sortField, setSortField] = useState<string>('quoteDate');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [dateRange, setDateRange] = useState<DateRangeValue>([null, null]);
+  const [sortField, setSortField] = useListState<string>('quotations:sortField', 'quoteDate');
+  const [sortDirection, setSortDirection] = useListState<SortDirection>('quotations:sortDirection', 'desc');
+  const [dateRange, setDateRange] = useListState<DateRangeValue>('quotations:dateRange', [null, null]);
   const [startDate, endDate] = dateRange;
+  const skipInitialFetch = useRestoreGuard('quotations:quotations');
 
   // Handle sort change
   const handleSort = useCallback((field: string, direction: SortDirection) => {
     setSortField(field);
     setSortDirection(direction);
-  }, []);
+  }, [setSortField, setSortDirection]);
 
   // Load quotations based on active tab and filters
   const loadQuotations = useCallback(async (params: {
@@ -120,10 +122,11 @@ export function QuotationsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setQuotations, setTotalCount]);
 
   // Load quotations when tab or filters change
   useEffect(() => {
+    if (skipInitialFetch()) return;
     loadQuotations({
       search: searchQuery.length >= 2 ? searchQuery : undefined,
       archivedOnly: archiveFilter === 'archived',
@@ -134,7 +137,7 @@ export function QuotationsPage() {
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     });
-  }, [activeTab, archiveFilter, page, loadQuotations, searchQuery, sortField, sortDirection, startDate, endDate]);
+  }, [activeTab, archiveFilter, page, loadQuotations, searchQuery, sortField, sortDirection, startDate, endDate, skipInitialFetch]);
 
   // Debounced search
   const debouncedSearch = useDebouncedCallback((query: string) => {
@@ -149,7 +152,7 @@ export function QuotationsPage() {
       setSearchQuery(value);
       debouncedSearch(value);
     },
-    [debouncedSearch]
+    [debouncedSearch, setSearchQuery]
   );
 
   // Handle salesperson verification for new quotation
@@ -405,7 +408,7 @@ export function QuotationsPage() {
         onClose={closeAccessModal}
         onVerified={handleAccessVerified}
         title="Salesperson Verification"
-        description="Enter your access code to create a quotation."
+        description="Search for the salesperson's name and enter their password to create a quotation."
         requiredPermission="CREATE_QUOTE"
       />
     </>

@@ -35,7 +35,7 @@ export function useIdleTimeout() {
     // Check session validity periodically
     checkIntervalRef.current = setInterval(() => {
       if (!isSessionValid) {
-        logout();
+        logout('idle_timeout');
       }
     }, 10000); // Check every 10 seconds
 

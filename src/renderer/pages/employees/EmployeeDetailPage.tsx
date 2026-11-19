@@ -17,7 +17,6 @@ import {
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import {
-  IconArrowLeft,
   IconEdit,
   IconRefresh,
   IconShield,
@@ -38,6 +37,7 @@ import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { useTabContext } from '../../contexts/TabContext';
+import { BackButton } from '../../components/common';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { PermissionButton, PermissionGate, usePermissions } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
@@ -70,7 +70,7 @@ export function EmployeeDetailPage() {
   const location = useLocation();
   const { id } = useTabParams<{ id: string }>();
   const { updateTabTitle } = useTabContext();
-  const { go, bind } = useContentNavigation();
+  const { go } = useContentNavigation();
   const { runWithPermission } = usePermissions();
 
   const [loading, setLoading] = useState(true);
@@ -197,13 +197,7 @@ export function EmployeeDetailPage() {
   if (error || !employee) {
     return (
       <Stack p="xl" gap="lg">
-        <Button
-          variant="subtle"
-          leftSection={<IconArrowLeft size={16} />}
-          {...bind('/employees')}
-        >
-          Back to Employees
-        </Button>
+        <BackButton fallbackPath="/employees" label="Back to Employees" />
         <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
           {error || 'Employee not found'}
         </Alert>
@@ -218,13 +212,7 @@ export function EmployeeDetailPage() {
       {/* Header */}
       <Group justify="space-between" align="flex-start">
         <Group>
-          <Button
-            variant="subtle"
-            leftSection={<IconArrowLeft size={16} />}
-            {...bind('/employees')}
-          >
-            Back
-          </Button>
+          <BackButton fallbackPath="/employees" label="Back" />
           <Stack gap={4}>
             <Group gap="sm">
               <Title order={2}>{employeeName}</Title>
