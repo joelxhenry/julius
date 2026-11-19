@@ -1,5 +1,5 @@
 import { Paper, Group, Text } from '@mantine/core';
-import { IconUser, IconCalendar, IconFileText, IconTag, IconUserCheck } from '@tabler/icons-react';
+import { IconUser, IconCalendar, IconFileText, IconTag, IconUserCheck, IconLock } from '@tabler/icons-react';
 import { RestrictedLink } from '../../permissions';
 
 interface Quotation {
@@ -21,6 +21,9 @@ interface QuotationDetailInfoBarProps {
   salespersonName?: string | null;
   onViewSalesperson?: NavHandler;
   onViewSalespersonContextMenu?: NavHandler;
+  createdByName?: string | null;
+  onViewCreatedBy?: NavHandler;
+  onViewCreatedByContextMenu?: NavHandler;
 }
 
 const formatDate = (dateStr: string | null) => {
@@ -40,6 +43,9 @@ export function QuotationDetailInfoBar({
   salespersonName,
   onViewSalesperson,
   onViewSalespersonContextMenu,
+  createdByName,
+  onViewCreatedBy,
+  onViewCreatedByContextMenu,
 }: QuotationDetailInfoBarProps) {
   return (
     <Paper withBorder p="xs" radius="md" style={{ height: 40 }}>
@@ -73,6 +79,23 @@ export function QuotationDetailInfoBar({
               onContextMenu={onViewSalespersonContextMenu}
             >
               {salespersonName}
+            </RestrictedLink>
+          </Group>
+        )}
+
+        {/* On record: the user whose access code authorised creating the quotation */}
+        {createdByName && (
+          <Group gap={4} wrap="nowrap">
+            <IconLock size={14} color="gray" />
+            <Text size="sm" c="dimmed">On record:</Text>
+            <RestrictedLink
+              permission="VIEW_EMPLOYEES"
+              size="sm"
+              color="teal"
+              onClick={(e) => onViewCreatedBy?.(e)}
+              onContextMenu={onViewCreatedByContextMenu}
+            >
+              {createdByName}
             </RestrictedLink>
           </Group>
         )}

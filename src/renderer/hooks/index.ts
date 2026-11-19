@@ -9,6 +9,9 @@ export type { KeyboardShortcut } from './useKeyboardShortcuts';
 export { useIdleTimeout } from './useIdleTimeout';
 export { useProtectedTabNavigation } from './useProtectedTabNavigation';
 
+// Employee attribution
+export { useEmployeeNames } from './useEmployeeNames';
+
 // List page state persistence
 export { useListState, useRestoreGuard, wasPersisted, clearListState } from './useListState';
 

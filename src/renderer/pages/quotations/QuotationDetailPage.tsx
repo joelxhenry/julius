@@ -21,6 +21,7 @@ interface Quotation {
   quoteNum: string;
   quoteDate: string;
   salespersonId: number | null;
+  createdById: number | null;
   clientId: number | null;
   clientName: string | null;
   clientAddress1: string | null;
@@ -78,6 +79,7 @@ export function QuotationDetailPage() {
     nextId: null,
   });
   const [salespersonName, setSalespersonName] = useState<string | null>(null);
+  const [createdByName, setCreatedByName] = useState<string | null>(null);
 
   // Convert to invoice modal
   const [convertModalOpen, { open: openConvertModal, close: closeConvertModal }] = useDisclosure(false);
@@ -103,6 +105,16 @@ export function QuotationDetailPage() {
       }
     });
   }, [quotation?.salespersonId]);
+
+  // Fetch the "on record" user (whose access code authorised creating the quotation)
+  useEffect(() => {
+    if (!quotation?.createdById) { setCreatedByName(null); return; }
+    window.electron.invoke(IpcChannel.GET_EMPLOYEE, { id: quotation.createdById }).then((res) => {
+      if (res.success && res.data) {
+        setCreatedByName(employeeDisplayName(res.data));
+      }
+    });
+  }, [quotation?.createdById]);
 
   // Update tab title when quotation loads (only when this tab is active)
   useEffect(() => {
@@ -364,6 +376,10 @@ export function QuotationDetailPage() {
           status: 'active',
           isTaxable: quotation.isTaxable,
           pricing: quotation.pricing,
+          // Carry over attribution from the already-authorized quotation rather
+          // than re-prompting for an access code on conversion.
+          issuedAt: new Date(),
+          issuedById: quotation.createdById ?? quotation.salespersonId ?? null,
         };
 
         // Create the invoice
@@ -528,6 +544,7 @@ export function QuotationDetailPage() {
 
   const viewClient = bind(quotation.clientId ? `/clients/${quotation.clientId}` : undefined);
   const viewSalesperson = bind(quotation.salespersonId ? `/employees/${quotation.salespersonId}` : undefined);
+  const viewCreatedBy = bind(quotation.createdById ? `/employees/${quotation.createdById}` : undefined);
 
   return (
     <>
@@ -574,6 +591,9 @@ export function QuotationDetailPage() {
           salespersonName={salespersonName}
           onViewSalesperson={viewSalesperson.onClick}
           onViewSalespersonContextMenu={viewSalesperson.onContextMenu}
+          createdByName={createdByName}
+          onViewCreatedBy={viewCreatedBy.onClick}
+          onViewCreatedByContextMenu={viewCreatedBy.onContextMenu}
         />
 
         {/* Notes */}

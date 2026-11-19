@@ -45,6 +45,7 @@ interface InventoryReceiving {
   lastPrice: string | null;
   lastPriceCurrency: string | null;
   reference: string | null;
+  createdByName: string | null;
   createdAt: string;
 }
 
@@ -299,6 +300,15 @@ export function ReceivingTab({ sku }: ReceivingTabProps) {
         key: 'lastPrice',
         header: 'Selling Price',
         render: (row) => formatCurrency(row.lastPrice, row.lastPriceCurrency),
+      },
+      {
+        key: 'createdByName',
+        header: 'Received By',
+        render: (row) => (
+          <Text size="sm" c={row.createdByName ? undefined : 'dimmed'}>
+            {row.createdByName || '-'}
+          </Text>
+        ),
       },
     ],
     []

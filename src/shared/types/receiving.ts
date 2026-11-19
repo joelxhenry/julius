@@ -66,4 +66,6 @@ export interface ReceivalHeaderPayload {
 export interface PostReceivalPayload {
   header: ReceivalHeaderPayload;
   lines: ReceivalLinePayload[];
+  /** Signed-in user posting the receival; auto-stamped, no access-code prompt. */
+  employeeId: number | null;
 }

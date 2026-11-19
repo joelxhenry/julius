@@ -177,6 +177,11 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   lastPriceCurrency: varchar('last_price_currency', { length: 10 }),
   lastWholesalePrice: numeric('last_wholesale_price', { precision: 15, scale: 2 }),
   reference: varchar('reference', { length: 50 }),
+  // Who posted the receival. Denormalized name is kept so the label survives
+  // even if the employee record is later removed (FK is set null on delete).
+  createdByEmployeeId: integer('created_by_employee_id')
+    .references(() => employees.id, { onDelete: 'set null' }),
+  createdByName: varchar('created_by_name', { length: 100 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => [
   index('idx_inv_rec_sku').on(table.sku),

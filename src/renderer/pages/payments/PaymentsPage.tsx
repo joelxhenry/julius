@@ -24,6 +24,7 @@ import { DataTable, Column } from '../../components/common/DataTable';
 import { DateRangeFilter, DateRangeValue } from '../../components/common/DateRangeFilter';
 import { CANONICAL_PAYMENT_METHOD_CODES } from '../../../shared/constants/payments';
 import { useListState, useRestoreGuard, wasPersisted } from '../../hooks/useListState';
+import { useEmployeeNames } from '../../hooks/useEmployeeNames';
 
 interface Payment {
   id: number;
@@ -79,6 +80,7 @@ export function PaymentsPage() {
   const { user } = useAuth();
   const { openTab } = useTabContext();
   const [payments, setPayments] = useListState<Payment[]>('payments:payments', []);
+  const processedByNames = useEmployeeNames(payments.map((p) => p.processedById));
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState(() => !wasPersisted('payments:payments'));
   const [search, setSearch] = useListState('payments:search', '');
@@ -428,6 +430,20 @@ export function PaymentsPage() {
         },
       },
       {
+        key: 'processedBy',
+        header: 'Processed By',
+        render: (payment) => {
+          if (payment.processedById == null) {
+            return <Text size="sm" c="dimmed">—</Text>;
+          }
+          return (
+            <Text size="sm">
+              {processedByNames.get(payment.processedById) ?? `Employee #${payment.processedById}`}
+            </Text>
+          );
+        },
+      },
+      {
         key: 'actions',
         header: '',
         width: 50,
@@ -455,7 +471,7 @@ export function PaymentsPage() {
         },
       },
     ],
-    [handleViewDocument, handleVoidClick, resolveMethod, resolveNotes]
+    [handleViewDocument, handleVoidClick, resolveMethod, resolveNotes, processedByNames]
   );
 
   return (

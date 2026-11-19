@@ -57,6 +57,8 @@ export interface ReceivalHeaderInput {
 export interface PostReceivalInput {
   header: ReceivalHeaderInput;
   lines: ReceivalLineInput[];
+  /** Signed-in user posting the receival; auto-stamped, no access-code prompt. */
+  employeeId?: number | null;
 }
 
 const money = (n: number): string => (Math.round(n * 100) / 100).toFixed(2);
@@ -84,12 +86,32 @@ export class GoodsReceivalService extends BaseService<
     receival: schema.GoodsReceival;
     lines: schema.InventoryReceiving[];
   }> {
-    const { header, lines } = input;
+    const { header, lines, employeeId } = input;
     if (!lines.length) throw new Error('A receival needs at least one line');
 
     const activityDate = header.receivingDate;
 
     return this.db.transaction(async (tx) => {
+      // Resolve the posting employee's name once so every row from this
+      // receival records who posted it. Kept denormalized alongside the id
+      // so the label survives if the employee record is later removed.
+      let createdByName: string | null = null;
+      if (employeeId != null) {
+        const [emp] = await tx
+          .select({
+            firstName: schema.employees.firstName,
+            lastName: schema.employees.lastName,
+            username: schema.employees.username,
+          })
+          .from(schema.employees)
+          .where(eq(schema.employees.id, employeeId))
+          .limit(1);
+        if (emp) {
+          const fullName = `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim();
+          createdByName = fullName || emp.username || `Employee #${employeeId}`;
+        }
+      }
+
       // 1. Insert the receival header.
       const [receival] = await tx
         .insert(schema.goodsReceivals)
@@ -150,6 +172,8 @@ export class GoodsReceivalService extends BaseService<
           reference: header.reference,
           quantity: line.quantity,
           activityDate,
+          createdByEmployeeId: employeeId ?? undefined,
+          createdByName,
         });
 
         // 3c. Cost always updates; snapshot the prior cost for the receiving record.
@@ -193,6 +217,8 @@ export class GoodsReceivalService extends BaseService<
             lastPriceCurrency: appliedPrice ? line.priceCurrency ?? 'JA' : undefined,
             lastWholesalePrice: appliedWholesale ?? undefined,
             reference: header.reference,
+            createdByEmployeeId: employeeId ?? undefined,
+            createdByName,
           })
           .returning();
 

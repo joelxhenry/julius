@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useTabParams } from '../../hooks/useTabParams';
 import { useTabContext } from '../../contexts/TabContext';
 import { useContentNavigation } from '../../hooks/useContentNavigation';
+import { useEmployeeNames } from '../../hooks/useEmployeeNames';
 import { usePermissions, RestrictedLink } from '../../permissions';
 import { employeeDisplayName } from '../../utils/employeeName';
 import {
@@ -65,6 +66,7 @@ interface UsagePayment {
   paymentDesc2: string | null;
   transactionReference: string | null;
   amount: string;
+  processedById: number | null;
   createdAt: string;
 }
 
@@ -258,6 +260,8 @@ export function CreditNoteDetailPage() {
     return voided;
   }, [usage]);
 
+  const usageProcessedByNames = useEmployeeNames(usage.map((u) => u.processedById));
+
   const usageColumns: Column<UsagePayment>[] = useMemo(() => [
     {
       key: 'date',
@@ -324,7 +328,21 @@ export function CreditNoteDetailPage() {
         );
       },
     },
-  ], [voidedIds, openInvoiceByNumber]);
+    {
+      key: 'processedBy',
+      header: 'Processed By',
+      render: (row) => {
+        if (row.processedById == null) {
+          return <Text size="sm" c="dimmed">—</Text>;
+        }
+        return (
+          <Text size="sm">
+            {usageProcessedByNames.get(row.processedById) ?? `Employee #${row.processedById}`}
+          </Text>
+        );
+      },
+    },
+  ], [voidedIds, openInvoiceByNumber, usageProcessedByNames]);
 
   if (isLoading) {
     return (

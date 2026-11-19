@@ -54,6 +54,7 @@ import {
   type ImportedLine,
 } from '../../components/inventory/ReceivalImportReviewModal';
 import { useReceivingReferencePrint } from '../../hooks/useReceivingReferencePrint';
+import { useAuth } from '../../contexts/AuthContext';
 
 const REFERENCE_MAX = 50;
 const CURRENCY = 'JA';
@@ -124,6 +125,7 @@ const rowError = (row: ReceivalRow): string | null => {
 
 export function GoodsReceivalPage({ onBack }: { onBack?: () => void } = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const handleBack = onBack ?? (() => navigate('/inventory/manage'));
   const { printReceivingReference, isPrinting } = useReceivingReferencePrint();
 
@@ -512,6 +514,7 @@ export function GoodsReceivalPage({ onBack }: { onBack?: () => void } = {}) {
         notes: notes.trim() || null,
       },
       lines,
+      employeeId: user?.id ?? null,
     };
   };
 
