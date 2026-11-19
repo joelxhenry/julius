@@ -122,7 +122,7 @@ export function CompactDetailHeader({
 
         {/* Right: Actions */}
         <Group gap="sm" wrap="nowrap">
-          {onEdit && ['active', 'partially_paid'].includes(invoice.status) && (
+          {onEdit && ['active', 'partially_paid', 'paid'].includes(invoice.status) && (
             <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={onEdit}>
               Edit
             </Button>

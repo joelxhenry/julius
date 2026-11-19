@@ -78,17 +78,18 @@ export function CompactInvoiceToolbar({
           >
             <IconKeyboard size={18} />
           </ActionIcon>
-          <Button
-            size="xs"
-            color="green"
-            leftSection={<IconCheck size={14} />}
-            onClick={onIssueInvoice}
-            loading={isIssuing}
-            disabled={!hasLineItems || isProcessingPayment}
-          >
-            {isEditing ? 'Save Changes' : 'Save & Issue'}
-          </Button>
-          {!isEditing && (
+          {isEditing ? (
+            <Button
+              size="xs"
+              color="green"
+              leftSection={<IconCheck size={14} />}
+              onClick={onIssueInvoice}
+              loading={isIssuing}
+              disabled={!hasLineItems || isProcessingPayment}
+            >
+              Save Changes
+            </Button>
+          ) : (
             <Button
               size="xs"
               color="teal"

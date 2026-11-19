@@ -335,12 +335,13 @@ export function InvoiceCreatePage() {
       if (result.success && result.data) {
         const inv = result.data;
 
-        // Issued invoices are final records and cannot be edited. Guard against
-        // direct navigation / stale edit tabs by redirecting to the read-only view.
-        if (inv.issuedAt) {
+        // Archived/cancelled invoices are final records and cannot be edited.
+        // Guard against direct navigation / stale edit tabs by redirecting to the
+        // read-only view. Corrections are made through Process Return / credit notes.
+        if (!['active', 'partially_paid', 'paid'].includes(inv.status)) {
           notifications.show({
-            title: 'Invoice already issued',
-            message: `Invoice ${inv.invNumber} has been issued and can no longer be edited. Use Process Return to make corrections.`,
+            title: 'Invoice cannot be edited',
+            message: `Invoice ${inv.invNumber} can no longer be edited. Use Process Return to make corrections.`,
             color: 'yellow',
           });
           go(`/invoices/${invoiceId}`);

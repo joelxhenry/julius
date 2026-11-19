@@ -12,7 +12,7 @@ import {
 } from './baseStyles';
 
 export function getInvoiceTemplate(data: InvoiceTemplateData): string {
-  const { company, invoice, lineItems, salespersonName } = data;
+  const { company, invoice, lineItems, salespersonName, issuedByName } = data;
   const sym = company.currencySymbol;
 
   const isCancelled = invoice.status === 'cancelled';
@@ -55,6 +55,11 @@ export function getInvoiceTemplate(data: InvoiceTemplateData): string {
         ${salespersonName ? `
           <div class="info-label">Salesperson</div>
           <div class="info-value">${escapeHtml(salespersonName)}</div>
+        ` : ''}
+
+        ${issuedByName ? `
+          <div class="info-label">On Record</div>
+          <div class="info-value">${escapeHtml(issuedByName)}</div>
         ` : ''}
       </div>
     </div>

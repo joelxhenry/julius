@@ -11,7 +11,7 @@ import {
 } from './thermalBaseStyles';
 
 export function getThermalQuotationTemplate(data: QuotationTemplateData, paperWidth: ThermalPaperWidth): string {
-  const { company, quotation, lineItems, salespersonName } = data;
+  const { company, quotation, lineItems, salespersonName, createdByName } = data;
   const sym = company.currencySymbol;
 
   const body = `
@@ -26,6 +26,7 @@ export function getThermalQuotationTemplate(data: QuotationTemplateData, paperWi
     ${quotation.clientName ? getThermalInfoRow('Client', quotation.clientName) : ''}
     ${quotation.reference ? getThermalInfoRow('Ref', quotation.reference) : ''}
     ${salespersonName ? getThermalInfoRow('Sales', salespersonName) : ''}
+    ${createdByName ? getThermalInfoRow('On Record', createdByName) : ''}
 
     <hr class="sep">
 

@@ -164,6 +164,7 @@ export class PrintService {
 
     const lineItems = await this.documentLineItemService.findByInvoice(invoice.invNumber);
     const salespersonName = await this.resolveEmployeeName(invoice.salespersonId);
+    const issuedByName = await this.resolveEmployeeName(invoice.issuedById);
 
     return {
       company,
@@ -195,6 +196,7 @@ export class PrintService {
         isTaxable: item.isTaxable,
       })),
       salespersonName,
+      issuedByName,
     };
   }
 
@@ -205,6 +207,7 @@ export class PrintService {
 
     const lineItems = await this.documentLineItemService.findByQuotation(quotation.quoteNum);
     const salespersonName = await this.resolveEmployeeName(quotation.salespersonId);
+    const createdByName = await this.resolveEmployeeName(quotation.createdById);
 
     return {
       company,
@@ -233,6 +236,7 @@ export class PrintService {
         isTaxable: item.isTaxable,
       })),
       salespersonName,
+      createdByName,
     };
   }
 

@@ -11,7 +11,7 @@ import {
 } from './baseStyles';
 
 export function getQuotationTemplate(data: QuotationTemplateData, hidePartNumbers?: boolean): string {
-  const { company, quotation, lineItems, salespersonName } = data;
+  const { company, quotation, lineItems, salespersonName, createdByName } = data;
   const sym = company.currencySymbol;
 
   const body = `
@@ -40,6 +40,11 @@ export function getQuotationTemplate(data: QuotationTemplateData, hidePartNumber
         ${salespersonName ? `
           <div class="info-label">Salesperson</div>
           <div class="info-value">${escapeHtml(salespersonName)}</div>
+        ` : ''}
+
+        ${createdByName ? `
+          <div class="info-label">On Record</div>
+          <div class="info-value">${escapeHtml(createdByName)}</div>
         ` : ''}
       </div>
     </div>

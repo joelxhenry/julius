@@ -42,6 +42,7 @@ export interface InvoiceTemplateData {
   };
   lineItems: PrintLineItem[];
   salespersonName: string | null;
+  issuedByName: string | null;
 }
 
 export interface QuotationTemplateData {
@@ -62,6 +63,7 @@ export interface QuotationTemplateData {
   };
   lineItems: PrintLineItem[];
   salespersonName: string | null;
+  createdByName: string | null;
 }
 
 /** A single entry in a credit note's usage activity (how its funds were applied). */

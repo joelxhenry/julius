@@ -12,7 +12,7 @@ import {
 } from './thermalBaseStyles';
 
 export function getThermalInvoiceTemplate(data: InvoiceTemplateData, paperWidth: ThermalPaperWidth): string {
-  const { company, invoice, lineItems, salespersonName } = data;
+  const { company, invoice, lineItems, salespersonName, issuedByName } = data;
   const sym = company.currencySymbol;
 
   const isCancelled = invoice.status === 'cancelled';
@@ -36,6 +36,7 @@ export function getThermalInvoiceTemplate(data: InvoiceTemplateData, paperWidth:
     ${invoice.reference ? getThermalInfoRow('Ref', invoice.reference) : ''}
     ${invoice.creditTerms ? getThermalInfoRow('Terms', invoice.creditTerms) : ''}
     ${salespersonName ? getThermalInfoRow('Sales', salespersonName) : ''}
+    ${issuedByName ? getThermalInfoRow('On Record', issuedByName) : ''}
 
     <hr class="sep">
 
