@@ -65,7 +65,7 @@ export function BackupSettingsTab() {
   const [clientSecret, setClientSecret] = useState('');
   const [pgToolsPath, setPgToolsPath] = useState('');
   const [autoBackup, setAutoBackup] = useState(false);
-  const [intervalHours, setIntervalHours] = useState<number>(24);
+  const [intervalHours, setIntervalHours] = useState<number | ''>(24);
 
   // Action flags
   const [isSaving, setIsSaving] = useState(false);
@@ -129,7 +129,7 @@ export function BackupSettingsTab() {
     try {
       const payload: Record<string, unknown> = {
         autoBackup,
-        autoBackupIntervalHours: intervalHours,
+        autoBackupIntervalHours: intervalHours === '' ? 24 : intervalHours,
         pgToolsPath,
       };
       // Only send the client id/secret when the user actually typed new values
@@ -418,7 +418,8 @@ export function BackupSettingsTab() {
               min={1}
               max={720}
               value={intervalHours}
-              onChange={(v) => setIntervalHours(typeof v === 'number' ? v : 24)}
+              onChange={setIntervalHours}
+              onBlur={() => setIntervalHours((v) => (v === '' ? 24 : v))}
               w={140}
               disabled={!autoBackup}
             />

@@ -9,10 +9,10 @@ const RECENT_QUOTATIONS_LIMIT_KEY = 'recent_quotations_limit';
 
 export function InterfaceSettingsTab() {
   const { maxTabs, setMaxTabs } = useTabContext();
-  const [localMaxTabs, setLocalMaxTabs] = useState(maxTabs);
-  const [recentInvoicesLimit, setRecentInvoicesLimit] = useState(8);
+  const [localMaxTabs, setLocalMaxTabs] = useState<number | ''>(maxTabs);
+  const [recentInvoicesLimit, setRecentInvoicesLimit] = useState<number | ''>(8);
   const [savedRecentInvoicesLimit, setSavedRecentInvoicesLimit] = useState(8);
-  const [recentQuotationsLimit, setRecentQuotationsLimit] = useState(3);
+  const [recentQuotationsLimit, setRecentQuotationsLimit] = useState<number | ''>(3);
   const [savedRecentQuotationsLimit, setSavedRecentQuotationsLimit] = useState(3);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,26 +49,34 @@ export function InterfaceSettingsTab() {
   }, []);
 
   const handleSave = async () => {
+    // Fields may be left empty mid-edit; fall back to a sensible default rather than persisting ''.
+    const maxTabsValue = localMaxTabs === '' ? 1 : localMaxTabs;
+    const invoicesLimitValue = recentInvoicesLimit === '' ? 0 : recentInvoicesLimit;
+    const quotationsLimitValue = recentQuotationsLimit === '' ? 0 : recentQuotationsLimit;
+
     // Save tab setting
-    setMaxTabs(localMaxTabs);
+    setMaxTabs(maxTabsValue);
 
     // Save settings to database
     try {
       // Save recent invoices limit
       const invoicesResult = await window.electron.invoke(IpcChannel.SET_SYSTEM_SETTING, {
         key: RECENT_INVOICES_LIMIT_KEY,
-        value: recentInvoicesLimit.toString(),
+        value: invoicesLimitValue.toString(),
       });
 
       // Save recent quotations limit
       const quotationsResult = await window.electron.invoke(IpcChannel.SET_SYSTEM_SETTING, {
         key: RECENT_QUOTATIONS_LIMIT_KEY,
-        value: recentQuotationsLimit.toString(),
+        value: quotationsLimitValue.toString(),
       });
 
       if (invoicesResult.success && quotationsResult.success) {
-        setSavedRecentInvoicesLimit(recentInvoicesLimit);
-        setSavedRecentQuotationsLimit(recentQuotationsLimit);
+        setLocalMaxTabs(maxTabsValue);
+        setRecentInvoicesLimit(invoicesLimitValue);
+        setRecentQuotationsLimit(quotationsLimitValue);
+        setSavedRecentInvoicesLimit(invoicesLimitValue);
+        setSavedRecentQuotationsLimit(quotationsLimitValue);
         notifications.show({
           title: 'Settings Saved',
           message: 'Interface settings have been saved',
@@ -122,7 +130,8 @@ export function InterfaceSettingsTab() {
             label="Maximum Open Tabs"
             description="Maximum number of tabs that can be open simultaneously (1-20)"
             value={localMaxTabs}
-            onChange={(val) => setLocalMaxTabs(Number(val) || 1)}
+            onChange={setLocalMaxTabs}
+            onBlur={() => setLocalMaxTabs((v) => (v === '' ? 1 : v))}
             min={1}
             max={20}
             step={1}
@@ -146,7 +155,8 @@ export function InterfaceSettingsTab() {
             label="Recent Invoices Limit"
             description="Maximum number of recent invoices shown at the top of the new invoice page (0-20)"
             value={recentInvoicesLimit}
-            onChange={(val) => setRecentInvoicesLimit(Number(val) || 0)}
+            onChange={setRecentInvoicesLimit}
+            onBlur={() => setRecentInvoicesLimit((v) => (v === '' ? 0 : v))}
             min={0}
             max={20}
             step={1}
@@ -169,7 +179,8 @@ export function InterfaceSettingsTab() {
             label="Recent Quotations Limit"
             description="Maximum number of recent quotations shown at the top of the new quotation page (0-20)"
             value={recentQuotationsLimit}
-            onChange={(val) => setRecentQuotationsLimit(Number(val) || 0)}
+            onChange={setRecentQuotationsLimit}
+            onBlur={() => setRecentQuotationsLimit((v) => (v === '' ? 0 : v))}
             min={0}
             max={20}
             step={1}

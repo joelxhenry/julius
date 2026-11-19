@@ -290,6 +290,11 @@ interface TrayRowProps {
 }
 
 function TrayRow({ item, selected, onToggleSelected, onRemove, onQuantityChange }: TrayRowProps) {
+  // Tracks whether the qty field has been cleared but not yet re-typed into or
+  // blurred away from, so it can show truly empty instead of fighting the user
+  // (the controlled value prop otherwise never changes while cleared, so Mantine
+  // has nothing to re-sync the display from).
+  const [qtyCleared, setQtyCleared] = useState(false);
   return (
     <Box
       p="sm"
@@ -335,11 +340,16 @@ function TrayRow({ item, selected, onToggleSelected, onRemove, onQuantityChange 
           <Group gap="xs" justify="space-between" align="center">
             <NumberInput
               aria-label={`Quantity for ${item.partNumber}`}
-              value={item.quantity}
+              value={qtyCleared ? '' : item.quantity}
               onChange={(value) => {
-                const next = typeof value === 'number' ? value : parseInt(String(value), 10);
-                if (Number.isFinite(next)) onQuantityChange(next);
+                if (typeof value !== 'number') {
+                  setQtyCleared(true);
+                  return;
+                }
+                setQtyCleared(false);
+                onQuantityChange(value);
               }}
+              onBlur={() => setQtyCleared(false)}
               min={1}
               max={9999}
               step={1}

@@ -140,6 +140,22 @@ export function GoodsReceivalPage({ onBack }: { onBack?: () => void } = {}) {
   // Lines
   const [rows, setRows] = useState<ReceivalRow[]>([]);
 
+  // Number cells the user has cleared but not yet re-typed into or blurred away
+  // from. Tracked locally (not written into `rows`) so the input can show truly
+  // empty instead of snapping back to "0" and prefixing the next keystroke
+  // (e.g. typing "5" into a cleared field becoming "05").
+  const [clearedCells, setClearedCells] = useState<Set<string>>(new Set());
+  const cellKey = (rowId: string, field: 'receivedQty' | 'unitCost') => `${rowId}:${field}`;
+  const markCleared = (key: string, cleared: boolean) => {
+    setClearedCells((prev) => {
+      if (cleared === prev.has(key)) return prev;
+      const next = new Set(prev);
+      if (cleared) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  };
+
   // Add-item search
   const [searchValue, setSearchValue] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
@@ -841,10 +857,17 @@ export function GoodsReceivalPage({ onBack }: { onBack?: () => void } = {}) {
                               focusRowIdRef.current = null;
                             }
                           }}
-                          value={row.receivedQty}
-                          onChange={(v) =>
-                            updateRow(row.rowId, 'receivedQty', typeof v === 'number' ? v : 0)
-                          }
+                          value={clearedCells.has(cellKey(row.rowId, 'receivedQty')) ? '' : row.receivedQty}
+                          onChange={(v) => {
+                            const key = cellKey(row.rowId, 'receivedQty');
+                            if (typeof v !== 'number') {
+                              markCleared(key, true);
+                              return;
+                            }
+                            markCleared(key, false);
+                            updateRow(row.rowId, 'receivedQty', v);
+                          }}
+                          onBlur={() => markCleared(cellKey(row.rowId, 'receivedQty'), false)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -860,8 +883,17 @@ export function GoodsReceivalPage({ onBack }: { onBack?: () => void } = {}) {
                       </Table.Td>
                       <Table.Td>
                         <NumberInput
-                          value={row.unitCost}
-                          onChange={(v) => setUnitCost(row.rowId, typeof v === 'number' ? v : 0)}
+                          value={clearedCells.has(cellKey(row.rowId, 'unitCost')) ? '' : row.unitCost}
+                          onChange={(v) => {
+                            const key = cellKey(row.rowId, 'unitCost');
+                            if (typeof v !== 'number') {
+                              markCleared(key, true);
+                              return;
+                            }
+                            markCleared(key, false);
+                            setUnitCost(row.rowId, v);
+                          }}
+                          onBlur={() => markCleared(cellKey(row.rowId, 'unitCost'), false)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, KeyboardEvent } from 'react';
+import React, { useRef, useState, useEffect, KeyboardEvent } from 'react';
 import {
   Stack,
   Text,
@@ -72,6 +72,22 @@ export function InvoiceLineItemsTable({
   // Refs for quantity and discount inputs (for keyboard focus shortcuts)
   const quantityRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const discountRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Cells the user has cleared but not yet re-typed into or blurred away from.
+  // Tracked locally (rather than writing '' into lineItems) so the input can show
+  // truly empty instead of snapping back to "0" and forcing the next keystroke
+  // after a leading zero (e.g. typing "5" into a cleared field becoming "05").
+  const [clearedCells, setClearedCells] = useState<Set<string>>(new Set());
+  const cellKey = (itemId: string, field: 'quantity' | 'discount') => `${itemId}:${field}`;
+  const markCleared = (key: string, cleared: boolean) => {
+    setClearedCells((prev) => {
+      if (cleared === prev.has(key)) return prev;
+      const next = new Set(prev);
+      if (cleared) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  };
 
   // Multi-field product search (part#/description, category, model).
   const productSearch = useProductSearch();
@@ -311,9 +327,20 @@ export function InvoiceLineItemsTable({
                           }}
                           size={compact ? 'xs' : 'sm'}
                           variant={isEditingQty ? 'default' : 'unstyled'}
-                          value={item.quantity}
-                          onChange={(value) => onUpdateLineItem(item.id, 'quantity', value || 0)}
-                          onBlur={handleInputBlur}
+                          value={clearedCells.has(cellKey(item.id, 'quantity')) ? '' : item.quantity}
+                          onChange={(value) => {
+                            const key = cellKey(item.id, 'quantity');
+                            if (value === '') {
+                              markCleared(key, true);
+                              return;
+                            }
+                            markCleared(key, false);
+                            onUpdateLineItem(item.id, 'quantity', value);
+                          }}
+                          onBlur={() => {
+                            markCleared(cellKey(item.id, 'quantity'), false);
+                            handleInputBlur();
+                          }}
                           onKeyDown={(e) => handleCellKeyDown(e, idx, 'quantity')}
                           min={0}
                           ta="center"
@@ -338,9 +365,20 @@ export function InvoiceLineItemsTable({
                           }}
                           size={compact ? 'xs' : 'sm'}
                           variant={isEditingDiscount ? 'default' : 'unstyled'}
-                          value={item.discount}
-                          onChange={(value) => onUpdateLineItem(item.id, 'discount', value || 0)}
-                          onBlur={handleInputBlur}
+                          value={clearedCells.has(cellKey(item.id, 'discount')) ? '' : item.discount}
+                          onChange={(value) => {
+                            const key = cellKey(item.id, 'discount');
+                            if (value === '') {
+                              markCleared(key, true);
+                              return;
+                            }
+                            markCleared(key, false);
+                            onUpdateLineItem(item.id, 'discount', value);
+                          }}
+                          onBlur={() => {
+                            markCleared(cellKey(item.id, 'discount'), false);
+                            handleInputBlur();
+                          }}
                           onKeyDown={(e) => handleCellKeyDown(e, idx, 'discount')}
                           min={0}
                           max={100}

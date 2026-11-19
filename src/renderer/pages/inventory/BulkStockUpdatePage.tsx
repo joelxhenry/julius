@@ -102,6 +102,23 @@ export function BulkStockUpdatePage({ onBack }: { onBack?: () => void } = {}) {
   const { user } = useAuth();
   const handleBack = onBack ?? (() => navigate('/inventory/manage'));
   const [rows, setRows] = useState<AdjustRow[]>([]);
+
+  // Number cells the user has cleared but not yet re-typed into or blurred away
+  // from. Tracked locally (not written into `rows`) so the input can show truly
+  // empty instead of snapping back to "0" and prefixing the next keystroke
+  // (e.g. typing "5" into a cleared field becoming "05").
+  const [clearedCells, setClearedCells] = useState<Set<string>>(new Set());
+  const cellKey = (rowId: string, field: 'absoluteQty' | 'delta') => `${rowId}:${field}`;
+  const markCleared = (key: string, cleared: boolean) => {
+    setClearedCells((prev) => {
+      if (cleared === prev.has(key)) return prev;
+      const next = new Set(prev);
+      if (cleared) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  };
+
   const [pickerKey, setPickerKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpened, { open: openConfirm, close: closeConfirm }] = useDisclosure(false);
@@ -473,14 +490,17 @@ export function BulkStockUpdatePage({ onBack }: { onBack?: () => void } = {}) {
                       <Table.Td>
                         {row.mode === 'absolute' ? (
                           <NumberInput
-                            value={row.absoluteQty}
-                            onChange={(v) =>
-                              updateRow(
-                                row.rowId,
-                                'absoluteQty',
-                                typeof v === 'number' ? v : 0
-                              )
-                            }
+                            value={clearedCells.has(cellKey(row.rowId, 'absoluteQty')) ? '' : row.absoluteQty}
+                            onChange={(v) => {
+                              const key = cellKey(row.rowId, 'absoluteQty');
+                              if (typeof v !== 'number') {
+                                markCleared(key, true);
+                                return;
+                              }
+                              markCleared(key, false);
+                              updateRow(row.rowId, 'absoluteQty', v);
+                            }}
+                            onBlur={() => markCleared(cellKey(row.rowId, 'absoluteQty'), false)}
                             min={0}
                             disabled={disabled}
                             size="sm"
@@ -489,10 +509,17 @@ export function BulkStockUpdatePage({ onBack }: { onBack?: () => void } = {}) {
                           />
                         ) : (
                           <NumberInput
-                            value={row.delta}
-                            onChange={(v) =>
-                              updateRow(row.rowId, 'delta', typeof v === 'number' ? v : 0)
-                            }
+                            value={clearedCells.has(cellKey(row.rowId, 'delta')) ? '' : row.delta}
+                            onChange={(v) => {
+                              const key = cellKey(row.rowId, 'delta');
+                              if (typeof v !== 'number') {
+                                markCleared(key, true);
+                                return;
+                              }
+                              markCleared(key, false);
+                              updateRow(row.rowId, 'delta', v);
+                            }}
+                            onBlur={() => markCleared(cellKey(row.rowId, 'delta'), false)}
                             disabled={disabled}
                             size="sm"
                             error={newQtyError}

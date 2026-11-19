@@ -112,6 +112,10 @@ export function ProcessReturnModal({
   const { taxRate } = useTaxRate();
   const partLabels = usePartLabels(lineItems.map((li) => li.sku));
   const [selectedItems, setSelectedItems] = useState<Map<number, number>>(new Map());
+  // Qty cells the user has cleared but not yet re-typed into or blurred away from.
+  // Without this, clearing the field to type a new quantity would immediately
+  // read as "0" and uncheck/remove the row's selection.
+  const [clearedQtyIds, setClearedQtyIds] = useState<Set<number>>(new Set());
   const [returnDate, setReturnDate] = useState<Date | null>(new Date());
   const [refundMethod, setRefundMethod] = useState<RefundMethod>('CASH');
   const [reference, setReference] = useState('');
@@ -482,8 +486,28 @@ export function ProcessReturnModal({
                       </Table.Td>
                       <Table.Td>
                         <NumberInput
-                          value={isChecked ? qty : item.quantity}
-                          onChange={(val) => setItemQty(item.id, Number(val))}
+                          value={clearedQtyIds.has(item.id) ? '' : (isChecked ? qty : item.quantity)}
+                          onChange={(val) => {
+                            if (typeof val !== 'number') {
+                              setClearedQtyIds((prev) => new Set(prev).add(item.id));
+                              return;
+                            }
+                            setClearedQtyIds((prev) => {
+                              if (!prev.has(item.id)) return prev;
+                              const next = new Set(prev);
+                              next.delete(item.id);
+                              return next;
+                            });
+                            setItemQty(item.id, val);
+                          }}
+                          onBlur={() =>
+                            setClearedQtyIds((prev) => {
+                              if (!prev.has(item.id)) return prev;
+                              const next = new Set(prev);
+                              next.delete(item.id);
+                              return next;
+                            })
+                          }
                           min={1}
                           max={item.quantity}
                           step={1}
