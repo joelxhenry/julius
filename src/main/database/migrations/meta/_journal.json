@@ -206,10 +206,24 @@
       "breakpoints": true
     },
     {
+      "idx": 29,
+      "version": "7",
+      "when": 1795092961433,
+      "tag": "0029_inventory_sku_rename_cascade",
+      "breakpoints": true
+    },
+    {
       "idx": 30,
       "version": "7",
       "when": 1795094466799,
       "tag": "0030_wonderful_jane_foster",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795095288556,
+      "tag": "0031_error_log_severity",
       "breakpoints": true
     }
   ]

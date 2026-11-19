@@ -14,6 +14,7 @@ export interface InventoryQueryParams {
   model?: string;
   location?: string;
   includeArchived?: boolean;
+  archivedOnly?: boolean;
 }
 
 export interface DeletionImpact {
@@ -149,12 +150,14 @@ export class InventoryService extends BaseService<
   }
 
   async findPaginated(params: InventoryQueryParams = {}): Promise<PaginatedResult<InventoryWithStock>> {
-    const { page = 1, pageSize = 50, search, category, model, location, includeArchived = false } = params;
+    const { page = 1, pageSize = 50, search, category, model, location, includeArchived = false, archivedOnly = false } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions = [];
 
-    if (!includeArchived) {
+    if (archivedOnly) {
+      conditions.push(eq(schema.inventory.isActive, false));
+    } else if (!includeArchived) {
       conditions.push(eq(schema.inventory.isActive, true));
     }
 
@@ -406,6 +409,22 @@ export class InventoryService extends BaseService<
   }
 
   /**
+   * True if the product itself or any of its variants still carry stock.
+   * Delete/archive is blocked while this holds, since removing the row would
+   * make that stock unaccounted for.
+   */
+  private async hasStock(item: schema.Inventory): Promise<boolean> {
+    if (item.quantity > 0) return true;
+
+    const [row] = await this.db
+      .select({ total: sql<number>`coalesce(sum(${schema.variants.quantity}), 0)` })
+      .from(schema.variants)
+      .where(eq(schema.variants.parentSku, item.sku));
+
+    return Number(row?.total ?? 0) > 0;
+  }
+
+  /**
    * Deletes an inventory item if it has no history, otherwise archives it
    * (isActive = false) so its stock/receiving history and variants are preserved
    * instead of being cascade-deleted or orphaned.
@@ -414,14 +433,65 @@ export class InventoryService extends BaseService<
     const item = await this.findById(id);
     if (!item) return null;
 
+    if (await this.hasStock(item)) {
+      throw new Error(
+        `Cannot delete ${item.sku}: it or one of its variants still has stock. Reduce all stock to zero before deleting.`
+      );
+    }
+
     const impact = await this.getDeletionImpact(item.sku);
     if (impact.hasTransactions || impact.hasReceiving || impact.hasVariants) {
-      await this.deactivate(id);
+      await this.archiveAndFreeSku(item);
       return { action: 'archived' };
     }
 
     await this.delete(id);
     return { action: 'deleted' };
+  }
+
+  /**
+   * Appends an id-based suffix to a sku, truncating the original so the result
+   * still fits the column's 50-char limit. The id is never reused, so the
+   * result can't collide with another sku, archived or live.
+   */
+  private buildArchivedSku(sku: string, id: number): string {
+    const suffix = `-ARCH${id}`;
+    if (sku.length + suffix.length <= 50) return `${sku}${suffix}`;
+    return `${sku.slice(0, 50 - suffix.length)}${suffix}`;
+  }
+
+  /**
+   * Archives an item and renames its sku so the original number is immediately
+   * free for a new part to reuse - otherwise create() would hit the sku unique
+   * constraint forever, since archived rows are kept (not deleted) for their
+   * history. variants.parent_sku, inventory_categories.sku, inventory_receiving
+   * .sku/.variant_sku, inventory_transactions.sku/.variant_sku and
+   * inventory_markup.sku are all ON UPDATE CASCADE, so they follow the rename
+   * automatically; inventory_images has no FK (it's keyed by sku + isVariant)
+   * so it's updated explicitly.
+   */
+  private async archiveAndFreeSku(item: schema.Inventory): Promise<void> {
+    const oldSku = item.sku;
+    const newSku = this.buildArchivedSku(oldSku, item.id);
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(schema.inventory)
+        .set({ sku: newSku, isActive: false, updatedAt: new Date() })
+        .where(eq(schema.inventory.id, item.id));
+
+      // The base variant's sku mirrors the inventory sku by convention (see
+      // createBaseVariant); keep it in sync so it's also free for reuse.
+      await tx
+        .update(schema.variants)
+        .set({ variantSku: newSku, updatedAt: new Date() })
+        .where(and(eq(schema.variants.parentSku, newSku), eq(schema.variants.isBase, true)));
+
+      await tx
+        .update(schema.inventoryImages)
+        .set({ sku: newSku })
+        .where(eq(schema.inventoryImages.sku, oldSku));
+    });
   }
 
   async updateQuantity(sku: string, quantityChange: number): Promise<schema.Inventory | null> {

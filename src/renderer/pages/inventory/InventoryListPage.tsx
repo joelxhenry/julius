@@ -12,7 +12,7 @@ import {
   NumberFormatter,
   Loader,
   Center,
-  Checkbox,
+  SegmentedControl,
 } from '@mantine/core';
 import {
   IconSearch,
@@ -80,7 +80,10 @@ export function InventoryListPage() {
   const [debouncedModel] = useDebouncedValue(modelFilter, 500);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
-  const [showArchived, setShowArchived] = useListState('inventory:showArchived', false);
+  const [statusFilter, setStatusFilter] = useListState<'active' | 'all' | 'archived'>(
+    'inventory:statusFilter',
+    'active'
+  );
   const skipInitialFetch = useRestoreGuard('inventory:inventory');
 
   const pageSize = 30;
@@ -101,7 +104,8 @@ export function InventoryListPage() {
           search: debouncedSearch,
           category: debouncedCategory,
           model: debouncedModel,
-          includeArchived: showArchived,
+          includeArchived: statusFilter === 'all',
+          archivedOnly: statusFilter === 'archived',
         });
 
         if (result.success && result.data) {
@@ -125,7 +129,7 @@ export function InventoryListPage() {
         }
       }
     },
-    [pageSize, debouncedSearch, debouncedCategory, debouncedModel, showArchived, setInventory, setTotal, setHasMore, setPage]
+    [pageSize, debouncedSearch, debouncedCategory, debouncedModel, statusFilter, setInventory, setTotal, setHasMore, setPage]
   );
 
   // Reload from page 1 whenever the search/filters change
@@ -133,7 +137,7 @@ export function InventoryListPage() {
     if (skipInitialFetch()) return;
     fetchPage(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, debouncedCategory, debouncedModel, showArchived, skipInitialFetch]);
+  }, [debouncedSearch, debouncedCategory, debouncedModel, statusFilter, skipInitialFetch]);
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -337,10 +341,14 @@ export function InventoryListPage() {
               clearable
               style={{ flex: 1, minWidth: 180 }}
             />
-            <Checkbox
-              label="Show archived"
-              checked={showArchived}
-              onChange={(e) => setShowArchived(e.currentTarget.checked)}
+            <SegmentedControl
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value as 'active' | 'all' | 'archived')}
+              data={[
+                { label: 'Active', value: 'active' },
+                { label: 'All', value: 'all' },
+                { label: 'Archived', value: 'archived' },
+              ]}
             />
             <ActionIcon variant="subtle" onClick={() => fetchPage(1, false)} title="Refresh">
               <IconRefresh size={18} />
