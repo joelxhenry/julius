@@ -218,13 +218,20 @@ export function OverviewTab({ item, variants, onNotesSaved }: OverviewTabProps) 
           {(() => {
             const categories = normalizeToArray(item.category);
             const models = normalizeToArray(item.model);
-            const values = [...categories, ...models];
             return (
-              <Stack gap={2}>
-                <Text size="xs" c="dimmed">
-                  Make &amp; Models
-                </Text>
-                <Text fw={500}>{values.length > 0 ? values.join(', ') : '-'}</Text>
+              <Stack gap="md">
+                <Stack gap={2}>
+                  <Text size="xs" c="dimmed">
+                    Make
+                  </Text>
+                  <Text fw={500}>{categories.length > 0 ? categories.join(', ') : '-'}</Text>
+                </Stack>
+                <Stack gap={2}>
+                  <Text size="xs" c="dimmed">
+                    Models
+                  </Text>
+                  <Text fw={500}>{models.length > 0 ? models.join(', ') : '-'}</Text>
+                </Stack>
               </Stack>
             );
           })()}

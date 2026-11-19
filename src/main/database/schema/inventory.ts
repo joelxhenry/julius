@@ -7,6 +7,9 @@ import { employees } from './employees';
 // INVENTORY table - main inventory/parts table
 export const inventory = pgTable('inventory', {
   id: serial('id').primaryKey(),
+  // Stays globally unique even for archived rows: InventoryService renames an
+  // archived item's sku (see removeOrArchive) to free the original number for
+  // reuse, which relies on every FK below being ON UPDATE CASCADE.
   sku: varchar('sku', { length: 50 }).notNull().unique(),
   location: varchar('location', { length: 20 }),
   description1: varchar('description1', { length: 200 }),
@@ -21,7 +24,7 @@ export const inventory = pgTable('inventory', {
   margin: numeric('margin', { precision: 8, scale: 4 }),
   unit: varchar('unit', { length: 10 }).notNull().default('EA'),
   category: varchar('category', { length: 100 }),
-  model: varchar('model', { length: 200 }),
+  model: varchar('model', { length: 500 }),
   wholesalePrice: numeric('wholesale_price', { precision: 15, scale: 2 }),
   notes: text('notes'),
   icheck: varchar('icheck', { length: 10 }),
@@ -39,7 +42,7 @@ export const inventory = pgTable('inventory', {
 export const variants = pgTable('variants', {
   id: serial('id').primaryKey(),
   parentSku: varchar('parent_sku', { length: 50 }).notNull()
-    .references(() => inventory.sku, { onDelete: 'cascade' }),
+    .references(() => inventory.sku, { onDelete: 'cascade', onUpdate: 'cascade' }),
   variantSku: varchar('variant_sku', { length: 50 }).notNull().unique(),
   variantName: varchar('variant_name', { length: 100 }),
   location: varchar('location', { length: 20 }),
@@ -79,7 +82,7 @@ export const inventoryAlternates = pgTable('inventory_alternates', {
 export const inventoryCategories = pgTable('inventory_categories', {
   id: serial('id').primaryKey(),
   sku: varchar('sku', { length: 50 }).notNull()
-    .references(() => inventory.sku, { onDelete: 'cascade' }),
+    .references(() => inventory.sku, { onDelete: 'cascade', onUpdate: 'cascade' }),
   categoryId: integer('category_id').notNull()
     .references(() => categories.id, { onDelete: 'cascade' }),
 }, (table) => [
@@ -93,7 +96,7 @@ export const inventoryMarkup = pgTable('inventory_markup', {
   id: serial('id').primaryKey(),
   reference: varchar('reference', { length: 50 }),
   sku: varchar('sku', { length: 50 })
-    .references(() => inventory.sku, { onDelete: 'set null' }),
+    .references(() => inventory.sku, { onDelete: 'set null', onUpdate: 'cascade' }),
   description: varchar('description', { length: 200 }),
   retailPrice: numeric('retail_price', { precision: 15, scale: 2 }),
   quantity: integer('quantity'),
@@ -107,9 +110,9 @@ export const inventoryMarkup = pgTable('inventory_markup', {
 export const inventoryTransactions = pgTable('inventory_transactions', {
   id: serial('id').primaryKey(),
   sku: varchar('sku', { length: 50 }).notNull()
-    .references(() => inventory.sku, { onDelete: 'cascade' }),
+    .references(() => inventory.sku, { onDelete: 'cascade', onUpdate: 'cascade' }),
   variantSku: varchar('variant_sku', { length: 50 })
-    .references(() => variants.variantSku, { onDelete: 'cascade' }),
+    .references(() => variants.variantSku, { onDelete: 'cascade', onUpdate: 'cascade' }),
   activity: varchar('activity', { length: 20 }).notNull(),
   reference: varchar('reference', { length: 50 }),
   quantity: integer('quantity').notNull(),
@@ -155,9 +158,9 @@ export const inventoryReceiving = pgTable('inventory_receiving', {
   receivalId: integer('receival_id')
     .references(() => goodsReceivals.id, { onDelete: 'set null' }),
   sku: varchar('sku', { length: 50 }).notNull()
-    .references(() => inventory.sku, { onDelete: 'cascade' }),
+    .references(() => inventory.sku, { onDelete: 'cascade', onUpdate: 'cascade' }),
   variantSku: varchar('variant_sku', { length: 50 })
-    .references(() => variants.variantSku, { onDelete: 'cascade' }),
+    .references(() => variants.variantSku, { onDelete: 'cascade', onUpdate: 'cascade' }),
   supplierId: integer('supplier_id')
     .references(() => suppliers.id, { onDelete: 'set null' }),
   supplier: varchar('supplier', { length: 100 })
