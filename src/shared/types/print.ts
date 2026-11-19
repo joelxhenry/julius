@@ -12,6 +12,8 @@ export interface PrintDocumentRequest {
   outputMode: PrintOutputMode;
   printerName?: string;
   copies?: number;
+  /** Quotation-only: omit the Part No. column, showing only the description. */
+  hidePartNumbers?: boolean;
 }
 
 export interface PrintDocumentResponse {

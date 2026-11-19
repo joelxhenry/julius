@@ -140,11 +140,18 @@ export function formatDate(dateStr: string | null): string {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export function getLineItemsTable(lineItems: PrintLineItem[], currencySymbol: string): string {
+export function getLineItemsTable(
+  lineItems: PrintLineItem[],
+  currencySymbol: string,
+  options?: { hidePartNumbers?: boolean },
+): string {
+  const hidePartNumbers = options?.hidePartNumbers ?? false;
+  const colCount = hidePartNumbers ? 6 : 7;
+
   const rows = lineItems.map((item, i) => `
     <tr>
       <td style="width: 40px; color: #999;">${i + 1}</td>
-      <td>${escapeHtml(item.sku || '')}</td>
+      ${hidePartNumbers ? '' : `<td>${escapeHtml(item.sku || '')}</td>`}
       <td>${escapeHtml(item.description || '')}</td>
       <td class="right">${parseFloat(item.quantity).toLocaleString('en-US', { maximumFractionDigits: 4 })}</td>
       <td class="right">${formatCurrency(item.unitPrice, currencySymbol)}</td>
@@ -158,7 +165,7 @@ export function getLineItemsTable(lineItems: PrintLineItem[], currencySymbol: st
       <thead>
         <tr>
           <th style="width: 40px;">#</th>
-          <th>Part No.</th>
+          ${hidePartNumbers ? '' : '<th>Part No.</th>'}
           <th>Description</th>
           <th class="right">Qty</th>
           <th class="right">Unit Price</th>
@@ -167,7 +174,7 @@ export function getLineItemsTable(lineItems: PrintLineItem[], currencySymbol: st
         </tr>
       </thead>
       <tbody>
-        ${rows || '<tr><td colspan="7" style="text-align:center; color:#999; padding:16px;">No items</td></tr>'}
+        ${rows || `<tr><td colspan="${colCount}" style="text-align:center; color:#999; padding:16px;">No items</td></tr>`}
       </tbody>
     </table>
   `;

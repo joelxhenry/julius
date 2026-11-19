@@ -7,13 +7,19 @@ export function usePrint() {
   const [isPrinting, setIsPrinting] = useState(false);
 
   const printDocument = useCallback(
-    async (documentType: PrintDocumentType, documentId: number, outputMode: PrintOutputMode) => {
+    async (
+      documentType: PrintDocumentType,
+      documentId: number,
+      outputMode: PrintOutputMode,
+      options?: { hidePartNumbers?: boolean },
+    ) => {
       setIsPrinting(true);
       try {
         const result = await window.electron.invoke(IpcChannel.PRINT_DOCUMENT, {
           documentType,
           documentId,
           outputMode,
+          ...options,
         });
 
         if (result.success) {

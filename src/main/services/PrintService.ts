@@ -330,7 +330,11 @@ export class PrintService {
 
   // --- HTML generation ---
 
-  private async generateHtml(documentType: PrintDocumentType, documentId: number): Promise<string> {
+  private async generateHtml(
+    documentType: PrintDocumentType,
+    documentId: number,
+    hidePartNumbers?: boolean,
+  ): Promise<string> {
     switch (documentType) {
       case 'invoice': {
         const data = await this.loadInvoiceData(documentId);
@@ -338,7 +342,7 @@ export class PrintService {
       }
       case 'quotation': {
         const data = await this.loadQuotationData(documentId);
-        return getQuotationTemplate(data);
+        return getQuotationTemplate(data, hidePartNumbers);
       }
       case 'credit_note': {
         const data = await this.loadCreditNoteData(documentId);
@@ -443,6 +447,7 @@ export class PrintService {
     outputMode: PrintOutputMode,
     printerName?: string,
     copies?: number,
+    hidePartNumbers?: boolean,
   ): Promise<PrintResult> {
     // Check if this document type is configured for thermal printing
     const settings = await this.loadPrintSettings();
@@ -450,7 +455,7 @@ export class PrintService {
       return this.generateThermalDocument(documentType, documentId, outputMode, settings, copies);
     }
 
-    const html = await this.generateHtml(documentType, documentId);
+    const html = await this.generateHtml(documentType, documentId, hidePartNumbers);
 
     if (outputMode === 'preview') {
       const previewWin = new BrowserWindow({

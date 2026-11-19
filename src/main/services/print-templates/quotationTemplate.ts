@@ -10,7 +10,7 @@ import {
   escapeHtml,
 } from './baseStyles';
 
-export function getQuotationTemplate(data: QuotationTemplateData): string {
+export function getQuotationTemplate(data: QuotationTemplateData, hidePartNumbers?: boolean): string {
   const { company, quotation, lineItems, salespersonName } = data;
   const sym = company.currencySymbol;
 
@@ -44,7 +44,7 @@ export function getQuotationTemplate(data: QuotationTemplateData): string {
       </div>
     </div>
 
-    ${getLineItemsTable(lineItems, sym)}
+    ${getLineItemsTable(lineItems, sym, { hidePartNumbers })}
 
     ${getTotalsBlock(quotation.subTotal, quotation.tax, quotation.total, sym)}
 

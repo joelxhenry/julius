@@ -24,6 +24,7 @@ export class PrintController {
     outputMode: PrintOutputMode;
     printerName?: string;
     copies?: number;
+    hidePartNumbers?: boolean;
   }) {
     try {
       const result = await this.printService.generateDocument(
@@ -32,6 +33,7 @@ export class PrintController {
         params.outputMode,
         params.printerName,
         params.copies,
+        params.hidePartNumbers,
       );
       return this.wrapSuccess(result);
     } catch (error) {
