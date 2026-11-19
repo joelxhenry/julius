@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Paper, Stack, Title, SimpleGrid, Text, Group, Textarea, Button, Tooltip, NumberFormatter } from '@mantine/core';
+import { Paper, Stack, Title, SimpleGrid, Text, Group, Textarea, Button, Tooltip, NumberFormatter, Badge } from '@mantine/core';
 import { IconDeviceFloppy, IconX, IconNotes } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { CopyButton, DataTable, type Column } from '../common';
@@ -9,6 +9,7 @@ import { formatVariantName } from '../../../shared/utils/variantName';
 import { normalizeToArray } from '../../../shared/utils/arrayFields';
 import { IpcChannel } from '../../../shared/types/ipc';
 import { usePermissions } from '../../permissions';
+import { stockColor } from '../../utils/stockColor';
 
 interface Inventory {
   id: number;
@@ -57,32 +58,27 @@ interface OverviewTabProps {
 export function OverviewTab({ item, variants, onNotesSaved }: OverviewTabProps) {
   const { runWithPermission } = usePermissions();
 
-  const activeVariants = useMemo(() => variants.filter((v) => v.isActive), [variants]);
+  const activeVariants = useMemo(
+    () => variants.filter((v) => v.isActive).sort((a, b) => b.quantity - a.quantity),
+    [variants]
+  );
 
   const variantColumns: Column<Variant>[] = useMemo(
     () => [
       {
         key: 'variantSku',
         header: 'Variant',
-        render: (variant) => {
-          const name = formatVariantName(item.description1, variant.variantName, variant.isBase);
-          return (
-            <Group gap="xs">
-              <Text fw={500}>{variant.variantSku}</Text>
-              {name && (
-                <Text size="sm" c="dimmed">
-                  {name}
-                </Text>
-              )}
-            </Group>
-          );
-        },
+        render: (variant) => <Text fw={500}>{variant.variantSku}</Text>,
       },
       {
         key: 'quantity',
-        header: 'Quantity',
+        header: 'Stock',
         width: 100,
-        accessor: 'quantity',
+        render: (variant) => (
+          <Badge color={stockColor(variant.quantity)} variant="light" size="sm">
+            {variant.quantity}
+          </Badge>
+        ),
       },
       {
         key: 'price',

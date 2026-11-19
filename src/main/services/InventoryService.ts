@@ -206,42 +206,12 @@ export class InventoryService extends BaseService<
     // total across all variants. Prefer active variants (matching the detail page),
     // falling back to all variants, then to the product-level quantity.
     const skus = data.map((row) => row.sku);
-    const stockBySku = new Map<string, { activeSum: number; activeCount: number; totalCount: number; totalSum: number }>();
-    if (skus.length > 0) {
-      const stockRows = await this.db
-        .select({
-          parentSku: schema.variants.parentSku,
-          activeSum: sql<number>`coalesce(sum(case when ${schema.variants.isActive} then ${schema.variants.quantity} else 0 end), 0)`,
-          activeCount: sql<number>`sum(case when ${schema.variants.isActive} then 1 else 0 end)`,
-          totalSum: sql<number>`coalesce(sum(${schema.variants.quantity}), 0)`,
-          totalCount: count(),
-        })
-        .from(schema.variants)
-        .where(inArray(schema.variants.parentSku, skus))
-        .groupBy(schema.variants.parentSku);
+    const stockBySku = await this.getStockBySkus(skus);
 
-      for (const row of stockRows) {
-        stockBySku.set(row.parentSku, {
-          activeSum: Number(row.activeSum ?? 0),
-          activeCount: Number(row.activeCount ?? 0),
-          totalSum: Number(row.totalSum ?? 0),
-          totalCount: Number(row.totalCount ?? 0),
-        });
-      }
-    }
-
-    const dataWithStock: InventoryWithStock[] = data.map((row) => {
-      const stock = stockBySku.get(row.sku);
-      let totalStock: number;
-      if (stock && stock.activeCount > 0) {
-        totalStock = stock.activeSum;
-      } else if (stock && stock.totalCount > 0) {
-        totalStock = stock.totalSum;
-      } else {
-        totalStock = row.quantity;
-      }
-      return { ...row, totalStock };
-    });
+    const dataWithStock: InventoryWithStock[] = data.map((row) => ({
+      ...row,
+      totalStock: this.resolveTotalStock(row, stockBySku.get(row.sku)),
+    }));
 
     return {
       data: dataWithStock,
@@ -252,6 +222,49 @@ export class InventoryService extends BaseService<
     };
   }
 
+  /**
+   * Aggregate variant quantities grouped by parent SKU. Prefers active variants,
+   * falling back to all variants, so callers can resolve a single total-stock
+   * figure per SKU without re-writing the SQL each time.
+   */
+  private async getStockBySkus(
+    skus: string[]
+  ): Promise<Map<string, { activeSum: number; activeCount: number; totalCount: number; totalSum: number }>> {
+    const stockBySku = new Map<string, { activeSum: number; activeCount: number; totalCount: number; totalSum: number }>();
+    if (skus.length === 0) return stockBySku;
+
+    const stockRows = await this.db
+      .select({
+        parentSku: schema.variants.parentSku,
+        activeSum: sql<number>`coalesce(sum(case when ${schema.variants.isActive} then ${schema.variants.quantity} else 0 end), 0)`,
+        activeCount: sql<number>`sum(case when ${schema.variants.isActive} then 1 else 0 end)`,
+        totalSum: sql<number>`coalesce(sum(${schema.variants.quantity}), 0)`,
+        totalCount: count(),
+      })
+      .from(schema.variants)
+      .where(inArray(schema.variants.parentSku, skus))
+      .groupBy(schema.variants.parentSku);
+
+    for (const row of stockRows) {
+      stockBySku.set(row.parentSku, {
+        activeSum: Number(row.activeSum ?? 0),
+        activeCount: Number(row.activeCount ?? 0),
+        totalSum: Number(row.totalSum ?? 0),
+        totalCount: Number(row.totalCount ?? 0),
+      });
+    }
+    return stockBySku;
+  }
+
+  private resolveTotalStock(
+    row: schema.Inventory,
+    stock: { activeSum: number; activeCount: number; totalCount: number; totalSum: number } | undefined
+  ): number {
+    if (stock && stock.activeCount > 0) return stock.activeSum;
+    if (stock && stock.totalCount > 0) return stock.totalSum;
+    return row.quantity;
+  }
+
   async findBySku(sku: string): Promise<schema.Inventory | null> {
     const results = await this.db
       .select()
@@ -259,6 +272,18 @@ export class InventoryService extends BaseService<
       .where(eq(schema.inventory.sku, sku))
       .limit(1);
     return results[0] || null;
+  }
+
+  /**
+   * Like findBySku, but also resolves totalStock across the item's variants
+   * (same aggregation as findPaginated) - used where a single-SKU lookup needs
+   * to show the same stock figure as the list page (e.g. alternate part lookups).
+   */
+  async findBySkuWithStock(sku: string): Promise<InventoryWithStock | null> {
+    const item = await this.findBySku(sku);
+    if (!item) return null;
+    const stockBySku = await this.getStockBySkus([sku]);
+    return { ...item, totalStock: this.resolveTotalStock(item, stockBySku.get(sku)) };
   }
 
   /**

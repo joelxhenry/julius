@@ -39,7 +39,7 @@ export class InventoryController extends BaseController<InventoryService> {
 
   async getBySku(sku: string) {
     try {
-      const item = await this.service.findBySku(sku);
+      const item = await this.service.findBySkuWithStock(sku);
       if (!item) {
         return { success: false, error: 'Inventory item not found' };
       }

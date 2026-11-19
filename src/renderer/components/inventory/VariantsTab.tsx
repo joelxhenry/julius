@@ -5,6 +5,7 @@ import { DataTable, Column, CopyButton } from '../common';
 import { MarkButton } from '../tray/MarkButton';
 import { AddToListButton } from '../lists';
 import { formatVariantName } from '../../../shared/utils/variantName';
+import { stockColor } from '../../utils/stockColor';
 
 interface Variant {
   id: number;
@@ -36,6 +37,11 @@ interface VariantsTabProps {
 }
 
 export function VariantsTab({ variants, loading, parentIsTaxable, parentName, onAddVariant, onEditVariant, onDeleteVariant }: VariantsTabProps) {
+  const sortedVariants = useMemo(
+    () => [...variants].sort((a, b) => b.quantity - a.quantity),
+    [variants]
+  );
+
   const variantsColumns: Column<Variant>[] = useMemo(
     () => [
       {
@@ -57,9 +63,13 @@ export function VariantsTab({ variants, loading, parentIsTaxable, parentName, on
       },
       {
         key: 'quantity',
-        header: 'Quantity',
+        header: 'Stock',
         width: 100,
-        accessor: 'quantity',
+        render: (variant) => (
+          <Badge color={stockColor(variant.quantity)} variant="light" size="sm">
+            {variant.quantity}
+          </Badge>
+        ),
       },
       {
         key: 'price',
@@ -143,7 +153,7 @@ export function VariantsTab({ variants, loading, parentIsTaxable, parentName, on
         </Group>
         <DataTable
           columns={variantsColumns}
-          data={variants}
+          data={sortedVariants}
           loading={loading}
           keyField="id"
           emptyMessage="No variants found"

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Paper, Stack, Group, Text, Button, ActionIcon, Box } from '@mantine/core';
+import { Paper, Stack, Group, Text, Button, Badge, ActionIcon, Box } from '@mantine/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { DataTable, Column } from '../common/DataTable';
 import { CopyButton, ProductDisplay } from '../common';
 import { MarkButton } from '../tray/MarkButton';
 import { IpcChannel } from '../../../shared/types/ipc';
+import { stockColor } from '../../utils/stockColor';
 
 interface InventoryAlternate {
   id: number;
@@ -19,6 +20,7 @@ interface AlternateDetail {
   category: string | null;
   model: string | null;
   price: string | null;
+  /** Total stock across all of the alternate's variants (falls back to product-level quantity). */
   quantity: number;
 }
 
@@ -68,7 +70,7 @@ export function AlternatesTab({
                   category: d.category ?? null,
                   model: d.model ?? null,
                   price: d.price ?? null,
-                  quantity: d.quantity ?? 0,
+                  quantity: d.totalStock ?? d.quantity ?? 0,
                 } as AlternateDetail,
               ] as const;
             }
@@ -84,6 +86,18 @@ export function AlternatesTab({
       cancelled = true;
     };
   }, [alternates, altSku]);
+
+  // Highest-stock alternates first; alternates not found in inventory sort last.
+  const sortedAlternates = useMemo(() => {
+    return [...alternates].sort((a, b) => {
+      const aDetail = details[altSku(a)];
+      const bDetail = details[altSku(b)];
+      if (!aDetail && !bDetail) return 0;
+      if (!aDetail) return 1;
+      if (!bDetail) return -1;
+      return bDetail.quantity - aDetail.quantity;
+    });
+  }, [alternates, details, altSku]);
 
   const alternatesColumns: Column<InventoryAlternate>[] = useMemo(
     () => [
@@ -136,11 +150,16 @@ export function AlternatesTab({
       },
       {
         key: 'quantity',
-        header: 'On Hand',
+        header: 'Stock',
         width: 90,
         render: (alt) => {
           const detail = details[altSku(alt)];
-          return <Text size="sm">{detail ? detail.quantity : '-'}</Text>;
+          if (!detail) return <Text size="sm" c="dimmed">-</Text>;
+          return (
+            <Badge color={stockColor(detail.quantity)} variant="light" size="sm">
+              {detail.quantity}
+            </Badge>
+          );
         },
       },
       {
@@ -184,7 +203,7 @@ export function AlternatesTab({
         </Group>
         <DataTable
           columns={alternatesColumns}
-          data={alternates}
+          data={sortedAlternates}
           loading={loading}
           keyField="id"
           emptyMessage="No alternates found"
