@@ -19,7 +19,6 @@ import {
   ScrollArea,
   Switch,
   Loader,
-  Popover,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import {
@@ -32,7 +31,6 @@ import {
   IconClipboardCheck,
   IconPrinter,
   IconUserPlus,
-  IconAdjustmentsHorizontal,
   IconEye,
   IconFileTypePdf,
 } from '@tabler/icons-react';
@@ -797,15 +795,29 @@ export function GoodsReceivalPage({ onBack }: { onBack?: () => void } = {}) {
           </Text>
         ) : (
           <ScrollArea>
-            <Table withTableBorder verticalSpacing="sm" miw={760}>
+            <Table withTableBorder verticalSpacing="sm" miw={1120}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th w={170}>Part #</Table.Th>
-                  <Table.Th miw={200}>Description</Table.Th>
-                  <Table.Th w={120}>Current</Table.Th>
-                  <Table.Th w={110}>Received</Table.Th>
-                  <Table.Th w={130}>Unit Cost</Table.Th>
-                  <Table.Th w={160}>Pricing</Table.Th>
+                  <Table.Th miw={180}>Description</Table.Th>
+                  <Table.Th w={100}>Current</Table.Th>
+                  <Table.Th w={100}>Received</Table.Th>
+                  <Table.Th w={110}>Unit Cost</Table.Th>
+                  <Table.Th w={80}>
+                    <Tooltip
+                      label="Off = update last cost only. On = also override selling/wholesale price everywhere."
+                      withArrow
+                      multiline
+                      w={220}
+                    >
+                      <Text size="sm" fw={600} style={{ cursor: 'help' }}>
+                        Override
+                      </Text>
+                    </Tooltip>
+                  </Table.Th>
+                  <Table.Th w={100}>Markup %</Table.Th>
+                  <Table.Th w={110}>New Price</Table.Th>
+                  <Table.Th w={110}>New Wholesale</Table.Th>
                   <Table.Th w={44} />
                 </Table.Tr>
               </Table.Thead>
@@ -911,82 +923,48 @@ export function GoodsReceivalPage({ onBack }: { onBack?: () => void } = {}) {
                         />
                       </Table.Td>
                       <Table.Td>
-                        <Popover width={280} position="bottom-end" withArrow shadow="md">
-                          <Popover.Target>
-                            <Button
-                              variant={row.applyNewPricing ? 'light' : 'subtle'}
-                              color={row.applyNewPricing ? 'blue' : 'gray'}
-                              size="xs"
-                              leftSection={<IconAdjustmentsHorizontal size={14} />}
-                              disabled={submitting}
-                              fullWidth
-                              justify="flex-start"
-                            >
-                              {row.applyNewPricing
-                                ? row.newPrice != null
-                                  ? `New $${row.newPrice.toFixed(2)}`
-                                  : 'Override'
-                                : 'Cost only'}
-                            </Button>
-                          </Popover.Target>
-                          <Popover.Dropdown>
-                            <Stack gap="sm">
-                              <Switch
-                                label="Override selling price"
-                                checked={row.applyNewPricing}
-                                onChange={(e) =>
-                                  toggleApplyPricing(row.rowId, e.currentTarget.checked)
-                                }
-                                size="sm"
-                                disabled={submitting}
-                              />
-                              <NumberInput
-                                label="Markup %"
-                                value={row.markup ?? ''}
-                                onChange={(v) =>
-                                  setMarkup(row.rowId, typeof v === 'number' ? v : null)
-                                }
-                                suffix="%"
-                                size="xs"
-                                disabled={pricingOff || submitting}
-                              />
-                              <NumberInput
-                                label="New unit price"
-                                value={row.newPrice ?? ''}
-                                onChange={(v) =>
-                                  setNewPrice(row.rowId, typeof v === 'number' ? v : null)
-                                }
-                                min={0}
-                                decimalScale={2}
-                                fixedDecimalScale
-                                prefix="$"
-                                size="xs"
-                                disabled={pricingOff || submitting}
-                              />
-                              <NumberInput
-                                label="New wholesale"
-                                value={row.newWholesale ?? ''}
-                                onChange={(v) =>
-                                  updateRow(
-                                    row.rowId,
-                                    'newWholesale',
-                                    typeof v === 'number' ? v : null
-                                  )
-                                }
-                                min={0}
-                                decimalScale={2}
-                                fixedDecimalScale
-                                prefix="$"
-                                size="xs"
-                                disabled={pricingOff || submitting}
-                              />
-                              <Text size="xs" c="dimmed">
-                                Off = update last cost only. On = also override selling/wholesale
-                                price everywhere.
-                              </Text>
-                            </Stack>
-                          </Popover.Dropdown>
-                        </Popover>
+                        <Switch
+                          checked={row.applyNewPricing}
+                          onChange={(e) => toggleApplyPricing(row.rowId, e.currentTarget.checked)}
+                          size="sm"
+                          disabled={submitting}
+                          aria-label="Override selling price"
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <NumberInput
+                          value={row.markup ?? ''}
+                          onChange={(v) => setMarkup(row.rowId, typeof v === 'number' ? v : null)}
+                          suffix="%"
+                          size="xs"
+                          disabled={pricingOff || submitting}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <NumberInput
+                          value={row.newPrice ?? ''}
+                          onChange={(v) => setNewPrice(row.rowId, typeof v === 'number' ? v : null)}
+                          min={0}
+                          decimalScale={2}
+                          fixedDecimalScale
+                          prefix="$"
+                          size="xs"
+                          disabled={pricingOff || submitting}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <NumberInput
+                          value={row.newWholesale ?? ''}
+                          onChange={(v) =>
+                            updateRow(row.rowId, 'newWholesale', typeof v === 'number' ? v : null)
+                          }
+                          min={0}
+                          decimalScale={2}
+                          fixedDecimalScale
+                          prefix="$"
+                          size="xs"
+                          disabled={pricingOff || submitting}
+                        />
                       </Table.Td>
                       <Table.Td>
                         <Group gap={2} wrap="nowrap">
