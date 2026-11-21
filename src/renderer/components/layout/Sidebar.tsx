@@ -130,15 +130,23 @@ export function Sidebar({ onNavigate, bind }: SidebarProps) {
     }
   };
 
-  const isPathActive = (path: string) => {
+  const isPathMatch = (path: string) => {
     if (path === "/") {
       return location.pathname === "/";
     }
     return location.pathname.startsWith(path);
   };
 
+  // Nested routes (e.g. "/inventory/manage/receive") match more than one nav
+  // item's path prefix (e.g. "/inventory"); only the longest/most specific
+  // match should render as active.
+  const activePath = [...mainNavItems, ...businessNavItems, ...adminNavItems]
+    .map((item) => item.path)
+    .filter(isPathMatch)
+    .reduce<string | null>((best, path) => (best === null || path.length > best.length ? path : best), null);
+
   const renderNavItem = (item: NavItem) => {
-    const isActive = isPathActive(item.path);
+    const isActive = item.path === activePath;
     const navHandlers = bind
       ? bind(item.path)
       : { onClick: (e: React.MouseEvent) => handleNavClick(item.path, e) };
