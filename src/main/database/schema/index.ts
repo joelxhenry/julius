@@ -26,6 +26,9 @@ export * from './payments';
 // Purchasing
 export * from './bills';
 
+// Business Expenses
+export * from './businessExpenses';
+
 // HR Tables
 export * from './employeeAttendance';
 export * from './employeeShifts';

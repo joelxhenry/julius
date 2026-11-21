@@ -5,6 +5,8 @@ import {
   IconShoppingCart,
   IconChartBar,
   IconReceipt2,
+  IconReceiptTax,
+  IconArrowsLeftRight,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconArrowLeft,
@@ -13,6 +15,8 @@ import { useContentNavigation } from '../../hooks/useContentNavigation';
 import { SalesSummaryReport } from './SalesSummaryReport';
 import { PurchaseReport } from './PurchaseReport';
 import { ReceivablesReport } from './ReceivablesReport';
+import { PaymentDetailReport } from './PaymentDetailReport';
+import { TaxReport } from './TaxReport';
 
 interface ReportEntry {
   key: string;
@@ -47,6 +51,22 @@ const reports: ReportEntry[] = [
     icon: <IconReceipt2 size={20} />,
     color: 'orange',
     component: <ReceivablesReport />,
+  },
+  {
+    key: 'payment-detail',
+    label: 'Payment Detail Report',
+    description: 'Payments in vs. returns/refunds out, by type',
+    icon: <IconArrowsLeftRight size={20} />,
+    color: 'indigo',
+    component: <PaymentDetailReport />,
+  },
+  {
+    key: 'tax',
+    label: 'Tax Summary',
+    description: 'Deductible expenses and net tax position, by category and month',
+    icon: <IconReceiptTax size={20} />,
+    color: 'blue',
+    component: <TaxReport />,
   },
 ];
 

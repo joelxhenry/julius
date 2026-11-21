@@ -26,6 +26,7 @@ import {
 } from '../pages/employees';
 import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
+import { ExpensesPage } from '../pages/expenses';
 import { SettingsPage } from '../pages/settings';
 import { ReportsPage } from '../pages/reports';
 import { SalesManagementPage } from '../pages/sales';
@@ -214,6 +215,11 @@ export const router = createHashRouter([
       {
         path: 'suppliers/:id/edit',
         element: <SupplierEditorPage />,
+      },
+      // Business Expenses
+      {
+        path: 'expenses',
+        element: <ExpensesPage />,
       },
       // Reports
       {

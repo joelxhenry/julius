@@ -237,6 +237,13 @@ export enum IpcChannel {
   RECORD_BILL_PAYMENT = 'db:record-bill-payment',
   ARCHIVE_BILL = 'db:archive-bill',
 
+  // Business expense operations
+  GET_BUSINESS_EXPENSES = 'db:get-business-expenses',
+  GET_BUSINESS_EXPENSE = 'db:get-business-expense',
+  CREATE_BUSINESS_EXPENSE = 'db:create-business-expense',
+  UPDATE_BUSINESS_EXPENSE = 'db:update-business-expense',
+  DELETE_BUSINESS_EXPENSE = 'db:delete-business-expense',
+
   // Payment operations
   GET_PAYMENTS = 'db:get-payments',
   GET_PAYMENTS_PAGINATED = 'db:get-payments-paginated',
@@ -377,9 +384,11 @@ export enum IpcChannel {
 
   // Report operations
   GET_SALES_REPORT = 'db:get-sales-report',
+  GET_PAYMENT_DETAIL_REPORT = 'db:get-payment-detail-report',
   GET_PAYMENT_COLLECTION_REPORT = 'db:get-payment-collection-report',
   GET_PURCHASE_REPORT = 'db:get-purchase-report',
   GET_RECEIVABLES_REPORT = 'db:get-receivables-report',
+  GET_TAX_REPORT = 'db:get-tax-report',
 
   // Export operations
   EXPORT_REPORT = 'export:report',

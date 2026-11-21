@@ -49,7 +49,7 @@ export class CategoryController extends BaseController<CategoryService> {
     }
   }
 
-  async getByType(categoryType: 'ACCOUNT' | 'INVENTORY') {
+  async getByType(categoryType: 'ACCOUNT' | 'INVENTORY' | 'EXPENSE') {
     try {
       const categories = await this.service.findByType(categoryType);
       return this.wrapSuccess(categories);

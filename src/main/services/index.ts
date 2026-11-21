@@ -41,6 +41,7 @@ export { QuotationService, type QuotationQueryParams } from './QuotationService'
 export { CreditNoteService, type CreditNoteQueryParams } from './CreditNoteService';
 export { DocumentLineItemService, type DocumentLineItemQueryParams } from './DocumentLineItemService';
 export { BillService, type BillQueryParams } from './BillService';
+export { BusinessExpenseService, type BusinessExpenseQueryParams } from './BusinessExpenseService';
 
 // Credit & Search Services
 export { CreditCheckService, type CreditCheckResult, type CreditIssue, type ArrearsInfo } from './CreditCheckService';

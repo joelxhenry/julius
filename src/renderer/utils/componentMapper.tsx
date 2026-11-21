@@ -19,6 +19,7 @@ import {
 } from '../pages/employees';
 import { ClientsPage, ClientEditorPage, ClientDetailPage } from '../pages/clients';
 import { SuppliersPage, SupplierDetailPage, SupplierEditorPage } from '../pages/suppliers';
+import { ExpensesPage } from '../pages/expenses';
 import { CreditNotesPage, CreditNoteDetailPage } from '../pages/credit-notes';
 import { SalesManagementPage } from '../pages/sales';
 import { RolesPage, RoleEditorPage } from '../pages/roles';
@@ -106,6 +107,9 @@ export function getComponentForPath(path: string): React.ReactNode {
   if (cleanPath.match(/^suppliers\/\d+\/edit$/)) {
     return <SupplierEditorPage />;
   }
+
+  // Business Expenses
+  if (cleanPath === 'expenses') return <ExpensesPage />;
 
   // Credit Notes
   if (cleanPath === 'credit-notes') return <CreditNotesPage />;

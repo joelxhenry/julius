@@ -33,6 +33,7 @@ import {
   CreditNoteService,
   DocumentLineItemService,
   BillService,
+  BusinessExpenseService,
   PaymentService,
   PaymentMethodService,
   GctPaymentService,
@@ -77,6 +78,7 @@ import {
   CreditNoteController,
   DocumentLineItemController,
   BillController,
+  BusinessExpenseController,
   PaymentController,
   PaymentMethodController,
   GctPaymentController,
@@ -344,6 +346,7 @@ function registerDataHandlers() {
   const creditNoteService = new CreditNoteService(db);
   const documentLineItemService = new DocumentLineItemService(db);
   const billService = new BillService(db);
+  const businessExpenseService = new BusinessExpenseService(db);
   const paymentService = new PaymentService(db);
   // Initialize InvoiceService with dependencies for atomic transactions
   const invoiceService = new InvoiceService(db, paymentService, creditNoteService, documentLineItemService);
@@ -399,6 +402,7 @@ function registerDataHandlers() {
   const creditNoteController = new CreditNoteController(creditNoteService);
   const documentLineItemController = new DocumentLineItemController(documentLineItemService);
   const billController = new BillController(billService);
+  const businessExpenseController = new BusinessExpenseController(businessExpenseService);
   const paymentController = new PaymentController(paymentService);
   const paymentMethodController = new PaymentMethodController(paymentMethodService);
   const gctPaymentController = new GctPaymentController(gctPaymentService);
@@ -878,6 +882,13 @@ function registerDataHandlers() {
   ipcMain.handle(IpcChannel.RECORD_BILL_PAYMENT, (_, { id, amount }: { id: number; amount: string }) => billController.recordPayment(id, amount));
   ipcMain.handle(IpcChannel.ARCHIVE_BILL, (_, { id }: { id: number }) => billController.archive(id));
 
+  // ===== BUSINESS EXPENSE HANDLERS =====
+  ipcMain.handle(IpcChannel.GET_BUSINESS_EXPENSES, (_, params: any = {}) => businessExpenseController.getPaginated(params));
+  ipcMain.handle(IpcChannel.GET_BUSINESS_EXPENSE, (_, { id }: { id: number }) => businessExpenseController.getById(id));
+  ipcMain.handle(IpcChannel.CREATE_BUSINESS_EXPENSE, (_, data: any) => businessExpenseController.create(data));
+  ipcMain.handle(IpcChannel.UPDATE_BUSINESS_EXPENSE, (_, { id, data }: any) => businessExpenseController.update(id, data));
+  ipcMain.handle(IpcChannel.DELETE_BUSINESS_EXPENSE, (_, { id }: { id: number }) => businessExpenseController.delete(id));
+
   // ===== PAYMENT HANDLERS =====
   ipcMain.handle(IpcChannel.GET_PAYMENTS, () => paymentController.getAll());
   ipcMain.handle(IpcChannel.GET_PAYMENTS_PAGINATED, (_, params: any = {}) => paymentController.getPaginated(params));
@@ -1185,12 +1196,16 @@ function registerDataHandlers() {
 
   ipcMain.handle(IpcChannel.GET_SALES_REPORT, (_, params: any = {}) =>
     reportController.getSalesSummary(params));
+  ipcMain.handle(IpcChannel.GET_PAYMENT_DETAIL_REPORT, (_, params: any = {}) =>
+    reportController.getPaymentDetail(params));
   ipcMain.handle(IpcChannel.GET_PAYMENT_COLLECTION_REPORT, (_, params: any = {}) =>
     reportController.getPaymentCollection(params));
   ipcMain.handle(IpcChannel.GET_PURCHASE_REPORT, (_, params: { year: number }) =>
     reportController.getPurchaseSummary(params));
   ipcMain.handle(IpcChannel.GET_RECEIVABLES_REPORT, () =>
     reportController.getReceivablesSummary());
+  ipcMain.handle(IpcChannel.GET_TAX_REPORT, (_, params: { year: number }) =>
+    reportController.getTaxSummary(params));
   ipcMain.handle(IpcChannel.PRINT_SALES_REPORT, async (_, params: SalesReportPrintRequest) => {
     try {
       const data = await reportService.getSalesSummary({

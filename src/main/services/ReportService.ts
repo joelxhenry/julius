@@ -108,6 +108,40 @@ export interface PaymentCollectionResult {
   byMethod: PaymentMethodSummary[];
 }
 
+export interface PaymentTypeBreakdown {
+  method: string;
+  count: number;
+  total: number;
+}
+
+export interface PaymentDetailItem {
+  paymentId: number;
+  date: string | null;
+  direction: 'in' | 'out';
+  documentType: 'INVOICE' | 'CREDIT';
+  /** Invoice number for INVOICE rows, credit-note number for CREDIT cash-outs. */
+  reference: string | null;
+  clientName: string | null;
+  paymentType: string;
+  transactionReference: string | null;
+  notes: string | null;
+  processedBy: string | null;
+  amount: number;
+}
+
+export interface PaymentDetailResult {
+  startDate: string | null;
+  endDate: string | null;
+  countIn: number;
+  totalIn: number;
+  countOut: number;
+  totalOut: number;
+  netTotal: number;
+  inByType: PaymentTypeBreakdown[];
+  outByType: PaymentTypeBreakdown[];
+  detail: PaymentDetailItem[];
+}
+
 export interface PurchaseReportParams {
   year: number;
 }
@@ -131,6 +165,35 @@ export interface PurchaseSummaryResult {
   totals: PurchaseReportTotals;
 }
 
+export interface TaxReportParams {
+  year: number;
+}
+
+export interface TaxSummaryCategoryRow {
+  category: string;
+  deductibleTotal: number;
+  nonDeductibleTotal: number;
+  taxPaid: number;
+}
+
+export interface TaxSummaryMonthRow {
+  month: number; // 1-12
+  deductibleTotal: number;
+  nonDeductibleTotal: number;
+  taxPaid: number;
+}
+
+export interface TaxSummaryResult {
+  year: number;
+  salesTaxCollected: number;
+  expenseTaxPaid: number;
+  netTaxPosition: number;
+  totalDeductibleExpenses: number;
+  totalNonDeductibleExpenses: number;
+  byCategory: TaxSummaryCategoryRow[];
+  byMonth: TaxSummaryMonthRow[];
+}
+
 // ── Service ─────────────────────────────────────────────────────────
 
 export class ReportService {
@@ -138,6 +201,31 @@ export class ReportService {
 
   constructor(db: NodePgDatabase<typeof schema>) {
     this.db = db;
+  }
+
+  // ── Payment method / notes resolution ──────────────────────────
+  // The method code lives in paymentDesc or paymentDesc2 (whichever one matches
+  // a payment_methods.code); the other carries free-text notes (or a VOID/REFUND/
+  // credit-note label). Shared by every report that reads raw payment rows.
+
+  private buildMethodMap(methods: schema.PaymentMethod[]): Map<string, string> {
+    const methodMap = new Map<string, string>();
+    methods.forEach((m) => methodMap.set(m.code, m.name));
+    return methodMap;
+  }
+
+  private resolvePaymentMethod(p: schema.Payment, methodMap: Map<string, string>): string {
+    const codeMatch = [p.paymentDesc, p.paymentDesc2].find((v) => v && methodMap.has(v)) || null;
+    const name = codeMatch ? (methodMap.get(codeMatch) ?? '') : '';
+    return canonicalizePaymentType(name || p.paymentDesc || p.paymentDesc2);
+  }
+
+  private resolvePaymentNotes(p: schema.Payment, methodMap: Map<string, string>): string | null {
+    const parts: string[] = [];
+    for (const v of [p.paymentDesc, p.paymentDesc2]) {
+      if (v && !methodMap.has(v) && !parts.includes(v)) parts.push(v);
+    }
+    return parts.length ? parts.join(' • ') : null;
   }
 
   // ── 1. Sales Summary ───────────────────────────────────────────
@@ -211,29 +299,13 @@ export class ReportService {
       this.db.select().from(schema.paymentMethods),
     ]);
 
-    // Method code lives in paymentDesc or paymentDesc2; resolve to a name, then
-    // fold it into one of the fixed canonical report payment types so the report
-    // only ever shows Cash / Bank Transfer / Cheque / Credit-Debit Card / Store
-    // Credit regardless of the varied labels stored on individual payments.
-    const methodMap = new Map<string, string>();
-    methods.forEach((m) => methodMap.set(m.code, m.name));
-    const resolveMethod = (p: schema.Payment): string => {
-      const codeMatch = [p.paymentDesc, p.paymentDesc2].find((v) => v && methodMap.has(v)) || null;
-      const name = codeMatch ? (methodMap.get(codeMatch) ?? '') : '';
-      return canonicalizePaymentType(name || p.paymentDesc || p.paymentDesc2);
-    };
-
-    // Free-text notes: the desc fields that aren't the method code. paymentDesc
-    // carries the user's notes (or a VOID/REFUND/credit-note label) while
-    // paymentDesc2 usually carries the method code; legacy rows may reverse them,
-    // so anything that isn't a known code is treated as a note.
-    const resolveNotes = (p: schema.Payment): string | null => {
-      const parts: string[] = [];
-      for (const v of [p.paymentDesc, p.paymentDesc2]) {
-        if (v && !methodMap.has(v) && !parts.includes(v)) parts.push(v);
-      }
-      return parts.length ? parts.join(' • ') : null;
-    };
+    // Fold the resolved method into one of the fixed canonical report payment
+    // types so the report only ever shows Cash / Bank Transfer / Cheque /
+    // Credit-Debit Card / Store Credit regardless of the varied labels stored
+    // on individual payments.
+    const methodMap = this.buildMethodMap(methods);
+    const resolveMethod = (p: schema.Payment) => this.resolvePaymentMethod(p, methodMap);
+    const resolveNotes = (p: schema.Payment) => this.resolvePaymentNotes(p, methodMap);
 
     let numPayments = 0;
     let valuePayments = 0;
@@ -413,6 +485,137 @@ export class ReportService {
     };
   }
 
+  // ── 2b. Payment Detail (money in vs. returns/refunds out) ──────
+
+  /**
+   * All cash movement through customer-facing payments for a date range: money
+   * received (INVOICE payments) and money paid back out (INVOICE refunds/voids
+   * and CREDIT cash-outs), each broken down by payment type. Supplier bill
+   * payments (documentType 'BILL') are out of scope - this is a receivables-side
+   * cash ledger, not full accounts-payable cash flow.
+   */
+  async getPaymentDetail(params: DateRangeParams): Promise<PaymentDetailResult> {
+    const { startDate, endDate } = params;
+
+    const payDateConditions = [];
+    if (startDate) payDateConditions.push(gte(schema.payments.paymentDate, startDate));
+    if (endDate) payDateConditions.push(lte(schema.payments.paymentDate, endDate));
+
+    const [payRows, methods] = await Promise.all([
+      this.db
+        .select({
+          payment: schema.payments,
+          clientName: schema.invoices.clientName,
+          processorFirstName: schema.employees.firstName,
+          processorLastName: schema.employees.lastName,
+          processorCode: schema.employees.code,
+        })
+        .from(schema.payments)
+        .leftJoin(schema.invoices, eq(schema.payments.invoiceNumber, schema.invoices.invNumber))
+        .leftJoin(schema.employees, eq(schema.payments.processedById, schema.employees.id))
+        .where(
+          and(
+            or(
+              eq(schema.payments.documentType, 'INVOICE'),
+              and(
+                eq(schema.payments.documentType, 'CREDIT'),
+                isNull(schema.payments.invoiceNumber),
+              ),
+            ),
+            ...payDateConditions,
+          ),
+        )
+        .orderBy(desc(schema.payments.paymentDate)),
+      this.db.select().from(schema.paymentMethods),
+    ]);
+
+    const methodMap = this.buildMethodMap(methods);
+
+    const addToBucket = (
+      map: Map<string, PaymentTypeBreakdown>,
+      method: string,
+      amount: number,
+      incrementCount: boolean,
+    ) => {
+      const existing = map.get(method);
+      if (existing) {
+        if (incrementCount) existing.count += 1;
+        existing.total += amount;
+      } else {
+        map.set(method, { method, count: incrementCount ? 1 : 0, total: amount });
+      }
+    };
+
+    let countIn = 0;
+    let totalIn = 0;
+    let countOut = 0;
+    let totalOut = 0;
+    const inTypeMap = new Map<string, PaymentTypeBreakdown>();
+    const outTypeMap = new Map<string, PaymentTypeBreakdown>();
+    const detail: PaymentDetailItem[] = [];
+
+    for (const row of payRows) {
+      const p = row.payment;
+      const rawAmount = Number(p.amount ?? 0);
+      const method = this.resolvePaymentMethod(p, methodMap);
+      const notes = this.resolvePaymentNotes(p, methodMap);
+      const processedBy = row.processorFirstName
+        ? [row.processorFirstName, row.processorLastName].filter(Boolean).join(' ')
+        : row.processorCode ?? null;
+
+      // Credit-note cash-outs (documentType CREDIT, no invoiceNumber) are
+      // always returns/refunds paid back out. A negative amount there is a
+      // rare void reversal of that cash-out and nets back against the Out
+      // total rather than counting as a separate inbound payment. Invoice
+      // rows split purely on sign: negative amount = refund/void.
+      const isCreditCashOut = p.documentType === 'CREDIT';
+      const isOut = isCreditCashOut || rawAmount < 0;
+      const amount = isCreditCashOut ? rawAmount : Math.abs(rawAmount);
+
+      if (isOut) {
+        const countThis = !isCreditCashOut || rawAmount >= 0;
+        if (countThis) countOut += 1;
+        totalOut += amount;
+        addToBucket(outTypeMap, method, amount, countThis);
+      } else {
+        countIn += 1;
+        totalIn += amount;
+        addToBucket(inTypeMap, method, amount, true);
+      }
+
+      detail.push({
+        paymentId: p.id,
+        date: p.paymentDate,
+        direction: isOut ? 'out' : 'in',
+        documentType: p.documentType as 'INVOICE' | 'CREDIT',
+        reference: isCreditCashOut ? (p.creditNoteNumber ?? null) : p.invoiceNumber,
+        clientName: row.clientName ?? p.payerName ?? null,
+        paymentType: method,
+        transactionReference: p.transactionReference ?? null,
+        notes,
+        processedBy,
+        amount,
+      });
+    }
+
+    const sortByCanon = (a: PaymentTypeBreakdown, b: PaymentTypeBreakdown) =>
+      CANONICAL_PAYMENT_TYPES.indexOf(a.method as (typeof CANONICAL_PAYMENT_TYPES)[number]) -
+      CANONICAL_PAYMENT_TYPES.indexOf(b.method as (typeof CANONICAL_PAYMENT_TYPES)[number]);
+
+    return {
+      startDate: startDate ?? null,
+      endDate: endDate ?? null,
+      countIn,
+      totalIn,
+      countOut,
+      totalOut,
+      netTotal: totalIn - totalOut,
+      inByType: Array.from(inTypeMap.values()).sort(sortByCanon),
+      outByType: Array.from(outTypeMap.values()).sort(sortByCanon),
+      detail,
+    };
+  }
+
   // ── 3. Purchase Report (year, month-by-month) ──────────────────
 
   /**
@@ -488,5 +691,94 @@ export class ReportService {
       console.error('Failed to update client credit standing during receivables report:', err);
     }
     return summary;
+  }
+
+  // ── 5. Tax Summary (deductible expenses + net tax position, by year) ──
+
+  /**
+   * Deductible/non-deductible business expense totals by category and by
+   * month for a given year, plus the net sales-tax position: tax collected on
+   * invoices minus tax paid on business expenses. Hands an accountant the
+   * figures needed for a tax filing.
+   */
+  async getTaxSummary(params: TaxReportParams): Promise<TaxSummaryResult> {
+    const { year } = params;
+
+    const [salesTaxRows, expenseRows] = await Promise.all([
+      this.db
+        .select({
+          taxCollected: sql<string>`COALESCE(SUM(CAST(${schema.invoices.tax} AS numeric)), 0)`,
+        })
+        .from(schema.invoices)
+        .where(sql`EXTRACT(YEAR FROM ${schema.invoices.invDate}) = ${year}`),
+      this.db
+        .select({
+          category: schema.businessExpenses.category,
+          month: sql<string>`EXTRACT(MONTH FROM ${schema.businessExpenses.expenseDate})`,
+          isTaxDeductible: schema.businessExpenses.isTaxDeductible,
+          amount: schema.businessExpenses.amount,
+          tax: schema.businessExpenses.tax,
+        })
+        .from(schema.businessExpenses)
+        .where(sql`EXTRACT(YEAR FROM ${schema.businessExpenses.expenseDate}) = ${year}`),
+    ]);
+
+    const salesTaxCollected = Number(salesTaxRows[0]?.taxCollected ?? 0);
+
+    const categoryMap = new Map<string, TaxSummaryCategoryRow>();
+    const monthMap = new Map<number, TaxSummaryMonthRow>();
+    let expenseTaxPaid = 0;
+    let totalDeductibleExpenses = 0;
+    let totalNonDeductibleExpenses = 0;
+
+    for (const row of expenseRows) {
+      const amount = Number(row.amount ?? 0);
+      const tax = Number(row.tax ?? 0);
+      const month = Number(row.month);
+
+      let categoryRow = categoryMap.get(row.category);
+      if (!categoryRow) {
+        categoryRow = { category: row.category, deductibleTotal: 0, nonDeductibleTotal: 0, taxPaid: 0 };
+        categoryMap.set(row.category, categoryRow);
+      }
+
+      let monthRow = monthMap.get(month);
+      if (!monthRow) {
+        monthRow = { month, deductibleTotal: 0, nonDeductibleTotal: 0, taxPaid: 0 };
+        monthMap.set(month, monthRow);
+      }
+
+      if (row.isTaxDeductible) {
+        categoryRow.deductibleTotal += amount;
+        monthRow.deductibleTotal += amount;
+        totalDeductibleExpenses += amount;
+      } else {
+        categoryRow.nonDeductibleTotal += amount;
+        monthRow.nonDeductibleTotal += amount;
+        totalNonDeductibleExpenses += amount;
+      }
+
+      categoryRow.taxPaid += tax;
+      monthRow.taxPaid += tax;
+      expenseTaxPaid += tax;
+    }
+
+    const byCategory = [...categoryMap.values()].sort((a, b) => b.deductibleTotal - a.deductibleTotal);
+
+    const byMonth: TaxSummaryMonthRow[] = [];
+    for (let m = 1; m <= 12; m++) {
+      byMonth.push(monthMap.get(m) ?? { month: m, deductibleTotal: 0, nonDeductibleTotal: 0, taxPaid: 0 });
+    }
+
+    return {
+      year,
+      salesTaxCollected,
+      expenseTaxPaid,
+      netTaxPosition: salesTaxCollected - expenseTaxPaid,
+      totalDeductibleExpenses,
+      totalNonDeductibleExpenses,
+      byCategory,
+      byMonth,
+    };
   }
 }

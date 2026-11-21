@@ -33,6 +33,7 @@ export const PERMISSION_CATEGORIES = [
   'Receiving',
   'Clients',
   'Suppliers',
+  'Business Expenses',
   'Payments',
   'Attendance',
   'Settings',
@@ -442,6 +443,32 @@ export const PERMISSIONS: PermissionDefinition[] = [
     label: 'Manage Bills',
     description: 'View and manage supplier bills and payments',
     category: 'Suppliers',
+  },
+
+  // ===== Business Expenses =====
+  {
+    code: 'VIEW_BUSINESS_EXPENSES',
+    label: 'View Business Expenses',
+    description: 'View recorded business expenses',
+    category: 'Business Expenses',
+  },
+  {
+    code: 'CREATE_BUSINESS_EXPENSE',
+    label: 'Create Business Expense',
+    description: 'Record new business expenses',
+    category: 'Business Expenses',
+  },
+  {
+    code: 'EDIT_BUSINESS_EXPENSE',
+    label: 'Edit Business Expense',
+    description: 'Edit recorded business expenses',
+    category: 'Business Expenses',
+  },
+  {
+    code: 'DELETE_BUSINESS_EXPENSE',
+    label: 'Delete Business Expense',
+    description: 'Delete recorded business expenses',
+    category: 'Business Expenses',
   },
 
   // ===== Payments =====

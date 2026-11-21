@@ -72,6 +72,9 @@ export const permissionProtectedRoutes: RoutePermission[] = [
   { path: '/suppliers/:id', permission: 'VIEW_SUPPLIERS', description: 'View Supplier' },
   { path: '/suppliers', permission: 'VIEW_SUPPLIERS', description: 'Suppliers' },
 
+  // Business Expenses
+  { path: '/expenses', permission: 'VIEW_BUSINESS_EXPENSES', description: 'Business Expenses' },
+
   // Payments
   { path: '/payments/:id', permission: 'VIEW_PAYMENTS', description: 'View Payment' },
   { path: '/payments', permission: 'VIEW_PAYMENTS', description: 'Payments' },

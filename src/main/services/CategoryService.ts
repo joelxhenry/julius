@@ -8,7 +8,7 @@ export interface CategoryQueryParams {
   page?: number;
   pageSize?: number;
   search?: string;
-  categoryType?: 'account' | 'inventory';
+  categoryType?: 'account' | 'inventory' | 'expense';
 }
 
 export class CategoryService extends BaseService<
@@ -61,7 +61,7 @@ export class CategoryService extends BaseService<
     };
   }
 
-  async findByType(categoryType: 'account' | 'inventory'): Promise<schema.Category[]> {
+  async findByType(categoryType: 'account' | 'inventory' | 'expense'): Promise<schema.Category[]> {
     return this.db
       .select()
       .from(schema.categories)
@@ -74,5 +74,9 @@ export class CategoryService extends BaseService<
 
   async findAccountCategories(): Promise<schema.Category[]> {
     return this.findByType('account');
+  }
+
+  async findExpenseCategories(): Promise<schema.Category[]> {
+    return this.findByType('expense');
   }
 }

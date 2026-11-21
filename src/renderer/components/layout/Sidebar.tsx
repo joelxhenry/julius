@@ -18,6 +18,7 @@ import {
   IconFilePlus,
   IconClipboardList,
   IconFileText,
+  IconReceipt2,
 } from "@tabler/icons-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { usePermissions } from "../../permissions";
@@ -76,6 +77,11 @@ const businessNavItems: NavItem[] = [
     label: "Suppliers",
     icon: <IconTruck size={20} stroke={1.5} />,
     path: "/suppliers",
+  },
+  {
+    label: "Business Expenses",
+    icon: <IconReceipt2 size={20} stroke={1.5} />,
+    path: "/expenses",
   },
   {
     label: "Payments",

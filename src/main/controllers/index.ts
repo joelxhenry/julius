@@ -24,6 +24,7 @@ export * from './QuotationController';
 export * from './CreditNoteController';
 export * from './DocumentLineItemController';
 export * from './BillController';
+export * from './BusinessExpenseController';
 
 // Payment Controllers
 export * from './PaymentController';
