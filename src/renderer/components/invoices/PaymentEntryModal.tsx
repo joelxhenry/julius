@@ -54,8 +54,10 @@ export function PaymentEntryModal({
   invoiceTotal,
   clientId,
 }: PaymentEntryModalProps) {
+  // Saved clients default to $0 (payment is often collected later); walk-in
+  // sales with no client on record default to the full balance due now.
   const [paymentEntries, setPaymentEntries] = useState<PaymentEntry[]>([
-    { paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) },
+    { paymentMethodCode: 'CASH', amount: clientId ? '0.00' : invoiceTotal.toFixed(2) },
   ]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
@@ -156,11 +158,13 @@ export function PaymentEntryModal({
   // Reset form when modal closes
   useEffect(() => {
     if (!opened) {
-      setPaymentEntries([{ paymentMethodCode: 'CASH', amount: invoiceTotal.toFixed(2) }]);
+      setPaymentEntries([
+        { paymentMethodCode: 'CASH', amount: clientId ? '0.00' : invoiceTotal.toFixed(2) },
+      ]);
       setCashHandovers({});
       setError(null);
     }
-  }, [opened, invoiceTotal]);
+  }, [opened, invoiceTotal, clientId]);
 
   const handleAddPaymentEntry = useCallback(() => {
     const remainingBalance = invoiceTotal - totalPayment;

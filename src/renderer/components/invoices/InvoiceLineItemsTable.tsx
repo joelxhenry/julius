@@ -99,9 +99,10 @@ export function InvoiceLineItemsTable({
 
   const handleProductSelect = (item: ProductSearchItem) => {
     onProductSelect(item);
-    // Clear the free-text query so the next search starts fresh; any active
-    // category/model filter is kept so the user can keep browsing.
+    // Clear all search fields so the next search starts fresh.
     productSearch.setQuery('');
+    productSearch.setCategory('');
+    productSearch.setModel('');
   };
 
   // --- Keyboard navigation between line-item cells and the search fields ---
@@ -136,14 +137,14 @@ export function InvoiceLineItemsTable({
     } else if (e.key === 'ArrowLeft' && field === 'discount' && atStart) {
       e.preventDefault();
       focusCell(lineItems[idx].id, 'quantity');
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown' && e.altKey) {
       e.preventDefault();
       if (idx < lineItems.length - 1) {
         focusCell(lineItems[idx + 1].id, field);
       } else {
         focusSearch();
       }
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === 'ArrowUp' && e.altKey) {
       e.preventDefault();
       if (idx > 0) {
         focusCell(lineItems[idx - 1].id, field);

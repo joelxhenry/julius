@@ -124,7 +124,7 @@ export const ProductSearchPanel = forwardRef<ProductSearchPanelHandle, ProductSe
     };
 
     return (
-      <Paper withBorder p={compact ? 'xs' : 'sm'} radius="md">
+      <Paper withBorder p={compact ? 'xs' : 'sm'} radius="md" style={{ position: 'relative' }}>
         <Grid gutter="xs" align="flex-end">
           <Grid.Col span={{ base: 12, sm: 6 }}>
             <TextInput
@@ -169,7 +169,21 @@ export const ProductSearchPanel = forwardRef<ProductSearchPanelHandle, ProductSe
         </Grid>
 
         {(query.trim().length >= 2 || category.trim() || model.trim()) && (
-          <ScrollArea.Autosize mah={280} mt="xs" viewportRef={viewportRef}>
+          <Paper
+            withBorder
+            shadow="md"
+            radius="md"
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              marginTop: 4,
+              zIndex: 200,
+              overflow: 'hidden',
+            }}
+          >
+          <ScrollArea.Autosize mah="min(70vh, 600px)" viewportRef={viewportRef}>
             {results.length > 0 ? (
               <div role="listbox" aria-label="Matching parts">
                 {results.map((item, index) => {
@@ -238,6 +252,7 @@ export const ProductSearchPanel = forwardRef<ProductSearchPanelHandle, ProductSe
               )
             )}
           </ScrollArea.Autosize>
+          </Paper>
         )}
       </Paper>
     );
