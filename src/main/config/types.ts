@@ -15,20 +15,13 @@ export interface DatabaseConfig {
 export type MachineRole = 'host' | 'client';
 
 /**
- * Google Drive backup configuration. `clientSecret` and `refreshToken` are
- * encrypted at rest by ConfigManager (same AES scheme as the DB password).
+ * Local backup configuration. Backups are written to a plain folder on disk —
+ * no credentials involved. For an offsite copy, point `backupFolderPath` at a
+ * folder already synced by OneDrive/Dropbox/Drive's desktop app.
  */
-export interface GoogleDriveConfig {
-  /** OAuth "Desktop app" client id. */
-  clientId?: string;
-  /** OAuth client secret (stored encrypted). */
-  clientSecret?: string;
-  /** Long-lived refresh token from the OAuth loopback flow (stored encrypted). */
-  refreshToken?: string;
-  /** Drive folder id that holds the uploaded backups. */
-  folderId?: string;
-  /** Connected Google account email, cached for display. */
-  accountEmail?: string;
+export interface LocalBackupConfig {
+  /** Absolute folder path backup zips are written to. */
+  backupFolderPath?: string;
   /** Whether automatic scheduled backups are enabled. */
   autoBackup?: boolean;
   /** Interval between automatic backups, in hours. */
@@ -50,6 +43,6 @@ export interface AppConfig {
    * fresh default config so the wizard runs.
    */
   setupCompleted?: boolean;
-  /** Google Drive backup settings + tokens. */
-  googleDrive?: GoogleDriveConfig;
+  /** Local backup settings. Backups only ever run on the host machine. */
+  backup?: LocalBackupConfig;
 }

@@ -5,9 +5,7 @@ import {
   Paper,
   Text,
   TextInput,
-  PasswordInput,
   Button,
-  Badge,
   Divider,
   Alert,
   Switch,
@@ -17,20 +15,17 @@ import {
   ActionIcon,
   Tooltip,
   Loader,
-  Anchor,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import {
-  IconBrandGoogleDrive,
+  IconFolder,
+  IconFolderOpen,
   IconCheck,
   IconAlertCircle,
   IconCloudUpload,
-  IconDownload,
   IconRestore,
   IconTrash,
-  IconPlugConnected,
-  IconPlugConnectedX,
   IconDeviceFloppy,
   IconRefresh,
 } from '@tabler/icons-react';
@@ -61,17 +56,16 @@ export function BackupSettingsTab() {
   const [loadingBackups, setLoadingBackups] = useState(false);
 
   // Form fields
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
   const [pgToolsPath, setPgToolsPath] = useState('');
   const [autoBackup, setAutoBackup] = useState(false);
   const [intervalHours, setIntervalHours] = useState<number | ''>(24);
 
   // Action flags
   const [isSaving, setIsSaving] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [isChoosingFolder, setIsChoosingFolder] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
-  const [busyFileId, setBusyFileId] = useState<string | null>(null);
+  const [isRestoringFromFile, setIsRestoringFromFile] = useState(false);
+  const [busyFileName, setBusyFileName] = useState<string | null>(null);
   const [progress, setProgress] = useState<BackupProgress | null>(null);
 
   // Latest status in a ref for use inside the progress subscription.
@@ -82,7 +76,6 @@ export function BackupSettingsTab() {
     const result = await window.electron.getBackupStatus();
     if (result.success) {
       setStatus(result.data);
-      setClientId(result.data.hasClientId ? '••••••••' : '');
       setPgToolsPath(result.data.pgToolsPath);
       setAutoBackup(result.data.autoBackup);
       setIntervalHours(result.data.autoBackupIntervalHours);
@@ -116,12 +109,12 @@ export function BackupSettingsTab() {
     return () => unsubscribe?.();
   }, []);
 
-  // Once connected, load the backup list.
+  // Once a folder is configured, load the backup list.
   useEffect(() => {
-    if (status?.connected) {
+    if (status?.configured) {
       void loadBackups();
     }
-  }, [status?.connected]);
+  }, [status?.configured]);
 
   const handleSaveSettings = async () => {
     if (!window.electron.saveBackupSettings) return;
@@ -132,10 +125,6 @@ export function BackupSettingsTab() {
         autoBackupIntervalHours: intervalHours === '' ? 24 : intervalHours,
         pgToolsPath,
       };
-      // Only send the client id/secret when the user actually typed new values
-      // (the id field shows a masked placeholder once saved).
-      if (clientId && !clientId.startsWith('•')) payload.clientId = clientId;
-      if (clientSecret) payload.clientSecret = clientSecret;
 
       const result = await window.electron.saveBackupSettings(payload);
       if (result.success) {
@@ -145,7 +134,6 @@ export function BackupSettingsTab() {
           color: 'green',
           icon: <IconCheck size={16} />,
         });
-        setClientSecret('');
         await loadStatus();
       } else {
         notifications.show({ title: 'Error', message: result.error, color: 'red' });
@@ -155,45 +143,32 @@ export function BackupSettingsTab() {
     }
   };
 
-  const handleConnect = async () => {
-    if (!window.electron.connectGoogleDrive) return;
-    // Persist any freshly-entered credentials first so the OAuth flow can use them.
-    if ((clientId && !clientId.startsWith('•')) || clientSecret) {
-      await handleSaveSettings();
-    }
-    setIsConnecting(true);
+  const handleChooseFolder = async () => {
+    if (!window.electron.chooseBackupFolder) return;
+    setIsChoosingFolder(true);
     try {
-      notifications.show({
-        title: 'Opening browser',
-        message: 'Complete the Google sign-in in your browser to connect.',
-        color: 'blue',
-      });
-      const result = await window.electron.connectGoogleDrive();
+      const result = await window.electron.chooseBackupFolder();
       if (result.success) {
         notifications.show({
-          title: 'Connected',
-          message: result.data.accountEmail
-            ? `Connected to ${result.data.accountEmail}`
-            : 'Google Drive connected.',
+          title: 'Backup folder set',
+          message: 'Backups will be written there.',
           color: 'green',
           icon: <IconCheck size={16} />,
         });
         await loadStatus();
-      } else {
-        notifications.show({ title: 'Connection failed', message: result.error, color: 'red' });
+      } else if (result.error !== 'Folder selection cancelled') {
+        notifications.show({ title: 'Error', message: result.error, color: 'red' });
       }
     } finally {
-      setIsConnecting(false);
+      setIsChoosingFolder(false);
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!window.electron.disconnectGoogleDrive) return;
-    const result = await window.electron.disconnectGoogleDrive();
-    if (result.success) {
-      setBackups([]);
-      await loadStatus();
-      notifications.show({ title: 'Disconnected', message: 'Google Drive has been disconnected.', color: 'gray' });
+  const handleOpenFolder = async () => {
+    if (!window.electron.openBackupFolder) return;
+    const result = await window.electron.openBackupFolder();
+    if (!result.success) {
+      notifications.show({ title: 'Error', message: result.error, color: 'red' });
     }
   };
 
@@ -238,11 +213,11 @@ export function BackupSettingsTab() {
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         if (!window.electron.restoreBackup) return;
-        setBusyFileId(file.id);
+        setBusyFileName(file.name);
         restoringRef.current = true;
         setProgress(null);
         try {
-          const result = await window.electron.restoreBackup(file.id);
+          const result = await window.electron.restoreBackup(file.name);
           if (result.success) {
             notifications.show({
               title: 'Restore complete',
@@ -256,7 +231,50 @@ export function BackupSettingsTab() {
             notifications.show({ title: 'Restore failed', message: result.error, color: 'red', autoClose: false });
           }
         } finally {
-          setBusyFileId(null);
+          setBusyFileName(null);
+          restoringRef.current = false;
+          setProgress(null);
+        }
+      },
+    });
+  };
+
+  const handleRestoreFromFile = () => {
+    modals.openConfirmModal({
+      title: 'Restore from file',
+      children: (
+        <Stack gap="xs">
+          <Text size="sm">
+            Choose a backup <strong>.zip</strong> file. This will <strong>replace all current data and
+            images</strong> with its contents.
+          </Text>
+          <Text size="sm" c="red">
+            Anything created since that backup will be permanently lost. This cannot be undone.
+          </Text>
+        </Stack>
+      ),
+      labels: { confirm: 'Choose file…', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        if (!window.electron.restoreBackupFromFile) return;
+        setIsRestoringFromFile(true);
+        restoringRef.current = true;
+        setProgress(null);
+        try {
+          const result = await window.electron.restoreBackupFromFile();
+          if (result.success) {
+            notifications.show({
+              title: 'Restore complete',
+              message: 'Your data has been restored. The app will reload.',
+              color: 'green',
+              icon: <IconCheck size={16} />,
+            });
+            setTimeout(() => window.location.reload(), 1800);
+          } else if (result.error !== 'Restore cancelled') {
+            notifications.show({ title: 'Restore failed', message: result.error, color: 'red', autoClose: false });
+          }
+        } finally {
+          setIsRestoringFromFile(false);
           restoringRef.current = false;
           setProgress(null);
         }
@@ -269,16 +287,16 @@ export function BackupSettingsTab() {
       title: 'Delete backup',
       children: (
         <Text size="sm">
-          Delete <strong>{file.name}</strong> from Google Drive? This cannot be undone.
+          Delete <strong>{file.name}</strong> from the backup folder? This cannot be undone.
         </Text>
       ),
       labels: { confirm: 'Delete', cancel: 'Cancel' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         if (!window.electron.deleteBackup) return;
-        setBusyFileId(file.id);
+        setBusyFileName(file.name);
         try {
-          const result = await window.electron.deleteBackup(file.id);
+          const result = await window.electron.deleteBackup(file.name);
           if (result.success) {
             notifications.show({ title: 'Deleted', message: `${file.name} removed.`, color: 'gray' });
             await loadBackups();
@@ -286,27 +304,10 @@ export function BackupSettingsTab() {
             notifications.show({ title: 'Error', message: result.error, color: 'red' });
           }
         } finally {
-          setBusyFileId(null);
+          setBusyFileName(null);
         }
       },
     });
-  };
-
-  const handleDownload = async (file: BackupFile) => {
-    if (!window.electron.downloadBackup) return;
-    setBusyFileId(file.id);
-    setProgress(null);
-    try {
-      const result = await window.electron.downloadBackup(file.id, file.name);
-      if (result.success) {
-        notifications.show({ title: 'Downloaded', message: `${file.name} saved.`, color: 'green', icon: <IconCheck size={16} /> });
-      } else if (result.error !== 'Download cancelled') {
-        notifications.show({ title: 'Download failed', message: result.error, color: 'red' });
-      }
-    } finally {
-      setBusyFileId(null);
-      setProgress(null);
-    }
   };
 
   if (loading) {
@@ -318,54 +319,43 @@ export function BackupSettingsTab() {
     );
   }
 
-  const connected = status?.connected ?? false;
-  const showProgressBar = (isBackingUp || busyFileId || restoringRef.current) && progress;
+  if (status && !status.isHost) {
+    return (
+      <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
+        Backups run on the host machine only. This machine is set up as a client — manage backups from
+        the host.
+      </Alert>
+    );
+  }
+
+  const configured = status?.configured ?? false;
+  const showProgressBar = (isBackingUp || busyFileName || restoringRef.current) && progress;
 
   return (
     <Stack gap="lg">
-      {/* Google Drive connection */}
+      {/* Backup folder */}
       <Paper p="lg" radius="md" withBorder>
         <Stack gap="md">
-          <Group justify="space-between">
-            <Group gap="sm">
-              <IconBrandGoogleDrive size={24} />
-              <Text fw={500} size="lg">Google Drive</Text>
-            </Group>
-            <Group gap="xs">
-              {connected ? (
-                <IconPlugConnected size={20} color="var(--mantine-color-green-6)" />
-              ) : (
-                <IconPlugConnectedX size={20} color="var(--mantine-color-red-6)" />
-              )}
-              <Badge color={connected ? 'green' : 'gray'} variant="light">
-                {connected ? (status?.accountEmail ?? 'Connected') : 'Not connected'}
-              </Badge>
-            </Group>
+          <Group gap="sm">
+            <IconFolder size={24} />
+            <Text fw={500} size="lg">Backup Folder</Text>
           </Group>
 
           <Divider />
 
           <Text size="sm" c="dimmed">
-            Create a Google Cloud project, enable the <strong>Google Drive API</strong>, and create an
-            OAuth <strong>Desktop app</strong> client. Paste its Client ID and Secret below, then connect.
-            The app only accesses the backups it creates.{' '}
-            <Anchor href="https://console.cloud.google.com/apis/credentials" target="_blank">
-              Open Google Cloud Console
-            </Anchor>
+            Backups are saved to the folder below — no sign-in or cloud account needed. For an offsite
+            copy, point it at a folder already synced by OneDrive, Dropbox, or Google Drive&rsquo;s
+            desktop app.
           </Text>
 
           <TextInput
-            label="OAuth Client ID"
-            placeholder="xxxxxxxx.apps.googleusercontent.com"
-            value={clientId}
-            onChange={(e) => setClientId(e.currentTarget.value)}
+            label="Folder"
+            placeholder="Not set"
+            value={status?.backupFolderPath ?? ''}
+            readOnly
           />
-          <PasswordInput
-            label="OAuth Client Secret"
-            placeholder={status?.hasClientSecret ? 'Leave blank to keep existing secret' : 'Enter client secret'}
-            value={clientSecret}
-            onChange={(e) => setClientSecret(e.currentTarget.value)}
-          />
+
           <TextInput
             label="Postgres tools path (optional)"
             description="Folder containing pg_dump / pg_restore. Leave blank to auto-detect."
@@ -384,17 +374,17 @@ export function BackupSettingsTab() {
               Save Settings
             </Button>
             <Group>
-              {connected && (
-                <Button variant="default" onClick={handleDisconnect}>
-                  Disconnect
+              {configured && (
+                <Button variant="default" leftSection={<IconFolderOpen size={16} />} onClick={handleOpenFolder}>
+                  Open Folder
                 </Button>
               )}
               <Button
-                leftSection={<IconBrandGoogleDrive size={16} />}
-                onClick={handleConnect}
-                loading={isConnecting}
+                leftSection={<IconFolder size={16} />}
+                onClick={handleChooseFolder}
+                loading={isChoosingFolder}
               >
-                {connected ? 'Reconnect' : 'Connect Google Drive'}
+                {configured ? 'Change Folder…' : 'Choose Folder…'}
               </Button>
             </Group>
           </Group>
@@ -442,15 +432,23 @@ export function BackupSettingsTab() {
             </div>
             <Group>
               <Tooltip label="Refresh list">
-                <ActionIcon variant="default" onClick={loadBackups} disabled={!connected || loadingBackups}>
+                <ActionIcon variant="default" onClick={loadBackups} disabled={!configured || loadingBackups}>
                   <IconRefresh size={16} />
                 </ActionIcon>
               </Tooltip>
               <Button
+                variant="default"
+                leftSection={<IconRestore size={16} />}
+                onClick={handleRestoreFromFile}
+                loading={isRestoringFromFile}
+              >
+                Restore from file…
+              </Button>
+              <Button
                 leftSection={<IconCloudUpload size={16} />}
                 onClick={handleBackupNow}
                 loading={isBackingUp}
-                disabled={!connected}
+                disabled={!configured}
               >
                 Back up now
               </Button>
@@ -470,9 +468,9 @@ export function BackupSettingsTab() {
 
           <Divider />
 
-          {!connected ? (
+          {!configured ? (
             <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
-              Connect Google Drive to create and view backups.
+              Choose a backup folder to create and view backups.
             </Alert>
           ) : loadingBackups ? (
             <Group justify="center" py="md"><Loader size="sm" /></Group>
@@ -490,7 +488,7 @@ export function BackupSettingsTab() {
               </Table.Thead>
               <Table.Tbody>
                 {backups.map((b) => (
-                  <Table.Tr key={b.id}>
+                  <Table.Tr key={b.name}>
                     <Table.Td><Text size="sm">{b.name}</Text></Table.Td>
                     <Table.Td><Text size="sm">{dayjs(b.createdAt).format('MMM D, YYYY h:mm A')}</Text></Table.Td>
                     <Table.Td><Text size="sm">{formatSize(b.size)}</Text></Table.Td>
@@ -501,19 +499,10 @@ export function BackupSettingsTab() {
                             variant="light"
                             color="orange"
                             onClick={() => handleRestore(b)}
-                            loading={busyFileId === b.id}
-                            disabled={busyFileId !== null && busyFileId !== b.id}
+                            loading={busyFileName === b.name}
+                            disabled={busyFileName !== null && busyFileName !== b.name}
                           >
                             <IconRestore size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Download">
-                          <ActionIcon
-                            variant="light"
-                            onClick={() => handleDownload(b)}
-                            disabled={busyFileId !== null}
-                          >
-                            <IconDownload size={16} />
                           </ActionIcon>
                         </Tooltip>
                         <Tooltip label="Delete">
@@ -521,7 +510,7 @@ export function BackupSettingsTab() {
                             variant="light"
                             color="red"
                             onClick={() => handleDelete(b)}
-                            disabled={busyFileId !== null}
+                            disabled={busyFileName !== null}
                           >
                             <IconTrash size={16} />
                           </ActionIcon>
@@ -539,7 +528,7 @@ export function BackupSettingsTab() {
       <Alert icon={<IconAlertCircle size={16} />} color="blue" variant="light">
         <Text size="sm">
           A backup includes the full database and all product images. Restoring overwrites current data,
-          so the app reloads afterwards. Credentials are stored encrypted on this machine.
+          so the app reloads afterwards.
         </Text>
       </Alert>
     </Stack>

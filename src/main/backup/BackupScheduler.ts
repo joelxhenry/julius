@@ -1,6 +1,5 @@
 import { BrowserWindow } from 'electron';
 import { ConfigManager } from '../config/ConfigManager';
-import { GoogleDriveService } from '../services/GoogleDriveService';
 import { BackupService } from '../services/BackupService';
 import { BackupController } from '../controllers/BackupController';
 import { BackupIpc, BackupProgress } from '../../shared/types/backup';
@@ -10,10 +9,11 @@ const CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 
 /**
  * Runs automatic backups on a schedule while the app is open. Each tick checks
- * whether auto-backup is enabled, Drive is connected, and the configured
- * interval has elapsed since the last successful backup; if so it runs one in
- * the background. `pg_dump` runs as its own process against the live database,
- * so this does not disturb the app's connection pool.
+ * that this machine is the host, auto-backup is enabled with a folder chosen,
+ * and the configured interval has elapsed since the last successful backup;
+ * if so it runs one in the background. `pg_dump` runs as its own process
+ * against the live database, so this does not disturb the app's connection
+ * pool.
  */
 export class BackupScheduler {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -35,23 +35,23 @@ export class BackupScheduler {
     }
   }
 
-  private isDue(): boolean {
-    const cfg = new ConfigManager().getGoogleDriveConfig();
-    if (!cfg.autoBackup || !cfg.refreshToken) return false;
+  private isDue(configManager: ConfigManager): boolean {
+    if (configManager.getRole() !== 'host') return false;
+    const cfg = configManager.getBackupConfig();
+    if (!cfg.autoBackup || !cfg.backupFolderPath) return false;
     const intervalMs = (cfg.autoBackupIntervalHours ?? 24) * 60 * 60 * 1000;
     const last = cfg.lastBackupAt ? Date.parse(cfg.lastBackupAt) : 0;
     return Date.now() - last >= intervalMs;
   }
 
   private async tick(): Promise<void> {
-    if (this.running || !this.isDue()) return;
+    const configManager = new ConfigManager();
+    if (this.running || !this.isDue(configManager)) return;
 
     this.running = true;
     try {
-      const configManager = new ConfigManager();
-      const driveService = new GoogleDriveService(configManager);
       const backupService = new BackupService(configManager);
-      const controller = new BackupController(configManager, driveService, backupService);
+      const controller = new BackupController(configManager, backupService);
 
       const emit = (p: BackupProgress) => {
         const win = this.getWindow();

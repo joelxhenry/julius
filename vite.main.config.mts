@@ -28,8 +28,6 @@ export default defineConfig({
       'sharp',
       // Backup feature: CJS/large packages that don't bundle cleanly. Loaded
       // at runtime from node_modules (copied by forge.config.ts copyNodeModules).
-      '@googleapis/drive',
-      'google-auth-library',
       'archiver',
       'unzipper',
     ],
@@ -53,8 +51,6 @@ export default defineConfig({
         /^drizzle-orm\/.*/,
         'sharp',
         // Backup feature runtime deps (see ssr.external above).
-        '@googleapis/drive',
-        'google-auth-library',
         'archiver',
         'unzipper',
         ...builtinModules,

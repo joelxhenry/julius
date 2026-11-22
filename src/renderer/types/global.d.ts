@@ -34,16 +34,16 @@ declare global {
       // First-run setup
       getSetupState?: () => Promise<SetupState>;
       completeSetup?: (role: MachineRole) => Promise<{ success: boolean; error?: string }>;
-      // Google Drive backup
+      // Local backup
       getBackupStatus?: () => Promise<BackupResult<BackupStatus>>;
       saveBackupSettings?: (settings: Partial<BackupSettings>) => Promise<BackupResult<null>>;
-      connectGoogleDrive?: () => Promise<BackupResult<{ accountEmail: string | null }>>;
-      disconnectGoogleDrive?: () => Promise<BackupResult<null>>;
+      chooseBackupFolder?: () => Promise<BackupResult<null>>;
+      openBackupFolder?: () => Promise<BackupResult<null>>;
       backupNow?: () => Promise<BackupResult<{ file: BackupFile; pruned: number }>>;
       listBackups?: () => Promise<BackupResult<BackupFile[]>>;
-      restoreBackup?: (fileId: string) => Promise<BackupResult<{ dbName: string; createdAt: string }>>;
-      deleteBackup?: (fileId: string) => Promise<BackupResult<null>>;
-      downloadBackup?: (fileId: string, name: string) => Promise<BackupResult<null>>;
+      restoreBackup?: (name: string) => Promise<BackupResult<{ dbName: string; createdAt: string }>>;
+      restoreBackupFromFile?: () => Promise<BackupResult<{ dbName: string; createdAt: string }>>;
+      deleteBackup?: (name: string) => Promise<BackupResult<null>>;
       onBackupProgress?: (callback: (progress: BackupProgress) => void) => () => void;
     };
   }

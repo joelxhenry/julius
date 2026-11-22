@@ -1,7 +1,6 @@
 import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
-import os from 'node:os';
 import { spawn } from 'node:child_process';
 import archiver from 'archiver';
 import unzipper from 'unzipper';
@@ -33,7 +32,7 @@ export interface BackupManifest {
 export interface CreatedBackup {
   /** Absolute path to the temp .zip. Caller must delete it when done. */
   zipPath: string;
-  /** Suggested Drive/file name. */
+  /** Suggested file name within the backup folder. */
   name: string;
   manifest: BackupManifest;
 }
@@ -246,7 +245,7 @@ export class BackupService {
    */
   private resolvePgTool(tool: 'pg_dump' | 'pg_restore'): string {
     const exe = process.platform === 'win32' ? `${tool}.exe` : tool;
-    const configured = this.configManager.getGoogleDriveConfig().pgToolsPath;
+    const configured = this.configManager.getBackupConfig().pgToolsPath;
 
     if (configured) {
       const candidate = path.join(configured, exe);
@@ -404,9 +403,4 @@ export class BackupService {
       /* ignore */
     }
   }
-}
-
-/** Convenience: default temp directory for ad-hoc downloads. */
-export function backupTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'julius-dl-'));
 }

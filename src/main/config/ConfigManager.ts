@@ -3,7 +3,7 @@ import { app } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { AppConfig, GoogleDriveConfig, MachineRole } from './types';
+import { AppConfig, LocalBackupConfig, MachineRole } from './types';
 import { reportError } from '../services/errorSanitizer';
 
 export class ConfigManager {
@@ -97,33 +97,6 @@ export class ConfigManager {
         }
       }
 
-      // Decrypt the Google Drive secrets, tolerating the legacy install-path key.
-      if (config.googleDrive) {
-        let migratedDriveSecret = false;
-        for (const field of ['clientSecret', 'refreshToken'] as const) {
-          const ciphertext = config.googleDrive[field];
-          if (!ciphertext) continue;
-          const { value, legacy } = this.decryptWithFallback(ciphertext);
-          if (value !== null) {
-            config.googleDrive[field] = value;
-            if (legacy) migratedDriveSecret = true;
-          } else {
-            // Undecryptable — drop it so the user re-authenticates rather than
-            // operating with an unusable token.
-            console.warn(`Stored Google Drive ${field} could not be decrypted; clearing it.`);
-            config.googleDrive[field] = undefined;
-          }
-        }
-        if (migratedDriveSecret) {
-          try {
-            this.save(config);
-            console.log('Migrated stored Google Drive secrets to the update-stable encryption key.');
-          } catch (migrationError) {
-            console.warn('Google Drive secret key migration re-save failed:', migrationError);
-          }
-        }
-      }
-
       return config;
     } catch (error) {
       console.error('Failed to load config:', error);
@@ -144,16 +117,6 @@ export class ConfigManager {
       // Encrypt password
       if (configToSave.database.password) {
         configToSave.database.password = this.encrypt(configToSave.database.password);
-      }
-
-      // Encrypt the Google Drive secrets at rest.
-      if (configToSave.googleDrive) {
-        for (const field of ['clientSecret', 'refreshToken'] as const) {
-          const value = configToSave.googleDrive[field];
-          if (value) {
-            configToSave.googleDrive[field] = this.encrypt(value);
-          }
-        }
       }
 
       // Ensure directory exists
@@ -260,19 +223,18 @@ export class ConfigManager {
     this.save(config);
   }
 
-  /** Current Google Drive backup config (secrets decrypted), or an empty object. */
-  public getGoogleDriveConfig(): GoogleDriveConfig {
-    return this.load().googleDrive ?? {};
+  /** Current local backup config, or an empty object. */
+  public getBackupConfig(): LocalBackupConfig {
+    return this.load().backup ?? {};
   }
 
   /**
-   * Merge a partial Google Drive config into the stored config and save.
-   * Only the provided keys are changed; secrets are re-encrypted on save.
-   * Pass a key set to `undefined` to clear it.
+   * Merge a partial backup config into the stored config and save.
+   * Only the provided keys are changed. Pass a key set to `undefined` to clear it.
    */
-  public saveGoogleDriveConfig(partial: Partial<GoogleDriveConfig>): void {
+  public saveBackupConfig(partial: Partial<LocalBackupConfig>): void {
     const config = this.load();
-    config.googleDrive = { ...(config.googleDrive ?? {}), ...partial };
+    config.backup = { ...(config.backup ?? {}), ...partial };
     this.save(config);
   }
 

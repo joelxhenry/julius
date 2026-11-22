@@ -57,18 +57,17 @@ contextBridge.exposeInMainWorld('electron', {
   completeSetup: (role: MachineRole): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(SetupIpc.COMPLETE, { role }),
 
-  // ===== Google Drive backup =====
+  // ===== Local backup =====
   getBackupStatus: () => ipcRenderer.invoke(BackupIpc.GET_STATUS),
   saveBackupSettings: (settings: Partial<BackupSettings>) =>
     ipcRenderer.invoke(BackupIpc.SAVE_SETTINGS, settings),
-  connectGoogleDrive: () => ipcRenderer.invoke(BackupIpc.CONNECT),
-  disconnectGoogleDrive: () => ipcRenderer.invoke(BackupIpc.DISCONNECT),
+  chooseBackupFolder: () => ipcRenderer.invoke(BackupIpc.CHOOSE_FOLDER),
+  openBackupFolder: () => ipcRenderer.invoke(BackupIpc.OPEN_FOLDER),
   backupNow: () => ipcRenderer.invoke(BackupIpc.BACKUP_NOW),
   listBackups: () => ipcRenderer.invoke(BackupIpc.LIST),
-  restoreBackup: (fileId: string) => ipcRenderer.invoke(BackupIpc.RESTORE, { fileId }),
-  deleteBackup: (fileId: string) => ipcRenderer.invoke(BackupIpc.DELETE, { fileId }),
-  downloadBackup: (fileId: string, name: string) =>
-    ipcRenderer.invoke(BackupIpc.DOWNLOAD, { fileId, name }),
+  restoreBackup: (name: string) => ipcRenderer.invoke(BackupIpc.RESTORE, { name }),
+  restoreBackupFromFile: () => ipcRenderer.invoke(BackupIpc.RESTORE_FROM_FILE),
+  deleteBackup: (name: string) => ipcRenderer.invoke(BackupIpc.DELETE, { name }),
   onBackupProgress: (callback: (progress: BackupProgress) => void) => {
     const listener = (_: unknown, data: BackupProgress) => callback(data);
     ipcRenderer.on(BackupIpc.PROGRESS, listener);

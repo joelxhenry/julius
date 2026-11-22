@@ -137,7 +137,7 @@ function copyNodeModules(buildPath: string) {
   // Backup feature: externalized packages + their full dependency closure,
   // resolved on disk so nested version trees (e.g. readable-stream v2 under
   // archiver) and their hoisted deps (process-nextick-args, etc.) are included.
-  const backupRoots = ['@googleapis/drive', 'google-auth-library', 'archiver', 'unzipper'];
+  const backupRoots = ['archiver', 'unzipper'];
   const backupDeps = new Set<string>(backupRoots);
   const seenDirs = new Set<string>();
   for (const root of backupRoots) {

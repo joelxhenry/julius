@@ -1,11 +1,10 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron';
+import { ipcMain, dialog, shell, BrowserWindow } from 'electron';
 import { getDatabaseOrNull, initDatabase, closeDatabase, getConnectionError, runMigrationsAndSeeds } from '../database';
 import { IpcChannel } from '../../shared/types/ipc';
 import { SetupIpc, SetupState } from '../../shared/types/setup';
 import { BackupIpc, BackupProgress, BackupSettings } from '../../shared/types/backup';
 import { ConfigManager } from '../config/ConfigManager';
 import { MachineRole } from '../config/types';
-import { GoogleDriveService } from '../services/GoogleDriveService';
 import { BackupService } from '../services/BackupService';
 import { BackupController } from '../controllers/BackupController';
 
@@ -236,15 +235,14 @@ export function registerIpcHandlers() {
       }
     });
 
-    // ===== GOOGLE DRIVE BACKUP HANDLERS =====
+    // ===== LOCAL BACKUP HANDLERS =====
     // Registered on raw BackupIpc channels (not IpcChannel) so they survive the
     // data-handler teardown on every DB reconnect — restore itself reconnects
     // the database, so these must keep working while the pool is down.
     {
       const backupConfigManager = new ConfigManager();
-      const driveService = new GoogleDriveService(backupConfigManager);
       const backupService = new BackupService(backupConfigManager);
-      const backupController = new BackupController(backupConfigManager, driveService, backupService);
+      const backupController = new BackupController(backupConfigManager, backupService);
 
       // Stream progress back to whichever window invoked the operation.
       const progressTo = (event: Electron.IpcMainInvokeEvent) => (p: BackupProgress) => {
@@ -259,9 +257,26 @@ export function registerIpcHandlers() {
         backupController.saveSettings(settings)
       );
 
-      ipcMain.handle(BackupIpc.CONNECT, () => backupController.connect());
+      ipcMain.handle(BackupIpc.CHOOSE_FOLDER, async (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const options = { properties: ['openDirectory', 'createDirectory'] as const };
+        const dialogResult = win
+          ? await dialog.showOpenDialog(win, options)
+          : await dialog.showOpenDialog(options);
+        if (dialogResult.canceled || !dialogResult.filePaths[0]) {
+          return { success: false, error: 'Folder selection cancelled' };
+        }
+        return backupController.saveSettings({ backupFolderPath: dialogResult.filePaths[0] });
+      });
 
-      ipcMain.handle(BackupIpc.DISCONNECT, () => backupController.disconnect());
+      ipcMain.handle(BackupIpc.OPEN_FOLDER, () => {
+        const cfg = backupConfigManager.getBackupConfig();
+        if (!cfg.backupFolderPath) {
+          return { success: false, error: 'No backup folder set.' };
+        }
+        void shell.openPath(cfg.backupFolderPath);
+        return { success: true, data: null };
+      });
 
       ipcMain.handle(BackupIpc.LIST, () => backupController.listBackups());
 
@@ -269,12 +284,12 @@ export function registerIpcHandlers() {
         backupController.backupNow(progressTo(event))
       );
 
-      ipcMain.handle(BackupIpc.DELETE, (_, { fileId }: { fileId: string }) =>
-        backupController.deleteBackup(fileId)
+      ipcMain.handle(BackupIpc.DELETE, (_, { name }: { name: string }) =>
+        backupController.deleteBackup(name)
       );
 
-      ipcMain.handle(BackupIpc.RESTORE, async (event, { fileId }: { fileId: string }) => {
-        const result = await backupController.restore(fileId, progressTo(event));
+      ipcMain.handle(BackupIpc.RESTORE, async (event, { name }: { name: string }) => {
+        const result = await backupController.restore(name, progressTo(event));
         if (result.success) {
           // The database pool was replaced during restore; rebind the data-layer
           // IPC handlers to the fresh connection (mirrors RECONNECT_DATABASE).
@@ -284,19 +299,27 @@ export function registerIpcHandlers() {
         return result;
       });
 
-      ipcMain.handle(BackupIpc.DOWNLOAD, async (event, { fileId, name }: { fileId: string; name: string }) => {
+      ipcMain.handle(BackupIpc.RESTORE_FROM_FILE, async (event) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         const options = {
-          defaultPath: name,
           filters: [{ name: 'Backup Archive', extensions: ['zip'] }],
+          properties: ['openFile'] as const,
         };
         const dialogResult = win
-          ? await dialog.showSaveDialog(win, options)
-          : await dialog.showSaveDialog(options);
-        if (dialogResult.canceled || !dialogResult.filePath) {
-          return { success: false, error: 'Download cancelled' };
+          ? await dialog.showOpenDialog(win, options)
+          : await dialog.showOpenDialog(options);
+        if (dialogResult.canceled || !dialogResult.filePaths[0]) {
+          return { success: false, error: 'Restore cancelled' };
         }
-        return backupController.downloadToPath(fileId, dialogResult.filePath, progressTo(event));
+
+        const result = await backupController.restoreFromFile(dialogResult.filePaths[0], progressTo(event));
+        if (result.success) {
+          // The database pool was replaced during restore; rebind the data-layer
+          // IPC handlers to the fresh connection (mirrors RECONNECT_DATABASE).
+          removeDataHandlers();
+          registerDataHandlers();
+        }
+        return result;
       });
     }
 

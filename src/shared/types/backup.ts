@@ -1,38 +1,39 @@
 /**
- * Google Drive backup/restore IPC contract. Like the setup and update channels,
+ * Local backup/restore IPC contract. Like the setup and update channels,
  * these are kept OUT of the `IpcChannel` enum so the data-handler cleanup that
  * runs on every database reconnect never strips them. Restore must remain
  * callable while the database is being torn down and re-initialised.
+ *
+ * Backups only ever run on the host machine (where the database and image
+ * store physically live) — every mutating handler rejects on a client.
  */
 export const BackupIpc = {
-  /** invoke: current Drive connection + settings status. */
+  /** invoke: current backup folder + settings status. */
   GET_STATUS: 'backup:get-status',
-  /** invoke: persist backup settings (client id/secret, schedule, pg tools path). */
+  /** invoke: persist backup settings (schedule, pg tools path). */
   SAVE_SETTINGS: 'backup:save-settings',
-  /** invoke: run the OAuth loopback flow and store a refresh token. */
-  CONNECT: 'backup:connect',
-  /** invoke: clear stored Google Drive tokens. */
-  DISCONNECT: 'backup:disconnect',
-  /** invoke: create a backup and upload it to Drive. */
+  /** invoke: pick a backup folder via a native directory dialog. */
+  CHOOSE_FOLDER: 'backup:choose-folder',
+  /** invoke: reveal the configured backup folder in the OS file explorer. */
+  OPEN_FOLDER: 'backup:open-folder',
+  /** invoke: create a backup and write it to the configured folder. */
   BACKUP_NOW: 'backup:backup-now',
-  /** invoke: list backups currently stored in Drive. */
+  /** invoke: list backups currently in the configured folder. */
   LIST: 'backup:list',
-  /** invoke: download + restore a backup by Drive file id (destructive). */
+  /** invoke: restore a backup from the configured folder by file name (destructive). */
   RESTORE: 'backup:restore',
-  /** invoke: delete a backup from Drive by file id. */
+  /** invoke: restore from any local backup .zip chosen via open dialog (destructive). */
+  RESTORE_FROM_FILE: 'backup:restore-from-file',
+  /** invoke: delete a backup from the configured folder by file name. */
   DELETE: 'backup:delete',
-  /** invoke: download a backup to a local file chosen via save dialog. */
-  DOWNLOAD: 'backup:download',
   /** event (main -> renderer): long-running backup/restore progress. */
   PROGRESS: 'backup:progress',
 } as const;
 
 /** Settings the user controls for the backup feature. */
 export interface BackupSettings {
-  /** Google OAuth "Desktop app" client id. */
-  clientId: string;
-  /** Google OAuth client secret. Write-only from the renderer's perspective. */
-  clientSecret: string;
+  /** Absolute folder path backup zips are written to. */
+  backupFolderPath: string;
   /** Whether automatic scheduled backups are enabled. */
   autoBackup: boolean;
   /** Interval between automatic backups, in hours. */
@@ -41,14 +42,14 @@ export interface BackupSettings {
   pgToolsPath: string;
 }
 
-/** Snapshot of the current backup configuration + Drive connection. */
+/** Snapshot of the current backup configuration. */
 export interface BackupStatus {
-  /** True once a client id/secret have been saved. */
+  /** True on the host machine — backups only run there. */
+  isHost: boolean;
+  /** True once a backup folder has been chosen. */
   configured: boolean;
-  /** True once a refresh token is stored (OAuth completed). */
-  connected: boolean;
-  /** The connected Google account email, if known. */
-  accountEmail: string | null;
+  /** The configured backup folder, if any. */
+  backupFolderPath: string | null;
   /** Whether automatic backups are enabled. */
   autoBackup: boolean;
   /** Interval between automatic backups, in hours. */
@@ -57,18 +58,15 @@ export interface BackupStatus {
   pgToolsPath: string;
   /** ISO timestamp of the last successful backup, if any. */
   lastBackupAt: string | null;
-  /** Whether the client id/secret are present so a connect can be attempted. */
-  hasClientId: boolean;
-  hasClientSecret: boolean;
 }
 
-/** A backup file as listed from Drive. */
+/** A backup .zip as listed from the configured folder. */
 export interface BackupFile {
-  id: string;
+  /** File name within the backup folder; also its identifier. */
   name: string;
-  /** ISO created time. */
+  /** ISO created time (file mtime). */
   createdAt: string;
-  /** Size in bytes, if reported by Drive. */
+  /** Size in bytes. */
   size: number | null;
 }
 
@@ -76,8 +74,7 @@ export interface BackupFile {
 export type BackupPhase =
   | 'dumping-database'
   | 'archiving-images'
-  | 'uploading'
-  | 'downloading'
+  | 'saving'
   | 'extracting'
   | 'restoring-database'
   | 'restoring-images'
