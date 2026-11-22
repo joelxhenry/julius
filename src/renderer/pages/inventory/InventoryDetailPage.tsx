@@ -1009,7 +1009,7 @@ export function InventoryDetailPage() {
                 </Badge>
               )}
             </Group>
-            <Text c="white" size="sm" fw={700}>
+            <Text size="sm" fw={700}>
               {item.description1}
             </Text>
             {item.category && (
