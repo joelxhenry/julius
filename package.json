@@ -1,7 +1,7 @@
 {
   "name": "turbo-julius",
   "productName": "Julius Auto Parts",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "scripts": {
